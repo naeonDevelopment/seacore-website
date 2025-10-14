@@ -1,0 +1,33 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="seacore-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#14b8a6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Ship hull -->
+  <path d="M4 20 L16 16 L28 20 L26 24 L6 24 Z" fill="url(#seacore-gradient)" />
+  
+  <!-- Ship superstructure -->
+  <rect x="10" y="12" width="12" height="4" rx="1" fill="url(#seacore-gradient)" />
+  
+  <!-- Ship mast -->
+  <rect x="15" y="6" width="2" height="6" fill="url(#seacore-gradient)" />
+  
+  <!-- AI neural network nodes -->
+  <circle cx="8" cy="8" r="1.5" fill="#14b8a6" opacity="0.8" />
+  <circle cx="16" cy="4" r="1.5" fill="#06b6d4" opacity="0.8" />
+  <circle cx="24" cy="8" r="1.5" fill="#0ea5e9" opacity="0.8" />
+  
+  <!-- AI connection lines -->
+  <path d="M8 8 L16 4 L24 8" stroke="#06b6d4" stroke-width="0.5" opacity="0.6" />
+  <path d="M8 8 L16 12" stroke="#14b8a6" stroke-width="0.5" opacity="0.6" />
+  <path d="M24 8 L16 12" stroke="#0ea5e9" stroke-width="0.5" opacity="0.6" />
+  
+  <!-- Water waves -->
+  <path d="M2 26 Q8 24 14 26 T26 26 Q28 26 30 26" stroke="#06b6d4" stroke-width="1" fill="none" opacity="0.4" />
+  <path d="M2 28 Q6 27 10 28 T18 28 Q22 28 26 28 Q28 28 30 28" stroke="#14b8a6" stroke-width="1" fill="none" opacity="0.3" />
+</svg>
+
