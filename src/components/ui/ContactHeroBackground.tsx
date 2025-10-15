@@ -1,6 +1,6 @@
 import React from 'react'
 
-interface PlatformHeroBackgroundProps {
+interface ContactHeroBackgroundProps {
   isDarkMode: boolean
 }
 
@@ -12,9 +12,9 @@ const getAssetPath = (path: string) => {
   return isProduction ? `/site/${path}` : `/${path}`
 }
 
-export const PlatformHeroBackground: React.FC<PlatformHeroBackgroundProps> = ({ isDarkMode }) => {
-  // Use Integration section image for hero
-  const imageSrc = getAssetPath('assets/section_integrations/Generated Image October 06, 2025 - 5_16PM.png')
+export const ContactHeroBackground: React.FC<ContactHeroBackgroundProps> = ({ isDarkMode }) => {
+  // Use Contact hero image
+  const imageSrc = getAssetPath('assets/hero_contact/hero_contact.png')
 
   return (
     <>
@@ -36,7 +36,7 @@ export const PlatformHeroBackground: React.FC<PlatformHeroBackgroundProps> = ({ 
         className={`absolute inset-0 ${
           isDarkMode 
             ? 'bg-gradient-to-b from-slate-900/30 via-slate-900/10 to-slate-900/30' 
-            : 'bg-gradient-to-b from-white/40 via-white/15 to-white/40'
+            : 'bg-gradient-to-b from-white/70 via-white/40 to-white/70'
         }`}
         style={{ 
           zIndex: 1,
@@ -47,3 +47,4 @@ export const PlatformHeroBackground: React.FC<PlatformHeroBackgroundProps> = ({ 
     </>
   )
 }
+

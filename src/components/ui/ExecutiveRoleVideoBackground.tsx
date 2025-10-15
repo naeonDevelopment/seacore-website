@@ -109,7 +109,7 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
         <motion.video
           ref={videoRef}
           key={currentVideoIndex}
-          className="absolute inset-0 w-full h-full object-cover z-10"
+          className="absolute inset-0 w-full object-cover z-10"
           autoPlay
           muted
           playsInline
@@ -120,7 +120,10 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
           animate={{ opacity: isLoaded ? 1 : 0 }}
           transition={{ duration: 0.8 }} // Slightly longer transition for executive content
           style={{ 
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
+            height: '110%',
+            top: 0,
+            objectPosition: 'center top'
           }}
         >
           <source src={videoSources[currentVideoIndex]} type="video/mp4" />

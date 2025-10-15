@@ -295,11 +295,24 @@ const SolutionsPage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ 
+              duration: 0.6,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="max-w-5xl mx-auto text-center"
+            style={{ 
+              willChange: 'opacity, transform',
+              transform: 'translateZ(0)'
+            }}
           >
             {/* Badge */}
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 mb-8">
+            <div 
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 mb-8"
+              style={{
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
+            >
               <Settings className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
                 Maritime Technical Operating System
@@ -308,21 +321,95 @@ const SolutionsPage: React.FC = () => {
 
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold enterprise-heading mb-8 leading-tight">
-              <span className="text-slate-900 dark:text-slate-100">Not Just Software.</span>
+              <span 
+                className="text-black dark:text-white" 
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                    : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
+                Not Just Software.
+              </span>
               <br />
-              <span className="maritime-gradient-text">An Operating System</span>
+              <span 
+                className="maritime-gradient-text" 
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                    : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                  filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
+                An Operating System
+              </span>
               <br />
-              <span className="text-slate-900 dark:text-slate-100">For</span> <span className="maritime-gradient-text">Maritime Intelligence</span><span className="text-slate-900 dark:text-slate-100">.</span>
+              <span 
+                className="text-black dark:text-white" 
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                    : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
+                For
+              </span>{' '}
+              <span 
+                className="maritime-gradient-text" 
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                    : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                  filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
+                Maritime Intelligence
+              </span>
+              <span 
+                className="text-black dark:text-white" 
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                    : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
+                .
+              </span>
             </h1>
 
             {/* Subheadline */}
-            <p className="text-lg md:text-xl text-black dark:text-white enterprise-body max-w-3xl mx-auto mb-12 font-semibold">
+            <p 
+              className="text-lg md:text-xl text-black dark:text-white enterprise-body max-w-3xl mx-auto mb-12 font-semibold" 
+              style={{ 
+                textShadow: isDarkMode
+                  ? '0 0 50px rgba(0,0,0,0.35), 0 0 100px rgba(0,0,0,0.25), 0 3px 25px rgba(0,0,0,0.3)'
+                  : '0 0 50px rgba(255,255,255,0.45), 0 0 100px rgba(255,255,255,0.35), 0 3px 25px rgba(255,255,255,0.4)',
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
+            >
               Traditional CMMS systems only track maintenance. SeaCore <strong>automates scheduling, prevents failures, 
               and optimizes operations</strong> — transforming reactive chaos into proactive intelligence.
             </p>
 
             {/* Key Features Tags */}
-            <div className="flex flex-wrap gap-3 justify-center mb-12">
+            <div 
+              className="flex flex-wrap gap-3 justify-center mb-12"
+              style={{
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
+            >
               <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium">
                 <Calendar className="w-4 h-4" />
                 <span>Smart Automation</span>
@@ -342,7 +429,13 @@ const SolutionsPage: React.FC = () => {
             </div>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div 
+              className="flex flex-col sm:flex-row gap-4 justify-center"
+              style={{
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
+            >
               <Button variant="gradient" size="xl" className="group">
                 See the System in Action
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

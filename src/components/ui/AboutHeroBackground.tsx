@@ -2,23 +2,23 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { getAssetPath } from '@/utils/assetPath'
 
-interface SolutionsHeroBackgroundProps {
+interface AboutHeroBackgroundProps {
   isDarkMode?: boolean
   className?: string
 }
 
-const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({ 
+const AboutHeroBackground: React.FC<AboutHeroBackgroundProps> = ({ 
   isDarkMode = false, 
   className = '' 
 }) => {
   const [isLoaded, setIsLoaded] = useState(false)
   
-  // Use light image for hero (dark image is used in Architecture section)
-  const imageSrc = getAssetPath('site/assets/hero_solutions/Generated Image October 05, 2025 - 2_47PM.png')
+  // Use About hero image
+  const imageSrc = getAssetPath('assets/hero_about/hero_about.png')
 
   // Debug logging
   useEffect(() => {
-    console.log('🔍 SolutionsHeroBackground:', {
+    console.log('🔍 AboutHeroBackground:', {
       imageSrc,
       isLoaded,
       isDarkMode
@@ -27,13 +27,13 @@ const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({
 
   // Handle image load
   const handleImageLoad = () => {
-    console.log('✅ Solutions hero image loaded successfully from:', imageSrc)
+    console.log('✅ About hero image loaded successfully from:', imageSrc)
     setIsLoaded(true)
   }
 
   // Handle image error (fallback to gradient gracefully)
   const handleImageError = (error: any) => {
-    console.log('❌ Solutions hero image failed to load from:', imageSrc)
+    console.log('❌ About hero image failed to load from:', imageSrc)
     console.error('Error details:', error)
     setIsLoaded(false)
   }
@@ -43,8 +43,8 @@ const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({
       {/* Fallback gradient background - always show - theme-aware gradient */}
       <div className={`absolute inset-0 z-0 transition-colors duration-500 ${
         isDarkMode
-          ? 'bg-gradient-to-br from-indigo-950/50 via-purple-950/30 to-pink-950/20'
-          : 'bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-pink-50/20'
+          ? 'bg-gradient-to-br from-blue-950/50 via-emerald-950/30 to-indigo-950/20'
+          : 'bg-gradient-to-br from-blue-50/50 via-emerald-50/30 to-indigo-50/20'
       }`} />
 
       {/* Static Image Background */}
@@ -56,7 +56,7 @@ const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({
       >
         <motion.img
           src={imageSrc}
-          alt="Solutions Hero Background"
+          alt="About Hero Background"
           className="absolute inset-0 w-full object-cover"
           onLoad={handleImageLoad}
           onError={handleImageError}
@@ -108,10 +108,11 @@ const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({
         />
       )}
 
-      {/* Radial gradient for AI theme */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.05),transparent_50%)] z-40"></div>
+      {/* Subtle radial gradient for depth */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)] z-40"></div>
     </div>
   )
 }
 
-export { SolutionsHeroBackground }
+export { AboutHeroBackground }
+

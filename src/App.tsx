@@ -6,6 +6,7 @@ import HomePage from '@/pages/HomePage'
 import SolutionsPage from '@/pages/SolutionsPage'
 import PlatformPage from '@/pages/PlatformPage'
 import AboutPage from '@/pages/AboutPage'
+import ContactPage from '@/pages/ContactPage'
 import '@/styles/globals.css'
 
 function App() {
@@ -70,7 +71,7 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             
             {/* Contact Route */}
-            <Route path="/contact" element={<div className="pt-24 p-8">Contact Page Coming Soon</div>} />
+            <Route path="/contact" element={<ContactPage />} />
             
             {/* 404 Route */}
             <Route path="*" element={<div className="pt-24 p-8 text-center">Page Not Found</div>} />

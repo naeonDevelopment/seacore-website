@@ -111,7 +111,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         <motion.video
           ref={videoRef}
           key={currentVideoIndex}
-          className="absolute inset-0 w-full h-full object-cover z-10"
+          className="absolute inset-0 w-full object-cover z-10"
           autoPlay
           muted
           playsInline
@@ -122,7 +122,10 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           animate={{ opacity: isLoaded ? 1 : 0 }}
           transition={{ duration: 0.5 }}
           style={{ 
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
+            height: '110%',
+            top: 0,
+            objectPosition: 'center top'
           }}
         >
           <source src={videoSources[currentVideoIndex]} type="video/mp4" />

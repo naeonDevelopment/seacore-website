@@ -22,11 +22,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
 
   const navigationItems = [
     {
-      id: 'home',
-      label: 'Home',
-      href: '/'
-    },
-    {
       id: 'solution',
       label: 'Solution',
       href: '/solutions'

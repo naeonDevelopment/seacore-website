@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 
-interface IntegrationsSectionBackgroundProps {
+interface VisionSectionBackgroundProps {
   isDarkMode: boolean
 }
 
@@ -13,7 +13,7 @@ const getAssetPath = (path: string) => {
   return isProduction ? `/site/${path}` : `/${path}`
 }
 
-export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgroundProps> = ({ isDarkMode }) => {
+export const VisionSectionBackground: React.FC<VisionSectionBackgroundProps> = ({ isDarkMode }) => {
   const [isLoaded, setIsLoaded] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   
@@ -27,16 +27,27 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
   const y = useTransform(scrollYProgress, [0, 1], [0, -50])
   const scale = useTransform(scrollYProgress, [0, 1], [1, 1.15])
   
-  // Use Platform hero image for integrations section
-  const imageSrc = getAssetPath('assets/hero_platform/Generated Image October 06, 2025 - 5_12PM.png')
+  // Use Vision section image
+  const imageSrc = getAssetPath('assets/section_vision/our_vision.png')
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 VisionSectionBackground:', {
+      imageSrc,
+      isLoaded,
+      isDarkMode
+    })
+  }, [isLoaded, isDarkMode])
 
   // Handle image load
   const handleImageLoad = () => {
+    console.log('✅ Vision section image loaded successfully from:', imageSrc)
     setIsLoaded(true)
   }
 
   // Handle image error
   const handleImageError = () => {
+    console.log('❌ Vision section image failed to load from:', imageSrc)
     setIsLoaded(false)
   }
 
@@ -45,8 +56,8 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
       {/* Fallback gradient background - theme-aware */}
       <div className={`absolute inset-0 transition-colors duration-500 ${
         isDarkMode
-          ? 'bg-gradient-to-br from-slate-800 via-cyan-950 to-indigo-950'
-          : 'bg-gradient-to-br from-slate-100 via-cyan-50 to-indigo-50'
+          ? 'bg-gradient-to-br from-slate-800 via-purple-950 to-pink-950'
+          : 'bg-gradient-to-br from-slate-100 via-purple-50 to-pink-50'
       }`} />
 
       {/* Parallax Image Background */}
@@ -56,7 +67,7 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
       >
         <motion.img
           src={imageSrc}
-          alt="Integration Background"
+          alt="Vision Background"
           className="absolute inset-0 w-full h-full object-cover"
           onLoad={handleImageLoad}
           onError={handleImageError}
@@ -69,13 +80,13 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
         />
       </motion.div>
 
-      {/* Theme-Aware Gradient Overlay - Integration theme colors */}
+      {/* Theme-Aware Gradient Overlay - More subtle in dark mode */}
       {isLoaded && (
         <div 
           className={`absolute inset-0 pointer-events-none transition-all duration-500 ${
             isDarkMode
-              ? 'bg-gradient-to-tl from-slate-900/60 via-cyan-900/40 to-indigo-900/20'
-              : 'bg-gradient-to-tl from-white/60 via-cyan-50/40 to-indigo-50/20'
+              ? 'bg-gradient-to-tl from-slate-900/70 via-slate-900/50 to-slate-900/30'
+              : 'bg-gradient-to-tl from-white/60 via-purple-50/40 to-pink-50/20'
           }`}
         />
       )}
@@ -85,7 +96,7 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
         <div 
           className={`absolute inset-0 pointer-events-none transition-all duration-500 ${
             isDarkMode
-              ? 'bg-slate-900/10'
+              ? 'bg-slate-900/15'
               : 'bg-white/10'
           }`}
         />
@@ -100,3 +111,4 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
     </div>
   )
 }
+

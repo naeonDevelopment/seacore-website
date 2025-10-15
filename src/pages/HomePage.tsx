@@ -323,8 +323,15 @@ const HomePage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ 
+              duration: 0.5,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="text-center mb-12"
+            style={{ 
+              willChange: 'opacity, transform',
+              transform: 'translateZ(0)'
+            }}
           >
             <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-maritime-100 to-ocean-100 dark:from-maritime-900/30 dark:to-ocean-900/30">
               <Database className="w-5 h-5 text-maritime-600 dark:text-maritime-400" />
@@ -339,15 +346,55 @@ const HomePage: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              transition={{ 
+                duration: 0.6,
+                delay: 0.1,
+                ease: [0.25, 0.1, 0.25, 1.0]
+              }}
               className="space-y-6"
+              style={{ 
+                willChange: 'opacity, transform',
+                transform: 'translateZ(0)'
+              }}
             >
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold enterprise-heading leading-tight">
-                <span className="maritime-gradient-text block whitespace-nowrap">Maritime Technical</span>
-                <span className="text-slate-900 dark:text-slate-100 block whitespace-nowrap">Operating System</span>
+                <span 
+                  className="maritime-gradient-text block whitespace-nowrap" 
+                  style={{ 
+                    textShadow: isDarkMode
+                      ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                      : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                    filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
+                    transform: 'translateZ(0)',
+                    backfaceVisibility: 'hidden'
+                  }}
+                >
+                  Maritime Technical
+                </span>
+                <span 
+                  className="text-black dark:text-white block whitespace-nowrap" 
+                  style={{ 
+                    textShadow: isDarkMode
+                      ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                      : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                    transform: 'translateZ(0)',
+                    backfaceVisibility: 'hidden'
+                  }}
+                >
+                  Operating System
+                </span>
               </h1>
               
-              <p className="text-lg md:text-xl text-black dark:text-white enterprise-body leading-relaxed max-w-3xl mx-auto font-semibold">
+              <p 
+                className="text-lg md:text-xl text-black dark:text-white enterprise-body leading-relaxed max-w-3xl mx-auto font-semibold" 
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 50px rgba(0,0,0,0.35), 0 0 100px rgba(0,0,0,0.25), 0 3px 25px rgba(0,0,0,0.3)'
+                    : '0 0 50px rgba(255,255,255,0.45), 0 0 100px rgba(255,255,255,0.35), 0 3px 25px rgba(255,255,255,0.4)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
                 Bridge OEM PMS with Real-World Operations - Condition Monitoring, Predictive Maintenance & Automated Workflows
               </p>
 
@@ -373,8 +420,16 @@ const HomePage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
+            transition={{ 
+              duration: 0.5,
+              delay: 0.3,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            style={{ 
+              willChange: 'opacity, transform',
+              transform: 'translateZ(0)'
+            }}
           >
             <Button variant="gradient" size="xl" className="group">
               Schedule Role-Specific Demo

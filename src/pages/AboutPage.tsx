@@ -24,6 +24,8 @@ import {
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
 import { ScrollGradientBackground } from '@/components/ui/ScrollGradientBackground'
+import { AboutHeroBackground } from '@/components/ui/AboutHeroBackground'
+import { VisionSectionBackground } from '@/components/ui/VisionSectionBackground'
 
 interface AboutPageProps {}
 
@@ -253,31 +255,85 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
       <ScrollGradientBackground sections={gradientSections} />
 
       {/* Hero Section */}
-      <section id="hero" className="relative pt-32 pb-20 overflow-hidden">
-        <div className="container mx-auto px-4 relative z-10">
+      <section id="hero" className="relative pt-32 pb-20 overflow-hidden min-h-[85vh] flex items-center">
+        {/* Background */}
+        <AboutHeroBackground isDarkMode={isDarkMode} />
+        
+        <div className="container mx-auto px-4 relative z-50">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ 
+              duration: 0.6,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="max-w-5xl mx-auto text-center"
+            style={{ 
+              willChange: 'opacity, transform',
+              transform: 'translateZ(0)'
+            }}
           >
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 dark:from-blue-900/30 dark:to-emerald-900/30 mb-8">
+            <div 
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 dark:from-blue-900/30 dark:to-emerald-900/30 mb-8"
+              style={{
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
+            >
               <Ship className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <span className="text-sm font-medium text-blue-700 dark:text-blue-300">About SeaCore</span>
             </div>
 
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-8 leading-tight enterprise-heading">
-              Building the Future of
+              <span 
+                className="text-black dark:text-white"
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                    : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
+                Building the Future of
+              </span>
               <br />
-              <span className="maritime-gradient-text">Maritime Intelligence</span>
+              <span 
+                className="maritime-gradient-text" 
+                style={{ 
+                  textShadow: isDarkMode
+                    ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
+                    : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
+                  filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
+              >
+                Maritime Intelligence
+              </span>
             </h1>
 
-            <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto mb-12 enterprise-body leading-relaxed">
+            <p 
+              className="text-lg md:text-xl text-black dark:text-white enterprise-body max-w-3xl mx-auto mb-12 font-semibold" 
+              style={{ 
+                textShadow: isDarkMode
+                  ? '0 0 50px rgba(0,0,0,0.35), 0 0 100px rgba(0,0,0,0.25), 0 3px 25px rgba(0,0,0,0.3)'
+                  : '0 0 50px rgba(255,255,255,0.45), 0 0 100px rgba(255,255,255,0.35), 0 3px 25px rgba(255,255,255,0.4)',
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
+            >
               Decades of maritime expertise combined with advanced software engineering, 
               creating the world's first truly intelligent preventive maintenance platform.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div 
+              className="flex flex-col sm:flex-row gap-4 justify-center"
+              style={{
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
+            >
               <Button variant="gradient" size="xl" className="group">
                 Learn Our Story
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -524,7 +580,10 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
 
       {/* Vision Section - Horizontal Timeline */}
       <section id="vision" className="py-24 relative overflow-hidden">
-        <div className="container mx-auto px-4">
+        {/* Parallax Background */}
+        <VisionSectionBackground isDarkMode={isDarkMode} />
+        
+        <div className="container mx-auto px-4 relative z-50">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -550,7 +609,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
           <div className="max-w-7xl mx-auto">
             {/* Timeline Line */}
             <div className="relative">
-              <div className="absolute top-24 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500" />
+              <div className="absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500" />
               
               {/* Timeline Items */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -567,7 +626,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
                     >
                       {/* Timeline Node */}
                       <div className="flex justify-center mb-8">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg border-4 border-white dark:border-slate-900 relative z-10">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg relative z-10">
                           <Icon className="w-8 h-8 text-white" />
                         </div>
                       </div>
@@ -632,9 +691,14 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                   viewport={{ once: true }}
                 >
-                  <div className="h-full p-6 rounded-2xl border bg-white dark:bg-slate-800 shadow-lg hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 flex flex-col">
+                  <div className="h-full p-6 rounded-2xl border bg-white dark:bg-slate-800 shadow-lg opacity-50 cursor-not-allowed flex flex-col relative">
+                    {/* Coming Soon Badge */}
+                    <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 text-white text-xs font-bold shadow-lg">
+                      Coming Soon
+                    </div>
+                    
                     <div className={cn(
-                      "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4 shadow-lg",
+                      "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4 shadow-lg opacity-60",
                       doc.gradient
                     )}>
                       <Icon className="w-6 h-6 text-white" />
@@ -648,36 +712,16 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
                       {doc.description}
                     </p>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
                       <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                         PDF · {doc.size}
                       </span>
-                      <Button variant="ghost" size="sm" className="group h-8 px-3">
-                        <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                      </Button>
                     </div>
                   </div>
                 </motion.div>
               )
             })}
           </div>
-
-          {/* Simple CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            viewport={{ once: true }}
-            className="text-center mt-12"
-          >
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 enterprise-body">
-              Need additional information or have questions?
-            </p>
-            <Button variant="outline" size="lg" className="group">
-              Contact Us
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </motion.div>
         </div>
       </section>
 
