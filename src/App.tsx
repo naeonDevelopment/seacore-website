@@ -84,7 +84,7 @@ function App() {
         {/* Footer placeholder */}
         <footer className="bg-slate-900 text-white py-12">
           <div className="container mx-auto px-4 text-center">
-            <p>&copy; 2025 SeaCore. All rights reserved. Maritime Intelligence Platform.</p>
+            <p>&copy; 2025 FleetCore. All rights reserved. Maritime Intelligence Platform.</p>
           </div>
         </footer>
       </div>
