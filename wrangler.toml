@@ -1,0 +1,13 @@
+# Cloudflare Pages Configuration
+name = "seacore-website"
+compatibility_date = "2024-10-16"
+
+[build]
+command = "npm run build"
+cwd = "."
+watch_dir = "src"
+
+[build.upload]
+format = "service-worker"
+dir = "dist"
+

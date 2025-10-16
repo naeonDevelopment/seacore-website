@@ -9,7 +9,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      babel: {
+        compact: true,
+        plugins: []
+      }
+    }),
     {
       name: 'copy-cloudflare-headers',
       closeBundle() {
@@ -36,7 +41,10 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false, // Disable sourcemaps for strict CSP
+    minify: 'esbuild',
+    target: 'es2020',
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -47,8 +55,15 @@ export default defineConfig({
       },
     },
   },
+  esbuild: {
+    legalComments: 'none',
+    pure: ['console.log', 'console.debug'],
+  },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'framer-motion'],
+    esbuildOptions: {
+      target: 'es2020',
+    },
   },
 })
 
