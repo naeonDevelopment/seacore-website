@@ -12,14 +12,17 @@ import '@/styles/globals.css'
 function App() {
   const [darkMode, setDarkMode] = useState(false)
 
-  // Initialize dark mode from localStorage or system preference
+  // Initialize theme from localStorage (default to light mode)
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     
-    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+    if (savedTheme === 'dark') {
       setDarkMode(true)
       document.documentElement.classList.add('dark')
+    } else {
+      // Ensure light mode is set (remove any dark class)
+      setDarkMode(false)
+      document.documentElement.classList.remove('dark')
     }
   }, [])
 
