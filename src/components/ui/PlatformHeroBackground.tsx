@@ -6,10 +6,8 @@ interface PlatformHeroBackgroundProps {
 
 // Helper function to get asset path
 const getAssetPath = (path: string) => {
-  // In production, assets are in /site/assets/
-  // In development, they're in /assets/
-  const isProduction = import.meta.env.PROD
-  return isProduction ? `/site/${path}` : `/${path}`
+  // Assets are always in /assets/
+  return `/${path}`
 }
 
 export const PlatformHeroBackground: React.FC<PlatformHeroBackgroundProps> = ({ isDarkMode }) => {

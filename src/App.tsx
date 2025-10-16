@@ -37,7 +37,7 @@ function App() {
   }
 
   return (
-    <Router basename={import.meta.env.DEV ? '/' : '/site'}>
+    <Router basename="/">
       <ScrollToTop />
       <div className="min-h-screen bg-background text-foreground">
         <Navigation darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
