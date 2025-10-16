@@ -14,7 +14,7 @@ const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({
   const [isLoaded, setIsLoaded] = useState(false)
   
   // Use light image for hero (dark image is used in Architecture section)
-  const imageSrc = getAssetPath('site/assets/hero_solutions/Generated Image October 05, 2025 - 2_47PM.png')
+  const imageSrc = getAssetPath('assets/hero_solutions/Generated Image October 05, 2025 - 2_47PM.png')
 
   // Debug logging
   useEffect(() => {

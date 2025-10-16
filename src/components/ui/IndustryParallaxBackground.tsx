@@ -25,7 +25,7 @@ const IndustryParallaxBackground: React.FC<IndustryParallaxBackgroundProps> = ({
   const scale = useTransform(scrollYProgress, [0, 1], [1, 1.15])
   
   // Image path - simple filename for better URL compatibility (no leading slash for Vite public assets)
-  const imageSrc = getAssetPath('site/assets/section_industries/industry-background.png')
+  const imageSrc = getAssetPath('assets/section_industries/industry-background.png')
 
   // Debug logging
   useEffect(() => {
