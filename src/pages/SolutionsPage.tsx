@@ -193,37 +193,37 @@ const SolutionsPage: React.FC = () => {
   const operatingSystemFeatures = [
     {
       title: 'Abstraction Layer',
-      description: 'Like how an OS abstracts hardware complexity, SeaCore abstracts maintenance complexity from end users.',
+      description: 'Like how an OS abstracts hardware complexity, FleetCore abstracts maintenance complexity from end users.',
       icon: Layers,
       example: 'Engineers see "Change Oil" task, not complex interval calculations'
     },
     {
       title: 'Resource Management',
-      description: 'OS manages CPU and memory; SeaCore manages crew time, parts inventory, and vessel schedules.',
+      description: 'OS manages CPU and memory; FleetCore manages crew time, parts inventory, and vessel schedules.',
       icon: Settings,
       example: 'Optimal allocation of 12 crew members across 50 maintenance tasks'
     },
     {
       title: 'Process Scheduling',
-      description: 'OS schedules programs; SeaCore schedules maintenance with priority-based execution.',
+      description: 'OS schedules programs; FleetCore schedules maintenance with priority-based execution.',
       icon: Calendar,
       example: 'Critical safety tasks get priority over routine inspections'
     },
     {
       title: 'File System (Data Layer)',
-      description: 'OS provides unified file access; SeaCore provides unified maintenance data access.',
+      description: 'OS provides unified file access; FleetCore provides unified maintenance data access.',
       icon: Database,
       example: 'One query accesses data from 500 vessels, 5000 equipment items'
     },
     {
       title: 'Device Drivers (Integrations)',
-      description: 'OS has drivers for hardware; SeaCore has adapters for any OEM, ERP, or IoT system.',
+      description: 'OS has drivers for hardware; FleetCore has adapters for any OEM, ERP, or IoT system.',
       icon: GitBranch,
       example: 'Plug-and-play integration with Caterpillar, MAN, Wärtsilä systems'
     },
     {
       title: 'System Updates (Continuous Improvement)',
-      description: 'OS updates for security and features; SeaCore continuously improves through pattern analysis and operational feedback.',
+      description: 'OS updates for security and features; FleetCore continuously improves through pattern analysis and operational feedback.',
       icon: TrendingUp,
       example: 'System analytics identify optimization opportunities from fleet-wide data'
     }
@@ -398,7 +398,7 @@ const SolutionsPage: React.FC = () => {
                 backfaceVisibility: 'hidden'
               }}
             >
-              Traditional CMMS systems only track maintenance. SeaCore <strong>automates scheduling, prevents failures, 
+              Traditional CMMS systems only track maintenance. FleetCore <strong>automates scheduling, prevents failures, 
               and optimizes operations</strong> — transforming reactive chaos into proactive intelligence.
             </p>
 
@@ -523,7 +523,7 @@ const SolutionsPage: React.FC = () => {
           >
             <div className="rounded-3xl border bg-gradient-to-br from-purple-50/50 via-indigo-50/30 to-blue-50/50 dark:from-purple-950/20 dark:via-indigo-950/15 dark:to-blue-950/20 p-12 text-center">
               <h3 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4 enterprise-heading">
-                SeaCore Changes Everything
+                FleetCore Changes Everything
               </h3>
               <p className="text-xl text-slate-600 dark:text-slate-300 enterprise-body">
                 We're not improving traditional CMMS — we're replacing it with an 
@@ -736,7 +736,7 @@ const SolutionsPage: React.FC = () => {
               Why We Call It an <span className="maritime-gradient-text">Operating System</span>
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
-              Like Windows, macOS, or Linux manage your computer's resources, SeaCore manages your maritime 
+              Like Windows, macOS, or Linux manage your computer's resources, FleetCore manages your maritime 
               operations — abstracting complexity, optimizing resources, and providing a unified interface.
             </p>
           </motion.div>
@@ -825,7 +825,7 @@ const SolutionsPage: React.FC = () => {
               </h2>
 
               <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 enterprise-body max-w-3xl mx-auto">
-                See how SeaCore's maintenance operating system can automate 90%+ of your tasks, improve efficiency by 30-40%, 
+                See how FleetCore's maintenance operating system can automate 90%+ of your tasks, improve efficiency by 30-40%, 
                 and ensure full compliance — all through smart automation and real-time intelligence.
               </p>
 

@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# SeaCore Website - Standalone Repository Setup Script
+# FleetCore Website - Standalone Repository Setup Script
 # This script copies source files and sets up the Git repository
 
 set -e  # Exit on error
 
-echo "🚀 SeaCore Website - Standalone Repository Setup"
+echo "🚀 FleetCore Website - Standalone Repository Setup"
 echo "================================================="
 echo ""
 
 # Define paths
 PARENT_DIR="/Users/theo.georgiev/Library/CloudStorage/GoogleDrive-theo.georgiev@gmail.com/My Drive/Seacore/code project/naeon-marine-navigator"
-SOURCE_DIR="$PARENT_DIR/seacore-enterprise-website"
-TARGET_DIR="$PARENT_DIR/seacore-website"
+SOURCE_DIR="$PARENT_DIR/fleetcore-enterprise-website"
+TARGET_DIR="$PARENT_DIR/fleetcore-website"
 
 # Check if source directory exists
 if [ ! -d "$SOURCE_DIR" ]; then
@@ -23,7 +23,7 @@ fi
 # Change to parent directory
 cd "$PARENT_DIR"
 
-echo "📁 Step 1: Copying source files from seacore-enterprise-website..."
+echo "📁 Step 1: Copying source files from fleetcore-enterprise-website..."
 echo ""
 
 # Copy src folder
@@ -74,7 +74,7 @@ fi
 
 # Add GitHub remote
 if ! git remote | grep -q "origin"; then
-  git remote add origin https://github.com/naeonDevelopment/seacore-website.git
+  git remote add origin https://github.com/naeonDevelopment/fleetcore-website.git
   echo "  ✅ GitHub remote added"
 else
   echo "  ℹ️  GitHub remote already exists"
@@ -93,10 +93,10 @@ echo ""
 echo "🎉 Setup Complete!"
 echo "=================="
 echo ""
-echo "Your standalone seacore-website repository is ready!"
+echo "Your standalone fleetcore-website repository is ready!"
 echo ""
 echo "📍 Location: $TARGET_DIR"
-echo "🌐 GitHub: https://github.com/naeonDevelopment/seacore-website"
+echo "🌐 GitHub: https://github.com/naeonDevelopment/fleetcore-website"
 echo ""
 echo "🚀 Next Steps:"
 echo "1. Test the website:"
@@ -105,7 +105,7 @@ echo "   # Visit http://localhost:8000"
 echo ""
 echo "2. Create initial commit:"
 echo "   git add ."
-echo "   git commit -m \"Initial commit: SeaCore Website standalone repository\""
+echo "   git commit -m \"Initial commit: FleetCore Website standalone repository\""
 echo ""
 echo "3. Push to GitHub:"
 echo "   git branch -M main"

@@ -263,42 +263,42 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
     {
       advantage: 'Modern Technology Stack',
       traditional: 'Built on 1990s legacy systems with outdated databases',
-      seacore: 'Modern PostgreSQL + Supabase with real-time capabilities and cloud-native architecture',
+      fleetcore: 'Modern PostgreSQL + Supabase with real-time capabilities and cloud-native architecture',
       impact: '10x faster performance, 99.9% uptime',
       icon: Zap
     },
     {
       advantage: 'Dual-Interval Tracking',
       traditional: 'Calendar-only maintenance intervals (every 3 months)',
-      seacore: 'Both running hours AND calendar tracking with automatic task triggering',
+      fleetcore: 'Both running hours AND calendar tracking with automatic task triggering',
       impact: 'Accurate maintenance timing, no over/under servicing',
       icon: Clock
     },
     {
       advantage: 'Automated Task Generation',
       traditional: 'Manual creation of every single maintenance task',
-      seacore: 'Import PMS schedules, auto-generate all tasks with correct intervals',
+      fleetcore: 'Import PMS schedules, auto-generate all tasks with correct intervals',
       impact: '90%+ automation, hours saved daily',
       icon: FileCheck
     },
     {
       advantage: 'Cross-Fleet Intelligence',
       traditional: 'Each vessel operates in isolation with separate databases',
-      seacore: 'Unified fleet-wide database with shared equipment definitions',
+      fleetcore: 'Unified fleet-wide database with shared equipment definitions',
       impact: 'Fleet-wide analytics, consistent procedures',
       icon: Network
     },
     {
       advantage: 'Built-in Compliance',
       traditional: 'Regulatory tracking as add-on module or manual spreadsheets',
-      seacore: 'SOLAS/MARPOL requirements integrated into core system',
+      fleetcore: 'SOLAS/MARPOL requirements integrated into core system',
       impact: '100% compliance visibility, automated alerts',
       icon: Shield
     },
     {
       advantage: 'Enterprise Security',
       traditional: 'Basic user authentication with shared database access',
-      seacore: 'Row-level security with multi-tenant isolation and granular permissions',
+      fleetcore: 'Row-level security with multi-tenant isolation and granular permissions',
       impact: 'Military-grade security, full data isolation',
       icon: Lock
     }
@@ -596,7 +596,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              What Makes SeaCore Different
+              What Makes FleetCore Different
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
               Industry-leading capabilities that set a new standard for maritime maintenance platforms
@@ -836,7 +836,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              SeaCore vs Traditional CMMS
+              FleetCore vs Traditional CMMS
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
               Direct comparison showing how modern architecture delivers measurable advantages
@@ -860,7 +860,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
                 Traditional CMMS
               </div>
               <div className="font-bold text-emerald-600 dark:text-emerald-400 text-center">
-                SeaCore Platform
+                FleetCore Platform
               </div>
               <div className="font-bold text-blue-600 dark:text-blue-400 text-center">
                 Impact
@@ -901,7 +901,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
                     </div>
                     <div className="flex items-center justify-center">
                       <p className="text-xs text-slate-900 dark:text-slate-100 font-medium text-center">
-                        {item.seacore}
+                        {item.fleetcore}
                       </p>
                     </div>
                     <div className="flex items-center justify-center">
@@ -968,7 +968,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
               </h2>
 
               <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 enterprise-body max-w-3xl mx-auto">
-                Join leading maritime operators who trust SeaCore's enterprise platform for critical
+                Join leading maritime operators who trust FleetCore's enterprise platform for critical
                 maintenance operations across their entire fleet.
               </p>
 

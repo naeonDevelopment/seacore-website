@@ -1,6 +1,6 @@
-# SeaCore Website - Standalone Repository Setup
+# FleetCore Website - Standalone Repository Setup
 
-This document guides you through setting up the seacore-website as a standalone Git repository connected to GitHub.
+This document guides you through setting up the fleetcore-website as a standalone Git repository connected to GitHub.
 
 ## 📋 Current Status
 
@@ -25,16 +25,16 @@ This document guides you through setting up the seacore-website as a standalone 
 
 ### Step 1: Copy Source Files
 
-Run this command to copy all source files from seacore-enterprise-website:
+Run this command to copy all source files from fleetcore-enterprise-website:
 
 ```bash
 cd "/Users/theo.georgiev/Library/CloudStorage/GoogleDrive-theo.georgiev@gmail.com/My Drive/Seacore/code project/naeon-marine-navigator"
 
 # Copy src folder
-cp -R ./seacore-enterprise-website/src ./seacore-website/
+cp -R ./fleetcore-enterprise-website/src ./fleetcore-website/
 
 # Copy public folder
-cp -R ./seacore-enterprise-website/public ./seacore-website/
+cp -R ./fleetcore-enterprise-website/public ./fleetcore-website/
 
 echo "✅ Source files copied successfully!"
 ```
@@ -42,7 +42,7 @@ echo "✅ Source files copied successfully!"
 ### Step 2: Install Dependencies
 
 ```bash
-cd seacore-website
+cd fleetcore-website
 npm install
 ```
 
@@ -61,13 +61,13 @@ Visit http://localhost:8000 to verify everything works!
 ### Initialize Git Repository
 
 ```bash
-cd "/Users/theo.georgiev/Library/CloudStorage/GoogleDrive-theo.georgiev@gmail.com/My Drive/Seacore/code project/naeon-marine-navigator/seacore-website"
+cd "/Users/theo.georgiev/Library/CloudStorage/GoogleDrive-theo.georgiev@gmail.com/My Drive/Seacore/code project/naeon-marine-navigator/fleetcore-website"
 
 # Initialize git
 git init
 
 # Add GitHub remote
-git remote add origin https://github.com/naeonDevelopment/seacore-website.git
+git remote add origin https://github.com/naeonDevelopment/fleetcore-website.git
 
 # Verify remote
 git remote -v
@@ -80,7 +80,7 @@ git remote -v
 git add .
 
 # Create initial commit
-git commit -m "Initial commit: SeaCore Website standalone repository
+git commit -m "Initial commit: FleetCore Website standalone repository
 
 - React 18 + TypeScript + Vite setup
 - Maritime-themed glassmorphism design
@@ -109,13 +109,13 @@ git push -u origin main
 After setup, your repository should look like:
 
 ```
-seacore-website/
+fleetcore-website/
 ├── .git/                  # Git repository
 ├── .gitignore            # Git ignore rules
 ├── node_modules/         # Dependencies (not in git)
 ├── public/               # Static assets
 │   ├── assets/          # Images and videos
-│   └── seacore-logo.svg
+│   └── fleetcore-logo.svg
 ├── src/                  # Source code
 │   ├── components/      # React components
 │   │   ├── layout/     # Navigation, etc.
@@ -139,9 +139,9 @@ seacore-website/
 
 ## 🌐 GitHub Repository Information
 
-**Repository:** https://github.com/naeonDevelopment/seacore-website
+**Repository:** https://github.com/naeonDevelopment/fleetcore-website
 
-**Remote URL:** `https://github.com/naeonDevelopment/seacore-website.git`
+**Remote URL:** `https://github.com/naeonDevelopment/fleetcore-website.git`
 
 **Branch:** `main`
 
@@ -151,7 +151,7 @@ seacore-website/
 
 After setup, verify:
 
-- [ ] All source files copied from seacore-enterprise-website
+- [ ] All source files copied from fleetcore-enterprise-website
 - [ ] Dependencies installed successfully (`node_modules/` exists)
 - [ ] Dev server runs without errors (`npm run dev`)
 - [ ] Website accessible at http://localhost:8000
@@ -207,7 +207,7 @@ git pull            # Pull from GitHub
 ### Issue: "remote origin already exists"
 ```bash
 git remote remove origin
-git remote add origin https://github.com/naeonDevelopment/seacore-website.git
+git remote add origin https://github.com/naeonDevelopment/fleetcore-website.git
 ```
 
 ### Issue: "Permission denied" when pushing
@@ -233,14 +233,14 @@ lsof -ti:8000 | xargs kill -9
 
 ## ✅ Success!
 
-Once complete, your standalone seacore-website repository will be:
+Once complete, your standalone fleetcore-website repository will be:
 - ✅ Fully functional React application
 - ✅ Connected to GitHub
 - ✅ Ready for collaborative development
 - ✅ Configured for Netlify deployment
 - ✅ Independent of the main naeon-marine-navigator project
 
-**Repository Link:** https://github.com/naeonDevelopment/seacore-website
+**Repository Link:** https://github.com/naeonDevelopment/fleetcore-website
 
 ---
 

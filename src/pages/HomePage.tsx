@@ -597,7 +597,7 @@ const HomePage: React.FC = () => {
               <div className="p-8 pl-12">
                   <div className="text-left mb-8">
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4 enterprise-heading">
-                      SeaCore's Solution
+                      FleetCore's Solution
                     </h3>
                     <p className="text-slate-600 dark:text-slate-300 mb-8 enterprise-body">
                       Our agentic maritime intelligence platform transforms these challenges into competitive advantages 
@@ -671,7 +671,7 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* How SeaCore Solves These Challenges - Solution Architecture */}
+      {/* How FleetCore Solves These Challenges - Solution Architecture */}
       <section className="py-24 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]">
@@ -691,7 +691,7 @@ const HomePage: React.FC = () => {
           >
             <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 mb-6">
               <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">The SeaCore Solution</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">The FleetCore Solution</span>
             </div>
             
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
@@ -700,7 +700,7 @@ const HomePage: React.FC = () => {
               <span className="text-slate-900 dark:text-slate-100">That Eliminates Maintenance Chaos</span>
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
-              SeaCore transforms reactive maintenance into proactive intelligence through a systematic approach 
+              FleetCore transforms reactive maintenance into proactive intelligence through a systematic approach 
               that bridges OEM recommendations with real-world operations
             </p>
           </motion.div>
@@ -1325,7 +1325,7 @@ const HomePage: React.FC = () => {
             </h2>
             
             <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 mb-12 enterprise-body leading-relaxed">
-              Join the maritime intelligence revolution. See how SeaCore can optimize your fleet operations 
+              Join the maritime intelligence revolution. See how FleetCore can optimize your fleet operations 
               with enterprise-grade reliability and measurable ROI.
             </p>
 

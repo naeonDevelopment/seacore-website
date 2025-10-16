@@ -190,13 +190,13 @@ const VesselDashboardMockup: React.FC<VesselDashboardMockupProps> = ({ className
           {/* Left Sidebar - Dark Theme Like Real System */}
           <div className="w-12 bg-slate-800 flex flex-col items-center py-3 space-y-2 relative z-10">
             {/* Logo/Brand Area */}
-            <Tooltip content="SeaCore Dashboard" position="right">
+            <Tooltip content="FleetCore Dashboard" position="right">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mb-2 hover:bg-blue-500 transition-colors duration-200 cursor-pointer">
                 <Anchor className="w-4 h-4 text-white" />
               </div>
             </Tooltip>
             
-            {/* Navigation Icons - Based on Real SeaCore System */}
+            {/* Navigation Icons - Based on Real FleetCore System */}
             <Tooltip content="Fleet Overview" position="right">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-500 transition-colors duration-200 cursor-pointer">
                 <div className="w-3 h-3 bg-white rounded-sm"></div>

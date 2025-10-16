@@ -51,7 +51,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // SeaCore Maritime Brand Colors
+        // FleetCore Maritime Brand Colors
         maritime: {
           50: '#f0f9ff',
           100: '#e0f2fe',

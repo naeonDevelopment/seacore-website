@@ -1,8 +1,8 @@
-# SeaCore Enterprise Website
+# FleetCore Enterprise Website
 
 > **Agentic Maritime Intelligence Platform - Marketing Website**
 
-Modern, high-performance enterprise marketing website showcasing SeaCore's revolutionary AI-powered maritime maintenance platform.
+Modern, high-performance enterprise marketing website showcasing FleetCore's revolutionary AI-powered maritime maintenance platform.
 
 ## 🚀 Quick Start
 
@@ -44,7 +44,7 @@ npm run build
 ## 📁 Project Structure
 
 ```
-seacore-website/
+fleetcore-website/
 ├── src/
 │   ├── components/     # React components
 │   │   ├── layout/     # Navigation, footer, etc.
@@ -55,7 +55,7 @@ seacore-website/
 │   └── types/          # TypeScript types
 ├── public/             # Static assets
 │   ├── assets/         # Images, videos
-│   └── seacore-logo.svg
+│   └── fleetcore-logo.svg
 ├── netlify.toml        # Netlify configuration
 └── vite.config.ts      # Vite configuration
 ```
@@ -122,18 +122,18 @@ npm run type-check # TypeScript type checking
 
 ## 📝 License
 
-MIT License - Copyright © 2025 SeaCore
+MIT License - Copyright © 2025 FleetCore
 
 ## 🤝 Contributing
 
-This is the official SeaCore enterprise marketing website. For contributions or issues, please contact the development team.
+This is the official FleetCore enterprise marketing website. For contributions or issues, please contact the development team.
 
 ## 📞 Support
 
-- Website: [seacore.ai](https://seacore.ai)
-- Email: support@seacore.ai
+- Website: [fleetcore.ai](https://fleetcore.ai)
+- Email: support@fleetcore.ai
 
 ---
 
-**Built with ❤️ by the SeaCore Team**
+**Built with ❤️ by the FleetCore Team**
 

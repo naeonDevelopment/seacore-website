@@ -46,8 +46,8 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Mail,
       title: 'Email Us',
       description: 'Get in touch via email for general inquiries',
-      value: 'contact@seacore.com',
-      action: 'mailto:contact@seacore.com',
+      value: 'contact@fleetcore.com',
+      action: 'mailto:contact@fleetcore.com',
       gradient: 'from-blue-500 to-cyan-600',
       active: true
     },
@@ -77,33 +77,33 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Linkedin,
       name: 'LinkedIn',
       description: 'Connect with us professionally',
-      url: 'https://linkedin.com/company/seacore',
+      url: 'https://linkedin.com/company/fleetcore',
       gradient: 'from-blue-600 to-blue-700',
-      handle: '@seacore'
+      handle: '@fleetcore'
     },
     {
       icon: Twitter,
       name: 'Twitter',
       description: 'Follow for updates and insights',
-      url: 'https://twitter.com/seacore',
+      url: 'https://twitter.com/fleetcore',
       gradient: 'from-sky-400 to-blue-500',
-      handle: '@seacore'
+      handle: '@fleetcore'
     },
     {
       icon: Github,
       name: 'GitHub',
       description: 'Explore our open-source projects',
-      url: 'https://github.com/seacore',
+      url: 'https://github.com/fleetcore',
       gradient: 'from-slate-700 to-slate-900',
-      handle: '@seacore'
+      handle: '@fleetcore'
     },
     {
       icon: MessageSquare,
       name: 'Blog',
       description: 'Read our latest articles and insights',
-      url: 'https://blog.seacore.com',
+      url: 'https://blog.fleetcore.com',
       gradient: 'from-orange-500 to-red-600',
-      handle: 'blog.seacore.com'
+      handle: 'blog.fleetcore.com'
     }
   ]
 
@@ -370,7 +370,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
               <span className="maritime-gradient-text">Schedule</span> a Personalized Demo
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto enterprise-body mb-12">
-              See SeaCore in action. Book a time that works for you and we'll provide a comprehensive 
+              See FleetCore in action. Book a time that works for you and we'll provide a comprehensive 
               walkthrough tailored to your fleet's needs.
             </p>
           </motion.div>
@@ -552,7 +552,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
               </h2>
               
               <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 enterprise-body">
-                Join leading maritime operators who trust SeaCore for their fleet maintenance operations
+                Join leading maritime operators who trust FleetCore for their fleet maintenance operations
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -563,7 +563,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 </Button>
                 <Button variant="outline" size="xl">
                   <Mail className="w-5 h-5" />
-                  contact@seacore.com
+                  contact@fleetcore.com
                 </Button>
               </div>
             </div>

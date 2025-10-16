@@ -1,7 +1,7 @@
 {
-  "name": "seacore-website",
+  "name": "fleetcore-website",
   "version": "1.0.0",
-  "description": "SeaCore Enterprise Website - Agentic Maritime Intelligence Platform",
+  "description": "FleetCore Enterprise Website - Agentic Maritime Intelligence Platform",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -17,9 +17,9 @@
     "agentic",
     "maintenance",
     "enterprise",
-    "seacore"
+    "fleetcore"
   ],
-  "author": "SeaCore Team",
+  "author": "FleetCore Team",
   "license": "MIT",
   "dependencies": {
     "@types/three": "^0.180.0",

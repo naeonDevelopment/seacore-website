@@ -1,7 +1,7 @@
-# ✅ SeaCore Website - Standalone Repository Ready
+# ✅ FleetCore Website - Standalone Repository Ready
 
 **Date:** October 14, 2025  
-**Repository:** https://github.com/naeonDevelopment/seacore-website  
+**Repository:** https://github.com/naeonDevelopment/fleetcore-website  
 **Status:** Configuration Complete - Ready for Source Files & Git Setup
 
 ---
@@ -10,10 +10,10 @@
 
 ### ✅ Repository Structure Created
 
-All configuration files have been created in the standalone `seacore-website` directory:
+All configuration files have been created in the standalone `fleetcore-website` directory:
 
 ```
-seacore-website/
+fleetcore-website/
 ├── .gitignore              ✅ Created
 ├── .nvmrc                  ✅ Created  
 ├── index.html              ✅ Created
@@ -34,7 +34,7 @@ seacore-website/
 
 ### ✅ Key Configuration Updates
 
-1. **package.json**: Updated name to `seacore-website`
+1. **package.json**: Updated name to `fleetcore-website`
 2. **vite.config.ts**: Changed base path from `/site/` to `/` for standalone deployment
 3. **.gitignore**: Comprehensive ignore rules (node_modules, dist, etc.)
 4. **README.md**: Updated for standalone repository
@@ -49,7 +49,7 @@ seacore-website/
 Run the provided script:
 
 ```bash
-cd "/Users/theo.georgiev/Library/CloudStorage/GoogleDrive-theo.georgiev@gmail.com/My Drive/Seacore/code project/naeon-marine-navigator/seacore-website"
+cd "/Users/theo.georgiev/Library/CloudStorage/GoogleDrive-theo.georgiev@gmail.com/My Drive/Seacore/code project/naeon-marine-navigator/fleetcore-website"
 
 # Make script executable
 chmod +x setup-repository.sh
@@ -59,7 +59,7 @@ chmod +x setup-repository.sh
 ```
 
 The script will:
-1. Copy `src/` and `public/` folders from `seacore-enterprise-website`
+1. Copy `src/` and `public/` folders from `fleetcore-enterprise-website`
 2. Install npm dependencies
 3. Initialize Git repository
 4. Add GitHub remote
@@ -72,16 +72,16 @@ The script will:
 cd "/Users/theo.georgiev/Library/CloudStorage/GoogleDrive-theo.georgiev@gmail.com/My Drive/Seacore/code project/naeon-marine-navigator"
 
 # Copy src folder
-cp -R ./seacore-enterprise-website/src ./seacore-website/
+cp -R ./fleetcore-enterprise-website/src ./fleetcore-website/
 
 # Copy public folder
-cp -R ./seacore-enterprise-website/public ./seacore-website/
+cp -R ./fleetcore-enterprise-website/public ./fleetcore-website/
 ```
 
 #### Step 2: Install Dependencies
 
 ```bash
-cd seacore-website
+cd fleetcore-website
 npm install
 ```
 
@@ -92,13 +92,13 @@ npm install
 git init
 
 # Add remote
-git remote add origin https://github.com/naeonDevelopment/seacore-website.git
+git remote add origin https://github.com/naeonDevelopment/fleetcore-website.git
 
 # Stage files
 git add .
 
 # Commit
-git commit -m "Initial commit: SeaCore Website standalone repository"
+git commit -m "Initial commit: FleetCore Website standalone repository"
 
 # Push to GitHub
 git branch -M main
@@ -109,7 +109,7 @@ git push -u origin main
 
 ## 📦 What Gets Copied
 
-### From `seacore-enterprise-website/src/`:
+### From `fleetcore-enterprise-website/src/`:
 - `components/` - All React components (layout, ui)
 - `pages/` - All page components (Home, Solutions, Platform, About)
 - `styles/` - Global CSS styles
@@ -119,7 +119,7 @@ git push -u origin main
 - `main.tsx` - Application entry point
 - `vite-env.d.ts` - Vite type definitions
 
-### From `seacore-enterprise-website/public/`:
+### From `fleetcore-enterprise-website/public/`:
 - `assets/` - All images and videos
   - `hero/` - 4 hero videos for home page
   - `hero_platform/` - Platform hero image
@@ -128,7 +128,7 @@ git push -u origin main
   - `section_experts/` - 2 executive role videos
   - `section_industries/` - Industry background
   - `section_integrations/` - Integrations background
-- `seacore-logo.svg` - Logo file
+- `fleetcore-logo.svg` - Logo file
 
 ---
 
@@ -147,8 +147,8 @@ git push -u origin main
 
 ## 🌐 GitHub Repository
 
-**URL:** https://github.com/naeonDevelopment/seacore-website  
-**Remote:** `https://github.com/naeonDevelopment/seacore-website.git`  
+**URL:** https://github.com/naeonDevelopment/fleetcore-website  
+**Remote:** `https://github.com/naeonDevelopment/fleetcore-website.git`  
 **Branch:** `main`
 
 ---
@@ -243,7 +243,7 @@ git pull            # Pull from GitHub
 ### For Production Deployment:
 
 1. **Update URLs in index.html:**
-   - Change `https://seacore.ai/` to your domain
+   - Change `https://fleetcore.ai/` to your domain
    - Update og:image and twitter:image URLs
    - Update canonical URL
 
@@ -269,8 +269,8 @@ git pull            # Pull from GitHub
 ## 🚨 Important Notes
 
 1. **Source vs Target:**
-   - Source: `seacore-enterprise-website/` (original files)
-   - Target: `seacore-website/` (new standalone repo)
+   - Source: `fleetcore-enterprise-website/` (original files)
+   - Target: `fleetcore-website/` (new standalone repo)
    - After setup, these are independent
 
 2. **Git Ignore Rules:**
@@ -317,11 +317,11 @@ git pull            # Pull from GitHub
 
 ## 🎉 Ready to Go!
 
-Your seacore-website is configured and ready. Just run the setup script or follow the manual steps to copy source files and initialize Git.
+Your fleetcore-website is configured and ready. Just run the setup script or follow the manual steps to copy source files and initialize Git.
 
 **Setup Script:** `./setup-repository.sh`  
 **Manual Guide:** `SETUP_INSTRUCTIONS.md`  
-**GitHub Repo:** https://github.com/naeonDevelopment/seacore-website
+**GitHub Repo:** https://github.com/naeonDevelopment/fleetcore-website
 
 ---
 

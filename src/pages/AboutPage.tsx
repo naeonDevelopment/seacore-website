@@ -160,7 +160,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
     {
       icon: Award,
       title: 'Industry Standard Platform',
-      description: 'Establishing SeaCore as the reference platform for maritime maintenance intelligence, adopted by classification societies and industry bodies.',
+      description: 'Establishing FleetCore as the reference platform for maritime maintenance intelligence, adopted by classification societies and industry bodies.',
       timeline: '2027-2030'
     }
   ]
@@ -170,7 +170,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
     {
       icon: FileText,
       title: 'Platform Overview',
-      description: 'Comprehensive guide to SeaCore\'s maintenance intelligence platform and core features',
+      description: 'Comprehensive guide to FleetCore\'s maintenance intelligence platform and core features',
       size: '2.4 MB',
       gradient: 'from-blue-500 to-indigo-600'
     },
@@ -281,7 +281,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
               }}
             >
               <Ship className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">About SeaCore</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">About FleetCore</span>
             </div>
 
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-8 leading-tight enterprise-heading">

@@ -1,4 +1,4 @@
-// Icon color strategy based on SeaCore's settings system
+// Icon color strategy based on FleetCore's settings system
 // Replicating the multi-color approach from OrganizationAwareSettings
 
 export const getIconGradient = (categoryId: string) => {
