@@ -9,8 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "type-check": "tsc --noEmit",
-    "postbuild": "react-snap"
+    "type-check": "tsc --noEmit"
   },
   "keywords": [
     "maritime",
@@ -35,26 +34,6 @@
     "recharts": "^3.2.1",
     "tailwind-merge": "^2.1.0",
     "three": "^0.180.0"
-  },
-  "reactSnap": {
-    "inlineCss": true,
-    "skipThirdPartyRequests": true,
-    "puppeteerArgs": ["--no-sandbox", "--disable-setuid-sandbox"],
-    "minifyHtml": {
-      "collapseWhitespace": true,
-      "removeComments": true
-    },
-    "fixWebpackChunksIssue": false,
-    "source": "dist",
-    "publicPath": "/",
-    "include": [
-      "/",
-      "/solutions",
-      "/platform",
-      "/about",
-      "/contact",
-      "/privacy-policy"
-    ]
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
