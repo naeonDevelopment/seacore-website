@@ -65,17 +65,14 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
         <motion.img
           src={imageSrc}
           alt="Integration Background"
-          className={`absolute inset-0 w-full h-full ${
-            isMobile ? 'object-contain' : 'object-cover'
-          }`}
+          className="absolute inset-0 w-full h-full object-cover"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}
           animate={{ opacity: isLoaded ? 1 : 0 }}
           transition={{ duration: 0.8 }}
           style={{ 
-            backgroundColor: 'transparent',
-            objectPosition: isMobile ? 'center center' : 'center center'
+            backgroundColor: 'transparent'
           }}
         />
       </motion.div>
