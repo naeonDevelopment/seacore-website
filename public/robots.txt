@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Temporary noindex for unfinished industry pages
+Disallow: /solutions/commercial-shipping
+Disallow: /solutions/offshore-energy
+Disallow: /solutions/cruise-lines
+Disallow: /solutions/naval-defense
+Disallow: /solutions/port-operations
+Disallow: /solutions/yacht-superyacht
+
+Sitemap: https://fleetcore.ai/sitemap.xml
+
+# Optional AI crawler policies (uncomment if desired)
+# User-agent: GPTBot
+# Disallow: /
+# User-agent: Google-Extended
+# Disallow: /
+# User-agent: PerplexityBot
+# Disallow: /
+# User-agent: ClaudeBot
+# Disallow: /
+

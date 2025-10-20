@@ -6,8 +6,7 @@ import {
   MapPin,
   Calendar,
   Linkedin,
-  Twitter,
-  Github,
+  Facebook,
   MessageSquare,
   Clock,
   Globe,
@@ -20,11 +19,32 @@ import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
 import { ScrollGradientBackground } from '@/components/ui/ScrollGradientBackground'
 import { ContactHeroBackground } from '@/components/ui/ContactHeroBackground'
+import { Helmet } from 'react-helmet-async'
 
 interface ContactPageProps {}
 
 export const ContactPage: React.FC<ContactPageProps> = () => {
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const calendlyContainerRef = React.useRef<HTMLDivElement | null>(null)
+
+  // Local X (formerly Twitter) logo as SVG component
+  const XLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M4 4L20 20M20 4L4 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  )
+
+  const scrollToBooking = () => {
+    const el = document.getElementById('booking')
+    if (!el) return
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } catch (_) {
+      // Fallback for browsers without smooth option support
+      const top = el.getBoundingClientRect().top + window.pageYOffset - 80
+      window.scrollTo({ top, behavior: 'smooth' })
+    }
+  }
 
   // Detect dark mode from document class
   React.useEffect(() => {
@@ -40,14 +60,47 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
     return () => observer.disconnect()
   }, [])
 
+  // Load Calendly inline widget script once
+  React.useEffect(() => {
+    // Ensure Calendly CSS is present
+    const existingCss = document.querySelector('link[href*="assets.calendly.com/assets/external/widget.css"]') as HTMLLinkElement | null
+    if (!existingCss) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = 'https://assets.calendly.com/assets/external/widget.css'
+      document.head.appendChild(link)
+    }
+
+    const initInline = () => {
+      if (window.Calendly && calendlyContainerRef.current) {
+        window.Calendly.initInlineWidget({
+          url: 'https://calendly.com/fleetcore-ai/30min',
+          parentElement: calendlyContainerRef.current
+        })
+      }
+    }
+
+    const existing = document.querySelector('script[src*="assets.calendly.com/assets/external/widget.js"]') as HTMLScriptElement | null
+    if (!existing) {
+      const script = document.createElement('script')
+      script.src = 'https://assets.calendly.com/assets/external/widget.js'
+      script.async = true
+      script.onload = initInline
+      document.body.appendChild(script)
+    } else {
+      // Script already present; try to init immediately
+      initInline()
+    }
+  }, [])
+
   // Contact methods
   const contactMethods = [
     {
       icon: Mail,
       title: 'Email Us',
       description: 'Get in touch via email for general inquiries',
-      value: 'contact@fleetcore.com',
-      action: 'mailto:contact@fleetcore.com',
+      value: 'hello (at) fleetcore.ai',
+      action: 'mailto:hello@fleetcore.ai',
       gradient: 'from-blue-500 to-cyan-600',
       active: true
     },
@@ -55,8 +108,8 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Phone,
       title: 'Call Us',
       description: 'Speak directly with our team',
-      value: '+971 4 XXX XXXX',
-      action: 'tel:+97144xxxxxx',
+      value: '+961 3 905 100',
+      action: 'tel:+9613905100',
       gradient: 'from-emerald-500 to-teal-600',
       active: true
     },
@@ -77,33 +130,38 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Linkedin,
       name: 'LinkedIn',
       description: 'Connect with us professionally',
-      url: 'https://linkedin.com/company/fleetcore',
+      url: 'https://linkedin.com/company/fleetcore-ai',
       gradient: 'from-blue-600 to-blue-700',
-      handle: '@fleetcore'
+      handle: '@fleetcore-ai',
+      active: true
     },
     {
-      icon: Twitter,
-      name: 'Twitter',
+      icon: XLogo,
+      name: 'X',
       description: 'Follow for updates and insights',
-      url: 'https://twitter.com/fleetcore',
+      url: '#',
       gradient: 'from-sky-400 to-blue-500',
-      handle: '@fleetcore'
+      handle: 'Coming Soon',
+      active: false,
+      externalIconUrl: 'https://cdn.simpleicons.org/x/FFFFFF'
     },
     {
-      icon: Github,
-      name: 'GitHub',
-      description: 'Explore our open-source projects',
-      url: 'https://github.com/fleetcore',
-      gradient: 'from-slate-700 to-slate-900',
-      handle: '@fleetcore'
+      icon: Facebook,
+      name: 'Facebook',
+      description: 'Community updates and news',
+      url: '#',
+      gradient: 'from-blue-500 to-blue-700',
+      handle: 'Coming Soon',
+      active: false
     },
     {
       icon: MessageSquare,
       name: 'Blog',
       description: 'Read our latest articles and insights',
-      url: 'https://blog.fleetcore.com',
+      url: '#',
       gradient: 'from-orange-500 to-red-600',
-      handle: 'blog.fleetcore.com'
+      handle: 'Coming Soon',
+      active: false
     }
   ]
 
@@ -176,11 +234,56 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>Contact FleetCore</title>
+        <meta name="description" content="Book a demo or reach our team by email or phone. Fast response, global support." />
+        <link rel="canonical" href="https://fleetcore.ai/contact" />
+        <meta property="og:title" content="Contact FleetCore" />
+        <meta property="og:description" content="Book a demo or reach our team by email or phone." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fleetcore.ai/contact" />
+        <meta property="og:image" content="/og/contact.png" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ContactPage",
+            "name": "Contact FleetCore",
+            "url": "https://fleetcore.ai/contact",
+            "breadcrumb": {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://fleetcore.ai/" },
+                { "@type": "ListItem", "position": 2, "name": "Contact", "item": "https://fleetcore.ai/contact" }
+              ]
+            },
+            "mainEntity": {
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "How can I schedule a demo?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Use the Calendly widget on this page or email hello@fleetcore.ai to book a session." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "What is the best contact method?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Email hello@fleetcore.ai or call +961 3 905 100 for sales and enterprise inquiries." }
+                }
+              ]
+            }
+          })}
+        </script>
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@fleetcore_ai" />
+        <meta name="twitter:title" content="Contact FleetCore" />
+        <meta name="twitter:description" content="Book a demo or reach our team by email or phone." />
+        <meta name="twitter:image" content="/og/contact.png" />
+      </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden min-h-[85vh] flex items-center">
+      <section className="relative pt-16 lg:pt-32 pb-20 overflow-hidden min-h-[85vh] flex items-center">
         {/* Background */}
         <ContactHeroBackground isDarkMode={isDarkMode} />
         
@@ -252,22 +355,30 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
               enterprise solutions — we're here to help.
             </p>
 
+            {/* Contact Highlights */}
             <div 
-              className="flex flex-col sm:flex-row gap-4 justify-center"
+              className="flex flex-wrap gap-3 justify-center"
               style={{
                 transform: 'translateZ(0)',
                 backfaceVisibility: 'hidden'
               }}
             >
-              <Button variant="gradient" size="xl" className="group">
-                <Calendar className="w-5 h-5" />
-                Schedule a Demo
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button variant="outline" size="xl">
-                <Mail className="w-5 h-5" />
-                Send us a Message
-              </Button>
+              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium">
+                <Clock className="w-4 h-4" />
+                <span>Fast Response</span>
+              </div>
+              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium">
+                <MessageSquare className="w-4 h-4" />
+                <span>Multi-Channel Support</span>
+              </div>
+              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 text-sm font-medium">
+                <Globe className="w-4 h-4" />
+                <span>Global Reach</span>
+              </div>
+              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium">
+                <Briefcase className="w-4 h-4" />
+                <span>Enterprise Support</span>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -352,7 +463,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       </section>
 
       {/* Calendly Booking Section */}
-      <section className="py-24 relative overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+      <section id="booking" className="py-24 relative overflow-hidden bg-slate-50 dark:bg-slate-900/50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -387,7 +498,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                   viewport={{ once: true }}
                 >
-                  <div className="p-6 rounded-2xl border bg-white dark:bg-slate-800 shadow-lg h-full">
+                  <div className="p-6 rounded-2xl border bg-white dark:bg-slate-800 shadow-lg h-full transition-all duration-300 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442]">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-4 shadow-lg">
                       <Icon className="w-6 h-6 text-white" />
                     </div>
@@ -426,20 +537,9 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 </div>
               </div>
               
-              {/* Calendly Widget Placeholder */}
-              <div className="aspect-[16/10] bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-                <div className="text-center p-8">
-                  <Calendar className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                  <p className="text-lg font-semibold text-slate-600 dark:text-slate-400 mb-2">
-                    Calendly Integration
-                  </p>
-                  <p className="text-sm text-slate-500 dark:text-slate-500 max-w-md">
-                    Insert your Calendly embed code here to enable live booking
-                  </p>
-                  <Button variant="gradient" size="lg" className="mt-6">
-                    Open Calendly
-                  </Button>
-                </div>
+              {/* Calendly Inline Embed */}
+              <div className="aspect-[9/16] md:aspect-[4/3] lg:aspect-[16/10] bg-white dark:bg-slate-900">
+                <div ref={calendlyContainerRef} className="w-full h-full" style={{ minWidth: '320px', height: '100%' }} />
               </div>
             </div>
 
@@ -502,31 +602,67 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                   viewport={{ once: true }}
                 >
-                  <a
-                    href={social.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block h-full p-8 rounded-3xl border bg-white dark:bg-slate-800 shadow-xl hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300"
-                  >
-                    <div className={cn(
-                      "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center mx-auto mb-6 shadow-lg",
-                      social.gradient
-                    )}>
-                      <Icon className="w-8 h-8 text-white" />
+                  {social.active ? (
+                    <a
+                      href={social.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block h-full p-8 rounded-3xl border bg-white dark:bg-slate-800 shadow-xl hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300"
+                    >
+                      <div className={cn(
+                        "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center mx-auto mb-6 shadow-lg",
+                        social.gradient
+                      )}>
+                        {social.externalIconUrl ? (
+                          <img src={social.externalIconUrl} alt={social.name} className="w-8 h-8" />
+                        ) : (
+                          <Icon className="w-8 h-8 text-white" />
+                        )}
+                      </div>
+                      
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2 enterprise-heading text-center">
+                        {social.name}
+                      </h3>
+                      
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 enterprise-body text-center">
+                        {social.description}
+                      </p>
+                      
+                      <p className="text-base font-semibold maritime-gradient-text text-center">
+                        {social.handle}
+                      </p>
+                    </a>
+                  ) : (
+                    <div
+                      className="block h-full p-8 rounded-3xl border bg-white dark:bg-slate-800 shadow-xl transition-all duration-300 opacity-50 cursor-not-allowed relative"
+                    >
+                      <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 text-white text-xs font-bold shadow-lg">
+                        Coming Soon
+                      </div>
+                      <div className={cn(
+                        "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center mx-auto mb-6 shadow-lg opacity-60",
+                        social.gradient
+                      )}>
+                        {social.externalIconUrl ? (
+                          <img src={social.externalIconUrl} alt={social.name} className="w-8 h-8" />
+                        ) : (
+                          <Icon className="w-8 h-8 text-white" />
+                        )}
+                      </div>
+                      
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2 enterprise-heading text-center">
+                        {social.name}
+                      </h3>
+                      
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 enterprise-body text-center">
+                        {social.description}
+                      </p>
+                      
+                      <p className="text-base font-semibold text-slate-500 dark:text-slate-400 text-center">
+                        {social.handle}
+                      </p>
                     </div>
-                    
-                    <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2 enterprise-heading text-center">
-                      {social.name}
-                    </h3>
-                    
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 enterprise-body text-center">
-                      {social.description}
-                    </p>
-                    
-                    <p className="text-base font-semibold maritime-gradient-text text-center">
-                      {social.handle}
-                    </p>
-                  </a>
+                  )}
                 </motion.div>
               )
             })}
@@ -556,15 +692,21 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="gradient" size="xl" className="group">
+                <button
+                  type="button"
+                  onClick={scrollToBooking}
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 h-14 rounded-xl px-10 text-lg group"
+                >
                   <Calendar className="w-5 h-5" />
                   Book Your Demo Now
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-                <Button variant="outline" size="xl">
-                  <Mail className="w-5 h-5" />
-                  contact@fleetcore.com
-                </Button>
+                </button>
+                <a href="mailto:hello@fleetcore.ai">
+                  <Button variant="outline" size="xl">
+                    <Mail className="w-5 h-5" />
+                    hello@fleetcore.ai
+                  </Button>
+                </a>
               </div>
             </div>
           </motion.div>

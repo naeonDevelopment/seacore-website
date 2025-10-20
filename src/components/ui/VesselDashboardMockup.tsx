@@ -26,7 +26,7 @@ import {
   Database,
   Shield
 } from 'lucide-react'
-import { SeaCoreLogo } from './SeaCoreLogo'
+import { FleetCoreLogo } from './FleetCoreLogo'
 
 interface VesselDashboardMockupProps {
   className?: string
@@ -248,11 +248,11 @@ const VesselDashboardMockup: React.FC<VesselDashboardMockupProps> = ({ className
                 ? 'bg-slate-800/80 border-slate-600/20' 
                 : 'bg-white/80 border-white/20'
             }`}>
-              <HeaderTooltip content="SeaCore Maritime Navigator - Main Dashboard">
+              <HeaderTooltip content="FleetCore Maritime Navigator - Main Dashboard">
                 <div className={`flex items-center cursor-pointer rounded-lg p-0 transition-colors duration-200 ${
                   isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-gray-50/50'
                 }`}>
-                  <SeaCoreLogo className="scale-[0.65] -ml-1" />
+                  <FleetCoreLogo className="scale-[0.65] -ml-1" />
                 </div>
               </HeaderTooltip>
               <HeaderTooltip content="Access user profile, account settings and system preferences">

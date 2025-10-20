@@ -14,15 +14,25 @@ const ArchitectureParallaxBackground: React.FC<ArchitectureParallaxBackgroundPro
   const [isLoaded, setIsLoaded] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   
+  // Detect mobile viewport
+  const [isMobile, setIsMobile] = useState(false)
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+  
   // Track scroll position relative to the container
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start end", "end start"]
   })
   
-  // Linear parallax effect - smooth upward movement with linear zoom in
-  const y = useTransform(scrollYProgress, [0, 1], [0, -50])
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.15])
+  // Reduced parallax effect on mobile for better visibility
+  const y = useTransform(scrollYProgress, [0, 1], isMobile ? [0, -20] : [0, -50])
+  const scale = useTransform(scrollYProgress, [0, 1], isMobile ? [1, 1.05] : [1, 1.15])
   
   // Use architecture section image
   const imageSrc = getAssetPath('assets/section_architecture/Generated Image October 05, 2025 - 7_33PM.png')
@@ -66,14 +76,17 @@ const ArchitectureParallaxBackground: React.FC<ArchitectureParallaxBackgroundPro
         <motion.img
           src={imageSrc}
           alt="System Architecture Background"
-          className="absolute inset-0 w-full h-full object-cover"
+          className={`absolute inset-0 w-full h-full ${
+            isMobile ? 'object-contain' : 'object-cover'
+          }`}
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}
           animate={{ opacity: isLoaded ? 1 : 0 }}
           transition={{ duration: 0.8 }}
           style={{ 
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
+            objectPosition: isMobile ? 'center center' : 'center center'
           }}
         />
       </motion.div>

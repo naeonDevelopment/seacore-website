@@ -17,10 +17,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   
   // Video files - your uploaded videos (fallback to gradient if missing)
   const videoSources = useMemo(() => [
+    getAssetPath('assets/hero/1759135676680nncwpukn.mp4'),
     getAssetPath('assets/hero/1759135641996t4i0q3dh.mp4'),
-    getAssetPath('assets/hero/17591356490610kxg0kjh.mp4'),
-    getAssetPath('assets/hero/1759135665622nquhcb0h.mp4'),
-    getAssetPath('assets/hero/1759135676680nncwpukn.mp4')
+    getAssetPath('assets/hero/17591356490610kxg0kjh.mp4')
   ], [])
   
   // Enable videos - they will gracefully fallback to gradient if missing
@@ -111,7 +110,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         <motion.video
           ref={videoRef}
           key={currentVideoIndex}
-          className="absolute inset-0 w-full object-cover z-10"
+          className="absolute inset-0 w-full h-full z-10"
           autoPlay
           muted
           playsInline
@@ -123,9 +122,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           transition={{ duration: 0.5 }}
           style={{ 
             backgroundColor: 'transparent',
-            height: '110%',
-            top: 0,
-            objectPosition: 'center top'
+            objectFit: 'cover',
+            objectPosition: 'center center'
           }}
         >
           <source src={videoSources[currentVideoIndex]} type="video/mp4" />

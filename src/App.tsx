@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navigation from '@/components/layout/Navigation'
+import Footer from '@/components/layout/Footer'
 import ScrollToTop from '@/components/layout/ScrollToTop'
 import HomePage from '@/pages/HomePage'
 import SolutionsPage from '@/pages/SolutionsPage'
 import PlatformPage from '@/pages/PlatformPage'
 import AboutPage from '@/pages/AboutPage'
 import ContactPage from '@/pages/ContactPage'
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage'
 import '@/styles/globals.css'
+import { Helmet } from 'react-helmet-async'
 
 function App() {
   const [darkMode, setDarkMode] = useState(false)
@@ -41,6 +44,35 @@ function App() {
 
   return (
     <Router basename="/">
+      <Helmet>
+        <title>FleetCore - Agentic Maritime Intelligence Platform</title>
+        <meta name="description" content="AI-powered maritime maintenance OS: predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "FleetCore",
+            "url": "https://fleetcore.ai/",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://fleetcore.ai/search?q={query}",
+              "query-input": "required name=query"
+            }
+          })}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "itemListElement": [
+              { "@type": "SiteNavigationElement", "name": "Solutions", "url": "https://fleetcore.ai/solutions" },
+              { "@type": "SiteNavigationElement", "name": "Platform", "url": "https://fleetcore.ai/platform" },
+              { "@type": "SiteNavigationElement", "name": "About", "url": "https://fleetcore.ai/about" },
+              { "@type": "SiteNavigationElement", "name": "Contact", "url": "https://fleetcore.ai/contact" }
+            ]
+          })}
+        </script>
+      </Helmet>
       <ScrollToTop />
       <div className="min-h-screen bg-background text-foreground">
         <Navigation darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
@@ -51,12 +83,12 @@ function App() {
             
             {/* Solutions Routes */}
             <Route path="/solutions" element={<SolutionsPage />} />
-            <Route path="/solutions/commercial-shipping" element={<div className="pt-24 p-8">Commercial Fleet Solutions Coming Soon</div>} />
-            <Route path="/solutions/offshore-energy" element={<div className="pt-24 p-8">Offshore Energy Solutions Coming Soon</div>} />
-            <Route path="/solutions/cruise-lines" element={<div className="pt-24 p-8">Cruise & Passenger Solutions Coming Soon</div>} />
-            <Route path="/solutions/naval-defense" element={<div className="pt-24 p-8">Naval & Defense Solutions Coming Soon</div>} />
-            <Route path="/solutions/port-operations" element={<div className="pt-24 p-8">Port Operations Solutions Coming Soon</div>} />
-            <Route path="/solutions/yacht-superyacht" element={<div className="pt-24 p-8">Yacht & Superyacht Solutions Coming Soon</div>} />
+            <Route path="/solutions/commercial-shipping" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Commercial Fleet Solutions Coming Soon</div></>} />
+            <Route path="/solutions/offshore-energy" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Offshore Energy Solutions Coming Soon</div></>} />
+            <Route path="/solutions/cruise-lines" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Cruise & Passenger Solutions Coming Soon</div></>} />
+            <Route path="/solutions/naval-defense" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Naval & Defense Solutions Coming Soon</div></>} />
+            <Route path="/solutions/port-operations" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Port Operations Solutions Coming Soon</div></>} />
+            <Route path="/solutions/yacht-superyacht" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Yacht & Superyacht Solutions Coming Soon</div></>} />
             
             {/* Platform Route */}
             <Route path="/platform" element={<PlatformPage />} />
@@ -76,17 +108,16 @@ function App() {
             {/* Contact Route */}
             <Route path="/contact" element={<ContactPage />} />
             
+            {/* Privacy Policy Route */}
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            
             {/* 404 Route */}
             <Route path="*" element={<div className="pt-24 p-8 text-center">Page Not Found</div>} />
           </Routes>
         </main>
 
-        {/* Footer placeholder */}
-        <footer className="bg-slate-900 text-white py-12">
-          <div className="container mx-auto px-4 text-center">
-            <p>&copy; 2025 FleetCore. All rights reserved. Maritime Intelligence Platform.</p>
-          </div>
-        </footer>
+        {/* Footer */}
+        <Footer />
       </div>
     </Router>
   )

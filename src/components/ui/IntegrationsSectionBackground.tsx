@@ -15,15 +15,25 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
   const [isLoaded, setIsLoaded] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   
+  // Detect mobile viewport
+  const [isMobile, setIsMobile] = useState(false)
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+  
   // Track scroll position relative to the container
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start end", "end start"]
   })
   
-  // Parallax zoom effect - smooth upward movement with linear zoom in
-  const y = useTransform(scrollYProgress, [0, 1], [0, -50])
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.15])
+  // Reduced parallax effect on mobile for better visibility
+  const y = useTransform(scrollYProgress, [0, 1], isMobile ? [0, -20] : [0, -50])
+  const scale = useTransform(scrollYProgress, [0, 1], isMobile ? [1, 1.05] : [1, 1.15])
   
   // Use Platform hero image for integrations section
   const imageSrc = getAssetPath('assets/hero_platform/Generated Image October 06, 2025 - 5_12PM.png')
@@ -55,14 +65,17 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
         <motion.img
           src={imageSrc}
           alt="Integration Background"
-          className="absolute inset-0 w-full h-full object-cover"
+          className={`absolute inset-0 w-full h-full ${
+            isMobile ? 'object-contain' : 'object-cover'
+          }`}
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}
           animate={{ opacity: isLoaded ? 1 : 0 }}
           transition={{ duration: 0.8 }}
           style={{ 
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
+            objectPosition: isMobile ? 'center center' : 'center center'
           }}
         />
       </motion.div>

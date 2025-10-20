@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { 
   ArrowRight,
   Database,
@@ -38,6 +40,14 @@ interface PlatformPageProps {}
 
 export const PlatformPage: React.FC<PlatformPageProps> = () => {
   const [isDarkMode, setIsDarkMode] = useState(false)
+  
+  const openCalendly = () => {
+    if (window.Calendly) {
+      window.Calendly.initPopupWidget({
+        url: 'https://calendly.com/fleetcore-ai/30min'
+      })
+    }
+  }
 
   // Detect dark mode from document class
   React.useEffect(() => {
@@ -386,10 +396,55 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>FleetCore Platform: AI Maritime Maintenance OS</title>
+        <meta name="description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics for maritime operations." />
+        <link rel="canonical" href="https://fleetcore.ai/platform" />
+        <meta property="og:title" content="FleetCore Platform: AI Maritime Maintenance OS" />
+        <meta property="og:description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fleetcore.ai/platform" />
+        <meta property="og:image" content="/og/platform.png" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "FleetCore Platform",
+            "url": "https://fleetcore.ai/platform",
+            "breadcrumb": {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://fleetcore.ai/" },
+                { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://fleetcore.ai/platform" }
+              ]
+            },
+            "mainEntity": {
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "What are FleetCore’s core pillars?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Modern cloud architecture, intelligent automation, and maritime-specific design with built-in compliance." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Which modules are included?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "PMS Core, Equipment Registry, Parts & Procurement, Compliance Manager, Analytics & Reporting, and User Management." }
+                }
+              ]
+            }
+          })}
+        </script>
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@fleetcore_ai" />
+        <meta name="twitter:title" content="FleetCore Platform: AI Maritime Maintenance OS" />
+        <meta name="twitter:description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics." />
+        <meta name="twitter:image" content="/og/platform.png" />
+      </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
       {/* Hero Section */}
-      <section className="relative pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
+      <section className="relative pt-16 lg:pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
         {/* Background */}
         <PlatformHeroBackground isDarkMode={isDarkMode} />
         
@@ -492,23 +547,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
               </div>
             </div>
 
-            {/* CTAs */}
-            <div 
-              className="flex flex-col sm:flex-row gap-4 justify-center"
-              style={{
-                transform: 'translateZ(0)',
-                backfaceVisibility: 'hidden'
-              }}
-            >
-              <Button variant="gradient" size="xl" className="group">
-                Explore Platform Architecture
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button variant="ghost" size="xl">
-                <FileCheck className="w-5 h-5" />
-                Download Platform Specs
-              </Button>
-            </div>
+            {/* CTAs removed per request */}
           </motion.div>
         </div>
       </section>
@@ -843,72 +882,146 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
             </p>
           </motion.div>
 
-          {/* Comparison Table - Proper Table Format */}
+          {/* Comparison Table - Desktop Table, Mobile Cards */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="max-w-7xl mx-auto overflow-hidden rounded-3xl border shadow-2xl"
+            className="max-w-7xl mx-auto"
           >
-            {/* Table Header */}
-            <div className="grid grid-cols-4 gap-4 p-6 bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-800 dark:via-slate-850 dark:to-slate-900 border-b-2 border-slate-200 dark:border-slate-700">
-              <div className="font-bold text-slate-900 dark:text-slate-100 enterprise-heading">
-                Feature
+            {/* Desktop Table View (hidden on mobile) */}
+            <div className="hidden md:block overflow-hidden rounded-3xl border shadow-2xl">
+              {/* Table Header */}
+              <div className="grid grid-cols-4 gap-4 p-6 bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-800 dark:via-slate-850 dark:to-slate-900 border-b-2 border-slate-200 dark:border-slate-700">
+                <div className="font-bold text-slate-900 dark:text-slate-100 enterprise-heading">
+                  Feature
+                </div>
+                <div className="font-bold text-red-600 dark:text-red-400 text-center">
+                  Traditional CMMS
+                </div>
+                <div className="font-bold text-emerald-600 dark:text-emerald-400 text-center">
+                  FleetCore Platform
+                </div>
+                <div className="font-bold text-blue-600 dark:text-blue-400 text-center">
+                  Impact
+                </div>
               </div>
-              <div className="font-bold text-red-600 dark:text-red-400 text-center">
-                Traditional CMMS
-              </div>
-              <div className="font-bold text-emerald-600 dark:text-emerald-400 text-center">
-                FleetCore Platform
-              </div>
-              <div className="font-bold text-blue-600 dark:text-blue-400 text-center">
-                Impact
+
+              {/* Table Body */}
+              <div className="bg-white dark:bg-slate-900">
+                {competitiveAdvantages.map((item, index) => {
+                  const Icon = item.icon
+                  return (
+                    <motion.div
+                      key={item.advantage}
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: index * 0.05 }}
+                      viewport={{ once: true }}
+                      className={cn(
+                        "grid grid-cols-4 gap-4 p-6 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-200",
+                        index % 2 === 0 && "bg-slate-50/50 dark:bg-slate-800/30"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-md",
+                          index % 2 === 0 ? "from-blue-500 to-indigo-600" : "from-purple-500 to-violet-600"
+                        )}>
+                          <Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                          {item.advantage}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 text-center">
+                          {item.traditional}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <p className="text-xs text-slate-900 dark:text-slate-100 font-medium text-center">
+                          {item.fleetcore}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 text-center flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" />
+                          {item.impact}
+                        </span>
+                      </div>
+                    </motion.div>
+                  )
+                })}
               </div>
             </div>
 
-            {/* Table Body */}
-            <div className="bg-white dark:bg-slate-900">
+            {/* Mobile Card View (shown only on mobile) */}
+            <div className="block md:hidden space-y-6">
               {competitiveAdvantages.map((item, index) => {
                 const Icon = item.icon
                 return (
                   <motion.div
                     key={item.advantage}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.05 }}
                     viewport={{ once: true }}
-                    className={cn(
-                      "grid grid-cols-4 gap-4 p-6 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-200",
-                      index % 2 === 0 && "bg-slate-50/50 dark:bg-slate-800/30"
-                    )}
+                    className="rounded-2xl border shadow-lg overflow-hidden bg-white dark:bg-slate-900"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-md",
-                        index % 2 === 0 ? "from-blue-500 to-indigo-600" : "from-purple-500 to-violet-600"
-                      )}>
-                        <Icon className="w-5 h-5 text-white" />
+                    {/* Feature Header */}
+                    <div className="p-4 bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-800 dark:via-slate-850 dark:to-slate-900 border-b-2 border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-md",
+                          index % 2 === 0 ? "from-blue-500 to-indigo-600" : "from-purple-500 to-violet-600"
+                        )}>
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="font-bold text-slate-900 dark:text-slate-100 enterprise-heading text-lg">
+                          {item.advantage}
+                        </h3>
                       </div>
-                      <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                        {item.advantage}
-                      </span>
                     </div>
-                    <div className="flex items-center justify-center">
-                      <p className="text-xs text-slate-600 dark:text-slate-400 text-center">
-                        {item.traditional}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-center">
-                      <p className="text-xs text-slate-900 dark:text-slate-100 font-medium text-center">
-                        {item.fleetcore}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-center">
-                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 text-center flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        {item.impact}
-                      </span>
+
+                    {/* Comparison Content */}
+                    <div className="p-4 space-y-4">
+                      {/* Traditional (Before) */}
+                      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <span className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">
+                            Traditional CMMS
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                          {item.traditional}
+                        </p>
+                      </div>
+
+                      {/* FleetCore (After) */}
+                      <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                            FleetCore Platform
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-900 dark:text-slate-100 font-medium leading-relaxed">
+                          {item.fleetcore}
+                        </p>
+                      </div>
+
+                      {/* Impact Banner */}
+                      <div className="p-3 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700">
+                        <div className="flex items-center justify-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                            {item.impact}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )
@@ -973,14 +1086,16 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="gradient" size="xl" className="group">
+                <Button variant="gradient" size="xl" className="group" onClick={openCalendly}>
                   Schedule Platform Demo
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
-                <Button variant="ghost" size="xl">
-                  <Globe className="w-5 h-5" />
-                  Contact Sales Team
-                </Button>
+                <Link to="/about">
+                  <Button variant="ghost" size="xl">
+                    <Calendar className="w-5 h-5" />
+                    Learn about FleetCore
+                  </Button>
+                </Link>
               </div>
             </div>
           </motion.div>

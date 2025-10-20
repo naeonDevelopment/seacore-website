@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { 
   ArrowRight,
   Brain,
@@ -23,9 +25,9 @@ import {
   Target,
   Workflow,
   GitBranch,
-  FileCheck,
   Globe,
-  Package
+  Package,
+  FileCheck
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
@@ -283,11 +285,56 @@ const SolutionsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>Maritime Maintenance Solutions | FleetCore</title>
+        <meta name="description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
+        <link rel="canonical" href="https://fleetcore.ai/solutions" />
+        <meta property="og:title" content="Maritime Maintenance Solutions | FleetCore" />
+        <meta property="og:description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fleetcore.ai/solutions" />
+        <meta property="og:image" content="/og/solution.png" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Solutions",
+            "url": "https://fleetcore.ai/solutions",
+            "breadcrumb": {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://fleetcore.ai/" },
+                { "@type": "ListItem", "position": 2, "name": "Solutions", "item": "https://fleetcore.ai/solutions" }
+              ]
+            },
+            "mainEntity": {
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "How does FleetCore differ from CMMS?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "It’s an AI operating system that predicts failures, automates scheduling, and embeds compliance—going beyond work-order tracking." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "What outcomes can we expect?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "30–40% efficiency gains, 90%+ task auto-generation, and automated SOLAS/MARPOL tracking across fleets." }
+                }
+              ]
+            }
+          })}
+        </script>
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@fleetcore_ai" />
+        <meta name="twitter:title" content="Maritime Maintenance Solutions | FleetCore" />
+        <meta name="twitter:description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
+        <meta name="twitter:image" content="/og/solution.png" />
+      </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
       
       {/* Hero Section - AI-Powered Maritime Technical Operating System */}
-      <section className="relative pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
+      <section className="relative pt-16 lg:pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
         {/* Static Image Background */}
         <SolutionsHeroBackground isDarkMode={isDarkMode} />
 
@@ -428,23 +475,6 @@ const SolutionsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* CTAs */}
-            <div 
-              className="flex flex-col sm:flex-row gap-4 justify-center"
-              style={{
-                transform: 'translateZ(0)',
-                backfaceVisibility: 'hidden'
-              }}
-            >
-              <Button variant="gradient" size="xl" className="group">
-                See the System in Action
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button variant="ghost" size="xl">
-                <FileCheck className="w-5 h-5" />
-                Download Technical Specifications
-              </Button>
-            </div>
           </motion.div>
         </div>
       </section>
@@ -830,14 +860,27 @@ const SolutionsPage: React.FC = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="gradient" size="xl" className="group">
+                <Button 
+                  variant="gradient" 
+                  size="xl" 
+                  className="group"
+                  onClick={() => {
+                    if (window.Calendly) {
+                      window.Calendly.initPopupWidget({
+                        url: 'https://calendly.com/fleetcore-ai/30min'
+                      });
+                    }
+                  }}
+                >
                   Schedule Demo
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
-                <Button variant="ghost" size="xl">
-                  <Globe className="w-5 h-5" />
-                  Explore Platform Features
-                </Button>
+                <Link to="/platform">
+                  <Button variant="ghost" size="xl">
+                    <Globe className="w-5 h-5" />
+                    Explore Platform Features
+                  </Button>
+                </Link>
               </div>
             </div>
           </motion.div>

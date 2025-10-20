@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/fleetcore-logo.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- Primary Meta Tags -->
@@ -18,15 +18,16 @@
     <meta property="og:url" content="https://fleetcore.ai/" />
     <meta property="og:title" content="FleetCore - Agentic Maritime Intelligence Platform" />
     <meta property="og:description" content="Revolutionary AI-powered maritime maintenance platform with predictive intelligence, automated compliance, and cross-manufacturer optimization." />
-    <meta property="og:image" content="https://fleetcore.ai/og-image.jpg" />
+    <meta property="og:image" content="https://fleetcore.ai/og/home.png" />
     <meta property="og:site_name" content="FleetCore" />
     
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://fleetcore.ai/" />
-    <meta property="twitter:title" content="FleetCore - Agentic Maritime Intelligence Platform" />
-    <meta property="twitter:description" content="Revolutionary AI-powered maritime maintenance platform with predictive intelligence, automated compliance, and cross-manufacturer optimization." />
-    <meta property="twitter:image" content="https://fleetcore.ai/twitter-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@fleetcore_ai" />
+    <meta name="twitter:url" content="https://fleetcore.ai/" />
+    <meta name="twitter:title" content="FleetCore - Agentic Maritime Intelligence Platform" />
+    <meta name="twitter:description" content="Revolutionary AI-powered maritime maintenance platform with predictive intelligence, automated compliance, and cross-manufacturer optimization." />
+    <meta name="twitter:image" content="https://fleetcore.ai/og/home.png" />
     
     <!-- Structured Data for AI Search Optimization -->
     <script type="application/ld+json">
@@ -42,7 +43,7 @@
         "@type": "Organization",
         "name": "FleetCore",
         "url": "https://fleetcore.ai",
-        "logo": "https://fleetcore.ai/logo.png"
+        "logo": "https://fleetcore.ai/Light.svg"
       },
       "offers": {
         "@type": "Offer",
@@ -58,7 +59,7 @@
         "Real-time regulatory monitoring",
         "Cross-manufacturer intelligence"
       ],
-      "screenshot": "https://fleetcore.ai/platform-screenshot.jpg"
+      "screenshot": "https://fleetcore.ai/og/platform.png"
     }
     </script>
     
@@ -68,7 +69,7 @@
       "@type": "Organization",
       "name": "FleetCore",
       "url": "https://fleetcore.ai",
-      "logo": "https://fleetcore.ai/logo.png",
+      "logo": "https://fleetcore.ai/Light.svg",
       "description": "Leading provider of agentic maritime intelligence solutions for predictive maintenance and regulatory compliance.",
       "foundingDate": "2024",
       "industry": "Maritime Technology",
@@ -79,7 +80,7 @@
       },
       "sameAs": [
         "https://linkedin.com/company/fleetcore-ai",
-        "https://twitter.com/fleetcore_ai"
+        "https://x.com/fleetcore_ai"
       ]
     }
     </script>
@@ -118,7 +119,7 @@
     </script>
     
     <!-- Performance and Security -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; media-src 'self' data: blob:; object-src 'none';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://assets.calendly.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; media-src 'self' data: blob:; frame-src https://calendly.com; object-src 'none';" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
@@ -126,9 +127,115 @@
     <!-- Preconnect to external domains for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://assets.calendly.com" />
+    <link rel="preconnect" href="https://calendly.com" />
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    
+    <!-- Calendly Popup Widget -->
+    <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+    <style>
+      /* Hide duplicate Calendly loader inside popup content */
+      .calendly-popup-content .calendly-spinner {
+        display: none !important;
+      }
+      
+      /* Style the overlay backdrop - CRITICAL: Fixed positioning required for flexbox centering */
+      .calendly-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: rgba(255, 255, 255, 0.3) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 9998 !important;
+      }
+      
+      .dark .calendly-overlay,
+      html.dark .calendly-overlay {
+        background-color: rgba(15, 23, 42, 0.4) !important;
+      }
+      
+      /* Force center the popup wrapper - remove ALL Calendly positioning */
+      .calendly-overlay .calendly-popup-wrapper {
+        position: relative !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        transform: none !important;
+        margin: 0 auto !important;
+        max-height: 90vh !important;
+        width: 90% !important;
+        max-width: 500px !important;
+        z-index: 9999 !important;
+      }
+      
+      /* Ensure the popup content doesn't override centering */
+      .calendly-overlay .calendly-popup-content {
+        position: relative !important;
+        height: 100% !important;
+      }
+      
+      /* Ensure the iframe is properly sized */
+      .calendly-overlay iframe {
+        max-height: 90vh !important;
+        border-radius: 8px !important;
+      }
+      
+      /* Close button positioning */
+      .calendly-overlay .calendly-close-overlay {
+        z-index: 10000 !important;
+      }
+      
+      /* Mobile-specific adjustments - aggressive centering */
+      @media (max-width: 768px) {
+        .calendly-overlay {
+          padding-top: 20vh !important;
+          padding-bottom: 5vh !important;
+          align-items: flex-start !important;
+        }
+        
+        .calendly-overlay .calendly-popup-wrapper {
+          width: 95% !important;
+          max-width: 95% !important;
+          max-height: 75vh !important;
+          margin-top: 0 !important;
+        }
+        
+        .calendly-overlay iframe {
+          max-height: 75vh !important;
+        }
+      }
+      
+      /* Position and style the loader */
+      .calendly-overlay .calendly-spinner {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        z-index: 9999 !important;
+      }
+      
+      /* Light theme loader - dark spinner on light background */
+      .calendly-overlay .calendly-spinner {
+        filter: invert(0) brightness(0.3) !important;
+      }
+      
+      /* Dark theme loader - light spinner on dark background */
+      .dark .calendly-overlay .calendly-spinner,
+      html.dark .calendly-overlay .calendly-spinner {
+        filter: invert(1) brightness(1.5) !important;
+      }
+    </style>
     
     <!-- Canonical URL -->
     <link rel="canonical" href="https://fleetcore.ai/" />
@@ -139,6 +246,8 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Calendly Popup Widget Script - Load before app for proper initialization -->
+    <script src="https://assets.calendly.com/assets/external/widget.js" type="text/javascript"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

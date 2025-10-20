@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { 
   ArrowRight, 
   Play, 
@@ -26,6 +27,7 @@ import {
   Workflow,
   Bell,
   FileCheck,
+  User,
   Package,
   Calendar,
   Bot,
@@ -307,10 +309,54 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>FleetCore: Agentic Maritime Maintenance OS</title>
+        <meta name="description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
+        <link rel="canonical" href="https://fleetcore.ai/" />
+        <meta property="og:title" content="FleetCore: Agentic Maritime Maintenance OS" />
+        <meta property="og:description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fleetcore.ai/" />
+        <meta property="og:image" content="/og/home.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@fleetcore_ai" />
+        <meta name="twitter:title" content="FleetCore: Agentic Maritime Maintenance OS" />
+        <meta name="twitter:description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
+        <meta name="twitter:image" content="/og/home.png" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "FleetCore Home",
+            "url": "https://fleetcore.ai/",
+            "breadcrumb": {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://fleetcore.ai/" }
+              ]
+            },
+            "mainEntity": {
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "What is FleetCore?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "An AI-powered maritime maintenance OS that automates scheduling, ensures SOLAS/MARPOL compliance, and delivers fleet-wide intelligence." }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Who is FleetCore for?",
+                  "acceptedAnswer": { "@type": "Answer", "text": "Enterprise maritime operators—technical superintendents, chief engineers, and fleet operations teams managing multi-vessel fleets." }
+                }
+              ]
+            }
+          })}
+        </script>
+      </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
       {/* Hero Section - Two Column Layout with Video Background */}
-      <section className="relative pt-24 pb-20 overflow-hidden min-h-[80vh] flex items-center">
+      <section className="relative pt-16 lg:pt-24 pb-20 overflow-hidden min-h-[80vh] flex items-center">
         {/* Fallback gradients (shown while video loads) - behind video */}
         <div className="absolute inset-0 bg-gradient-to-br from-maritime-50/50 via-ocean-50/30 to-signal-50/20 dark:from-maritime-950/50 dark:via-ocean-950/30 dark:to-signal-950/20 z-0"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(14,165,233,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(14,165,233,0.05),transparent_50%)] z-0"></div>
@@ -319,7 +365,7 @@ const HomePage: React.FC = () => {
         <HeroVideoBackground isDarkMode={isDarkMode} />
         
         <div className="container mx-auto px-4 relative z-50">
-          {/* Top Badge */}
+          {/* Desktop Only - Original Badge Above Headings */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -327,15 +373,15 @@ const HomePage: React.FC = () => {
               duration: 0.5,
               ease: [0.25, 0.1, 0.25, 1.0]
             }}
-            className="text-center mb-12"
+            className="text-center mb-12 px-4 hidden md:block"
             style={{ 
               willChange: 'opacity, transform',
               transform: 'translateZ(0)'
             }}
           >
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-maritime-100 to-ocean-100 dark:from-maritime-900/30 dark:to-ocean-900/30">
-              <Database className="w-5 h-5 text-maritime-600 dark:text-maritime-400" />
-              <span className="text-sm font-medium text-maritime-700 dark:text-maritime-300">
+            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-maritime-100 to-ocean-100 dark:from-maritime-900/30 dark:to-ocean-900/30 max-w-full">
+              <Database className="w-5 h-5 flex-shrink-0 text-maritime-600 dark:text-maritime-400" />
+              <span className="text-sm font-medium text-maritime-700 dark:text-maritime-300 text-center leading-snug">
                 Centralized knowledge base • Verified OEM recommendations • Individual vessel intelligence
               </span>
             </div>
@@ -359,7 +405,7 @@ const HomePage: React.FC = () => {
             >
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold enterprise-heading leading-tight">
                 <span 
-                  className="maritime-gradient-text block whitespace-nowrap" 
+                  className="maritime-gradient-text block" 
                   style={{ 
                     textShadow: isDarkMode
                       ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
@@ -372,7 +418,7 @@ const HomePage: React.FC = () => {
                   Maritime Technical
                 </span>
                 <span 
-                  className="text-black dark:text-white block whitespace-nowrap" 
+                  className="text-black dark:text-white block" 
                   style={{ 
                     textShadow: isDarkMode
                       ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
@@ -398,18 +444,42 @@ const HomePage: React.FC = () => {
                 Bridge OEM PMS with Real-World Operations - Condition Monitoring, Predictive Maintenance & Automated Workflows
               </p>
 
-              {/* System Architecture Tags */}
-              <div className="flex flex-wrap gap-3 justify-center">
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium">
-                  <Database className="w-4 h-4" />
-                  <span>Global Database</span>
+              {/* Mobile Only - Feature Pills Below Description */}
+              <div className="flex flex-wrap gap-2 justify-center px-4 md:hidden">
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-sky-100 to-blue-100 dark:from-sky-900/30 dark:to-blue-900/30 text-sky-700 dark:text-sky-300 text-xs sm:text-sm font-medium whitespace-nowrap">
+                  <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span>Centralized Knowledge Base</span>
                 </div>
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium">
-                  <Calendar className="w-4 h-4" />
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm font-medium whitespace-nowrap">
+                  <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span>Verified OEM Recommendations</span>
+                </div>
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30 text-teal-700 dark:text-teal-300 text-xs sm:text-sm font-medium whitespace-nowrap">
+                  <Ship className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span>Individual Vessel Intelligence</span>
+                </div>
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm font-medium whitespace-nowrap">
+                  <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                   <span>Automated Scheduling</span>
                 </div>
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium">
-                  <Brain className="w-4 h-4" />
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 text-purple-700 dark:text-purple-300 text-xs sm:text-sm font-medium whitespace-nowrap">
+                  <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span>AI Intelligence Layer</span>
+                </div>
+              </div>
+
+              {/* Desktop Only - System Architecture Tags Below Description */}
+              <div className="hidden md:flex flex-wrap gap-3 justify-center px-4">
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium whitespace-nowrap">
+                  <Database className="w-4 h-4 flex-shrink-0" />
+                  <span>Global Database</span>
+                </div>
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium whitespace-nowrap">
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <span>Automated Scheduling</span>
+                </div>
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium whitespace-nowrap">
+                  <Brain className="w-4 h-4 flex-shrink-0" />
                   <span>AI Intelligence Layer</span>
                 </div>
               </div>
@@ -425,19 +495,37 @@ const HomePage: React.FC = () => {
               delay: 0.3,
               ease: [0.25, 0.1, 0.25, 1.0]
             }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4"
             style={{ 
               willChange: 'opacity, transform',
               transform: 'translateZ(0)'
             }}
           >
-            <Button variant="gradient" size="xl" className="group">
-              Schedule Role-Specific Demo
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            <Button 
+              variant="gradient" 
+              size="xl" 
+              className="group w-full sm:w-auto"
+              onClick={() => {
+                if (window.Calendly) {
+                  window.Calendly.initPopupWidget({
+                    url: 'https://calendly.com/fleetcore-ai/30min'
+                  });
+                }
+              }}
+            >
+              <span className="truncate">Schedule a Product Demo</span>
+              <ArrowRight className="w-5 h-5 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
             </Button>
-            <Button variant="ghost" size="xl" className="group">
-              <Play className="w-5 h-5" />
-              Watch Platform Overview
+            <Button variant="ghost" size="xl" className="group relative w-full sm:w-auto">
+              <Play className="w-5 h-5 flex-shrink-0" />
+              <span className="relative inline-block overflow-hidden">
+                <span className="inline-block transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-full whitespace-nowrap">
+                  Watch Platform Overview
+                </span>
+                <span className="inline-block transition-all duration-300 opacity-0 translate-y-full group-hover:opacity-100 group-hover:translate-y-0 absolute inset-0 whitespace-nowrap">
+                  Video Coming Soon
+                </span>
+              </span>
             </Button>
           </motion.div>
         </div>
@@ -1055,15 +1143,18 @@ const HomePage: React.FC = () => {
         </div>
 
         {/* Carousel container with dark background and rounded corners */}
-        <div className="w-full flex justify-center px-4 md:px-8 lg:px-12">
-          <div className="w-[85%] bg-slate-800 dark:bg-slate-900 rounded-3xl overflow-visible pt-20 pb-20 px-8">
+        <div className="w-full flex justify-center md:px-8 lg:px-12">
+          <div className="w-full md:w-[85%] bg-slate-800 dark:bg-slate-900 md:rounded-3xl overflow-hidden pt-12 md:pt-20 pb-12 md:pb-20 px-0 md:px-8">
             <Carousel
               itemsPerView={3}
+              mobileItemsPerView={1}
               gap={32}
+              mobileGap={16}
               autoPlay={true}
               autoPlayInterval={6000}
               className="w-full"
               itemWidth={420}
+              useMobilePercentage={true}
               itemClassName="mt-6"
             >
               {coreCapabilities.map((capability, index) => (
@@ -1157,15 +1248,18 @@ const HomePage: React.FC = () => {
             </p>
           </motion.div>
 
-          {/* Modern Horizontal Timeline Design */}
-          <div className="w-[85%] mx-auto">
+          {/* Modern Responsive Timeline Design */}
+          <div className="w-full md:w-[85%] mx-auto px-4 md:px-0">
             {/* Timeline Container */}
             <div className="relative">
-              {/* Horizontal Timeline Line */}
-              <div className="absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-200 via-purple-200 to-emerald-200 dark:from-blue-800 dark:via-purple-800 dark:to-emerald-800"></div>
+              {/* Desktop: Horizontal Timeline Line */}
+              <div className="hidden md:block absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-200 via-purple-200 to-emerald-200 dark:from-blue-800 dark:via-purple-800 dark:to-emerald-800"></div>
               
-              {/* Steps Grid */}
-              <div className="grid grid-cols-3 gap-8 mb-12">
+              {/* Mobile: Vertical Timeline Line */}
+              <div className="md:hidden absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-200 via-purple-200 to-emerald-200 dark:from-blue-800 dark:via-purple-800 dark:to-emerald-800"></div>
+              
+              {/* Steps Grid - Responsive */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-8 mb-12">
                 {integrationProcess.map((process, index) => (
                   <motion.div
                     key={process.step}
@@ -1175,8 +1269,8 @@ const HomePage: React.FC = () => {
                     viewport={{ once: true }}
                     className="relative"
                   >
-                    {/* Timeline Node */}
-                    <div className="flex justify-center mb-8">
+                    {/* Timeline Node - Desktop: Centered, Mobile: Left-aligned */}
+                    <div className="flex md:justify-center justify-start mb-6 md:mb-8">
                       <div className="relative z-10">
                         <div className={cn(
                           "w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg bg-gradient-to-br",
@@ -1192,8 +1286,8 @@ const HomePage: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Step Card */}
-                    <div className="rounded-3xl border bg-white dark:bg-slate-800 shadow-xl p-6 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 h-full">
+                    {/* Step Card - Mobile: Left margin to offset from timeline */}
+                    <div className="rounded-3xl border bg-white dark:bg-slate-800 shadow-xl p-6 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 h-full ml-0 md:ml-0">
                       {/* Icon & Title */}
                       <div className="flex flex-col items-center text-center mb-4">
                         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br shadow-lg mb-3", process.gradient)}>
@@ -1202,7 +1296,7 @@ const HomePage: React.FC = () => {
                         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                           Step {process.step}
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                        <h3 className="text-lg md:text-xl font-bold text-slate-900 dark:text-slate-100">
                           {process.title}
                         </h3>
                       </div>
@@ -1215,20 +1309,13 @@ const HomePage: React.FC = () => {
                       {/* Features List */}
                       <div className="space-y-3">
                         {process.features.map((feature, idx) => (
-                          <div key={idx} className="flex items-start space-x-3 ml-4">
+                          <div key={idx} className="flex items-start space-x-3 md:ml-4">
                             <div className={cn(
-                              "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5",
-                              index === 0 ? "bg-blue-100 dark:bg-blue-900/30" : 
-                              index === 1 ? "bg-purple-100 dark:bg-purple-900/30" : 
-                              "bg-emerald-100 dark:bg-emerald-900/30"
-                            )}>
-                              <div className={cn(
-                                "w-2 h-2 rounded-full",
-                                index === 0 ? "bg-blue-600 dark:bg-blue-400" : 
-                                index === 1 ? "bg-purple-600 dark:bg-purple-400" : 
-                                "bg-emerald-600 dark:bg-emerald-400"
-                              )}></div>
-                            </div>
+                              "w-2 h-2 rounded-full flex-shrink-0 mt-1.5",
+                              index === 0 ? "bg-blue-600 dark:bg-blue-400" : 
+                              index === 1 ? "bg-purple-600 dark:bg-purple-400" : 
+                              "bg-emerald-600 dark:bg-emerald-400"
+                            )}></div>
                             <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">{feature}</span>
                           </div>
                         ))}
@@ -1278,7 +1365,7 @@ const HomePage: React.FC = () => {
                 viewport={{ once: true }}
               >
                 <Link to={industry.href}>
-                  <div className="text-center p-8 group rounded-3xl border shadow-lg cursor-pointer hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 bg-white dark:bg-slate-800">
+                  <div className="text-center p-6 group rounded-3xl border shadow-lg cursor-pointer hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 bg-white dark:bg-slate-800 overflow-visible">
                     <div className={cn(
                       "w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 bg-gradient-to-br",
                       getIconGradient(industry.category)
@@ -1286,7 +1373,7 @@ const HomePage: React.FC = () => {
                       <industry.icon className="w-8 h-8 text-white" />
                     </div>
                     <h3 className={cn(
-                      "font-semibold text-slate-900 dark:text-slate-100 transition-colors group-hover:",
+                      "font-semibold text-slate-900 dark:text-slate-100 transition-colors text-sm overflow-visible px-1",
                       getIconColor(industry.category).replace('text-', 'group-hover:text-')
                     )}>
                       {industry.name}
@@ -1329,15 +1416,28 @@ const HomePage: React.FC = () => {
               with enterprise-grade reliability and measurable ROI.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-              <Button variant="gradient" size="xl" className="group">
-                Schedule Enterprise Demo
-                <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center px-4">
+              <Button 
+                variant="gradient" 
+                size="xl" 
+                className="group w-full sm:w-auto"
+                onClick={() => {
+                  if (window.Calendly) {
+                    window.Calendly.initPopupWidget({
+                      url: 'https://calendly.com/fleetcore-ai/30min'
+                    });
+                  }
+                }}
+              >
+                <span className="truncate">Schedule Enterprise Demo</span>
+                <ArrowUpRight className="w-5 h-5 flex-shrink-0 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               </Button>
-              <Button variant="ghost" size="xl" className="group">
-                <FileCheck className="w-5 h-5" />
-                Download Enterprise Whitepaper
-              </Button>
+              <Link to="/contact" className="w-full sm:w-auto">
+                <Button variant="ghost" size="xl" className="group relative w-full sm:w-auto">
+                  <User className="w-5 h-5 flex-shrink-0" />
+                  <span className="relative inline-block">Go to Contact</span>
+                </Button>
+              </Link>
             </div>
           </motion.div>
         </div>
