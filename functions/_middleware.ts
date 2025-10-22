@@ -126,19 +126,8 @@ function generateBotHTML(pathname: string): string {
         <li><strong>Global Intelligence Graph:</strong> Cross-fleet learning and optimization</li>
         <li><strong>Vendor-Neutral Platform:</strong> Multi-OEM integration and optimization</li>
       </ul>
-      
-      <h2>Loading Interactive Experience...</h2>
-      <p>This page is loading the full interactive FleetCore platform. If you're seeing this, your browser may have JavaScript disabled or you're a search crawler indexing our content.</p>
-      
-      <noscript>
-        <p><strong>JavaScript Required:</strong> The full FleetCore experience requires JavaScript. Please enable JavaScript in your browser to access all features.</p>
-      </noscript>
     </div>
   </div>
-  
-  <!-- Load full React app -->
-  <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>`;
 }
