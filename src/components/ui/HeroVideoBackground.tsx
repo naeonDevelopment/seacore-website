@@ -17,9 +17,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   
   // Video files - your uploaded videos (fallback to gradient if missing)
   const videoSources = useMemo(() => [
-    getAssetPath('assets/hero/1759135676680nncwpukn.mp4'),
-    getAssetPath('assets/hero/1759135641996t4i0q3dh.mp4'),
-    getAssetPath('assets/hero/17591356490610kxg0kjh.mp4')
+    getAssetPath('assets/hero/h_h_1.mp4'),
+    getAssetPath('assets/hero/h_h_2.mp4'),
+    getAssetPath('assets/hero/h_h_3.mp4')
   ], [])
   
   // Enable videos - they will gracefully fallback to gradient if missing
