@@ -11,126 +11,239 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
   isDarkMode = false, 
   className = '' 
 }) => {
+  // State for dual-video crossfade system
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0)
-  const [isLoaded, setIsLoaded] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const [activeVideo, setActiveVideo] = useState<'A' | 'B'>('A')
+  const [videoALoaded, setVideoALoaded] = useState(false)
+  const [videoBLoaded, setVideoBLoaded] = useState(false)
   
-  // Executive Role section videos - section_experts assets
+  // Refs for video elements
+  const videoARef = useRef<HTMLVideoElement>(null)
+  const videoBRef = useRef<HTMLVideoElement>(null)
+  
+  // Refs to access current state in interval (avoid dependency issues)
+  const currentVideoIndexRef = useRef(currentVideoIndex)
+  const activeVideoRef = useRef(activeVideo)
+  const videoALoadedRef = useRef(videoALoaded)
+  const videoBLoadedRef = useRef(videoBLoaded)
+  
+  // Executive Role section videos
   const videoSources = useMemo(() => [
     getAssetPath('assets/section_experts/vid_section_experts_1.mp4'),
     getAssetPath('assets/section_experts/vid_section_experts_2.mp4')
   ], [])
   
-  // Enable videos - they will gracefully fallback to gradient if missing
-  const [videosAvailable, setVideosAvailable] = useState(true) // Re-enabled with fixed paths
-  const [failedAttempts, setFailedAttempts] = useState(0)
+  const [videosAvailable, setVideosAvailable] = useState(true)
+  const [failedVideos, setFailedVideos] = useState<Set<number>>(new Set())
 
-  // Reset video state when video sources change
-  useEffect(() => {
-    console.log('🔄 ExecutiveRole Video sources changed, resetting state')
-    setVideosAvailable(true)
-    setFailedAttempts(0)
-    setIsLoaded(false)
-    setCurrentVideoIndex(0)
-  }, [videoSources])
+  // Keep refs in sync with state
+  useEffect(() => { currentVideoIndexRef.current = currentVideoIndex }, [currentVideoIndex])
+  useEffect(() => { activeVideoRef.current = activeVideo }, [activeVideo])
+  useEffect(() => { videoALoadedRef.current = videoALoaded }, [videoALoaded])
+  useEffect(() => { videoBLoadedRef.current = videoBLoaded }, [videoBLoaded])
 
-  // Debug logging
+  // Component mount/unmount logging
   useEffect(() => {
-    console.log('🎬 ExecutiveRoleVideoBackground initialized')
-    console.log('📁 Video sources:', videoSources)
-    console.log('🎯 Current video index:', currentVideoIndex)
-    console.log('✅ Videos available:', videosAvailable)
-    
+    console.log('🎬 ExecutiveRoleVideoBackground: Initialized')
     return () => {
-      console.log('🔥 ExecutiveRoleVideoBackground unmounting')
+      console.log('🔥 ExecutiveRoleVideoBackground: Unmounting')
     }
   }, [])
 
-  // Debug isLoaded state changes
-  useEffect(() => {
-    console.log('🔄 ExecutiveRole isLoaded state changed:', isLoaded)
-    console.log('👁️ ExecutiveRole Video opacity should be:', isLoaded ? 1 : 0)
-  }, [isLoaded])
+  // Get next valid video index (skip failed videos)
+  const getNextVideoIndex = (current: number): number => {
+    let nextIndex = (current + 1) % videoSources.length
+    let attempts = 0
+    
+    while (failedVideos.has(nextIndex) && attempts < videoSources.length) {
+      nextIndex = (nextIndex + 1) % videoSources.length
+      attempts++
+    }
+    
+    return nextIndex
+  }
 
-  // Cycle through videos - longer intervals for executive content
+  // Preload video into inactive element
+  const preloadVideo = (videoRef: React.RefObject<HTMLVideoElement>, index: number) => {
+    if (videoRef.current && !failedVideos.has(index)) {
+      const src = videoSources[index]
+      const fileName = src.split('/').pop()
+      
+      // Only load if different video
+      if (!videoRef.current.src.includes(fileName || '')) {
+        console.log(`📦 ExecutiveRole: Preloading video ${index}: ${fileName}`)
+        videoRef.current.src = src
+        videoRef.current.load()
+      }
+    }
+  }
+
+  // STABLE interval - no dependencies, uses refs for current state
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentVideoIndex((prev) => (prev + 1) % videoSources.length)
-    }, 12000) // 12 seconds per video for more professional pacing
+      // Access current state via refs
+      const currentIndex = currentVideoIndexRef.current
+      const currentActive = activeVideoRef.current
+      const isVideoALoaded = videoALoadedRef.current
+      const isVideoBLoaded = videoBLoadedRef.current
+      
+      // Check if all videos have failed
+      if (failedVideos.size >= videoSources.length) {
+        console.log('🚫 ExecutiveRole: All videos failed, using gradient background')
+        setVideosAvailable(false)
+        return
+      }
+      
+      const nextIndex = getNextVideoIndex(currentIndex)
+      const inactiveVideoRef = currentActive === 'A' ? videoBRef : videoARef
+      const isInactiveLoaded = currentActive === 'A' ? isVideoBLoaded : isVideoALoaded
+      
+      console.log(`🔄 ExecutiveRole: Transition check: currentIndex=${currentIndex}, nextIndex=${nextIndex}, active=${currentActive}, inactiveLoaded=${isInactiveLoaded}`)
+      
+      // Only transition if inactive video is loaded and ready
+      if (inactiveVideoRef.current && isInactiveLoaded) {
+        console.log(`🎬 ExecutiveRole: Transitioning from video ${currentIndex} to ${nextIndex}`)
+        
+        // Switch active video (triggers crossfade)
+        setActiveVideo(prev => prev === 'A' ? 'B' : 'A')
+        setCurrentVideoIndex(nextIndex)
+        
+        // Start playing the newly active video
+        inactiveVideoRef.current.currentTime = 0
+        inactiveVideoRef.current.play().catch(err => {
+          console.error('▶️ ExecutiveRole: Autoplay failed:', err)
+        })
+        
+        // Preload the following video into the now-inactive element
+        const followingIndex = getNextVideoIndex(nextIndex)
+        const nowInactiveRef = currentActive === 'A' ? videoARef : videoBRef
+        setTimeout(() => preloadVideo(nowInactiveRef, followingIndex), 1000)
+      } else {
+        console.log(`⏸️ ExecutiveRole: Delaying transition - inactive video not ready`)
+      }
+    }, 12000) // 12 seconds per video for executive section
 
     return () => clearInterval(interval)
-  }, [videoSources.length])
+  }, [videoSources.length, failedVideos]) // Minimal dependencies
 
-  // Handle video load
-  const handleVideoLoad = () => {
-    console.log('✅ ExecutiveRole Video loaded successfully:', videoSources[currentVideoIndex])
-    console.log('🎬 ExecutiveRole Setting isLoaded to true')
-    console.log('🔍 ExecutiveRole Current component state before setting loaded:', { currentVideoIndex, videosAvailable, failedAttempts })
-    setIsLoaded(true)
+  // Handle video load events
+  const handleVideoALoad = () => {
+    console.log(`✅ ExecutiveRole: Video A loaded (readyState: ${videoARef.current?.readyState})`)
+    setVideoALoaded(true)
   }
 
-  // Handle video error (fallback to gradient gracefully)
-  const handleVideoError = (error: any) => {
-    console.log('❌ ExecutiveRole Video failed to load:', videoSources[currentVideoIndex], error)
-    setIsLoaded(false)
+  const handleVideoBLoad = () => {
+    console.log(`✅ ExecutiveRole: Video B loaded (readyState: ${videoBRef.current?.readyState})`)
+    setVideoBLoaded(true)
+  }
+
+  // Handle video errors
+  const handleVideoError = (videoId: 'A' | 'B', index: number) => {
+    console.log(`❌ ExecutiveRole: Video ${videoId} (index ${index}) failed to load`)
     
-    const newFailedAttempts = failedAttempts + 1
-    setFailedAttempts(newFailedAttempts)
+    setFailedVideos(prev => new Set(prev).add(index))
     
-    // If all videos have failed, disable video background gracefully
-    if (newFailedAttempts >= videoSources.length) {
-      console.log('🚫 ExecutiveRole All videos failed, using gradient background')
-      setVideosAvailable(false)
+    if (videoId === 'A') {
+      setVideoALoaded(false)
     } else {
-      // Try next video after a delay to prevent rapid cycling
-      setTimeout(() => {
-        const nextIndex = (currentVideoIndex + 1) % videoSources.length
-        console.log('🔄 ExecutiveRole Trying next video:', videoSources[nextIndex])
-        setCurrentVideoIndex(nextIndex)
-      }, 1000) // 1 second delay
+      setVideoBLoaded(false)
+    }
+    
+    // If too many videos failed, disable video background
+    if (failedVideos.size + 1 >= videoSources.length) {
+      console.log('🚫 ExecutiveRole: Too many video failures, using gradient background')
+      setVideosAvailable(false)
     }
   }
 
-  // Handle video end (for seamless looping)
-  const handleVideoEnd = () => {
+  // Handle video end - loop current video
+  const handleVideoEnd = (videoRef: React.RefObject<HTMLVideoElement>) => {
     if (videoRef.current) {
       videoRef.current.currentTime = 0
-      videoRef.current.play()
+      videoRef.current.play().catch(err => {
+        console.error('▶️ ExecutiveRole: Loop playback failed:', err)
+      })
     }
   }
+
+  // Initialize first video on mount - ONLY ONCE
+  useEffect(() => {
+    console.log('🚀 ExecutiveRole: Initializing first video...')
+    if (videoARef.current) {
+      const firstVideoSrc = videoSources[0]
+      console.log(`📹 ExecutiveRole: Loading first video: ${firstVideoSrc}`)
+      videoARef.current.src = firstVideoSrc
+      videoARef.current.load()
+      
+      // Preload second video after brief delay (if more than 1 video)
+      if (videoSources.length > 1) {
+        setTimeout(() => {
+          console.log('⏰ ExecutiveRole: Preloading second video')
+          preloadVideo(videoBRef, 1)
+        }, 2000)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Empty array - run only on mount
+
+  const isAnyVideoLoaded = videoALoaded || videoBLoaded
 
   return (
     <div className={`absolute inset-0 overflow-hidden ${className}`}>
-      {/* Fallback gradient background - always show - Executive theme colors */}
+      {/* Fallback gradient background - always visible - Executive theme colors */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-slate-900 dark:to-emerald-950/30 z-0" />
 
-      {/* Video Background - Only render if videos are available */}
+      {/* Dual Video Elements for Seamless Crossfade */}
       {videosAvailable && (
-        <motion.video
-          ref={videoRef}
-          key={currentVideoIndex}
-          className="absolute inset-0 w-full h-full z-10"
-          autoPlay
-          muted
-          playsInline
-          onLoadedData={handleVideoLoad}
-          onError={handleVideoError}
-          onEnded={handleVideoEnd}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isLoaded ? 1 : 0 }}
-          transition={{ duration: 0.8 }} // Slightly longer transition for executive content
-          style={{ 
-            backgroundColor: 'transparent',
-            objectFit: 'cover',
-            objectPosition: 'center center'
-          }}
-        >
-          <source src={videoSources[currentVideoIndex]} type="video/mp4" />
-        </motion.video>
+        <>
+          {/* Video A */}
+          <motion.video
+            ref={videoARef}
+            className="absolute inset-0 w-full h-full z-10"
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+            onLoadedData={handleVideoALoad}
+            onError={() => handleVideoError('A', activeVideo === 'A' ? currentVideoIndex : getNextVideoIndex(currentVideoIndex))}
+            onEnded={() => handleVideoEnd(videoARef)}
+            animate={{ opacity: activeVideo === 'A' && videoALoaded ? 1 : 0 }}
+            transition={{ duration: 1.2, ease: 'easeInOut' }}
+            style={{ 
+              backgroundColor: 'transparent',
+              objectFit: 'cover',
+              objectPosition: 'center center',
+              position: 'absolute',
+              pointerEvents: 'none'
+            }}
+          />
+
+          {/* Video B */}
+          <motion.video
+            ref={videoBRef}
+            className="absolute inset-0 w-full h-full z-10"
+            autoPlay={false}
+            muted
+            playsInline
+            preload="auto"
+            onLoadedData={handleVideoBLoad}
+            onError={() => handleVideoError('B', activeVideo === 'B' ? currentVideoIndex : getNextVideoIndex(currentVideoIndex))}
+            onEnded={() => handleVideoEnd(videoBRef)}
+            animate={{ opacity: activeVideo === 'B' && videoBLoaded ? 1 : 0 }}
+            transition={{ duration: 1.2, ease: 'easeInOut' }}
+            style={{ 
+              backgroundColor: 'transparent',
+              objectFit: 'cover',
+              objectPosition: 'center center',
+              position: 'absolute',
+              pointerEvents: 'none'
+            }}
+          />
+        </>
       )}
 
       {/* Theme-Aware Gradient Overlay - Executive branding colors */}
-      {isLoaded && videosAvailable && (
+      {isAnyVideoLoaded && videosAvailable && (
         <div 
           className={`absolute inset-0 pointer-events-none transition-all duration-500 z-20 ${
             isDarkMode
@@ -141,7 +254,7 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
       )}
 
       {/* Additional overlay for better text readability - Executive theme */}
-      {isLoaded && videosAvailable && (
+      {isAnyVideoLoaded && videosAvailable && (
         <div 
           className={`absolute inset-0 pointer-events-none transition-all duration-500 z-30 ${
             isDarkMode
