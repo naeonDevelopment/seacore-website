@@ -166,14 +166,14 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
           willChange: 'transform',
           backfaceVisibility: 'hidden' as const
         }}
-        className="fixed bottom-0 left-0 right-0 z-[2147482000] lg:hidden pb-4 px-4"
+        className="fixed bottom-0 left-0 right-0 z-[2147482000] lg:hidden pb-4 px-3"
       >
         <div className={cn(
           "maritime-glass border border-white/20 dark:border-slate-700/30",
-          "rounded-3xl shadow-2xl mx-auto"
+          "rounded-3xl shadow-2xl mx-auto max-w-full"
         )}>
-          <div className="flex items-center justify-between gap-2 px-3 py-4">
-            {/* Navigation Items - Bigger */}
+          <div className="flex items-center justify-between gap-1 px-2 py-3.5">
+            {/* Navigation Items - Optimized for small screens */}
             {navigationItems.map((item) => {
               const isActive = isActiveRoute(item.href)
               
@@ -182,16 +182,16 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
                   key={item.id}
                   to={item.href}
                   className={cn(
-                    "relative flex items-center justify-center px-4 py-3.5 rounded-xl",
-                    "text-sm font-semibold transition-all duration-200",
-                    "flex-1 whitespace-nowrap",
+                    "relative flex items-center justify-center px-2 sm:px-3 py-3 rounded-xl",
+                    "text-xs sm:text-sm font-semibold transition-all duration-200",
+                    "flex-1 whitespace-nowrap min-w-0",
                     isActive
                       ? "text-maritime-600 bg-maritime-50 dark:bg-maritime-950/50"
                       : "text-slate-600 dark:text-slate-400 hover:text-maritime-600 dark:hover:text-maritime-400 hover:bg-maritime-50/30 dark:hover:bg-maritime-950/30"
                   )}
                 >
                   {/* Label */}
-                  <span className="relative z-10">
+                  <span className="relative z-10 truncate">
                     {item.label}
                   </span>
                 </Link>
