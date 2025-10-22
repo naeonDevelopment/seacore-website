@@ -2,7 +2,6 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Mail, 
-  MapPin, 
   Linkedin,
   ExternalLink
 } from 'lucide-react'
@@ -56,10 +55,6 @@ export const Footer: React.FC<FooterProps> = () => {
                 <Mail className="w-4 h-4" />
                 <span>hello@fleetcore.ai</span>
               </a>
-              <div className="flex items-center gap-2 text-slate-400 text-sm">
-                <MapPin className="w-4 h-4" />
-                <span>Dubai, UAE</span>
-              </div>
             </div>
           </div>
 

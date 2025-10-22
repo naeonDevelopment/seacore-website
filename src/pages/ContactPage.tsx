@@ -105,10 +105,19 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       active: true
     },
     {
+      icon: Phone,
+      title: 'Call Us',
+      description: 'Speak directly with our team',
+      value: 'Coming Soon',
+      action: '#',
+      gradient: 'from-emerald-500 to-teal-600',
+      active: false
+    },
+    {
       icon: MapPin,
       title: 'Visit Us',
-      description: '',
-      value: 'Dubai',
+      description: 'Office location details',
+      value: 'Coming Soon',
       action: '#location',
       gradient: 'from-purple-500 to-pink-600',
       active: false
@@ -391,14 +400,14 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              Multiple Ways to <span className="maritime-gradient-text">Connect</span>
+              Ways to <span className="maritime-gradient-text">Connect</span>
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto enterprise-body">
               Choose the communication channel that works best for you
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {contactMethods.map((method, index) => {
               const Icon = method.icon
               const CardWrapper = method.active ? 'a' : 'div'
