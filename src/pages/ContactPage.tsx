@@ -99,7 +99,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Mail,
       title: 'Email Us',
       description: 'Get in touch via email for general inquiries',
-      value: 'hello (at) fleetcore.ai',
+      value: 'hello@fleetcore.ai',
       action: 'mailto:hello@fleetcore.ai',
       gradient: 'from-blue-500 to-cyan-600',
       active: true
@@ -108,16 +108,16 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Phone,
       title: 'Call Us',
       description: 'Speak directly with our team',
-      value: '+961 3 905 100',
-      action: 'tel:+9613905100',
+      value: 'Coming Soon',
+      action: '#',
       gradient: 'from-emerald-500 to-teal-600',
-      active: true
+      active: false
     },
     {
       icon: MapPin,
       title: 'Visit Us',
       description: 'Office location details',
-      value: 'Dubai',
+      value: 'Coming Soon',
       action: '#location',
       gradient: 'from-purple-500 to-pink-600',
       active: false
@@ -400,7 +400,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              Multiple Ways to <span className="maritime-gradient-text">Connect</span>
+              Ways to <span className="maritime-gradient-text">Connect</span>
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto enterprise-body">
               Choose the communication channel that works best for you
