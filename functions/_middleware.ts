@@ -9,7 +9,7 @@ interface Env {
 
 // Bot detection with comprehensive crawler list
 function isBot(userAgent: string): boolean {
-  return /bot|crawler|spider|googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|facebookexternalhit|twitterbot|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterest|slackbot|vkshare|w3c_validator|whatsapp|GPTBot|ClaudeBot|PerplexityBot|Applebot|Amazonbot|ia_archiver/i.test(userAgent);
+  return /bot|crawler|spider|google|googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|facebookexternalhit|twitterbot|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterest|slackbot|vkshare|w3c_validator|whatsapp|GPTBot|ClaudeBot|PerplexityBot|Applebot|Amazonbot|ia_archiver|inspection/i.test(userAgent);
 }
 
 // Generate basic HTML shell with meta tags for bots
