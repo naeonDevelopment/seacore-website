@@ -99,24 +99,15 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Mail,
       title: 'Email Us',
       description: 'Get in touch via email for general inquiries',
-      value: 'hello (at) fleetcore.ai',
+      value: 'hello@fleetcore.ai',
       action: 'mailto:hello@fleetcore.ai',
       gradient: 'from-blue-500 to-cyan-600',
       active: true
     },
     {
-      icon: Phone,
-      title: 'Call Us',
-      description: 'Speak directly with our team',
-      value: '+961 3 905 100',
-      action: 'tel:+9613905100',
-      gradient: 'from-emerald-500 to-teal-600',
-      active: true
-    },
-    {
       icon: MapPin,
       title: 'Visit Us',
-      description: 'Office location details',
+      description: '',
       value: 'Dubai',
       action: '#location',
       gradient: 'from-purple-500 to-pink-600',
@@ -407,7 +398,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {contactMethods.map((method, index) => {
               const Icon = method.icon
               const CardWrapper = method.active ? 'a' : 'div'

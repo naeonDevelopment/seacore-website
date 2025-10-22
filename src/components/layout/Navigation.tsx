@@ -49,16 +49,21 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
     return location.pathname === href || location.pathname.startsWith(href + '/')
   }
 
-  // Mobile header visibility logic: hide when scrolling down, show when scrolling up or at top
+  // Mobile header visibility logic: hide when scrolling down, show when scrolling up
   const showMobileHeader = scrollDirection === 'up' || scrollDirection === 'initial'
   
   // Dock visibility logic: show when scrolling down, hide when scrolling up (opposite of header)
   const showDock = scrollDirection === 'down' || scrollDirection === 'initial'
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Scroll Direction:', scrollDirection, '| Header:', showMobileHeader, '| Dock:', showDock)
+  }, [scrollDirection, showMobileHeader, showDock])
 
   return (
     <>
       {/* Desktop Header - Always Visible */}
-      <nav className="hidden lg:block fixed top-0 left-0 right-0 z-[9999999] maritime-glass border-b border-white/20 dark:border-slate-700/30">
+      <nav className="hidden lg:block fixed top-0 left-0 right-0 z-[2147483000] maritime-glass border-b border-white/20 dark:border-slate-700/30">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -111,13 +116,17 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
       <motion.nav 
         initial={{ y: 0 }}
         animate={{ 
-          y: showMobileHeader ? 0 : -100 
+          y: showMobileHeader ? 0 : -120 
         }}
         transition={{ 
           duration: 0.3, 
           ease: [0.25, 0.46, 0.45, 0.94] 
         }}
-        className="lg:hidden fixed top-0 left-0 right-0 z-[9999999] maritime-glass border-b border-white/20 dark:border-slate-700/30"
+        style={{ 
+          willChange: 'transform',
+          backfaceVisibility: 'hidden' as const
+        }}
+        className="lg:hidden fixed top-0 left-0 right-0 z-[2147483000] maritime-glass border-b border-white/20 dark:border-slate-700/30"
       >
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
@@ -153,7 +162,11 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
           duration: 0.3, 
           ease: [0.25, 0.46, 0.45, 0.94] 
         }}
-        className="fixed bottom-0 left-0 right-0 z-[9999998] lg:hidden pb-4 px-4"
+        style={{ 
+          willChange: 'transform',
+          backfaceVisibility: 'hidden' as const
+        }}
+        className="fixed bottom-0 left-0 right-0 z-[2147482000] lg:hidden pb-4 px-4"
       >
         <div className={cn(
           "maritime-glass border border-white/20 dark:border-slate-700/30",

@@ -16,7 +16,11 @@ export default defineConfig({
   base: '/', // Root path for standalone deployment
   server: {
     port: 8000,
-    host: true,
+    host: '127.0.0.1',
+    headers: {
+      // Critical: Enable Calendly payment features in dev server
+      'Permissions-Policy': 'payment=*, geolocation=(), microphone=(), camera=()'
+    }
   },
   build: {
     outDir: 'dist',

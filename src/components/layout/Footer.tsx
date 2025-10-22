@@ -2,7 +2,6 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Mail, 
-  Phone, 
   MapPin, 
   Linkedin,
   ExternalLink
@@ -56,13 +55,6 @@ export const Footer: React.FC<FooterProps> = () => {
               >
                 <Mail className="w-4 h-4" />
                 <span>hello@fleetcore.ai</span>
-              </a>
-              <a 
-                href="tel:+9613905100" 
-                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm group"
-              >
-                <Phone className="w-4 h-4" />
-                <span>+961 3 905 100</span>
               </a>
               <div className="flex items-center gap-2 text-slate-400 text-sm">
                 <MapPin className="w-4 h-4" />
