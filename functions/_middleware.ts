@@ -168,11 +168,11 @@ export async function onRequest(context: {
   // This prevents Cloudflare from issuing 308 redirects
   const mainRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
   if (mainRoutes.includes(pathname)) {
-    console.log(`SPA route detected: ${pathname}, serving index.html`);
+    console.log(`SPA route detected: ${pathname}, serving homepage`);
     
-    // Directly fetch index.html
+    // Fetch from root path instead of /index.html to avoid URL normalization issues
     const indexUrl = new URL(context.request.url);
-    indexUrl.pathname = '/index.html';
+    indexUrl.pathname = '/';
     
     return context.env.ASSETS.fetch(new Request(indexUrl, context.request));
   }
