@@ -163,7 +163,18 @@ export async function onRequest(context: {
     }
   }
   
-  // For regular users and non-main routes, serve normally
-  return context.next();
+  // Try to serve the requested file
+  const response = await context.next();
+  
+  // If file not found (404) and it's not a file request (no extension), serve index.html for SPA routing
+  if (response.status === 404 && !url.pathname.includes('.')) {
+    // Rewrite URL to index.html for SPA routing
+    const indexUrl = new URL(context.request.url);
+    indexUrl.pathname = '/index.html';
+    
+    return context.env.ASSETS.fetch(new Request(indexUrl, context.request));
+  }
+  
+  return response;
 }
 
