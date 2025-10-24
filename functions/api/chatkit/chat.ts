@@ -8,12 +8,31 @@ const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital t
 IMPORTANT: When users have enabled "Online research", you MUST actively use the provided web research results to answer their questions with current, verified information. Never say "I cannot browse the web" when research results are available. Always utilize the research context provided.
 
 CRITICAL - ONLINE RESEARCH BEHAVIOR:
-When research results are provided, you MUST:
-- Prioritize SPECIFIC details from the research over generic knowledge
-- NEVER say "specific information is not publicly available" when you have research results
-- If research results are generic, acknowledge this and state "The available public sources provide general information rather than vessel-specific details"
-- ALWAYS cite sources with [1], [2], etc. when using researched information
-- If you need more specific information, suggest the user verify with the manufacturer or vessel operator
+When research results are provided, you MUST perform deep technical analysis:
+
+1. **Extract Specific Details**: Look for and prioritize:
+   - Exact model numbers (e.g., "WinGD X92DF-M", not "main engine")
+   - Manufacturer names (e.g., "CSSC CMD", "Alfa Laval", "Rolls-Royce")
+   - Technical specifications (BHP, kW, displacement, fuel type)
+   - OEM maintenance intervals (hours, cycles, condition-based)
+   - Component part numbers when available
+
+2. **Sequential Analysis**: 
+   - First pass: Identify the vessel/equipment class and manufacturer
+   - Second pass: Extract specific model/variant details
+   - Third pass: Find maintenance schedules and OEM recommendations
+   - Synthesize findings from multiple sources
+
+3. **Citation Requirements**:
+   - ALWAYS cite sources with [1], [2], etc. for EVERY factual claim
+   - Distinguish between manufacturer documentation vs general guides
+   - If sources are generic, state: "Public sources provide general recommendations rather than vessel-specific OEM data"
+
+4. **Response Quality**:
+   - NEVER say "specific information is not publicly available" when you have research results
+   - Extract and present the MOST SPECIFIC information found across all sources
+   - Cross-reference multiple sources to validate technical details
+   - Prioritize manufacturer/OEM sources over maritime news sites
 
 # ROLE & EXPERTISE
 
@@ -287,7 +306,7 @@ export async function onRequestPost(context) {
       ...messages,
     ];
 
-    // Optional lightweight web browsing: fetch top 3 search snippets and include as context
+    // Multi-query research strategy: aggregate up to 28 sources from multiple searches
     let browsingContext = '';
     let researchPerformed = false;
     if (enableBrowsing && TAVILY_API_KEY) {
@@ -295,6 +314,7 @@ export async function onRequestPost(context) {
         // Build context-aware search query by including relevant entities from recent conversation
         const currentQuery = messages[messages.length - 1]?.content || '';
         let enhancedQuery = currentQuery;
+        let specificEntity = '';
         
         // If query contains pronouns/references like "this ship", "that vessel", "it", etc.
         // Look back in conversation history to find specific entity names
@@ -305,50 +325,130 @@ export async function onRequestPost(context) {
           
           if (entityMatches && entityMatches.length > 0) {
             // Find the most recently mentioned specific entity
-            const specificEntity = entityMatches[entityMatches.length - 1];
+            specificEntity = entityMatches[entityMatches.length - 1];
             enhancedQuery = `${specificEntity} ${currentQuery}`;
             console.log(`🔍 Enhanced query with context: "${currentQuery}" → "${enhancedQuery}"`);
           }
         }
         
-        console.log('🔍 Performing online research for:', enhancedQuery);
-        const tavilyRes = await fetch('https://api.tavily.com/search', {
-          method: 'POST',
+        // Tavily API configuration
+        const tavilyConfig = {
           headers: { 
             'Content-Type': 'application/json',
-            // Support both current and legacy Tavily auth schemes
             'Authorization': `Bearer ${TAVILY_API_KEY}`,
             'x-api-key': TAVILY_API_KEY,
           },
-          body: JSON.stringify({ 
-            query: enhancedQuery, 
-            search_depth: 'advanced', // Enhanced search depth for better results
-            max_results: 5,
-            include_domains: [],
-            exclude_domains: [],
-            include_answer: true, // Get AI-generated summary
-            include_raw_content: false
-          }),
-        });
-        if (tavilyRes.ok) {
-          const tavilyJson = await tavilyRes.json();
-          const items = tavilyJson?.results || [];
-          if (Array.isArray(items) && items.length) {
-            // Format with markdown-friendly links and citations
-            browsingContext = items.map((r, i) => {
-              const citation = `[${i+1}]`;
-              const sourceLink = `[${r.url}](${r.url})`;
-              return `${citation} **${r.title}**\n${r.content || r.snippet}\n📎 Source: ${sourceLink}`;
-            }).join('\n\n---\n\n');
-            
-            // Add summary if available
-            if (tavilyJson.answer) {
-              browsingContext = `**Research Summary**: ${tavilyJson.answer}\n\n**Sources**:\n\n${browsingContext}`;
-            }
-            
-            researchPerformed = true;
-            console.log(`✅ Found ${items.length} research results with citations`);
+          domains: {
+            include: [
+              // Prioritize manufacturer & technical documentation sites
+              'wingd.com', 'wartsila.com', 'man-es.com', 'rolls-royce.com',
+              'alfalaval.com', 'kongsberg.com', 'dnv.com', 'lr.org', 'abs.org',
+              'marinelink.com', 'marinelog.com', 'safety4sea.com',
+              'gcaptain.com', 'offshoreenergytoday.com', 'marineinsight.com',
+              'ship-technology.com', 'maritime-executive.com', 'seatrade-maritime.com'
+            ],
+            exclude: ['wikipedia.org', 'reddit.com']
           }
+        };
+        
+        // Multi-query strategy to aggregate up to 28 sources (Tavily limit: 20 per query)
+        const queries = [
+          { query: enhancedQuery, maxResults: 20, label: 'Primary' }
+        ];
+        
+        // Add complementary query if we have a specific entity (for deeper research)
+        if (specificEntity) {
+          // Second query focuses on technical specifications and OEM data
+          const complementaryQuery = `${specificEntity} OEM maintenance specifications technical documentation`;
+          queries.push({ query: complementaryQuery, maxResults: 8, label: 'Technical' });
+        }
+        
+        console.log(`🔍 Performing ${queries.length} research queries for up to 28 sources`);
+        
+        let allResults: any[] = [];
+        let tavilySummary = '';
+        const seenUrls = new Set<string>();
+        
+        // Execute all queries in parallel
+        const searchPromises = queries.map(async ({ query, maxResults, label }) => {
+          console.log(`  📡 Query ${label}: "${query}" (max ${maxResults} results)`);
+          
+          const res = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: tavilyConfig.headers,
+            body: JSON.stringify({ 
+              query, 
+              search_depth: 'advanced',
+              max_results: maxResults,
+              include_domains: tavilyConfig.domains.include,
+              exclude_domains: tavilyConfig.domains.exclude,
+              include_answer: label === 'Primary', // Only get summary from primary query
+              include_raw_content: true
+            }),
+          });
+          
+          if (res.ok) {
+            const json = await res.json();
+            return { results: json?.results || [], answer: json?.answer, label };
+          } else {
+            console.error(`  ❌ ${label} query failed: ${res.status} ${res.statusText}`);
+            return { results: [], answer: null, label };
+          }
+        });
+        
+        const searchResults = await Promise.all(searchPromises);
+        
+        // Aggregate and deduplicate results
+        searchResults.forEach(({ results, answer, label }) => {
+          console.log(`  ✅ ${label} query returned ${results.length} results`);
+          
+          if (label === 'Primary' && answer) {
+            tavilySummary = answer;
+          }
+          
+          results.forEach(item => {
+            // Deduplicate by URL
+            if (!seenUrls.has(item.url)) {
+              seenUrls.add(item.url);
+              allResults.push(item);
+            }
+          });
+        });
+        
+        console.log(`📊 Total unique sources: ${allResults.length} from ${queries.length} queries`);
+        
+        // Detailed logging
+        allResults.forEach((item, idx) => {
+          console.log(`  [${idx+1}] ${item.title} - ${item.url}`);
+          console.log(`      Content: ${(item.raw_content || item.content || item.snippet || '').length} chars`);
+        });
+        
+        // Process aggregated results
+        if (allResults.length > 0) {
+          // Format with markdown-friendly links and citations
+          // Prioritize raw_content (full page) > content > snippet
+          browsingContext = allResults.map((r, i) => {
+            const citation = `[${i+1}]`;
+            const sourceLink = `[${r.url}](${r.url})`;
+            const contentToUse = r.raw_content || r.content || r.snippet || '';
+            
+            // For raw_content, take first 2000 chars to avoid overwhelming the AI
+            const truncatedContent = contentToUse.length > 2000 
+              ? contentToUse.substring(0, 2000) + '...[content truncated]'
+              : contentToUse;
+            
+            return `${citation} **${r.title}**\n${truncatedContent}\n📎 Source: ${sourceLink}`;
+          }).join('\n\n---\n\n');
+          
+          // Add summary if available from primary query
+          if (tavilySummary) {
+            browsingContext = `**Research Summary**: ${tavilySummary}\n\n**Detailed Sources** (${allResults.length} total):\n\n${browsingContext}`;
+          }
+          
+          researchPerformed = true;
+          console.log(`✅ Compiled ${allResults.length} research results (${browsingContext.length} total chars) with citations`);
+        } else {
+          console.log('⚠️ No research results returned from any query');
         }
       } catch (e) {
         console.error('❌ Research failed:', e);

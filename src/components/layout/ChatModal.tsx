@@ -32,12 +32,28 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputAreaRef = useRef<HTMLDivElement>(null);
   // Track the index of the currently streaming assistant message reliably
   const streamingIndexRef = useRef<number | null>(null);
   const lastMessageCountRef = useRef<number>(0);
+  
+  // Track keyboard visibility for mobile
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const scrollInputIntoView = () => {
+    // Use a small delay to ensure keyboard is fully shown
+    setTimeout(() => {
+      inputAreaRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'nearest',
+        inline: 'nearest'
+      });
+    }, 100);
   };
 
   const resetChat = () => {
@@ -65,6 +81,92 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     if (isOpen) {
       inputRef.current?.focus();
     }
+  }, [isOpen]);
+
+  // Handle mobile keyboard visibility and viewport changes
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Visual Viewport API for precise keyboard detection
+    const handleViewportResize = () => {
+      if (typeof window === 'undefined') return;
+      
+      const visualViewport = window.visualViewport;
+      if (!visualViewport) return;
+
+      // Calculate keyboard height
+      const windowHeight = window.innerHeight;
+      const viewportHeight = visualViewport.height;
+      const heightDiff = windowHeight - viewportHeight;
+
+      // Keyboard is likely visible if there's significant height difference
+      const keyboardVisible = heightDiff > 100;
+      
+      setIsKeyboardVisible(keyboardVisible);
+      setKeyboardHeight(keyboardVisible ? heightDiff : 0);
+
+      // Scroll input into view when keyboard appears
+      if (keyboardVisible && document.activeElement === inputRef.current) {
+        scrollInputIntoView();
+      }
+    };
+
+    // Fallback for browsers without visualViewport API
+    const handleResize = () => {
+      if (typeof window === 'undefined' || window.visualViewport) return;
+      
+      const windowHeight = window.innerHeight;
+      const screenHeight = window.screen.height;
+      const heightDiff = screenHeight - windowHeight;
+      
+      const keyboardVisible = heightDiff > 200;
+      setIsKeyboardVisible(keyboardVisible);
+      setKeyboardHeight(keyboardVisible ? heightDiff : 0);
+    };
+
+    // Handle input focus - ensure input is visible
+    const handleFocus = () => {
+      setIsKeyboardVisible(true);
+      scrollInputIntoView();
+    };
+
+    // Handle input blur - reset keyboard state
+    const handleBlur = () => {
+      // Small delay to allow keyboard to fully hide
+      setTimeout(() => {
+        setIsKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }, 100);
+    };
+
+    // Add event listeners
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+      window.visualViewport.addEventListener('scroll', handleViewportResize);
+    } else {
+      window.addEventListener('resize', handleResize);
+    }
+
+    const inputElement = inputRef.current;
+    if (inputElement) {
+      inputElement.addEventListener('focus', handleFocus);
+      inputElement.addEventListener('blur', handleBlur);
+    }
+
+    // Cleanup
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportResize);
+        window.visualViewport.removeEventListener('scroll', handleViewportResize);
+      } else {
+        window.removeEventListener('resize', handleResize);
+      }
+
+      if (inputElement) {
+        inputElement.removeEventListener('focus', handleFocus);
+        inputElement.removeEventListener('blur', handleBlur);
+      }
+    };
   }, [isOpen]);
 
   const sendMessage = async () => {
@@ -256,6 +358,12 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
               ease: [0.32, 0.72, 0, 1],
               opacity: { duration: 0.3 }
             }}
+            style={{
+              // On mobile, adjust height when keyboard is visible
+              height: isKeyboardVisible && window.innerWidth < 640 
+                ? `calc(100vh - ${keyboardHeight}px)` 
+                : undefined
+            }}
             className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:left-auto sm:top-auto sm:w-[min(36rem,90vw)] sm:h-[min(80vh,44rem)] backdrop-blur-2xl bg-white/85 dark:bg-slate-900/85 border border-white/20 dark:border-slate-700/30 rounded-none sm:rounded-3xl shadow-2xl z-[2147483601] flex flex-col overflow-hidden"
           >
             {/* Header with Maritime Gradient - matching home page style */}
@@ -324,7 +432,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                       className={cn(
                         'max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
                         message.role === 'user'
-                          ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white/90 border border-blue-500/20'
+                          ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white/70 dark:text-white/90 border border-blue-500/20'
                           : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto'
                       )}
                     >
@@ -410,7 +518,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                       )}
                       <p className={cn(
                         'text-xs mt-2 font-semibold',
-                        message.role === 'user' ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'
+                        message.role === 'user' ? 'text-white/60 dark:text-white/75' : 'text-slate-500 dark:text-slate-400'
                       )}>
                         {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                       </p>
@@ -452,7 +560,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             {/* Input Area - matching home page card style */}
-            <div className="p-4 sm:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80">
+            <div 
+              ref={inputAreaRef}
+              className="p-4 sm:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80"
+            >
               <div className="flex gap-2 sm:gap-3">
                 <input
                   ref={inputRef}
