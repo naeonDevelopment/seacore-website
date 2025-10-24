@@ -592,6 +592,29 @@ export async function onRequestPost(context) {
           }
         }
         
+        // Process top-ranked results FIRST to set researchPerformed flag
+        if (topResults.length > 0) {
+          // Format with markdown-friendly links and citations
+          // Prioritize raw_content (full page) > content > snippet
+          browsingContext = topResults.map((r, i) => {
+            const citation = `[${i+1}]`;
+            const sourceLink = `[${r.url}](${r.url})`;
+            const contentToUse = r.raw_content || r.content || r.snippet || '';
+            
+            // For raw_content, take first 2000 chars to avoid overwhelming the AI
+            const truncatedContent = contentToUse.length > 2000 
+              ? contentToUse.substring(0, 2000) + '...[content truncated]'
+              : contentToUse;
+            
+            return `${citation} **${r.title}**\n${truncatedContent}\n📎 Source: ${sourceLink}`;
+          }).join('\n\n---\n\n');
+          
+          researchPerformed = true;
+          console.log(`✅ Compiled TOP ${topResults.length} research results from ${allResults.length} total (${browsingContext.length} chars) with citations`);
+        } else {
+          console.log('⚠️ No research results returned from any query');
+        }
+        
         // UNIVERSAL VERIFICATION SYSTEM: Apply to ALL factual queries, not just vessels
         let structuredData = '';
         let verificationMetadata: any = null;
@@ -687,37 +710,14 @@ export async function onRequestPost(context) {
           }
         }
         
-        // Process top-ranked results
-        if (topResults.length > 0) {
-          // Format with markdown-friendly links and citations
-          // Prioritize raw_content (full page) > content > snippet
-          browsingContext = topResults.map((r, i) => {
-            const citation = `[${i+1}]`;
-            const sourceLink = `[${r.url}](${r.url})`;
-            const contentToUse = r.raw_content || r.content || r.snippet || '';
-            
-            // For raw_content, take first 2000 chars to avoid overwhelming the AI
-            const truncatedContent = contentToUse.length > 2000 
-              ? contentToUse.substring(0, 2000) + '...[content truncated]'
-              : contentToUse;
-            
-            return `${citation} **${r.title}**\n${truncatedContent}\n📎 Source: ${sourceLink}`;
-          }).join('\n\n---\n\n');
-          
-          // Add structured data if extracted (Phase 2)
-          if (structuredData) {
-            browsingContext = structuredData + browsingContext;
-          }
-          
-          // Add summary if available from primary query
-          if (tavilySummary) {
-            browsingContext = `**Research Summary**: ${tavilySummary}\n\n**Detailed Sources** (${topResults.length} high-authority sources from ${allResults.length} total):\n\n${browsingContext}`;
-          }
-          
-          researchPerformed = true;
-          console.log(`✅ Compiled TOP ${topResults.length} research results from ${allResults.length} total (${browsingContext.length} chars) with citations`);
-        } else {
-          console.log('⚠️ No research results returned from any query');
+        // Add structured data if extracted by verification system
+        if (structuredData && browsingContext) {
+          browsingContext = structuredData + browsingContext;
+        }
+        
+        // Add summary if available from primary query
+        if (tavilySummary && browsingContext) {
+          browsingContext = `**Research Summary**: ${tavilySummary}\n\n**Detailed Sources** (${topResults.length} high-authority sources from ${allResults.length} total):\n\n${browsingContext}`;
         }
       } catch (e) {
         console.error('❌ Research failed:', e);

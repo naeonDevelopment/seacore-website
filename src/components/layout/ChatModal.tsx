@@ -93,8 +93,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
       document.body.style.right = '0';
       document.body.style.overflow = 'hidden';
       
-      // Focus input
-      inputRef.current?.focus();
+      // Don't auto-focus on mobile to avoid keyboard popping up unexpectedly
+      // User can tap the input when ready
       
       return () => {
         // Restore original styles
