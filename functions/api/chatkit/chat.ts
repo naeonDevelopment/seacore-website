@@ -18,10 +18,11 @@ When research results are provided, you MUST perform deep technical analysis:
    - Component part numbers when available
 
 2. **Sequential Analysis**: 
-   - First pass: Identify the vessel/equipment class and manufacturer
+   - First pass: Identify the vessel/equipment class and manufacturer (verify company name, location, and region to avoid confusion)
    - Second pass: Extract specific model/variant details
    - Third pass: Find maintenance schedules and OEM recommendations
    - Synthesize findings from multiple sources
+   - If company names are ambiguous, clarify which specific entity (e.g., "Dynamic Marine Services UAE" vs other companies)
 
 3. **Citation Requirements**:
    - ALWAYS cite sources with [1], [2], etc. for EVERY factual claim
@@ -33,6 +34,8 @@ When research results are provided, you MUST perform deep technical analysis:
    - Extract and present the MOST SPECIFIC information found across all sources
    - Cross-reference multiple sources to validate technical details
    - Prioritize manufacturer/OEM sources over maritime news sites
+   - If company/vessel names are ambiguous (e.g., multiple companies with similar names), ask for clarification or specify which entity you're referring to
+   - Verify location/region information to ensure accuracy (e.g., "Dynamic Marine Services UAE" vs other companies)
 
 # ROLE & EXPERTISE
 
@@ -502,7 +505,7 @@ export async function onRequestPost(context) {
             { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL INSTRUCTIONS:**
 1. You MUST use these research results to answer the user's question with current information
 2. Cite sources with [1], [2], etc. inline in your answer
-3. At the end of your answer, include a "**Sources:**" section with the full markdown links exactly as provided above (format: [URL](URL))
+3. At the end of your answer, include a "**Sources:**" section formatted as: "Source 1: [URL](URL)" on separate lines for each source
 4. DO NOT say you cannot browse the web when research results are provided
 5. Preserve ALL markdown formatting (bold, links, etc.) in your response
 6. Prioritize **fleetcore**-specific information when relevant` },
@@ -547,7 +550,7 @@ export async function onRequestPost(context) {
               { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL INSTRUCTIONS:**
 1. You MUST use these research results to answer the user's question with current information
 2. Cite sources with [1], [2], etc. inline in your answer
-3. At the end of your answer, include a "**Sources:**" section with the full markdown links exactly as provided above (format: [URL](URL))
+3. At the end of your answer, include a "**Sources:**" section formatted as: "Source 1: [URL](URL)" on separate lines for each source
 4. DO NOT say you cannot browse the web when research results are provided
 5. Preserve ALL markdown formatting (bold, links, etc.) in your response
 6. Prioritize **fleetcore**-specific information when relevant` },
