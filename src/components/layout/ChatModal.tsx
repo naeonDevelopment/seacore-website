@@ -381,7 +381,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg overflow-hidden">
                   <img
-                    src="/assets/avatar/Generated Image October 24, 2025 - 5_31PM.png"
+                    src="/assets/avatar/Generated Image October 24, 2025 - 8_11PM.png"
                     alt="fleetcore AI avatar"
                     className="w-full h-full object-cover object-center transform scale-125"
                     loading="lazy"
@@ -430,7 +430,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     {message.role === 'assistant' && (
                       <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
                         <img
-                          src="/assets/avatar/Generated Image October 24, 2025 - 5_31PM.png"
+                          src="/assets/avatar/Generated Image October 24, 2025 - 8_11PM.png"
                           alt="AI"
                           className="w-full h-full object-cover object-center transform scale-125"
                           loading="lazy"
@@ -600,7 +600,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   )}
                 </button>
               </div>
-              <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
+              <div className="flex items-center mt-3 sm:mt-4 gap-2">
                 <button
                   type="button"
                   role="switch"
@@ -632,7 +632,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   onClick={resetChat}
                   disabled={isLoading}
                   className={cn(
-                    'group inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all',
+                    'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
                     'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700',
                     'text-slate-600 dark:text-slate-400',
                     'hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
@@ -640,7 +640,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   )}
                   aria-label="Reset chat"
                 >
-                  <RotateCcw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                  <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
                   <span className="text-[11px] sm:text-xs font-semibold">Reset</span>
                 </button>
               </div>
