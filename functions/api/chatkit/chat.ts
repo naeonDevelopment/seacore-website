@@ -105,15 +105,44 @@ export async function onRequestPost(context) {
     }
 
     const DEFAULT_MODEL = 'gpt-4o-mini';
+    
+    // Known valid OpenAI models as of Oct 2025
+    const VALID_MODELS = [
+      // GPT-5 series (if available)
+      'gpt-5', 'gpt-5-turbo', 'gpt-5-mini',
+      // GPT-4o series
+      'gpt-4o', 'gpt-4o-mini', 'gpt-4o-2024-08-06',
+      // GPT-4 series
+      'gpt-4-turbo', 'gpt-4-turbo-preview', 'gpt-4', 
+      'gpt-3.5-turbo', 'gpt-3.5-turbo-16k',
+      // Reasoning models
+      'o1-preview', 'o1-mini', 'o3-mini',
+    ];
+    
     const envModel = (OPENAI_MODEL || DEFAULT_MODEL).trim();
-    // Normalize accidental spaces in model names (e.g., "gpt-5 mini")
-    const selectedModel = envModel.replace(/\s+/g, '-');
+    // Normalize accidental spaces in model names (e.g., "gpt-5 mini" -> "gpt-5-mini")
+    let selectedModel = envModel.replace(/\s+/g, '-');
+    
+    // Validate model and warn if invalid
+    if (!VALID_MODELS.includes(selectedModel) && !selectedModel.startsWith('o1') && !selectedModel.startsWith('o3') && !selectedModel.startsWith('gpt-5')) {
+      console.warn(`⚠️ Model "${selectedModel}" may not be valid. Attempting anyway, will fallback to ${DEFAULT_MODEL} on error.`);
+    }
     
     // Detect if using reasoning-capable models
-    const isReasoningModel = selectedModel.includes('o1') || selectedModel.includes('o3');
+    // o1/o3 models have built-in reasoning, GPT-5 and GPT-4o support reasoning_effort
+    const isO1O3Model = selectedModel.includes('o1') || selectedModel.includes('o3');
+    const supportsReasoningEffort = selectedModel.includes('gpt-5') || selectedModel.includes('gpt-4o');
 
     // Call OpenAI API with streaming enabled
     let usedModel = selectedModel;
+    
+    // Log model and reasoning configuration
+    console.log(`🤖 Using model: ${usedModel}`);
+    if (supportsReasoningEffort) {
+      console.log('🧠 Chain of Thought enabled: reasoning_effort = high');
+    } else if (isO1O3Model) {
+      console.log('🧠 Built-in reasoning model (o1/o3)');
+    }
     
     // Build request body with model-specific parameters
     const requestBody = {
@@ -125,20 +154,29 @@ export async function onRequestPost(context) {
           ]
         : conversationMessages,
       stream: true, // Enable streaming
-      ...(isReasoningModel 
+      ...(isO1O3Model 
         ? {
             // o1/o3 models don't support temperature, presence_penalty, frequency_penalty
-            // They have built-in reasoning
+            // They have built-in reasoning that can't be controlled
             max_completion_tokens: 3000,
           }
-        : {
-            // Standard models with extended reasoning support
+        : supportsReasoningEffort
+        ? {
+            // GPT-5 and GPT-4o with extended reasoning support
             temperature: 0.7,
             max_tokens: 2500, // Increased from 800 to avoid chopping
             presence_penalty: 0.6,
             frequency_penalty: 0.3,
-            // Enable extended reasoning for gpt-4o and newer
-            ...(usedModel.includes('gpt-4o') && { reasoning_effort: 'medium' }),
+            // Chain of Thought: Options are 'minimal', 'low', 'medium', 'high'
+            // Higher values = deeper reasoning but slower responses
+            reasoning_effort: 'high', // Use maximum reasoning for best quality
+          }
+        : {
+            // Standard models without reasoning capabilities
+            temperature: 0.7,
+            max_tokens: 2500,
+            presence_penalty: 0.6,
+            frequency_penalty: 0.3,
           }
       ),
     };
@@ -154,7 +192,9 @@ export async function onRequestPost(context) {
 
     // If model is invalid (400), retry once with default cheaper model
     if (!response.ok && response.status === 400 && usedModel !== DEFAULT_MODEL) {
+      console.log(`⚠️ Model "${usedModel}" failed, falling back to ${DEFAULT_MODEL}`);
       usedModel = DEFAULT_MODEL;
+      
       const fallbackBody = {
         model: usedModel,
         messages: browsingContext
@@ -164,10 +204,11 @@ export async function onRequestPost(context) {
             ]
           : conversationMessages,
         temperature: 0.7,
-        max_tokens: 2500, // Increased from 800
+        max_tokens: 2500,
         presence_penalty: 0.6,
         frequency_penalty: 0.3,
         stream: true,
+        // gpt-4o-mini doesn't support reasoning_effort
       };
       
       response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -182,10 +223,19 @@ export async function onRequestPost(context) {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('OpenAI API error:', error);
+      console.error('❌ OpenAI API error:', error);
+      console.error('❌ Attempted model:', usedModel);
+      console.error('❌ Original env model:', envModel);
+      
+      // Return a user-friendly error as a valid response (200) so the chat doesn't break
       return new Response(
-        JSON.stringify({ error: 'Failed to get response from AI' }),
-        { status: response.status, headers: { 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          message: `I apologize, but I'm having trouble connecting with the "${usedModel}" model. Please check your OPENAI_MODEL environment variable or contact support. Valid models include: gpt-4o, gpt-4o-mini, gpt-4-turbo.`,
+          error: true,
+          attempted_model: usedModel,
+          available_models: VALID_MODELS
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

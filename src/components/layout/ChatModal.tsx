@@ -172,18 +172,27 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
           return updated;
         });
       } else {
-        // Fallback to non-streaming
+        // Fallback to non-streaming or error response
         const data = await response.json();
         if (data?.model) setModelName(data.model);
         
+        // Check if this is an error response with helpful information
+        const content = data.message || data.error || 'An error occurred';
+        
         const assistantMessage: Message = {
           role: 'assistant',
-          content: data.message,
-          thinking: data.thinking,
+          content: content,
+          thinking: data.thinking || (data.attempted_model ? `⚠️ Model: ${data.attempted_model}` : undefined),
           timestamp: new Date(),
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+        
+        // Log helpful debug info if model failed
+        if (data.attempted_model) {
+          console.log('⚠️ Model failed:', data.attempted_model);
+          console.log('✅ Available models:', data.available_models);
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);
