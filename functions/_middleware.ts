@@ -601,7 +601,7 @@ export async function onRequest(context: {
       // Generate optimized HTML for bots
       const html = generateBotHTML(pathname);
       
-      const botResponse = new Response(html, {
+      return new Response(html, {
         status: 200,
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
@@ -615,27 +615,6 @@ export async function onRequest(context: {
           'Cloudflare-CDN-Cache-Control': 'max-age=86400'
         }
       });
-      
-      // Optional: Try edge caching (non-blocking, won't fail if unavailable)
-      try {
-        if (typeof caches !== 'undefined' && caches.default) {
-          const cacheKey = new Request(`https://bot-cache/${pathname}`, { method: 'GET' });
-          const cache = caches.default;
-          
-          // Non-blocking cache write
-          if (context.waitUntil) {
-            context.waitUntil(cache.put(cacheKey, botResponse.clone()));
-          } else {
-            // Fire and forget if waitUntil not available
-            cache.put(cacheKey, botResponse.clone()).catch(() => {});
-          }
-        }
-      } catch (cacheError) {
-        // Silently ignore cache errors - content delivery is more important
-        console.log('[Cache] Optional caching failed, continuing...');
-      }
-      
-      return botResponse;
     }
     
     // For regular users - HTML pages with smart caching
