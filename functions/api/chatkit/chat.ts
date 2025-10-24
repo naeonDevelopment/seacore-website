@@ -5,6 +5,8 @@
 
 const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital transformation specialist for **fleetcore**.ai - the world's most advanced Maritime Maintenance Operating System.
 
+IMPORTANT: When users have enabled "Online research", you MUST actively use the provided web research results to answer their questions with current, verified information. Never say "I cannot browse the web" when research results are available. Always utilize the research context provided.
+
 # ROLE & EXPERTISE
 
 You possess deep expertise in:
@@ -309,12 +311,13 @@ export async function onRequestPost(context) {
             // Format with markdown-friendly links and citations
             browsingContext = items.map((r, i) => {
               const citation = `[${i+1}]`;
-              return `${citation} **${r.title}**\n${r.content || r.snippet}\nSource: [${r.url}](${r.url})`;
-            }).join('\n\n');
+              const sourceLink = `[${r.url}](${r.url})`;
+              return `${citation} **${r.title}**\n${r.content || r.snippet}\n📎 Source: ${sourceLink}`;
+            }).join('\n\n---\n\n');
             
             // Add summary if available
             if (tavilyJson.answer) {
-              browsingContext = `**Research Summary**: ${tavilyJson.answer}\n\n**Sources**:\n${browsingContext}`;
+              browsingContext = `**Research Summary**: ${tavilyJson.answer}\n\n**Sources**:\n\n${browsingContext}`;
             }
             
             researchPerformed = true;
@@ -323,7 +326,9 @@ export async function onRequestPost(context) {
         }
       } catch (e) {
         console.error('❌ Research failed:', e);
-        // Ignore browsing failures silently
+        // Inform the AI that research failed
+        browsingContext = `[RESEARCH FAILED: Unable to fetch current web data. Error: ${e.message}. Please answer based on your training data and inform the user that online research is temporarily unavailable.]`;
+        researchPerformed = false;
       }
     }
 
@@ -368,7 +373,13 @@ export async function onRequestPost(context) {
       model: usedModel,
       messages: browsingContext
         ? [
-            { role: 'system', content: `${SYSTEM_PROMPT}\n\nWeb Research Results:\n${browsingContext}\n\nUse these sources when relevant and cite them with [1], [2], etc. Prioritize fleetcore-specific information.` },
+            { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL INSTRUCTIONS:**
+1. You MUST use these research results to answer the user's question with current information
+2. Cite sources with [1], [2], etc. inline in your answer
+3. At the end of your answer, include a "**Sources:**" section with the full markdown links exactly as provided above (format: [URL](URL))
+4. DO NOT say you cannot browse the web when research results are provided
+5. Preserve ALL markdown formatting (bold, links, etc.) in your response
+6. Prioritize **fleetcore**-specific information when relevant` },
             ...messages,
           ]
         : conversationMessages,
@@ -407,7 +418,13 @@ export async function onRequestPost(context) {
         model: usedModel,
         messages: browsingContext
           ? [
-              { role: 'system', content: `${SYSTEM_PROMPT}\n\nWeb Research Results:\n${browsingContext}\n\nUse these sources when relevant and cite them with [1], [2], etc. Prioritize **fleetcore**-specific information.` },
+              { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL INSTRUCTIONS:**
+1. You MUST use these research results to answer the user's question with current information
+2. Cite sources with [1], [2], etc. inline in your answer
+3. At the end of your answer, include a "**Sources:**" section with the full markdown links exactly as provided above (format: [URL](URL))
+4. DO NOT say you cannot browse the web when research results are provided
+5. Preserve ALL markdown formatting (bold, links, etc.) in your response
+6. Prioritize **fleetcore**-specific information when relevant` },
               ...messages,
             ]
           : conversationMessages,

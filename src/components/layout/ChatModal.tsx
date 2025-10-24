@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Brain, Globe } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Brain, Globe, RotateCcw } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -38,6 +38,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const resetChat = () => {
+    setMessages([
+      {
+        role: 'assistant',
+        content: "Hi! I'm your maritime maintenance expert. I can help you understand fleetcore's features, maritime regulations, and answer questions about maintenance management. What would you like to know?",
+        timestamp: new Date(),
+      },
+    ]);
+    setInput('');
+    streamingIndexRef.current = null;
+    lastMessageCountRef.current = 1;
   };
 
   // Only scroll when a NEW message is added, not during streaming updates
@@ -463,7 +476,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   )}
                 </button>
               </div>
-              <div className="flex items-center justify-start mt-3 sm:mt-4">
+              <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
                 <button
                   type="button"
                   role="switch"
@@ -488,6 +501,23 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     />
                   </span>
                   <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={resetChat}
+                  disabled={isLoading}
+                  className={cn(
+                    'group inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all',
+                    'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700',
+                    'text-slate-600 dark:text-slate-400',
+                    'hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
+                    'disabled:opacity-50 disabled:cursor-not-allowed'
+                  )}
+                  aria-label="Reset chat"
+                >
+                  <RotateCcw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                  <span className="text-[11px] sm:text-xs font-semibold">Reset</span>
                 </button>
               </div>
             </div>
