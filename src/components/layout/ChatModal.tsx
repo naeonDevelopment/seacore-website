@@ -80,25 +80,36 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
-      // Store original styles
+      // Store original styles and scroll position
       const originalOverflow = document.body.style.overflow;
       const originalPosition = document.body.style.position;
+      const originalTop = document.body.style.top;
+      const originalLeft = document.body.style.left;
+      const originalRight = document.body.style.right;
+      const originalWidth = document.body.style.width;
+      const scrollY = window.scrollY;
       
-      // Lock body scroll
-      document.body.style.overflow = 'hidden';
+      // Lock body scroll with proper constraints (left + right = auto width, no overflow)
       document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.height = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.overflow = 'hidden';
       
       // Focus input
       inputRef.current?.focus();
       
       return () => {
         // Restore original styles
-        document.body.style.overflow = originalOverflow;
         document.body.style.position = originalPosition;
-        document.body.style.width = '';
-        document.body.style.height = '';
+        document.body.style.top = originalTop;
+        document.body.style.left = originalLeft;
+        document.body.style.right = originalRight;
+        document.body.style.width = originalWidth;
+        document.body.style.overflow = originalOverflow;
+        
+        // Restore scroll position
+        window.scrollTo(0, scrollY);
       };
     }
   }, [isOpen]);
