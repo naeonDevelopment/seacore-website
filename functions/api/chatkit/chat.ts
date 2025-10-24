@@ -1,7 +1,16 @@
 /**
  * ChatKit Chat Endpoint
- * Handles conversation with OpenAI GPT-4
+ * Handles conversation with OpenAI GPT-4 with Universal Truth Verification
  */
+
+import { 
+  classifyQuery, 
+  extractClaims, 
+  verifyClaims, 
+  generateGroundedAnswer, 
+  selfVerifyAnswer,
+  verifyAndAnswer
+} from './verification-system';
 
 const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital transformation specialist for **fleetcore**.ai - the world's most advanced Maritime Maintenance Operating System.
 
@@ -473,272 +482,188 @@ export async function onRequestPost(context) {
         
         console.log(`📊 Total unique sources: ${allResults.length} from ${queries.length} queries`);
         
-        // PHASE 1 FIX: Rank results by authority and relevance
+        // UNIVERSAL VERIFICATION SYSTEM: Rank results by authority and relevance
         const rankedResults = allResults.sort((a, b) => {
           let scoreA = 0, scoreB = 0;
           
-          // +15 points if title contains specific entity (exact match)
+          // +20 points if title contains specific entity (exact match)
           if (specificEntity && a.title.toLowerCase().includes(specificEntity.toLowerCase())) {
-            scoreA += 15;
+            scoreA += 20;
           }
           if (specificEntity && b.title.toLowerCase().includes(specificEntity.toLowerCase())) {
-            scoreB += 15;
+            scoreB += 20;
           }
           
-          // +10 points for authoritative maritime domains
+          // +15 points for HIGHLY authoritative domains (official sources, class societies)
+          const highAuthorityDomains = [
+            'imo.org', 'dnv.com', 'lr.org', 'abs.org', 'rina.org',
+            'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com', 'caterpillar.com',
+          ];
+          
+          // +10 points for authoritative maritime domains (news, publications)
           const authoritativeDomains = [
             'marinelink.com', 'gcaptain.com', 'safety4sea.com',
             'maritime-executive.com', 'seatrade-maritime.com',
-            'offshoreenergytoday.com', 'marinelog.com',
-            // OEM/manufacturer sites
-            'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com',
-            // Classification societies
-            'dnv.com', 'lr.org', 'abs.org'
+            'offshoreenergytoday.com', 'marinelog.com', 'ship-technology.com',
           ];
+          
+          if (highAuthorityDomains.some(d => a.url.includes(d))) scoreA += 15;
+          if (highAuthorityDomains.some(d => b.url.includes(d))) scoreB += 15;
           if (authoritativeDomains.some(d => a.url.includes(d))) scoreA += 10;
           if (authoritativeDomains.some(d => b.url.includes(d))) scoreB += 10;
           
           const contentA = a.title + ' ' + (a.content || a.snippet || '');
           const contentB = b.title + ' ' + (b.content || b.snippet || '');
           
-          // +5 points if entity appears in content multiple times (high relevance)
+          // +10 points if entity appears in content multiple times (high relevance)
           if (specificEntity) {
             const entityRegex = new RegExp(specificEntity.replace(/\s+/g, '\\s+'), 'gi');
             const matchesA = (contentA.match(entityRegex) || []).length;
             const matchesB = (contentB.match(entityRegex) || []).length;
-            scoreA += Math.min(matchesA * 2, 5);
-            scoreB += Math.min(matchesB * 2, 5);
+            scoreA += Math.min(matchesA * 3, 10);
+            scoreB += Math.min(matchesB * 3, 10);
           }
           
-          // +3 points for longer content (more detailed)
+          // +5 points for longer content (more detailed)
           const lengthA = (a.raw_content || a.content || a.snippet || '').length;
           const lengthB = (b.raw_content || b.content || b.snippet || '').length;
-          if (lengthA > 2000) scoreA += 3;
-          if (lengthB > 2000) scoreB += 3;
+          if (lengthA > 2000) scoreA += 5;
+          if (lengthB > 2000) scoreB += 5;
           
           return scoreB - scoreA; // Higher score first
         });
         
-        // PHASE 1 FIX: Limit to top 5 most authoritative sources
-        const topResults = rankedResults.slice(0, 5);
+        // Use top 5-8 sources for verification (Perplexity-style)
+        const topResults = rankedResults.slice(0, 8);
         
         // Detailed logging
-        console.log(`🎯 RANKED TOP 5 SOURCES (from ${allResults.length} total):`);
+        console.log(`🎯 RANKED TOP ${topResults.length} SOURCES (from ${allResults.length} total):`);
         topResults.forEach((item, idx) => {
           console.log(`  [${idx+1}] ${item.title} - ${item.url}`);
           console.log(`      Content: ${(item.raw_content || item.content || item.snippet || '').length} chars`);
         });
         
-        // PHASE 2: Structured Data Extraction (for factual queries about vessels/equipment)
-        let structuredData = '';
-        const isVesselQuery = /\b(vessel|ship|boat|fleet|largest|biggest|newest|owned by|operated by)\b/i.test(currentQuery);
+        // ENTITY VERIFICATION: Check if results actually match the query
+        if (specificEntity && topResults.length > 0) {
+          const entityMentionCounts = topResults.map(r => {
+            const content = (r.title + ' ' + (r.raw_content || r.content || r.snippet || '')).toLowerCase();
+            const entityLower = specificEntity.toLowerCase();
+            const regex = new RegExp(entityLower.replace(/\s+/g, '\\s+'), 'g');
+            const matches = (content.match(regex) || []).length;
+            return matches;
+          });
+          
+          const totalMentions = entityMentionCounts.reduce((sum, count) => sum + count, 0);
+          const resultsWithEntity = entityMentionCounts.filter(count => count > 0).length;
+          const matchRate = resultsWithEntity / topResults.length;
+          
+          console.log(`🔍 ENTITY VERIFICATION: "${specificEntity}" mentioned in ${resultsWithEntity}/${topResults.length} sources (${(matchRate*100).toFixed(0)}% match rate)`);
+          
+          // If < 40% of results mention the entity, likely wrong company/entity
+          if (matchRate < 0.4) {
+            console.warn(`⚠️ LOW ENTITY MATCH RATE: Only ${(matchRate*100).toFixed(0)}% of sources mention "${specificEntity}"`);
+            console.warn(`⚠️ Search results may be about a different entity with a similar name`);
+            
+            // Inject warning into context instead of unreliable results
+            browsingContext = `⚠️ **ENTITY VERIFICATION WARNING**\n\nThe search for "${specificEntity}" returned results with LOW confidence:\n- Only ${resultsWithEntity} out of ${topResults.length} top sources actually mention "${specificEntity}"\n- Match rate: ${(matchRate*100).toFixed(0)}% (threshold: 40%)\n\n**This suggests the search may have found a different entity with a similar name.**\n\n**You MUST:**\n1. Acknowledge that search results are inconclusive or may refer to a different entity\n2. Ask the user to clarify the exact entity name, location, or provide more context\n3. DO NOT present information as if it's about the queried entity without strong verification\n\n**Example response:** "I found some results, but they appear to be about different companies or entities with similar names. Could you provide more specific details about [Entity], such as location, full company name, or other identifying information?"\n\n**DO NOT answer with unverified information.**`;
+            
+            researchPerformed = false;
+            // Skip structured extraction for low-quality matches
+          }
+        }
         
-        if (isVesselQuery && topResults.length > 0 && OPENAI_API_KEY) {
+        // UNIVERSAL VERIFICATION SYSTEM: Apply to ALL factual queries, not just vessels
+        let structuredData = '';
+        let verificationMetadata: any = null;
+        
+        // Classify query to determine if verification needed
+        const classification = classifyQuery(currentQuery);
+        console.log(`🔍 Query Classification:`, classification);
+        
+        // Apply verification for factual queries that passed entity check
+        if (classification.requiresSearch && classification.type === 'factual' && topResults.length > 0 && OPENAI_API_KEY && researchPerformed) {
           try {
-            console.log('🔬 PHASE 2: Extracting structured vessel data...');
+            console.log(`🔬 UNIVERSAL VERIFICATION: Extracting and verifying claims for ${classification.domain} query...`);
             
-            // Compile content for extraction
-            const extractionContent = topResults.map((r, i) => 
-              `[Source ${i+1}: ${r.title}]\n${(r.raw_content || r.content || r.snippet || '').substring(0, 1500)}`
-            ).join('\n\n---\n\n');
+            // STEP 1: Extract claims from all sources
+            const claims = await extractClaims(currentQuery, topResults, OPENAI_API_KEY);
+            console.log(`📋 Extracted ${claims.length} claims from sources`);
             
-            const extractionPrompt = `Extract ONLY factual vessel/equipment data from these search results. Return valid JSON array.
-
-CRITICAL RULES:
-1. Extract ONLY vessels/ships explicitly mentioned in the sources
-2. Include ONLY facts stated in the sources - DO NOT infer or guess
-3. If a specification is not mentioned, use null
-4. Return empty array [] if no vessels found
-5. Include source reference for each vessel
-
-JSON format:
-[
-  {
-    "name": "exact vessel name from source",
-    "owner": "company name",
-    "length_m": number or null,
-    "dwt": number or null,
-    "year_built": number or null,
-    "year_acquired": number or null,
-    "vessel_type": "PSV/AHTS/Crew Boat/etc or null",
-    "source_index": number (1-5)
-  }
-]
-
-Search Results:
-${extractionContent}
-
-Return ONLY the JSON array, no explanation:`;
-
-            // Call OpenAI with temp=0 for deterministic extraction
-            const extractionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: OPENAI_MODEL || 'gpt-4o-mini',
-                messages: [
-                  { role: 'system', content: 'You are a precise data extraction system. Extract only facts explicitly stated in sources. Return valid JSON only.' },
-                  { role: 'user', content: extractionPrompt }
-                ],
-                temperature: 0, // Deterministic extraction
-                max_tokens: 1500,
-              }),
-            });
-
-            if (extractionResponse.ok) {
-              const extractionJson = await extractionResponse.json();
-              const extractedText = extractionJson.choices?.[0]?.message?.content || '[]';
-              
-              // Parse JSON - handle potential markdown formatting
-              const jsonMatch = extractedText.match(/\[[\s\S]*\]/);
-              if (jsonMatch) {
-                const vessels = JSON.parse(jsonMatch[0]);
-                console.log(`✅ Extracted ${vessels.length} vessels:`, vessels);
-                
-                if (vessels.length > 0) {
-                  // PHASE 3: Confidence Scoring & Entity Verification
-                  console.log('🎯 PHASE 3: Computing confidence scores...');
-                  
-                  // Authority domains for scoring
-                  const authoritativeDomains = [
-                    'marinelink.com', 'gcaptain.com', 'safety4sea.com',
-                    'maritime-executive.com', 'seatrade-maritime.com',
-                    'offshoreenergytoday.com', 'marinelog.com',
-                    'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com',
-                    'dnv.com', 'lr.org', 'abs.org'
-                  ];
-                  
-                  // Compute confidence score for each vessel
-                  const vesselsWithConfidence = vessels.map(v => {
-                    let confidence = 0;
-                    let reasons: string[] = [];
-                    
-                    // +30 if multiple specs are provided
-                    const specsProvided = [v.length_m, v.dwt, v.year_built, v.vessel_type].filter(s => s != null).length;
-                    if (specsProvided >= 3) {
-                      confidence += 30;
-                      reasons.push('Multiple specs');
-                    } else if (specsProvided >= 2) {
-                      confidence += 20;
-                      reasons.push('Some specs');
-                    }
-                    
-                    // +20 if owner matches query entity
-                    if (specificEntity && v.owner && v.owner.toLowerCase().includes(specificEntity.toLowerCase())) {
-                      confidence += 20;
-                      reasons.push('Owner match');
-                    }
-                    
-                    // +15 if vessel name contains owner name (e.g., "Stanford Hawk" for Stanford Marine)
-                    if (specificEntity && v.name && v.name.toLowerCase().includes(specificEntity.split(' ')[0].toLowerCase())) {
-                      confidence += 15;
-                      reasons.push('Name match');
-                    }
-                    
-                    // +20 if from high-authority source
-                    const sourceResult = topResults[v.source_index - 1];
-                    if (sourceResult && authoritativeDomains.some(d => sourceResult.url.includes(d))) {
-                      confidence += 20;
-                      reasons.push('Authority source');
-                    }
-                    
-                    // +15 if both length and DWT specified (most verifiable)
-                    if (v.length_m && v.dwt) {
-                      confidence += 15;
-                      reasons.push('Full specs');
-                    }
-                    
-                    return { ...v, confidence, reasons };
-                  });
-                  
-                  // Sort by confidence
-                  vesselsWithConfidence.sort((a, b) => b.confidence - a.confidence);
-                  
-                  console.log('📊 Vessel confidence scores:', vesselsWithConfidence.map(v => ({
-                    name: v.name,
-                    confidence: v.confidence,
-                    reasons: v.reasons
-                  })));
-                  
-                  // PHASE 3: Entity Resolution - Check for company disambiguation
-                  const uniqueOwners = [...new Set(vessels.map(v => v.owner).filter(Boolean))];
-                  let entityWarning = '';
-                  
-                  if (uniqueOwners.length > 1) {
-                    // Multiple owners found - might be different companies
-                    console.warn(`⚠️ PHASE 3: Multiple owners detected: ${uniqueOwners.join(', ')}`);
-                    entityWarning = `\n⚠️ ENTITY DISAMBIGUATION WARNING:\n`;
-                    entityWarning += `Found vessels from ${uniqueOwners.length} different owners: ${uniqueOwners.join(', ')}\n`;
-                    entityWarning += `User query was about: "${specificEntity || 'unknown entity'}"\n`;
-                    entityWarning += `CRITICAL: Verify which company the user meant before answering!\n\n`;
-                  }
-                  
-                  // Programmatically find largest vessel (prioritize high-confidence data)
-                  const highConfidenceVessels = vesselsWithConfidence.filter(v => v.confidence >= 50);
-                  const vesselsToAnalyze = highConfidenceVessels.length > 0 ? highConfidenceVessels : vesselsWithConfidence;
-                  
-                  const largestByLength = vesselsToAnalyze
-                    .filter(v => v.length_m != null && v.length_m > 0)
-                    .sort((a, b) => b.length_m - a.length_m)[0];
-                  
-                  const largestByDWT = vesselsToAnalyze
-                    .filter(v => v.dwt != null && v.dwt > 0)
-                    .sort((a, b) => b.dwt - a.dwt)[0];
-                  
-                  // Build verification context with confidence scores
-                  structuredData = `\n\n=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===\n`;
-                  structuredData += `Total vessels found: ${vessels.length}\n`;
-                  structuredData += `High-confidence vessels (≥50%): ${highConfidenceVessels.length}\n\n`;
-                  
-                  if (entityWarning) {
-                    structuredData += entityWarning;
-                  }
-                  
-                  if (largestByLength) {
-                    structuredData += `LARGEST BY LENGTH: ${largestByLength.name}\n`;
-                    structuredData += `- Owner: ${largestByLength.owner || 'Not specified'}\n`;
-                    structuredData += `- Length: ${largestByLength.length_m}m\n`;
-                    structuredData += `- DWT: ${largestByLength.dwt || 'Not specified'}\n`;
-                    structuredData += `- Type: ${largestByLength.vessel_type || 'Not specified'}\n`;
-                    structuredData += `- Built: ${largestByLength.year_built || 'Not specified'}\n`;
-                    structuredData += `- Confidence: ${largestByLength.confidence}% (${largestByLength.reasons.join(', ')})\n`;
-                    structuredData += `- Source: [${largestByLength.source_index}]\n\n`;
-                  }
-                  
-                  if (largestByDWT && largestByDWT.name !== largestByLength?.name) {
-                    structuredData += `LARGEST BY DEADWEIGHT: ${largestByDWT.name}\n`;
-                    structuredData += `- DWT: ${largestByDWT.dwt}\n`;
-                    structuredData += `- Length: ${largestByDWT.length_m || 'Not specified'}m\n`;
-                    structuredData += `- Confidence: ${largestByDWT.confidence}% (${largestByDWT.reasons.join(', ')})\n`;
-                    structuredData += `- Source: [${largestByDWT.source_index}]\n\n`;
-                  }
-                  
-                  structuredData += `ALL VESSELS EXTRACTED (sorted by confidence):\n`;
-                  vesselsWithConfidence.forEach((v, i) => {
-                    structuredData += `${i+1}. ${v.name} - ${v.length_m || '?'}m, ${v.dwt || '?'}DWT - ${v.confidence}% confidence [Source ${v.source_index}]\n`;
-                  });
-                  
-                  // PHASE 3: Cross-verification check
-                  if (largestByLength && largestByDWT && largestByLength.name === largestByDWT.name) {
-                    structuredData += `\n✅ CROSS-VERIFICATION PASSED: Same vessel is largest by both length AND deadweight\n`;
-                  } else if (largestByLength && largestByDWT) {
-                    structuredData += `\n⚠️ CROSS-VERIFICATION NOTE: Different vessels are largest by length vs deadweight\n`;
-                  }
-                  
-                  structuredData += `\nIMPORTANT: Use this verified structured data to answer. Prioritize high-confidence vessels (≥50%).\n`;
-                  structuredData += `==================================================\n\n`;
-                  
-                  console.log('✅ PHASE 3: Verification complete with confidence scoring');
-                }
-              }
+            if (claims.length === 0) {
+              console.warn('⚠️ No claims could be extracted - sources may not contain relevant information');
+              structuredData = `\n\n⚠️ **INSUFFICIENT DATA**\n\nThe search results do not contain sufficient factual information to answer this query reliably.\n\nYou MUST:\n1. Acknowledge that specific information is not available in current sources\n2. Provide only general knowledge (if appropriate)\n3. Suggest the user verify with authoritative sources or provide more context\n\n**DO NOT fabricate information.**\n\n`;
             } else {
-              console.warn('⚠️ PHASE 2: Extraction API call failed');
+              // STEP 2: Verify claims based on verification level
+              const verification = verifyClaims(claims, classification.verificationLevel);
+              console.log(`✓ Verification result: ${verification.verified ? 'PASSED' : 'FAILED'} (${verification.confidence.toFixed(0)}% confidence)`);
+              
+              verificationMetadata = {
+                queryType: classification.type,
+                domain: classification.domain,
+                verificationLevel: classification.verificationLevel,
+                claimsExtracted: claims.length,
+                verified: verification.verified,
+                confidence: verification.confidence,
+                supportingSources: verification.supportingSources,
+                conflictDetected: verification.conflictDetected,
+              };
+              
+              // STEP 3: Build structured data context for the AI
+              structuredData = `\n\n=== UNIVERSAL VERIFICATION SYSTEM RESULTS ===\n`;
+              structuredData += `Query Type: ${classification.type} | Domain: ${classification.domain}\n`;
+              structuredData += `Verification Level: ${classification.verificationLevel.toUpperCase()}\n`;
+              structuredData += `Overall Confidence: ${verification.confidence.toFixed(0)}%\n`;
+              structuredData += `Verification Status: ${verification.verified ? '✅ PASSED' : '⚠️ FAILED'}\n`;
+              structuredData += `Reason: ${verification.reason}\n\n`;
+              
+              if (!verification.verified) {
+                structuredData += `⚠️ **VERIFICATION FAILED** - ${verification.reason}\n\n`;
+                structuredData += `You MUST acknowledge this in your response. Do NOT present unverified information as fact.\n\n`;
+              }
+              
+              // Add all claims with evidence
+              structuredData += `=== VERIFIED CLAIMS (${claims.length} total) ===\n\n`;
+              
+              claims.forEach((claim, idx) => {
+                const statusEmoji = claim.confidence >= 70 ? '✅' : claim.confidence >= 50 ? '⚠️' : '❌';
+                structuredData += `${statusEmoji} CLAIM ${idx + 1}: ${claim.claim}\n`;
+                structuredData += `   Type: ${claim.claimType} | Confidence: ${claim.confidence}%\n`;
+                structuredData += `   Sources: [${claim.sources.join(', ')}]\n`;
+                
+                if (claim.evidence && claim.evidence.length > 0) {
+                  structuredData += `   Evidence:\n`;
+                  claim.evidence.forEach(e => {
+                    structuredData += `     • "${e}"\n`;
+                  });
+                }
+                
+                if (claim.contradictions && claim.contradictions.length > 0) {
+                  structuredData += `   ⚠️ CONTRADICTIONS:\n`;
+                  claim.contradictions.forEach(c => {
+                    structuredData += `     • ${c}\n`;
+                  });
+                }
+                
+                structuredData += `\n`;
+              });
+              
+              // Add usage instructions
+              structuredData += `\n=== MANDATORY ANSWER REQUIREMENTS ===\n`;
+              structuredData += `1. Use ONLY the claims above - DO NOT add information not present in claims\n`;
+              structuredData += `2. Cite sources [1][2][3] for EVERY factual statement\n`;
+              structuredData += `3. If verification failed, acknowledge uncertainty explicitly\n`;
+              structuredData += `4. If contradictions exist, present multiple viewpoints\n`;
+              structuredData += `5. For low-confidence claims (< 70%), use phrases like "According to [source]" instead of stating as absolute truth\n`;
+              structuredData += `6. End response with "**Sources:**" section listing all cited sources with URLs\n\n`;
+              
+              structuredData += `==================================================\n\n`;
+              
+              console.log(`✅ UNIVERSAL VERIFICATION: Complete with ${claims.length} claims (${verification.confidence.toFixed(0)}% confidence)`);
             }
+            
           } catch (e) {
-            console.error('❌ PHASE 2: Extraction error:', e.message);
+            console.error('❌ UNIVERSAL VERIFICATION: Error:', e.message);
+            structuredData = `\n\n⚠️ **VERIFICATION ERROR**\n\nAn error occurred during the verification process. Please answer cautiously based on the source content provided, and cite all sources explicitly.\n\n`;
           }
         }
         
