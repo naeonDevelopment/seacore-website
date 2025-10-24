@@ -12,13 +12,18 @@ CRITICAL INSTRUCTIONS ABOUT WEB RESEARCH:
 4. Immediately analyze and use the provided research results to answer the user's question
 5. If research results are insufficient, state: "The search results don't contain specific information about [topic]. Based on general maritime knowledge..." and provide general guidance
 
-CRITICAL: STRUCTURED DATA PRIORITY (Phase 2 Enhancement)
+CRITICAL: STRUCTURED DATA PRIORITY (Phase 2 & 3 Enhancement)
 - If you see "=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===" this data has been:
   * Extracted with temperature=0 (deterministic)
   * Programmatically compared and verified
   * Cross-referenced across multiple sources
+  * **Confidence scored** (0-100%) based on data completeness and source authority
 - ALWAYS prioritize structured data over raw search results for factual queries
 - The "LARGEST BY LENGTH" and "LARGEST BY DEADWEIGHT" have been computed programmatically
+- **Confidence scores explain why**: Multiple specs, Owner match, Authority source, etc.
+- **High-confidence vessels (≥50%)** are prioritized in comparisons
+- **Cross-verification checks** confirm if same vessel is largest by multiple metrics
+- **Entity disambiguation warnings** alert when multiple companies found - MUST verify with user
 - Use this data as your PRIMARY source of truth, cite the source numbers provided
 - Only fall back to raw search results if structured data is unavailable
 
@@ -594,18 +599,103 @@ Return ONLY the JSON array, no explanation:`;
                 console.log(`✅ Extracted ${vessels.length} vessels:`, vessels);
                 
                 if (vessels.length > 0) {
-                  // Programmatically find largest vessel
-                  const largestByLength = vessels
+                  // PHASE 3: Confidence Scoring & Entity Verification
+                  console.log('🎯 PHASE 3: Computing confidence scores...');
+                  
+                  // Authority domains for scoring
+                  const authoritativeDomains = [
+                    'marinelink.com', 'gcaptain.com', 'safety4sea.com',
+                    'maritime-executive.com', 'seatrade-maritime.com',
+                    'offshoreenergytoday.com', 'marinelog.com',
+                    'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com',
+                    'dnv.com', 'lr.org', 'abs.org'
+                  ];
+                  
+                  // Compute confidence score for each vessel
+                  const vesselsWithConfidence = vessels.map(v => {
+                    let confidence = 0;
+                    let reasons: string[] = [];
+                    
+                    // +30 if multiple specs are provided
+                    const specsProvided = [v.length_m, v.dwt, v.year_built, v.vessel_type].filter(s => s != null).length;
+                    if (specsProvided >= 3) {
+                      confidence += 30;
+                      reasons.push('Multiple specs');
+                    } else if (specsProvided >= 2) {
+                      confidence += 20;
+                      reasons.push('Some specs');
+                    }
+                    
+                    // +20 if owner matches query entity
+                    if (specificEntity && v.owner && v.owner.toLowerCase().includes(specificEntity.toLowerCase())) {
+                      confidence += 20;
+                      reasons.push('Owner match');
+                    }
+                    
+                    // +15 if vessel name contains owner name (e.g., "Stanford Hawk" for Stanford Marine)
+                    if (specificEntity && v.name && v.name.toLowerCase().includes(specificEntity.split(' ')[0].toLowerCase())) {
+                      confidence += 15;
+                      reasons.push('Name match');
+                    }
+                    
+                    // +20 if from high-authority source
+                    const sourceResult = topResults[v.source_index - 1];
+                    if (sourceResult && authoritativeDomains.some(d => sourceResult.url.includes(d))) {
+                      confidence += 20;
+                      reasons.push('Authority source');
+                    }
+                    
+                    // +15 if both length and DWT specified (most verifiable)
+                    if (v.length_m && v.dwt) {
+                      confidence += 15;
+                      reasons.push('Full specs');
+                    }
+                    
+                    return { ...v, confidence, reasons };
+                  });
+                  
+                  // Sort by confidence
+                  vesselsWithConfidence.sort((a, b) => b.confidence - a.confidence);
+                  
+                  console.log('📊 Vessel confidence scores:', vesselsWithConfidence.map(v => ({
+                    name: v.name,
+                    confidence: v.confidence,
+                    reasons: v.reasons
+                  })));
+                  
+                  // PHASE 3: Entity Resolution - Check for company disambiguation
+                  const uniqueOwners = [...new Set(vessels.map(v => v.owner).filter(Boolean))];
+                  let entityWarning = '';
+                  
+                  if (uniqueOwners.length > 1) {
+                    // Multiple owners found - might be different companies
+                    console.warn(`⚠️ PHASE 3: Multiple owners detected: ${uniqueOwners.join(', ')}`);
+                    entityWarning = `\n⚠️ ENTITY DISAMBIGUATION WARNING:\n`;
+                    entityWarning += `Found vessels from ${uniqueOwners.length} different owners: ${uniqueOwners.join(', ')}\n`;
+                    entityWarning += `User query was about: "${specificEntity || 'unknown entity'}"\n`;
+                    entityWarning += `CRITICAL: Verify which company the user meant before answering!\n\n`;
+                  }
+                  
+                  // Programmatically find largest vessel (prioritize high-confidence data)
+                  const highConfidenceVessels = vesselsWithConfidence.filter(v => v.confidence >= 50);
+                  const vesselsToAnalyze = highConfidenceVessels.length > 0 ? highConfidenceVessels : vesselsWithConfidence;
+                  
+                  const largestByLength = vesselsToAnalyze
                     .filter(v => v.length_m != null && v.length_m > 0)
                     .sort((a, b) => b.length_m - a.length_m)[0];
                   
-                  const largestByDWT = vessels
+                  const largestByDWT = vesselsToAnalyze
                     .filter(v => v.dwt != null && v.dwt > 0)
                     .sort((a, b) => b.dwt - a.dwt)[0];
                   
-                  // Build verification context
+                  // Build verification context with confidence scores
                   structuredData = `\n\n=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===\n`;
-                  structuredData += `Total vessels found: ${vessels.length}\n\n`;
+                  structuredData += `Total vessels found: ${vessels.length}\n`;
+                  structuredData += `High-confidence vessels (≥50%): ${highConfidenceVessels.length}\n\n`;
+                  
+                  if (entityWarning) {
+                    structuredData += entityWarning;
+                  }
                   
                   if (largestByLength) {
                     structuredData += `LARGEST BY LENGTH: ${largestByLength.name}\n`;
@@ -614,6 +704,7 @@ Return ONLY the JSON array, no explanation:`;
                     structuredData += `- DWT: ${largestByLength.dwt || 'Not specified'}\n`;
                     structuredData += `- Type: ${largestByLength.vessel_type || 'Not specified'}\n`;
                     structuredData += `- Built: ${largestByLength.year_built || 'Not specified'}\n`;
+                    structuredData += `- Confidence: ${largestByLength.confidence}% (${largestByLength.reasons.join(', ')})\n`;
                     structuredData += `- Source: [${largestByLength.source_index}]\n\n`;
                   }
                   
@@ -621,18 +712,26 @@ Return ONLY the JSON array, no explanation:`;
                     structuredData += `LARGEST BY DEADWEIGHT: ${largestByDWT.name}\n`;
                     structuredData += `- DWT: ${largestByDWT.dwt}\n`;
                     structuredData += `- Length: ${largestByDWT.length_m || 'Not specified'}m\n`;
+                    structuredData += `- Confidence: ${largestByDWT.confidence}% (${largestByDWT.reasons.join(', ')})\n`;
                     structuredData += `- Source: [${largestByDWT.source_index}]\n\n`;
                   }
                   
-                  structuredData += `ALL VESSELS EXTRACTED:\n`;
-                  vessels.forEach((v, i) => {
-                    structuredData += `${i+1}. ${v.name} - ${v.length_m || '?'}m, ${v.dwt || '?'}DWT [Source ${v.source_index}]\n`;
+                  structuredData += `ALL VESSELS EXTRACTED (sorted by confidence):\n`;
+                  vesselsWithConfidence.forEach((v, i) => {
+                    structuredData += `${i+1}. ${v.name} - ${v.length_m || '?'}m, ${v.dwt || '?'}DWT - ${v.confidence}% confidence [Source ${v.source_index}]\n`;
                   });
                   
-                  structuredData += `\nIMPORTANT: Use this verified structured data to answer. This data was programmatically extracted and compared.\n`;
+                  // PHASE 3: Cross-verification check
+                  if (largestByLength && largestByDWT && largestByLength.name === largestByDWT.name) {
+                    structuredData += `\n✅ CROSS-VERIFICATION PASSED: Same vessel is largest by both length AND deadweight\n`;
+                  } else if (largestByLength && largestByDWT) {
+                    structuredData += `\n⚠️ CROSS-VERIFICATION NOTE: Different vessels are largest by length vs deadweight\n`;
+                  }
+                  
+                  structuredData += `\nIMPORTANT: Use this verified structured data to answer. Prioritize high-confidence vessels (≥50%).\n`;
                   structuredData += `==================================================\n\n`;
                   
-                  console.log('✅ PHASE 2: Structured data compiled');
+                  console.log('✅ PHASE 3: Verification complete with confidence scoring');
                 }
               }
             } else {
