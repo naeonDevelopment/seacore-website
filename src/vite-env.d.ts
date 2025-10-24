@@ -1,40 +1,20 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly MODE: string
-  readonly DEV: boolean
-  readonly PROD: boolean
-  readonly SSR: boolean
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
-
-// Calendly type definitions
-interface CalendlyPopupOptions {
-  url: string
-  prefill?: {
-    name?: string
-    email?: string
-    firstName?: string
-    lastName?: string
-    customAnswers?: {
-      [key: string]: string
-    }
-  }
-  utm?: {
-    [key: string]: string
+// ChatKit Web Component Types
+declare namespace JSX {
+  interface IntrinsicElements {
+    'chatkit-widget': React.DetailedHTMLProps<
+      React.HTMLAttributes<HTMLElement> & {
+        id?: string;
+      },
+      HTMLElement
+    >;
   }
 }
 
-interface Calendly {
-  initPopupWidget(options: CalendlyPopupOptions): void
-  showPopupWidget(url: string): void
-  closePopupWidget(): void
-}
-
+// Extend Window for Calendly (existing)
 interface Window {
-  Calendly?: Calendly
+  Calendly?: {
+    initPopupWidget: (options: { url: string; parentElement?: HTMLElement; embedType?: string }) => void;
+  };
 }
-
