@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Brain } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
 
 interface Message {
@@ -28,6 +27,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
+  const [useBrowsing, setUseBrowsing] = useState<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Track the index of the currently streaming assistant message reliably
@@ -69,7 +69,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             role: m.role,
             content: m.content,
           })),
-          enableBrowsing: true,
+          enableBrowsing: useBrowsing,
         }),
       });
 
@@ -102,43 +102,47 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
         });
 
         if (reader) {
+          let buffer = '';
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+            buffer += decoder.decode(value, { stream: true });
 
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6);
-                if (data === '[DONE]') continue;
+            let newlineIndex = buffer.indexOf('\n');
+            while (newlineIndex !== -1) {
+              const line = buffer.slice(0, newlineIndex);
+              buffer = buffer.slice(newlineIndex + 1);
+              newlineIndex = buffer.indexOf('\n');
 
-                try {
-                  const parsed = JSON.parse(data);
-                  
-                  if (parsed.type === 'thinking') {
-                    thinking = parsed.content;
-                  } else if (parsed.type === 'content') {
-                    streamedContent += parsed.content;
-                  }
+              if (!line.startsWith('data: ')) continue;
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
 
-                  // Update message with accumulated content
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const idx = streamingIndexRef.current ?? updated.length - 1;
-                    updated[idx] = {
-                      role: 'assistant',
-                      content: streamedContent,
-                      thinking: thinking || undefined,
-                      timestamp: new Date(),
-                      isStreaming: true,
-                    };
-                    return updated;
-                  });
-                } catch (e) {
-                  // Skip invalid JSON
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === 'thinking') {
+                  thinking = parsed.content;
+                } else if (parsed.type === 'content') {
+                  streamedContent += parsed.content;
                 }
+
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const idx = streamingIndexRef.current ?? updated.length - 1;
+                  updated[idx] = {
+                    role: 'assistant',
+                    content: streamedContent,
+                    thinking: thinking || undefined,
+                    timestamp: new Date(),
+                    isStreaming: true,
+                  };
+                  return updated;
+                });
+              } catch (_) {
+                // wait for more data
+                buffer = line + '\n' + buffer;
+                break;
               }
             }
           }
@@ -198,7 +202,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-transparent z-[2147483600]"
+            className="fixed inset-0 z-[2147483600] pointer-events-none"
             style={{
               background: 'transparent'
             }}
@@ -214,13 +218,18 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
               ease: [0.32, 0.72, 0, 1],
               opacity: { duration: 0.3 }
             }}
-            className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:left-auto sm:top-auto sm:w-[min(36rem,90vw)] sm:h-[min(70vh,40rem)] backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 border border-white/20 dark:border-slate-700/30 rounded-none sm:rounded-3xl shadow-2xl z-[2147483601] flex flex-col overflow-hidden"
+            className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:left-auto sm:top-auto sm:w-[min(36rem,90vw)] sm:h-[min(80vh,44rem)] backdrop-blur-2xl bg-white/85 dark:bg-slate-900/85 border border-white/20 dark:border-slate-700/30 rounded-none sm:rounded-3xl shadow-2xl z-[2147483601] flex flex-col overflow-hidden"
           >
             {/* Header with Maritime Gradient - matching home page style */}
             <div className="relative flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                  <Bot className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg overflow-hidden">
+                  <img
+                    src="/assets/avatar/Generated Image October 24, 2025 - 5_31PM.png"
+                    alt="fleetcore AI avatar"
+                    className="w-full h-full object-cover object-center transform scale-125"
+                    loading="lazy"
+                  />
                 </div>
                 <div>
                   <h2 className="text-lg sm:text-2xl font-bold text-white enterprise-heading">fleetcore AI Assistant</h2>
@@ -263,8 +272,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     )}
                   >
                     {message.role === 'assistant' && (
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
+                        <img
+                          src="/assets/avatar/Generated Image October 24, 2025 - 5_31PM.png"
+                          alt="AI"
+                          className="w-full h-full object-cover object-center transform scale-125"
+                          loading="lazy"
+                        />
                       </div>
                     )}
                     
@@ -276,9 +290,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                           : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
                       )}
                     >
-                      {/* Chain of Thought - visible reasoning */}
-                      {message.thinking && message.role === 'assistant' && (
-                        <div className="mb-3 p-3 rounded-xl bg-blue-50/80 dark:bg-slate-700/50 border border-blue-200/50 dark:border-slate-600/50">
+                      {/* Chain of Thought shown above content while streaming */}
+                      {message.role === 'assistant' && message.thinking && (
+                        <div className="mb-3 p-3 rounded-xl bg-blue-50/80 dark:bg-slate-700/50 border border-blue-200/50 dark:border-slate-600/50 order-first">
                           <div className="flex items-center gap-2 mb-1.5">
                             <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Thinking</span>
@@ -353,15 +367,32 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   )}
                 </button>
               </div>
-              <div className="flex items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-lg shadow-green-500/50" />
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold">AI Online</span>
-                </div>
-                <span className="text-slate-400 dark:text-slate-600 hidden sm:inline">•</span>
-                <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold">
-                  <span className="hidden sm:inline">Powered by {modelName} • Press </span><kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono font-bold">Enter</kbd><span className="hidden sm:inline"> to send</span><span className="sm:hidden"> to send</span>
-                </p>
+              <div className="flex items-center justify-start mt-3 sm:mt-4">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={useBrowsing}
+                  onClick={() => setUseBrowsing((v) => !v)}
+                  className={cn(
+                    'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
+                    useBrowsing
+                      ? 'bg-maritime-50 border-maritime-200 text-maritime-700'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  )}
+                >
+                  <span className={cn(
+                    'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
+                    useBrowsing ? 'bg-maritime-600' : 'bg-slate-300 dark:bg-slate-700'
+                  )}>
+                    <span
+                      className={cn(
+                        'inline-block h-5 w-5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
+                        useBrowsing ? 'translate-x-6' : 'translate-x-1'
+                      )}
+                    />
+                  </span>
+                  <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
+                </button>
               </div>
             </div>
           </motion.div>
