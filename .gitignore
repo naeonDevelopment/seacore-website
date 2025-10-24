@@ -71,6 +71,9 @@ Desktop.ini
 # Netlify
 .netlify
 
+# Cloudflare Wrangler
+.wrangler
+
 # Local audit reports (keep only in local dev)
 AUDIT_*.md
 FIXES_*.md

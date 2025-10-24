@@ -102,110 +102,123 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop with maritime gradient overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[2147483600]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[2147483600]"
+            style={{
+              background: 'radial-gradient(circle at 50% 50%, rgba(14,165,233,0.15), rgba(0,0,0,0.6))'
+            }}
           />
 
-          {/* Modal */}
+          {/* Modal - Perfectly Centered */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.9, y: 40 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] max-w-3xl h-[85vh] max-h-[700px] maritime-glass border border-white/20 dark:border-slate-700/30 rounded-3xl shadow-2xl z-[2147483601] flex flex-col overflow-hidden"
+            exit={{ opacity: 0, scale: 0.9, y: 40 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="fixed top-[50%] left-[50%] -translate-x-[50%] -translate-y-[50%] w-[90vw] max-w-4xl h-[80vh] max-h-[700px] maritime-glass border border-white/20 dark:border-slate-700/30 rounded-3xl shadow-[8px_8px_0px_#2a3442] z-[2147483601] flex flex-col overflow-hidden"
           >
-            {/* Header with Gradient */}
-            <div className="relative flex items-center justify-between px-6 py-5 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
+            {/* Header with Maritime Gradient - matching home page style */}
+            <div className="relative flex items-center justify-between px-8 py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                  <Bot className="w-7 h-7 text-white" />
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                  <Bot className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">fleetcore AI Assistant</h2>
-                  <p className="text-sm text-white/90 font-medium">Maritime Maintenance Expert</p>
+                  <h2 className="text-2xl font-bold text-white enterprise-heading">fleetcore AI Assistant</h2>
+                  <p className="text-sm text-white/95 font-semibold">Maritime Maintenance Expert • GPT-4 Powered</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-10 h-10 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+                className="w-11 h-11 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group"
                 aria-label="Close chat"
               >
-                <X className="w-6 h-6 text-white" />
+                <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
               </button>
               
-              {/* Decorative gradient bar */}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+              {/* Decorative gradient bar - matching home page cards */}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
             </div>
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-900/50 dark:to-slate-950">
-              {messages.map((message, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className={cn(
-                    'flex gap-3',
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  )}
-                >
-                  {message.role === 'assistant' && (
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <Bot className="w-5 h-5 text-white" />
-                    </div>
-                  )}
-                  
-                  <div
+            {/* Messages Area - matching home page background patterns */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
+              {/* Subtle background pattern like home page */}
+              <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
+                <div className="absolute inset-0" style={{
+                  backgroundImage: `radial-gradient(circle at 2px 2px, rgb(59 130 246) 1px, transparent 0)`,
+                  backgroundSize: '40px 40px'
+                }}></div>
+              </div>
+              
+              <div className="relative z-10 space-y-6">
+                {messages.map((message, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: index * 0.05 }}
                     className={cn(
-                      'max-w-[75%] rounded-2xl px-5 py-3.5 shadow-md',
-                      message.role === 'user'
-                        ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white'
-                        : 'maritime-glass border border-white/20 dark:border-slate-700/30 text-slate-800 dark:text-slate-100'
+                      'flex gap-4',
+                      message.role === 'user' ? 'justify-end' : 'justify-start'
                     )}
                   >
-                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap font-medium">{message.content}</p>
-                    <p className={cn(
-                      'text-xs mt-2 font-medium',
-                      message.role === 'user' ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'
-                    )}>
-                      {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-
-                  {message.role === 'user' && (
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <User className="w-5 h-5 text-white" />
+                    {message.role === 'assistant' && (
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg hover:scale-110 transition-transform">
+                        <Bot className="w-6 h-6 text-white" />
+                      </div>
+                    )}
+                    
+                    <div
+                      className={cn(
+                        'max-w-[70%] rounded-3xl px-6 py-4 shadow-lg hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 transition-all duration-300',
+                        message.role === 'user'
+                          ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
+                          : 'maritime-glass border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
+                      )}
+                    >
+                      <p className="text-base leading-relaxed whitespace-pre-wrap font-medium enterprise-body">{message.content}</p>
+                      <p className={cn(
+                        'text-xs mt-2 font-semibold',
+                        message.role === 'user' ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'
+                      )}>
+                        {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
                     </div>
-                  )}
-                </motion.div>
-              ))}
-              
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex gap-3"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
-                    <Bot className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="maritime-glass border border-white/20 dark:border-slate-700/30 rounded-2xl px-5 py-3.5 shadow-md">
-                    <Loader2 className="w-5 h-5 animate-spin text-maritime-600" />
-                  </div>
-                </motion.div>
-              )}
-              
-              <div ref={messagesEndRef} />
+
+                    {message.role === 'user' && (
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg hover:scale-110 transition-transform">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+                
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex gap-4"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+                      <Bot className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="maritime-glass border border-white/20 dark:border-slate-700/30 rounded-3xl px-6 py-4 shadow-lg">
+                      <Loader2 className="w-6 h-6 animate-spin text-maritime-600" />
+                    </div>
+                  </motion.div>
+                )}
+                
+                <div ref={messagesEndRef} />
+              </div>
             </div>
 
-            {/* Input Area */}
-            <div className="p-5 border-t border-white/20 dark:border-slate-700/30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+            {/* Input Area - matching home page card style */}
+            <div className="p-6 border-t border-white/20 dark:border-slate-700/30 maritime-glass backdrop-blur-xl">
               <div className="flex gap-3">
                 <input
                   ref={inputRef}
@@ -215,24 +228,28 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   onKeyPress={handleKeyPress}
                   placeholder="Ask about maritime maintenance, SOLAS compliance, platform features..."
                   disabled={isLoading}
-                  className="flex-1 px-5 py-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all"
+                  className="flex-1 px-6 py-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
                 />
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isLoading}
-                  className="px-6 py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl flex items-center justify-center min-w-[60px]"
+                  className="px-7 py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[70px] group"
                 >
                   {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-6 h-6 animate-spin" />
                   ) : (
-                    <Send className="w-5 h-5" />
+                    <Send className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" />
                   )}
                 </button>
               </div>
-              <div className="flex items-center justify-center gap-2 mt-3">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                  Powered by GPT-4 • Maritime Expert • Press <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[10px] font-mono">Enter</kbd> to send
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-lg shadow-green-500/50" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold">AI Online</span>
+                </div>
+                <span className="text-slate-400 dark:text-slate-600">•</span>
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold">
+                  Powered by GPT-4 • Press <kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono font-bold">Enter</kbd> to send
                 </p>
               </div>
             </div>
