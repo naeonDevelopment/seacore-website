@@ -141,14 +141,15 @@ export async function onRequest(context: {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   
+  // Define SPA routes that should serve index.html
+  const spaRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
+  
   // Check if this is a bot
   if (isBot(userAgent)) {
     console.log(`Bot detected: ${userAgent} accessing ${pathname}`);
     
     // For main routes, serve optimized HTML
-    const mainRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
-    
-    if (mainRoutes.includes(pathname)) {
+    if (spaRoutes.includes(pathname)) {
       const html = generateBotHTML(pathname);
       
       return new Response(html, {
@@ -164,8 +165,19 @@ export async function onRequest(context: {
     }
   }
   
-  // For all other requests, pass through to static assets
-  // The _redirects file handles SPA fallback
+  // For regular users hitting SPA routes, serve index.html
+  if (spaRoutes.includes(pathname)) {
+    // Create a new request for index.html
+    const indexRequest = new Request(
+      new URL('/index.html', url.origin),
+      context.request
+    );
+    
+    // Fetch index.html from assets
+    return context.env.ASSETS.fetch(indexRequest);
+  }
+  
+  // For static assets and other paths, pass through
   return context.next();
 }
 
