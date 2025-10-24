@@ -7,8 +7,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  thinking?: string; // Chain of thought reasoning
   isStreaming?: boolean; // Currently being streamed
+  isThinking?: boolean; // Showing thinking animation
 }
 
 interface ChatModalProps {
@@ -96,8 +96,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
         const decoder = new TextDecoder();
         
         let streamedContent = '';
-        let thinking = '';
-        // Add empty streaming message and remember its index in ref
+        let hasReceivedContent = false;
+        // Add empty streaming message with thinking indicator
         streamingIndexRef.current = null;
         
         setMessages((prev) => {
@@ -108,6 +108,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             content: '',
             timestamp: new Date(),
             isStreaming: true,
+            isThinking: true, // Show thinking animation initially
           }];
         });
 
@@ -131,13 +132,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
 
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.type === 'thinking') {
-                  thinking = parsed.content;
-                  console.log('💭 Chain of thought:', thinking);
-                } else if (parsed.type === 'content') {
+                if (parsed.type === 'content') {
                   streamedContent += parsed.content;
-                } else if (parsed.type === 'research') {
-                  console.log('🔍 Research data:', parsed.content);
+                  
+                  // On first content, hide thinking indicator
+                  if (!hasReceivedContent && streamedContent.length > 0) {
+                    hasReceivedContent = true;
+                  }
                 }
 
                 setMessages((prev) => {
@@ -146,9 +147,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   updated[idx] = {
                     role: 'assistant',
                     content: streamedContent,
-                    thinking: thinking || undefined,
                     timestamp: new Date(),
                     isStreaming: true,
+                    isThinking: !hasReceivedContent, // Hide thinking once content starts
                   };
                   return updated;
                 });
@@ -168,6 +169,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
           updated[idx] = {
             ...updated[idx],
             isStreaming: false,
+            isThinking: false, // Remove thinking indicator
           };
           return updated;
         });
@@ -182,7 +184,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
         const assistantMessage: Message = {
           role: 'assistant',
           content: content,
-          thinking: data.thinking || (data.attempted_model ? `⚠️ Model: ${data.attempted_model}` : undefined),
           timestamp: new Date(),
         };
 
@@ -312,45 +313,39 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                           : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
                       )}
                     >
-                      {/* Chain of Thought shown above content with animation */}
-                      {message.role === 'assistant' && message.thinking && (
+                      {/* Thinking animation - shows before content starts */}
+                      {message.role === 'assistant' && message.isThinking && !message.content && (
                         <motion.div 
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, ease: "easeOut" }}
-                          className="mb-3 p-3 rounded-xl bg-gradient-to-br from-blue-50/90 via-indigo-50/80 to-purple-50/70 dark:from-slate-700/60 dark:via-slate-700/50 dark:to-slate-700/40 border border-blue-200/50 dark:border-slate-600/50 order-first shadow-sm"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex items-center gap-2"
                         >
-                          <div className="flex items-center gap-2 mb-2">
-                            <motion.div
-                              animate={{ rotate: 360 }}
-                              transition={{ duration: 2, repeat: message.isStreaming ? Infinity : 0, ease: "linear" }}
-                            >
-                              <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            </motion.div>
-                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-                              {message.isStreaming ? 'Thinking...' : 'Chain of Thought'}
-                            </span>
-                          </div>
-                          <motion.p 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.3, delay: 0.2 }}
-                            className="text-xs sm:text-sm text-blue-900/80 dark:text-blue-100/80 leading-relaxed italic font-medium"
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                           >
-                            {message.thinking}
-                            {message.isStreaming && <span className="inline-block w-1 h-3 ml-1 bg-blue-600 dark:bg-blue-400 animate-pulse" />}
-                          </motion.p>
+                            <Brain className="w-5 h-5 text-maritime-600 dark:text-maritime-400" />
+                          </motion.div>
+                          <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                            Thinking<motion.span
+                              animate={{ opacity: [0, 1, 0] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                            >...</motion.span>
+                          </span>
                         </motion.div>
                       )}
                       
-                      <div className="text-sm sm:text-base leading-relaxed font-medium enterprise-body space-y-2">
-                        {message.content.split('\n\n').map((paragraph, pIdx) => (
-                          <p key={pIdx} className="whitespace-pre-wrap">
-                            {paragraph}
-                          </p>
-                        ))}
-                        {message.isStreaming && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse" />}
-                      </div>
+                      {/* Message content */}
+                      {message.content && (
+                        <div className="text-sm sm:text-base leading-relaxed font-medium enterprise-body space-y-2">
+                          {message.content.split('\n\n').map((paragraph, pIdx) => (
+                            <p key={pIdx} className="whitespace-pre-wrap">
+                              {paragraph}
+                            </p>
+                          ))}
+                          {message.isStreaming && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse" />}
+                        </div>
+                      )}
                       <p className={cn(
                         'text-xs mt-2 font-semibold',
                         message.role === 'user' ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'

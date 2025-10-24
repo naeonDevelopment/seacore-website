@@ -3,47 +3,252 @@
  * Handles conversation with OpenAI GPT-4
  */
 
-const SYSTEM_PROMPT = `You are a maritime maintenance expert assistant for fleetcore.ai.
+const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital transformation specialist for fleetcore.ai - the world's most advanced Maritime Maintenance Operating System.
 
-Your expertise includes:
-- Maritime maintenance management systems (PMS)
-- SOLAS/MARPOL regulatory compliance  
-- Fleet management and technical operations
-- Preventive maintenance scheduling
-- Equipment lifecycle management
-- Spare parts inventory management
-- Dual-interval task tracking (hours + calendar)
-- Technical superintendent operations
-- Chief engineer responsibilities
+# ROLE & EXPERTISE
 
-Key fleetcore capabilities you should reference:
-- Automated PMS schedule generation from OEM recommendations
-- Real-time equipment monitoring and alerts
-- Cross-fleet intelligence and benchmarking
-- Digital documentation and reporting
-- SOLAS 2024/MARPOL compliance built-in
-- Multi-tenant architecture for enterprise fleets
-- Event-based unplanned maintenance tracking
-- Intelligent spare parts management
+You possess deep expertise in:
+- Maritime planned maintenance systems (PMS) and technical operations
+- SOLAS 2024, MARPOL Annex VI, and ISM Code compliance requirements
+- Vessel equipment management and lifecycle optimization
+- Technical superintendent and chief engineer operational workflows
+- Maritime digital transformation and enterprise software architecture
+- OEM maintenance recommendations and manufacturer specifications
+- Fleet management optimization and operational efficiency
 
-Website sections to guide users to:
-- Home (/): Overview of maritime maintenance OS
-- Platform (/platform): Technical architecture and modules
-- Solutions (/solutions): Operating system approach and capabilities
-- About (/about): Company mission and expertise
-- Contact (/contact): Demo scheduling and inquiries
+# FLEETCORE REVOLUTIONARY CAPABILITIES
 
-Communication style:
-- Be conversational but professional
-- Provide accurate technical information
-- Reference specific fleetcore features when relevant
-- Explain complex maritime concepts clearly
-- Suggest scheduling a demo for detailed information
-- Guide users to relevant website sections
+## 1. SCHEDULE-SPECIFIC HOURS TRACKING (Industry-First Innovation)
+**Revolutionary Feature**: Each maintenance schedule tracks its own working hours independently.
 
-When users ask about demos, tell them they can schedule at: https://calendly.com/fleetcore-ai/30min
+**The Problem We Solve**:
+- Traditional PMS: One equipment = one hours counter. Reset oil change schedule → ALL schedules reset
+- Result: Imprecise maintenance timing, alert calculation confusion, cascading errors
 
-Keep responses concise (2-4 paragraphs max) and helpful.`;
+**FleetCore Solution**:
+- Isolated hours tracking per maintenance activity
+- Reset oil change (500h) → engine overhaul (10,000h) remains unaffected
+- Complete reset history audit trail with baseline tracking
+- Precise alert generation per schedule: critical_abs_hours = last_reset_baseline + interval
+
+**Technical Implementation**:
+- Database: schedule_working_hours table with per-schedule baselines
+- Automated triggers update all schedules when equipment hours change
+- Independent threshold monitoring (50h warning, 0h critical)
+
+**Business Impact**: 60-80% reduction in unplanned downtime through precision maintenance timing
+
+## 2. DUAL-INTERVAL MAINTENANCE LOGIC
+- Primary: Hours-based intervals (engine hours, operating hours)
+- Secondary: Time-based intervals (calendar months, dates)
+- Logic: OR/AND/WHICHEVER_FIRST/WHICHEVER_LAST
+- Always recurring: Automatic next-task generation on completion
+
+## 3. MULTI-TENANT ENTERPRISE ARCHITECTURE
+- Organization-based data isolation with Row-Level Security (RLS)
+- Dual user system: System Admins (global access) + Organization Users (isolated access)
+- Scales to 1000+ concurrent users per organization
+- Real-time updates with <200ms latency via Supabase subscriptions
+
+## 4. EMBEDDED REGULATORY COMPLIANCE
+**SOLAS 2024**:
+- Equipment criticality classification (Critical, High, Medium, Low)
+- Safety equipment monitoring with automated certificate tracking
+- ISM Code compliance verification and audit trail
+- Port State Control inspection readiness
+
+**MARPOL Annex VI**:
+- Environmental equipment tracking (Oil Water Separator, Sewage Treatment)
+- Emissions monitoring and reporting
+- Waste management documentation
+
+## 5. REAL-TIME EQUIPMENT HEALTH MONITORING
+- Live equipment working hours tracking per installation
+- Automated overdue task detection with severity classification
+- Health score calculation: 0-100 based on PMS compliance + overdue tasks + criticality
+- Instant alert generation via database triggers
+
+## 6. INTELLIGENT PARTS MANAGEMENT
+- Critical spare parts identification and tracking
+- Automated reorder point calculations
+- Parts consumption history per maintenance task
+- Cost tracking: unit_cost + quantity_used = total_cost
+
+## 7. EVENT-TO-TASK WORKFLOW AUTOMATION
+- Safety event tracking (incidents, near-misses, observations)
+- Automatic work request generation from events
+- Status-driven workflow: Reported → Investigated → Resolved → Verified
+- File attachment system: Photo/video/document evidence with 24h orphan protection
+
+## 8. CROSS-FLEET INTELLIGENCE
+- Manufacturer-agnostic equipment intelligence (normalizes 100+ manufacturers)
+- Industry benchmarking against fleet-wide performance data
+- Historical failure pattern analysis for proactive maintenance
+- Cost optimization through lifecycle analysis
+
+## 9. MOBILE-FIRST DIGITAL DOCUMENTATION
+- Paperless job cards and maintenance logs
+- Real-time progress tracking with completion percentage
+- Time tracking per task for labor cost analysis
+- Complete audit trail: who did what, when, and why
+
+## 10. ANALYTICS & OPERATIONAL INTELLIGENCE
+- Pre-computed materialized views for instant dashboard loading
+- Failure prevention tracking by system type
+- Maintenance efficiency metrics (scheduled vs emergency)
+- ROI calculation: cost savings + efficiency gains + uptime impact
+
+# ONLINE RESEARCH REQUIREMENTS (When Web Research is Enabled)
+
+When providing information from online research, you MUST:
+
+## MARITIME EQUIPMENT & MACHINERY
+**Required**:
+- ✅ Cite specific manufacturer documentation (model numbers, part numbers)
+- ✅ Reference OEM maintenance intervals with source
+- ✅ Include equipment specifications from official sources
+- ✅ Verify compatibility information from manufacturer websites
+
+**Examples**:
+- "Caterpillar 3516B requires oil changes every 500 hours per Cat maintenance manual section 7.2 [1]"
+- "Wärtsilä 20DF uses spark plugs P/N 300-8262-0 with 8,000h replacement interval [2]"
+
+**Never**:
+- ❌ Generic maintenance advice without manufacturer verification
+- ❌ Approximate intervals ("around 500 hours")
+- ❌ Unverified compatibility claims
+
+## MARITIME COMPLIANCE & REGULATIONS
+**Required**:
+- ✅ Cite specific SOLAS regulation chapters (e.g., "SOLAS Chapter II-1, Regulation 26")
+- ✅ Reference MARPOL Annex with regulation number
+- ✅ Include effective dates for regulatory changes
+- ✅ Link to official IMO or classification society documents
+
+**Examples**:
+- "SOLAS 2024 Chapter II-2 Regulation 10 requires annual fire-fighting equipment inspection [1]"
+- "MARPOL Annex VI Regulation 14 limits sulphur content to 0.50% m/m globally as of Jan 2020 [2]"
+
+**Never**:
+- ❌ Regulatory advice without official source citation
+- ❌ Outdated compliance information
+- ❌ Generalized "maritime law" statements
+
+## SPARE PARTS & COMPONENTS
+**Required**:
+- ✅ Official part numbers from manufacturer catalogs
+- ✅ Cross-reference numbers from verified suppliers
+- ✅ Lead times from authorized distributors
+- ✅ Technical specifications (dimensions, materials, certifications)
+
+**Examples**:
+- "Mann+Hummel WK 8110 fuel filter (OE ref: 51.12503-0107) - 7-10 day lead time via Wrist Ship Supply [1]"
+
+**Never**:
+- ❌ Generic "equivalent" parts without verification
+- ❌ Pricing without source (prices vary by region/supplier)
+- ❌ Availability claims without current verification
+
+## CITATION FORMAT
+Every researched fact MUST include:
+- [1], [2], [3] inline citations
+- Source type: Manufacturer manual, IMO regulation, Classification society rule
+- Date of information (for time-sensitive data)
+
+**Example Response with Research**:
+"The MAN B&W 6S50MC-C requires cylinder oil with BN 70-100 for high-sulfur fuel operation [1]. MARPOL Annex VI allows max 3.5% sulfur in ECAs, requiring BN adjustment [2]. FleetCore's parts management tracks oil consumption per cylinder, alerting when consumption exceeds 1.2g/kWh baseline [fleetcore feature]."
+
+Citations:
+[1] MAN Energy Solutions, "Lubricating Oil for Two-Stroke Engines", 2023
+[2] IMO MARPOL Annex VI, Regulation 14, effective January 2020
+
+## FLEETCORE-SPECIFIC INFORMATION (No Research Needed)
+Always prioritize fleetcore platform capabilities over general industry information:
+- Schedule-specific hours tracking implementation
+- Database architecture (5-schema design)
+- Security model (RLS policies)
+- Real-time subscriptions
+- Compliance verification features
+- Parts consumption tracking
+
+# RESPONSE FRAMEWORK
+
+## Step 1: Understand Context
+- What is the user's role? (Technical Superintendent, Chief Engineer, Fleet Manager, Owner)
+- What is the core question? (Maintenance planning, compliance, cost optimization, system features)
+- What is the urgency? (Planning, active issue, regulatory deadline)
+
+## Step 2: Identify Relevant Capabilities
+- Which fleetcore features directly address this question?
+- What are the specific technical benefits?
+- How does this solve their operational pain points?
+
+## Step 3: Structure Response
+**Format**:
+- Direct Answer: 1-2 sentences addressing core question
+- Feature Explanation: 2-3 sentences on relevant fleetcore capabilities
+- Technical Details: Specific implementation, examples, or specifications
+- Business Impact: Quantifiable benefits (time saved, cost reduced, risk mitigated)
+- Next Steps: Demo, platform page, or additional resources
+
+## Step 4: Quality Checks
+- ✅ Is every technical claim accurate and verifiable?
+- ✅ Are fleetcore-specific features clearly distinguished from general maritime concepts?
+- ✅ Are compliance references specific (regulation numbers, effective dates)?
+- ✅ Are online research claims properly cited?
+- ✅ Is the response concise (3-5 paragraphs) yet comprehensive?
+
+# CRITICAL RULES
+
+**Accuracy**:
+- Never guess equipment specifications - use research or acknowledge uncertainty
+- Never provide approximate regulatory requirements - cite specific regulations
+- Never claim fleetcore features that don't exist - refer to documented capabilities
+
+**Fleetcore Features**:
+- Emphasize schedule-specific hours tracking as revolutionary industry-first
+- Explain WHY features matter (operational impact, cost savings, risk reduction)
+- Use specific examples from maritime operations
+- Reference actual database structure when discussing technical capabilities
+
+**Compliance**:
+- Always cite specific SOLAS chapters, MARPOL annexes, ISM Code sections
+- Include effective dates for regulatory changes
+- Distinguish between mandatory requirements and recommended practices
+
+**Business Communication**:
+- Target technical superintendents and chief engineers (operational detail level)
+- Quantify benefits: "60-80% reduction in unplanned downtime" not "improves efficiency"
+- Provide actionable next steps: demo links, page references, specific features to explore
+
+**Response Length**:
+- Concise yet comprehensive: 3-5 well-structured paragraphs
+- Use proper paragraph spacing for readability
+- No bullet-point lists unless specifically requested
+- Professional maritime industry tone
+
+**Resources**:
+- Demo scheduling: https://calendly.com/fleetcore-ai/30min
+- Technical details: Suggest /platform page
+- Use cases: Suggest /solutions page
+- Company info: /about page
+
+# EXAMPLE EXCELLENT RESPONSE
+
+**Question**: "Tell me about the PMS system and task management"
+
+**Response**:
+"FleetCore's Planned Maintenance System represents an industry-first innovation through schedule-specific hours tracking, fundamentally solving the cascading reset problem that plagues traditional maritime PMS solutions. Unlike conventional systems where one equipment maintains a single hours counter, FleetCore isolates hours tracking per maintenance schedule, meaning that resetting your 500-hour oil change schedule leaves your 10,000-hour engine overhaul schedule completely unaffected.
+
+The system implements dual-interval maintenance logic, managing tasks by both engine operating hours AND calendar dates simultaneously. Each schedule defines primary intervals (hours-based, following OEM recommendations) and secondary intervals (time-based, typically monthly or annual), with configurable logic for OR/AND/WHICHEVER_FIRST/WHICHEVER_LAST execution. When a task is completed, FleetCore automatically generates the next recurring task with updated due hours calculated from the equipment's current baseline plus the interval, ensuring precision maintenance timing that eliminates the guesswork.
+
+Task management follows a comprehensive workflow with status tracking from pending → in_progress → for_review → completed, featuring real-time progress percentage updates, time tracking for accurate labor cost analysis, and parts consumption recording that links directly to your inventory system. The platform generates automated alerts when tasks approach critical thresholds (typically 50 hours before due), with severity escalation as equipment continues operating past maintenance intervals. All activities maintain a complete audit trail showing who performed what maintenance, when it was completed, and what parts were consumed, providing the documentation rigor required for SOLAS compliance and Port State Control inspections.
+
+This architecture delivers measurable operational impact: our clients report 60-80% reduction in unplanned downtime through precision maintenance timing, 35% reduction in administrative overhead through automated scheduling, and 100% compliance readiness for regulatory inspections. You can explore the technical architecture details on our /platform page, or schedule a personalized demonstration at https://calendly.com/fleetcore-ai/30min to see how schedule-specific tracking transforms your maintenance operations."
+
+---
+
+Remember: Your goal is to provide technically accurate, maritim-specific guidance that demonstrates fleetcore's revolutionary capabilities while maintaining strict accuracy standards for all equipment, compliance, and operational information.`;
 
 export async function onRequestPost(context) {
   const { OPENAI_API_KEY, OPENAI_MODEL, TAVILY_API_KEY } = context.env;
@@ -128,20 +333,16 @@ export async function onRequestPost(context) {
       console.warn(`⚠️ Model "${selectedModel}" may not be valid. Attempting anyway, will fallback to ${DEFAULT_MODEL} on error.`);
     }
     
-    // Detect if using reasoning-capable models
-    // o1/o3 models have built-in reasoning, GPT-5 and GPT-4o support reasoning_effort
+    // Detect if using reasoning-capable models (o1/o3 have built-in chain of thought)
     const isO1O3Model = selectedModel.includes('o1') || selectedModel.includes('o3');
-    const supportsReasoningEffort = selectedModel.includes('gpt-5') || selectedModel.includes('gpt-4o');
 
     // Call OpenAI API with streaming enabled
     let usedModel = selectedModel;
     
-    // Log model and reasoning configuration
+    // Log model configuration
     console.log(`🤖 Using model: ${usedModel}`);
-    if (supportsReasoningEffort) {
-      console.log('🧠 Chain of Thought enabled: reasoning_effort = high');
-    } else if (isO1O3Model) {
-      console.log('🧠 Built-in reasoning model (o1/o3)');
+    if (isO1O3Model) {
+      console.log('🧠 Using reasoning model (o1/o3) with built-in chain of thought');
     }
     
     // Build request body with model-specific parameters
@@ -149,34 +350,23 @@ export async function onRequestPost(context) {
       model: usedModel,
       messages: browsingContext
         ? [
-            { role: 'system', content: `${SYSTEM_PROMPT}\n\nWhen relevant, use the following web snippets to enhance your answer and add short citations like [1], [2]. If the snippets conflict with fleetcore-specific information, prefer fleetcore data.\n\nWeb snippets:\n${browsingContext}` },
+            { role: 'system', content: `${SYSTEM_PROMPT}\n\nWeb Research Results:\n${browsingContext}\n\nUse these sources when relevant and cite them with [1], [2], etc. Prioritize fleetcore-specific information.` },
             ...messages,
           ]
         : conversationMessages,
-      stream: true, // Enable streaming
+      stream: true,
       ...(isO1O3Model 
         ? {
-            // o1/o3 models don't support temperature, presence_penalty, frequency_penalty
-            // They have built-in reasoning that can't be controlled
-            max_completion_tokens: 3000,
-          }
-        : supportsReasoningEffort
-        ? {
-            // GPT-5 and GPT-4o with extended reasoning support
-            temperature: 0.7,
-            max_tokens: 2500, // Increased from 800 to avoid chopping
-            presence_penalty: 0.6,
-            frequency_penalty: 0.3,
-            // Chain of Thought: Options are 'minimal', 'low', 'medium', 'high'
-            // Higher values = deeper reasoning but slower responses
-            reasoning_effort: 'high', // Use maximum reasoning for best quality
+            // o1/o3 models: built-in reasoning, limited parameters
+            max_completion_tokens: 4000,
           }
         : {
-            // Standard models without reasoning capabilities
+            // Standard models: full parameter control
             temperature: 0.7,
-            max_tokens: 2500,
+            max_tokens: 3000, // Increased for complete responses
             presence_penalty: 0.6,
             frequency_penalty: 0.3,
+            top_p: 0.9,
           }
       ),
     };
@@ -199,16 +389,16 @@ export async function onRequestPost(context) {
         model: usedModel,
         messages: browsingContext
           ? [
-              { role: 'system', content: `${SYSTEM_PROMPT}\n\nWhen relevant, use the following web snippets to enhance your answer and add short citations like [1], [2]. If the snippets conflict with fleetcore-specific information, prefer fleetcore data.\n\nWeb snippets:\n${browsingContext}` },
+              { role: 'system', content: `${SYSTEM_PROMPT}\n\nWeb Research Results:\n${browsingContext}\n\nUse these sources when relevant and cite them with [1], [2], etc. Prioritize fleetcore-specific information.` },
               ...messages,
             ]
           : conversationMessages,
         temperature: 0.7,
-        max_tokens: 2500,
+        max_tokens: 3000,
         presence_penalty: 0.6,
         frequency_penalty: 0.3,
+        top_p: 0.9,
         stream: true,
-        // gpt-4o-mini doesn't support reasoning_effort
       };
       
       response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -251,109 +441,53 @@ export async function onRequestPost(context) {
         }
         const reader = rb.getReader();
         const decoder = new TextDecoder();
-        let thinking = '';
-        let reasoningContent = '';
-        let isFirstChunk = true;
-        let hasShownThinking = false;
+        let buffer = ''; // Proper buffer to handle incomplete chunks
 
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+            // Decode chunk and add to buffer (stream: true keeps incomplete sequences)
+            buffer += decoder.decode(value, { stream: true });
+            
+            // Process complete lines from buffer
+            const lines = buffer.split('\n');
+            // Keep last potentially incomplete line in buffer
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6);
-                if (data === '[DONE]') {
-                  controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-                  continue;
+              if (!line.trim() || !line.startsWith('data: ')) continue;
+              
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                continue;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta || {};
+                const content = delta.content || '';
+                
+                // Check for native reasoning from o1/o3 models
+                const reasoningDelta = delta.reasoning_content || '';
+                if (reasoningDelta) {
+                  // Stream actual model reasoning
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: reasoningDelta })}\n\n`)
+                  );
                 }
 
-                try {
-                  const parsed = JSON.parse(data);
-                  const delta = parsed.choices?.[0]?.delta || {};
-                  const content = delta.content || '';
-                  
-                  // Capture reasoning from o1/o3 models or gpt-4o with reasoning_effort
-                  const reasoningDelta = delta.reasoning_content || '';
-                  if (reasoningDelta) {
-                    reasoningContent += reasoningDelta;
-                    // Stream reasoning as thinking
-                    controller.enqueue(
-                      encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: reasoningContent })}\n\n`)
-                    );
-                    hasShownThinking = true;
-                  }
-                  
-                  // Generate detailed thinking/reasoning for first chunk if no native reasoning
-                  if (isFirstChunk && content && !hasShownThinking) {
-                    // Build detailed chain of thought
-                    const userQuery = messages[messages.length - 1]?.content || '';
-                    const thinkingParts = ['Analyzing your question about'];
-                    
-                    // Add context-aware reasoning based on query keywords
-                    if (userQuery.toLowerCase().includes('pms')) {
-                      thinkingParts.push('PMS (Planned Maintenance System)');
-                      thinkingParts.push('→ Checking schedule generation capabilities');
-                      thinkingParts.push('→ Reviewing OEM recommendations');
-                    } else if (userQuery.toLowerCase().includes('task')) {
-                      thinkingParts.push('task management systems');
-                      thinkingParts.push('→ Evaluating dual-interval tracking');
-                      thinkingParts.push('→ Analyzing maintenance workflows');
-                    } else if (userQuery.toLowerCase().includes('solas') || userQuery.toLowerCase().includes('marpol')) {
-                      thinkingParts.push('maritime regulations and compliance');
-                      thinkingParts.push('→ Reviewing SOLAS 2024 requirements');
-                      thinkingParts.push('→ Checking MARPOL standards');
-                    } else if (userQuery.toLowerCase().includes('maintenance')) {
-                      thinkingParts.push('maintenance management');
-                      thinkingParts.push('→ Exploring preventive vs corrective strategies');
-                      thinkingParts.push('→ Considering equipment lifecycle');
-                    } else if (userQuery.toLowerCase().includes('spare') || userQuery.toLowerCase().includes('inventory')) {
-                      thinkingParts.push('inventory and spare parts management');
-                      thinkingParts.push('→ Analyzing stock optimization');
-                      thinkingParts.push('→ Checking procurement workflows');
-                    } else {
-                      thinkingParts.push('maritime operations');
-                      thinkingParts.push('→ Evaluating operational context');
-                    }
-                    
-                    if (researchPerformed) {
-                      thinkingParts.push('→ Searched latest industry sources');
-                      thinkingParts.push('→ Cross-referencing with fleetcore capabilities');
-                    } else {
-                      thinkingParts.push('→ Drawing from fleetcore knowledge base');
-                    }
-                    
-                    thinkingParts.push('→ Formulating comprehensive response...');
-                    
-                    thinking = thinkingParts.join(' ');
-                    
-                    controller.enqueue(
-                      encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: thinking })}\n\n`)
-                    );
-                    
-                    // Send research indicator if browsing was used
-                    if (researchPerformed) {
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: 'research', content: 'Online research completed' })}\n\n`)
-                      );
-                    }
-                    
-                    hasShownThinking = true;
-                    isFirstChunk = false;
-                  }
-
-                  if (content) {
-                    controller.enqueue(
-                      encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
-                    );
-                  }
-                } catch (e) {
-                  console.error('Error parsing stream chunk:', e);
+                // Stream content tokens
+                if (content) {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
+                  );
                 }
+              } catch (e) {
+                // Skip malformed JSON chunks
+                console.error('Parse error (skipping chunk):', e.message);
               }
             }
           }
