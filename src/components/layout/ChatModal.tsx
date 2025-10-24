@@ -120,7 +120,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 40 }}
             transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed top-[50%] left-[50%] -translate-x-[50%] -translate-y-[50%] w-[90vw] max-w-4xl h-[80vh] max-h-[700px] maritime-glass border border-white/20 dark:border-slate-700/30 rounded-3xl shadow-[8px_8px_0px_#2a3442] z-[2147483601] flex flex-col overflow-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-4xl h-[80vh] max-h-[700px] maritime-glass border border-white/20 dark:border-slate-700/30 rounded-3xl shadow-[8px_8px_0px_#2a3442] z-[2147483601] flex flex-col overflow-hidden"
           >
             {/* Header with Maritime Gradient - matching home page style */}
             <div className="relative flex items-center justify-between px-8 py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
