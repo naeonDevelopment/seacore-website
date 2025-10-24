@@ -7,6 +7,14 @@ const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital t
 
 IMPORTANT: When users have enabled "Online research", you MUST actively use the provided web research results to answer their questions with current, verified information. Never say "I cannot browse the web" when research results are available. Always utilize the research context provided.
 
+CRITICAL - ONLINE RESEARCH BEHAVIOR:
+When research results are provided, you MUST:
+- Prioritize SPECIFIC details from the research over generic knowledge
+- NEVER say "specific information is not publicly available" when you have research results
+- If research results are generic, acknowledge this and state "The available public sources provide general information rather than vessel-specific details"
+- ALWAYS cite sources with [1], [2], etc. when using researched information
+- If you need more specific information, suggest the user verify with the manufacturer or vessel operator
+
 # ROLE & EXPERTISE
 
 You possess deep expertise in:
@@ -284,8 +292,26 @@ export async function onRequestPost(context) {
     let researchPerformed = false;
     if (enableBrowsing && TAVILY_API_KEY) {
       try {
-        const q = messages[messages.length - 1]?.content || '';
-        console.log('🔍 Performing online research for:', q);
+        // Build context-aware search query by including relevant entities from recent conversation
+        const currentQuery = messages[messages.length - 1]?.content || '';
+        let enhancedQuery = currentQuery;
+        
+        // If query contains pronouns/references like "this ship", "that vessel", "it", etc.
+        // Look back in conversation history to find specific entity names
+        if (/\b(this|that|the|it|its|their)\b\s+(ship|vessel|equipment|system|company|fleet)/i.test(currentQuery)) {
+          // Extract entities from previous messages (ship names, company names, equipment models)
+          const recentContext = messages.slice(-5).map(m => m.content).join(' ');
+          const entityMatches = recentContext.match(/\b([A-Z][A-Za-z]*\s+[A-Z][A-Za-z]*|MPL\s+\w+|MV\s+\w+|[A-Z]{2,}\s+\w+)/g);
+          
+          if (entityMatches && entityMatches.length > 0) {
+            // Find the most recently mentioned specific entity
+            const specificEntity = entityMatches[entityMatches.length - 1];
+            enhancedQuery = `${specificEntity} ${currentQuery}`;
+            console.log(`🔍 Enhanced query with context: "${currentQuery}" → "${enhancedQuery}"`);
+          }
+        }
+        
+        console.log('🔍 Performing online research for:', enhancedQuery);
         const tavilyRes = await fetch('https://api.tavily.com/search', {
           method: 'POST',
           headers: { 
@@ -295,7 +321,7 @@ export async function onRequestPost(context) {
             'x-api-key': TAVILY_API_KEY,
           },
           body: JSON.stringify({ 
-            query: q, 
+            query: enhancedQuery, 
             search_depth: 'advanced', // Enhanced search depth for better results
             max_results: 5,
             include_domains: [],
