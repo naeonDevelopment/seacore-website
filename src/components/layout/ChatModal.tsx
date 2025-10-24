@@ -114,31 +114,32 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             }}
           />
 
-          {/* Modal - Perfectly Centered */}
+          {/* Modal - Perfectly Centered (NO Y ANIMATION - conflicts with translate) */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 40 }}
-            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-4xl h-[80vh] max-h-[700px] maritime-glass border border-white/20 dark:border-slate-700/30 rounded-3xl shadow-[8px_8px_0px_#2a3442] z-[2147483601] flex flex-col overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] sm:w-[90vw] max-w-4xl h-[85vh] sm:h-[80vh] max-h-[700px] backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 border border-white/20 dark:border-slate-700/30 rounded-2xl sm:rounded-3xl shadow-[8px_8px_0px_#2a3442] z-[2147483601] flex flex-col overflow-hidden"
           >
             {/* Header with Maritime Gradient - matching home page style */}
-            <div className="relative flex items-center justify-between px-8 py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <Bot className="w-8 h-8 text-white" />
+            <div className="relative flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                  <Bot className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white enterprise-heading">fleetcore AI Assistant</h2>
-                  <p className="text-sm text-white/95 font-semibold">Maritime Maintenance Expert • GPT-4 Powered</p>
+                  <h2 className="text-lg sm:text-2xl font-bold text-white enterprise-heading">fleetcore AI Assistant</h2>
+                  <p className="text-xs sm:text-sm text-white/95 font-semibold hidden sm:block">Maritime Maintenance Expert • GPT-4 Powered</p>
+                  <p className="text-xs text-white/95 font-semibold sm:hidden">Maritime Expert</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-11 h-11 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group flex-shrink-0"
                 aria-label="Close chat"
               >
-                <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
               </button>
               
               {/* Decorative gradient bar - matching home page cards */}
@@ -146,7 +147,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             {/* Messages Area - matching home page background patterns */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-4 sm:space-y-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
               {/* Subtle background pattern like home page */}
               <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
                 <div className="absolute inset-0" style={{
@@ -155,33 +156,33 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 }}></div>
               </div>
               
-              <div className="relative z-10 space-y-6">
+              <div className="relative z-10 space-y-4 sm:space-y-6">
                 {messages.map((message, index) => (
                   <motion.div
                     key={index}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.05 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
                     className={cn(
-                      'flex gap-4',
+                      'flex gap-2 sm:gap-4',
                       message.role === 'user' ? 'justify-end' : 'justify-start'
                     )}
                   >
                     {message.role === 'assistant' && (
-                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg hover:scale-110 transition-transform">
-                        <Bot className="w-6 h-6 text-white" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                       </div>
                     )}
                     
                     <div
                       className={cn(
-                        'max-w-[70%] rounded-3xl px-6 py-4 shadow-lg hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 transition-all duration-300',
+                        'max-w-[85%] sm:max-w-[70%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 transition-all duration-300',
                         message.role === 'user'
                           ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
-                          : 'maritime-glass border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
+                          : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
                       )}
                     >
-                      <p className="text-base leading-relaxed whitespace-pre-wrap font-medium enterprise-body">{message.content}</p>
+                      <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-medium enterprise-body">{message.content}</p>
                       <p className={cn(
                         'text-xs mt-2 font-semibold',
                         message.role === 'user' ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'
@@ -191,8 +192,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     </div>
 
                     {message.role === 'user' && (
-                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg hover:scale-110 transition-transform">
-                        <User className="w-6 h-6 text-white" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                       </div>
                     )}
                   </motion.div>
@@ -202,13 +203,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex gap-4"
+                    className="flex gap-2 sm:gap-4"
                   >
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
-                      <Bot className="w-6 h-6 text-white" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+                      <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
-                    <div className="maritime-glass border border-white/20 dark:border-slate-700/30 rounded-3xl px-6 py-4 shadow-lg">
-                      <Loader2 className="w-6 h-6 animate-spin text-maritime-600" />
+                    <div className="backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg">
+                      <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-maritime-600" />
                     </div>
                   </motion.div>
                 )}
@@ -218,38 +219,38 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             {/* Input Area - matching home page card style */}
-            <div className="p-6 border-t border-white/20 dark:border-slate-700/30 maritime-glass backdrop-blur-xl">
-              <div className="flex gap-3">
+            <div className="p-4 sm:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80">
+              <div className="flex gap-2 sm:gap-3">
                 <input
                   ref={inputRef}
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask about maritime maintenance, SOLAS compliance, platform features..."
+                  placeholder="Ask about maritime maintenance, SOLAS..."
                   disabled={isLoading}
-                  className="flex-1 px-6 py-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
                 />
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isLoading}
-                  className="px-7 py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[70px] group"
+                  className="px-4 sm:px-7 py-3 sm:py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl sm:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[60px] sm:min-w-[70px] group"
                 >
                   {isLoading ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
                   ) : (
-                    <Send className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" />
+                    <Send className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-0.5 transition-transform" />
                   )}
                 </button>
               </div>
-              <div className="flex items-center justify-center gap-3 mt-4">
+              <div className="flex items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4 flex-wrap">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-lg shadow-green-500/50" />
                   <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold">AI Online</span>
                 </div>
-                <span className="text-slate-400 dark:text-slate-600">•</span>
+                <span className="text-slate-400 dark:text-slate-600 hidden sm:inline">•</span>
                 <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold">
-                  Powered by GPT-4 • Press <kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono font-bold">Enter</kbd> to send
+                  <span className="hidden sm:inline">Powered by GPT-4 • Press </span><kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono font-bold">Enter</kbd><span className="hidden sm:inline"> to send</span><span className="sm:hidden"> to send</span>
                 </p>
               </div>
             </div>
