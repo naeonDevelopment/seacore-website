@@ -15,7 +15,7 @@ export function generatePlatformContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FleetCore Platform Architecture - Enterprise Maritime Technology Stack</title>
+  <title>fleetcore Platform Architecture - Enterprise Maritime Technology Stack</title>
   <meta name="description" content="Production-ready maritime platform: React 18 + TypeScript 5.5 + Supabase PostgreSQL. Schedule-specific tracking, real-time monitoring, Row-Level Security. Q1 2026 launch.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
@@ -26,12 +26,12 @@ export function generatePlatformContent(): string {
   {
     "@context": "https://schema.org",
     "@type": "TechArticle",
-    "headline": "FleetCore Maritime Platform Architecture",
+    "headline": "fleetcore Maritime Platform Architecture",
     "datePublished": "2025-01-15",
     "dateModified": "${LAST_UPDATED}",
     "author": {
       "@type": "Organization",
-      "name": "FleetCore Engineering Team"
+      "name": "fleetcore Engineering Team"
     },
     "description": "Enterprise maritime maintenance platform architecture with React 18, TypeScript 5.5.3, Supabase PostgreSQL, and real-time WebSocket subscriptions",
     "technicalScholarlyWork": true
@@ -77,7 +77,7 @@ export function generatePlatformContent(): string {
   </div>
 
   <h1>Enterprise Platform Architecture</h1>
-  <p style="font-size: 1.2em; color: #475569;">Production-verified technology stack and system design for FleetCore Maritime Navigator</p>
+  <p style="font-size: 1.2em; color: #475569;">Production-verified technology stack and system design for fleetcore Maritime Navigator</p>
 
   <h2>🏗️ Technology Stack (Production-Verified)</h2>
   

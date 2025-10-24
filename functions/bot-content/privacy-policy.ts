@@ -12,8 +12,8 @@ export function generatePrivacyPolicyContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FleetCore Privacy Policy - Data Protection & GDPR Compliance</title>
-  <meta name="description" content="FleetCore privacy policy: GDPR compliant, organization-based data isolation, Row-Level Security, data encryption, and comprehensive audit trails.">
+  <title>fleetcore Privacy Policy - Data Protection & GDPR Compliance</title>
+  <meta name="description" content="fleetcore privacy policy: GDPR compliant, organization-based data isolation, Row-Level Security, data encryption, and comprehensive audit trails.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/privacy-policy">
@@ -34,7 +34,7 @@ export function generatePrivacyPolicyContent(): string {
   <p><strong>Effective Date:</strong> Q1 2026 Production Launch</p>
 
   <h2>1. Introduction</h2>
-  <p>FleetCore ("we", "our", "us") is committed to protecting the privacy and security of your personal and operational data. This Privacy Policy explains how we collect, use, store, and protect data when you use the FleetCore Maritime Navigator platform.</p>
+  <p>fleetcore ("we", "our", "us") is committed to protecting the privacy and security of your personal and operational data. This Privacy Policy explains how we collect, use, store, and protect data when you use the fleetcore Maritime Navigator platform.</p>
 
   <h2>2. Data We Collect</h2>
   
@@ -164,7 +164,7 @@ export function generatePrivacyPolicyContent(): string {
   </ul>
 
   <h2>10. Children's Privacy</h2>
-  <p>FleetCore is an enterprise maritime platform not intended for use by individuals under 18 years of age. We do not knowingly collect data from children.</p>
+  <p>fleetcore is an enterprise maritime platform not intended for use by individuals under 18 years of age. We do not knowingly collect data from children.</p>
 
   <h2>11. Changes to This Policy</h2>
   <p>We may update this Privacy Policy periodically. Significant changes will be communicated via email to organization administrators. Continued use of the platform after changes constitutes acceptance of updated policy.</p>

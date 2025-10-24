@@ -16,7 +16,7 @@ export function generateHomeContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FleetCore Maritime Navigator - Production-Ready Maritime Maintenance Platform</title>
+  <title>fleetcore Maritime Navigator - Production-Ready Maritime Maintenance Platform</title>
   <meta name="description" content="Production-ready maritime maintenance platform launching Q1 2026. Industry-first schedule-specific hours tracking, real-time fleet monitoring, SOLAS 2024 compliance. Built on React 18 + TypeScript + Supabase.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
@@ -24,14 +24,14 @@ export function generateHomeContent(): string {
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://fleetcore.ai/">
-  <meta property="og:title" content="FleetCore Maritime Navigator - Production-Ready Platform">
+  <meta property="og:title" content="fleetcore Maritime Navigator - Production-Ready Platform">
   <meta property="og:description" content="Revolutionary maritime maintenance platform launching Q1 2026. Schedule-specific tracking, real-time monitoring, automated compliance.">
   <meta property="og:image" content="https://fleetcore.ai/og/home.png">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://fleetcore.ai/">
-  <meta name="twitter:title" content="FleetCore Maritime Navigator - Q1 2026 Launch">
+  <meta name="twitter:title" content="fleetcore Maritime Navigator - Q1 2026 Launch">
   <meta name="twitter:description" content="Revolutionary maritime maintenance platform launching Q1 2026. Schedule-specific tracking, real-time monitoring, automated compliance.">
   <meta name="twitter:image" content="https://fleetcore.ai/og/home.png">
   
@@ -43,7 +43,7 @@ export function generateHomeContent(): string {
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "FleetCore Maritime Navigator",
+    "name": "fleetcore Maritime Navigator",
     "applicationCategory": "BusinessApplication",
     "applicationSubCategory": "Maritime Maintenance Management",
     "operatingSystem": "Web-based, Cloud Platform",
@@ -88,10 +88,10 @@ export function generateHomeContent(): string {
   {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "FleetCore",
+    "name": "fleetcore",
     "url": "https://fleetcore.ai",
     "logo": "https://fleetcore.ai/Light.svg",
-    "description": "Developer of FleetCore Maritime Navigator, a production-ready maritime maintenance platform launching Q1 2026",
+    "description": "Developer of fleetcore Maritime Navigator, a production-ready maritime maintenance platform launching Q1 2026",
     "foundingDate": "2024",
     "sameAs": [
       "https://www.linkedin.com/company/seacore"
@@ -104,7 +104,7 @@ export function generateHomeContent(): string {
   {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "FleetCore Maritime Navigator - Home",
+    "name": "fleetcore Maritime Navigator - Home",
     "description": "Production-ready maritime maintenance platform launching Q1 2026",
     "dateModified": "${LAST_UPDATED}",
     "version": "${PLATFORM_VERSION}",
@@ -218,7 +218,7 @@ export function generateHomeContent(): string {
   
   <h1>Maritime Maintenance Operating System</h1>
   <p style="font-size: 1.2em; color: #475569; margin-bottom: 2em;">
-    <strong>FleetCore Maritime Navigator</strong> - Production-ready enterprise platform launching Q1 2026. 
+    <strong>fleetcore Maritime Navigator</strong> - Production-ready enterprise platform launching Q1 2026. 
     Revolutionary schedule-specific tracking, real-time fleet intelligence, and embedded SOLAS 2024 compliance.
   </p>
 
@@ -232,15 +232,15 @@ export function generateHomeContent(): string {
     and every other maintenance schedule on that equipment.</p>
   </div>
   
-  <h3>FleetCore's Revolutionary Solution (2025 Architecture)</h3>
-  <p>FleetCore introduces <strong>schedule-specific hours tracking</strong> - the maritime industry's 
+  <h3>fleetcore's Revolutionary Solution (2025 Architecture)</h3>
+  <p>fleetcore introduces <strong>schedule-specific hours tracking</strong> - the maritime industry's 
   first system where each maintenance schedule maintains its own independent hours baseline.</p>
   
   <table>
     <tr>
       <th>Feature</th>
       <th>Traditional PMS</th>
-      <th>FleetCore (2025)</th>
+      <th>fleetcore (2025)</th>
     </tr>
     <tr>
       <td><strong>Hours Tracking</strong></td>
@@ -395,7 +395,7 @@ export function generateHomeContent(): string {
   <p><strong>The Problem:</strong> Maritime equipment comes from 100+ manufacturers with inconsistent 
   naming conventions, making standardization impossible.</p>
   
-  <p><strong>FleetCore's Solution:</strong> Global intelligence pool that normalizes manufacturer data 
+  <p><strong>fleetcore's Solution:</strong> Global intelligence pool that normalizes manufacturer data 
   into a single source of truth:</p>
   <ul>
     <li><strong>Unified Equipment Catalog:</strong> MAN B&W, Wärtsilä, Caterpillar, Rolls-Royce, ABB, and more</li>
@@ -607,12 +607,12 @@ export function generateHomeContent(): string {
 
   <h2>🎯 Competitive Differentiation</h2>
   
-  <h3>FleetCore vs Traditional Maritime CMMS</h3>
+  <h3>fleetcore vs Traditional Maritime CMMS</h3>
   <table>
     <tr>
       <th>Feature</th>
       <th>Traditional CMMS</th>
-      <th>FleetCore Maritime Navigator</th>
+      <th>fleetcore Maritime Navigator</th>
     </tr>
     <tr>
       <td><strong>Hours Tracking</strong></td>
@@ -667,7 +667,7 @@ export function generateHomeContent(): string {
     <li>Explore enterprise pricing based on fleet size</li>
   </ul>
   
-  <h3>Why Consider FleetCore Now</h3>
+  <h3>Why Consider fleetcore Now</h3>
   <ul>
     <li><strong>SOLAS 2024 Compliance:</strong> New regulatory requirements driving digital transformation</li>
     <li><strong>Modern Technology:</strong> Replace legacy systems with 2025 architecture</li>

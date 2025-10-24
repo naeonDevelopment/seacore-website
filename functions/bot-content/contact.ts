@@ -12,8 +12,8 @@ export function generateContactContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact FleetCore - Maritime Maintenance Platform Inquiries</title>
-  <meta name="description" content="Contact FleetCore for technical demonstrations, enterprise pricing, and partnership inquiries. Q1 2026 production launch.">
+  <title>Contact fleetcore - Maritime Maintenance Platform Inquiries</title>
+  <meta name="description" content="Contact fleetcore for technical demonstrations, enterprise pricing, and partnership inquiries. Q1 2026 production launch.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/contact">
@@ -29,7 +29,7 @@ export function generateContactContent(): string {
 </head>
 <body>
 
-  <h1>Contact FleetCore</h1>
+  <h1>Contact fleetcore</h1>
   <p style="font-size: 1.2em; color: #475569;">Get in touch for technical demonstrations, partnership inquiries, and enterprise pricing information.</p>
 
   <h2>📅 Schedule a Demo</h2>
@@ -66,16 +66,16 @@ export function generateContactContent(): string {
 
   <h2>❓ Frequently Asked Questions</h2>
   
-  <h3>Q: When is FleetCore launching?</h3>
+  <h3>Q: When is fleetcore launching?</h3>
   <p><strong>A:</strong> Q1 2026 full production launch. Platform is production-ready and undergoing final maritime operator validation.</p>
   
-  <h3>Q: What makes FleetCore different from traditional CMMS?</h3>
+  <h3>Q: What makes fleetcore different from traditional CMMS?</h3>
   <p><strong>A:</strong> Schedule-specific hours tracking (industry first), modern 2025 technology stack (React 18 + TypeScript + Supabase), real-time monitoring (&lt;200ms latency), and embedded SOLAS/MARPOL/ISM compliance.</p>
   
-  <h3>Q: What technology does FleetCore use?</h3>
+  <h3>Q: What technology does fleetcore use?</h3>
   <p><strong>A:</strong> React 18.3.1, TypeScript 5.5.3, Supabase PostgreSQL, WebSocket subscriptions, Row-Level Security, cloud-native architecture with 99.99% uptime SLA.</p>
   
-  <h3>Q: Does FleetCore support multiple vessels?</h3>
+  <h3>Q: Does fleetcore support multiple vessels?</h3>
   <p><strong>A:</strong> Yes, multi-tenant enterprise architecture designed for ship management companies managing unlimited vessels across multiple organizations.</p>
   
   <h3>Q: How does pricing work?</h3>
@@ -84,7 +84,7 @@ export function generateContactContent(): string {
   <h3>Q: What is the implementation timeline?</h3>
   <p><strong>A:</strong> Typical implementation timeline discussed during technical demonstration based on specific fleet requirements.</p>
   
-  <h3>Q: Does FleetCore integrate with existing systems?</h3>
+  <h3>Q: Does fleetcore integrate with existing systems?</h3>
   <p><strong>A:</strong> Yes, RESTful API available for ERP, procurement, inventory, and other system integrations.</p>
 
   <h2>🚀 Q1 2026 Launch Program</h2>
