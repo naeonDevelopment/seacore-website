@@ -141,43 +141,27 @@ export async function onRequest(context: {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   
-  // Define SPA routes that should serve index.html
+  // Define SPA routes for bot optimization
   const spaRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
   
-  // Check if this is a bot
-  if (isBot(userAgent)) {
-    console.log(`Bot detected: ${userAgent} accessing ${pathname}`);
+  // Check if this is a bot - serve optimized HTML
+  if (isBot(userAgent) && spaRoutes.includes(pathname)) {
+    const html = generateBotHTML(pathname);
     
-    // For main routes, serve optimized HTML
-    if (spaRoutes.includes(pathname)) {
-      const html = generateBotHTML(pathname);
-      
-      return new Response(html, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8',
-          'X-Served-To': 'Bot',
-          'X-Robots-Tag': 'index, follow',
-          'Cache-Control': 'public, max-age=3600, s-maxage=86400',
-          'X-Content-Type-Options': 'nosniff'
-        }
-      });
-    }
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Served-To': 'Bot',
+        'X-Robots-Tag': 'index, follow',
+        'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+        'X-Content-Type-Options': 'nosniff'
+      }
+    });
   }
   
-  // For regular users hitting SPA routes, serve index.html
-  if (spaRoutes.includes(pathname)) {
-    // Create a new request for index.html
-    const indexRequest = new Request(
-      new URL('/index.html', url.origin),
-      context.request
-    );
-    
-    // Fetch index.html from assets
-    return context.env.ASSETS.fetch(indexRequest);
-  }
-  
-  // For static assets and other paths, pass through
+  // For all other requests (regular users, static assets), pass through
+  // The _redirects file handles SPA fallback automatically
   return context.next();
 }
 
