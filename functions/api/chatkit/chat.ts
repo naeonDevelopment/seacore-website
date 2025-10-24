@@ -99,17 +99,21 @@ export async function onRequestPost(context) {
       }
     }
 
-    const selectedModel = (OPENAI_MODEL || 'gpt-4o-mini').trim();
+    const DEFAULT_MODEL = 'gpt-4o-mini';
+    const envModel = (OPENAI_MODEL || DEFAULT_MODEL).trim();
+    // Normalize accidental spaces in model names (e.g., "gpt-5 mini")
+    const selectedModel = envModel.replace(/\s+/g, '-');
 
     // Call OpenAI API with streaming enabled
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    let usedModel = selectedModel;
+    let response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: selectedModel,
+        model: usedModel,
         messages: browsingContext
           ? [
               { role: 'system', content: `${SYSTEM_PROMPT}\n\nWhen relevant, use the following web snippets to enhance your answer and add short citations like [1], [2]. If the snippets conflict with fleetcore-specific information, prefer fleetcore data.\n\nWeb snippets:\n${browsingContext}` },
@@ -124,6 +128,32 @@ export async function onRequestPost(context) {
       }),
     });
 
+    // If model is invalid (400), retry once with default cheaper model
+    if (!response.ok && response.status === 400 && usedModel !== DEFAULT_MODEL) {
+      usedModel = DEFAULT_MODEL;
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: usedModel,
+          messages: browsingContext
+            ? [
+                { role: 'system', content: `${SYSTEM_PROMPT}\n\nWhen relevant, use the following web snippets to enhance your answer and add short citations like [1], [2]. If the snippets conflict with fleetcore-specific information, prefer fleetcore data.\n\nWeb snippets:\n${browsingContext}` },
+                ...messages,
+              ]
+            : conversationMessages,
+          temperature: 0.7,
+          max_tokens: 800,
+          presence_penalty: 0.6,
+          frequency_penalty: 0.3,
+          stream: true,
+        }),
+      });
+    }
+
     if (!response.ok) {
       const error = await response.text();
       console.error('OpenAI API error:', error);
@@ -137,7 +167,13 @@ export async function onRequestPost(context) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const reader = response.body.getReader();
+        const rb = response.body;
+        if (!rb) {
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+          return;
+        }
+        const reader = rb.getReader();
         const decoder = new TextDecoder();
         let thinking = '';
         let isFirstChunk = true;
@@ -196,7 +232,7 @@ export async function onRequestPost(context) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'x-model': selectedModel,
+        'x-model': usedModel,
       },
     });
   } catch (error) {
