@@ -46,7 +46,7 @@ When users ask about demos, tell them they can schedule at: https://calendly.com
 Keep responses concise (2-4 paragraphs max) and helpful.`;
 
 export async function onRequestPost(context) {
-  const { OPENAI_API_KEY } = context.env;
+  const { OPENAI_API_KEY, OPENAI_MODEL, TAVILY_API_KEY } = context.env;
 
   if (!OPENAI_API_KEY) {
     return new Response(
@@ -57,7 +57,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await context.request.json();
-    const { messages } = body;
+    const { messages, enableBrowsing } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -72,7 +72,36 @@ export async function onRequestPost(context) {
       ...messages,
     ];
 
-    // Call OpenAI API
+    // Optional lightweight web browsing: fetch top 3 search snippets and include as context
+    let browsingContext = '';
+    if (enableBrowsing && TAVILY_API_KEY) {
+      try {
+        const q = messages[messages.length - 1]?.content || '';
+        const tavilyRes = await fetch('https://api.tavily.com/search', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            // Support both current and legacy Tavily auth schemes
+            'Authorization': `Bearer ${TAVILY_API_KEY}`,
+            'x-api-key': TAVILY_API_KEY,
+          },
+          body: JSON.stringify({ query: q, search_depth: 'basic', max_results: 3 }),
+        });
+        if (tavilyRes.ok) {
+          const tavilyJson = await tavilyRes.json();
+          const items = tavilyJson?.results || [];
+          if (Array.isArray(items) && items.length) {
+            browsingContext = items.map((r, i) => `(${i+1}) ${r.title}\n${r.snippet}\nSource: ${r.url}`).join('\n\n');
+          }
+        }
+      } catch (e) {
+        // Ignore browsing failures silently
+      }
+    }
+
+    const selectedModel = (OPENAI_MODEL || 'gpt-4o-mini').trim();
+
+    // Call OpenAI API with streaming enabled
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -80,12 +109,18 @@ export async function onRequestPost(context) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
-        messages: conversationMessages,
+        model: selectedModel,
+        messages: browsingContext
+          ? [
+              { role: 'system', content: `${SYSTEM_PROMPT}\n\nWhen relevant, use the following web snippets to enhance your answer and add short citations like [1], [2]. If the snippets conflict with fleetcore-specific information, prefer fleetcore data.\n\nWeb snippets:\n${browsingContext}` },
+              ...messages,
+            ]
+          : conversationMessages,
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 800,
         presence_penalty: 0.6,
         frequency_penalty: 0.3,
+        stream: true, // Enable streaming
       }),
     });
 
@@ -98,19 +133,72 @@ export async function onRequestPost(context) {
       );
     }
 
-    const data = await response.json();
-    const assistantMessage = data.choices[0]?.message?.content || 'I apologize, but I could not generate a response.';
+    // Stream the response back to client
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let thinking = '';
+        let isFirstChunk = true;
 
-    return new Response(
-      JSON.stringify({ message: assistantMessage }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store',
-        },
-      }
-    );
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                  controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                  continue;
+                }
+
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.delta?.content || '';
+                  
+                  // Generate thinking/reasoning for first chunk
+                  if (isFirstChunk && content) {
+                    thinking = 'Analyzing your question with fleetcore knowledge' + (browsingContext ? ' and fresh web sources...' : '...');
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: thinking })}\n\n`)
+                    );
+                    isFirstChunk = false;
+                  }
+
+                  if (content) {
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
+                    );
+                  }
+                } catch (e) {
+                  console.error('Error parsing stream chunk:', e);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Stream error:', error);
+          controller.error(error);
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'x-model': selectedModel,
+      },
+    });
   } catch (error) {
     console.error('Chat error:', error);
     return new Response(

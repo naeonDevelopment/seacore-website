@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
 
@@ -8,6 +8,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  thinking?: string; // Chain of thought reasoning
+  isStreaming?: boolean; // Currently being streamed
 }
 
 interface ChatModalProps {
@@ -25,8 +27,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [modelName, setModelName] = useState<string>('GPT');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Track the index of the currently streaming assistant message reliably
+  const streamingIndexRef = useRef<number | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -64,20 +69,105 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             role: m.role,
             content: m.content,
           })),
+          enableBrowsing: true,
         }),
       });
 
       if (!response.ok) throw new Error('Failed to send message');
 
-      const data = await response.json();
-      
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date(),
-      };
+      // Check if streaming response
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('text/event-stream')) {
+        // Capture model name (if provided by server) for header UI
+        const hdrModel = response.headers.get('x-model');
+        if (hdrModel) setModelName(hdrModel);
+        // Handle streaming response
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        
+        let streamedContent = '';
+        let thinking = '';
+        // Add empty streaming message and remember its index in ref
+        streamingIndexRef.current = null;
+        
+        setMessages((prev) => {
+          const index = prev.length;
+          streamingIndexRef.current = index;
+          return [...prev, {
+            role: 'assistant',
+            content: '',
+            timestamp: new Date(),
+            isStreaming: true,
+          }];
+        });
 
-      setMessages((prev) => [...prev, assistantMessage]);
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+                  
+                  if (parsed.type === 'thinking') {
+                    thinking = parsed.content;
+                  } else if (parsed.type === 'content') {
+                    streamedContent += parsed.content;
+                  }
+
+                  // Update message with accumulated content
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const idx = streamingIndexRef.current ?? updated.length - 1;
+                    updated[idx] = {
+                      role: 'assistant',
+                      content: streamedContent,
+                      thinking: thinking || undefined,
+                      timestamp: new Date(),
+                      isStreaming: true,
+                    };
+                    return updated;
+                  });
+                } catch (e) {
+                  // Skip invalid JSON
+                }
+              }
+            }
+          }
+        }
+
+        // Finalize message
+        setMessages((prev) => {
+          const updated = [...prev];
+          const idx = streamingIndexRef.current ?? updated.length - 1;
+          updated[idx] = {
+            ...updated[idx],
+            isStreaming: false,
+          };
+          return updated;
+        });
+      } else {
+        // Fallback to non-streaming
+        const data = await response.json();
+        if (data?.model) setModelName(data.model);
+        
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: data.message,
+          thinking: data.thinking,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
@@ -99,7 +189,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {isOpen && (
         <>
           {/* Backdrop with maritime gradient overlay */}
@@ -108,19 +198,23 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[2147483600]"
+            className="fixed inset-0 bg-transparent z-[2147483600]"
             style={{
-              background: 'radial-gradient(circle at 50% 50%, rgba(14,165,233,0.15), rgba(0,0,0,0.6))'
+              background: 'transparent'
             }}
           />
 
-          {/* Modal - Perfectly Centered (NO Y ANIMATION - conflicts with translate) */}
+          {/* Modal - Mobile: full screen with margins, Desktop: centered with max-width */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] sm:w-[90vw] max-w-4xl h-[85vh] sm:h-[80vh] max-h-[700px] backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 border border-white/20 dark:border-slate-700/30 rounded-2xl sm:rounded-3xl shadow-[8px_8px_0px_#2a3442] z-[2147483601] flex flex-col overflow-hidden"
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            transition={{ 
+              duration: 0.4, 
+              ease: [0.32, 0.72, 0, 1],
+              opacity: { duration: 0.3 }
+            }}
+            className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:left-auto sm:top-auto sm:w-[min(36rem,90vw)] sm:h-[min(70vh,40rem)] backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 border border-white/20 dark:border-slate-700/30 rounded-none sm:rounded-3xl shadow-2xl z-[2147483601] flex flex-col overflow-hidden"
           >
             {/* Header with Maritime Gradient - matching home page style */}
             <div className="relative flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
@@ -130,7 +224,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 </div>
                 <div>
                   <h2 className="text-lg sm:text-2xl font-bold text-white enterprise-heading">fleetcore AI Assistant</h2>
-                  <p className="text-xs sm:text-sm text-white/95 font-semibold hidden sm:block">Maritime Maintenance Expert • GPT-4 Powered</p>
+                  <p className="text-xs sm:text-sm text-white/95 font-semibold hidden sm:block">Maritime Maintenance Expert • {modelName} Powered</p>
                   <p className="text-xs text-white/95 font-semibold sm:hidden">Maritime Expert</p>
                 </div>
               </div>
@@ -176,13 +270,29 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     
                     <div
                       className={cn(
-                        'max-w-[85%] sm:max-w-[70%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 transition-all duration-300',
+                        'max-w-[85%] sm:max-w-[70%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
                         message.role === 'user'
                           ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
                           : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
                       )}
                     >
-                      <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-medium enterprise-body">{message.content}</p>
+                      {/* Chain of Thought - visible reasoning */}
+                      {message.thinking && message.role === 'assistant' && (
+                        <div className="mb-3 p-3 rounded-xl bg-blue-50/80 dark:bg-slate-700/50 border border-blue-200/50 dark:border-slate-600/50">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Thinking</span>
+                          </div>
+                          <p className="text-xs sm:text-sm text-blue-900/80 dark:text-blue-100/80 leading-relaxed italic font-medium">
+                            {message.thinking}
+                          </p>
+                        </div>
+                      )}
+                      
+                      <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-medium enterprise-body">
+                        {message.content}
+                        {message.isStreaming && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse" />}
+                      </p>
                       <p className={cn(
                         'text-xs mt-2 font-semibold',
                         message.role === 'user' ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'
@@ -234,7 +344,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isLoading}
-                  className="px-4 sm:px-7 py-3 sm:py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl sm:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[60px] sm:min-w-[70px] group"
+                  className="px-4 sm:px-7 py-3 sm:py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl sm:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[60px] sm:min-w-[70px] group"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
@@ -250,7 +360,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 </div>
                 <span className="text-slate-400 dark:text-slate-600 hidden sm:inline">•</span>
                 <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold">
-                  <span className="hidden sm:inline">Powered by GPT-4 • Press </span><kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono font-bold">Enter</kbd><span className="hidden sm:inline"> to send</span><span className="sm:hidden"> to send</span>
+                  <span className="hidden sm:inline">Powered by {modelName} • Press </span><kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[11px] font-mono font-bold">Enter</kbd><span className="hidden sm:inline"> to send</span><span className="sm:hidden"> to send</span>
                 </p>
               </div>
             </div>
