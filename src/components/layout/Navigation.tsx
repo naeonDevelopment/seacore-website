@@ -3,10 +3,12 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
   Sun,
-  Moon
+  Moon,
+  MessageSquare
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo'
+import { ChatModal } from '@/components/layout/ChatModal'
 import { cn } from '@/utils/cn'
 import { useScrollDirection } from '@/hooks/useScrollDirection'
 
@@ -17,7 +19,8 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => {
   const location = useLocation()
-  const { scrollDirection, scrollY } = useScrollDirection({ threshold: 20 })
+  const { scrollDirection } = useScrollDirection({ threshold: 20 })
+  const [isChatOpen, setIsChatOpen] = React.useState(false)
 
   const navigationItems = [
     {
@@ -104,8 +107,14 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
               
-              <Button variant="gradient" size="sm">
-                Platform Login
+              <Button 
+                variant="gradient" 
+                size="sm"
+                onClick={() => setIsChatOpen(true)}
+                className="inline-flex items-center justify-center gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Ask AI
               </Button>
             </div>
           </div>
@@ -200,6 +209,9 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
           </div>
         </div>
       </motion.div>
+
+      {/* Chat Modal */}
+      <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>
   )
 }

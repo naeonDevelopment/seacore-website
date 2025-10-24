@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navigation from '@/components/layout/Navigation'
 import Footer from '@/components/layout/Footer'
 import ScrollToTop from '@/components/layout/ScrollToTop'
-import ChatKitWidget from '@/components/layout/ChatKitWidget'
 import HomePage from '@/pages/HomePage'
 import SolutionsPage from '@/pages/SolutionsPage'
 import PlatformPage from '@/pages/PlatformPage'
@@ -77,9 +76,6 @@ function App() {
       <ScrollToTop />
       <div className="min-h-screen bg-background text-foreground">
         <Navigation darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-        
-        {/* ChatKit AI Assistant */}
-        <ChatKitWidget />
         
         <main>
           <Routes>
