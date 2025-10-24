@@ -484,12 +484,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                   ) : (
                                     <code {...props} className="block px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-sm font-mono overflow-x-auto" />
                                   ),
-                                // Style lists
+                                // Style lists - cleaner nested list handling
                                 ul: ({ node, ...props }) => (
                                   <ul {...props} className="list-disc list-inside space-y-1 my-2" />
                                 ),
                                 ol: ({ node, ...props }) => (
-                                  <ol {...props} className="list-decimal list-inside space-y-1 my-2" />
+                                  <ol {...props} className="list-decimal list-outside space-y-2 my-3 ml-6" />
+                                ),
+                                li: ({ node, ...props }) => (
+                                  <li {...props} className="leading-relaxed" />
                                 ),
                                 // Style paragraphs
                                 p: ({ node, ...props }) => (

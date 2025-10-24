@@ -319,18 +319,36 @@ export async function onRequestPost(context) {
         let enhancedQuery = currentQuery;
         let specificEntity = '';
         
-        // If query contains pronouns/references like "this ship", "that vessel", "it", etc.
-        // Look back in conversation history to find specific entity names
-        if (/\b(this|that|the|it|its|their)\b\s+(ship|vessel|equipment|system|company|fleet)/i.test(currentQuery)) {
-          // Extract entities from previous messages (ship names, company names, equipment models)
+        // Extract company/entity name with location if mentioned
+        // Look for patterns like "Dynamic Marine Services UAE", "Company Name Country"
+        const companyWithLocationMatch = currentQuery.match(/([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,4})\s+(UAE|United Arab Emirates|USA|Singapore|UK|China|Japan|Korea|Norway|Germany|France|Italy|Spain|Netherlands|Denmark|Sweden)/i);
+        
+        if (companyWithLocationMatch) {
+          // Found company with location - use this for precise search
+          specificEntity = `${companyWithLocationMatch[1]} ${companyWithLocationMatch[2]}`;
+          console.log(`🔍 Detected company with location: "${specificEntity}"`);
+        } else if (/\b(this|that|the|it|its|their)\b\s+(ship|vessel|equipment|system|company|fleet)/i.test(currentQuery)) {
+          // Query contains pronouns - look back in conversation history
           const recentContext = messages.slice(-5).map(m => m.content).join(' ');
-          const entityMatches = recentContext.match(/\b([A-Z][A-Za-z]*\s+[A-Z][A-Za-z]*|MPL\s+\w+|MV\s+\w+|[A-Z]{2,}\s+\w+)/g);
           
-          if (entityMatches && entityMatches.length > 0) {
-            // Find the most recently mentioned specific entity
-            specificEntity = entityMatches[entityMatches.length - 1];
+          // Try to find company with location in history
+          const historyCompanyMatch = recentContext.match(/([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,4})\s+(UAE|United Arab Emirates|USA|Singapore|UK|China|Japan|Korea|Norway|Germany|France|Italy|Spain|Netherlands|Denmark|Sweden)/i);
+          
+          if (historyCompanyMatch) {
+            specificEntity = `${historyCompanyMatch[1]} ${historyCompanyMatch[2]}`;
+            console.log(`🔍 Found company with location in history: "${specificEntity}"`);
+          } else {
+            // Fallback to basic entity extraction
+            const entityMatches = recentContext.match(/\b([A-Z][A-Za-z]*\s+[A-Z][A-Za-z]*|MPL\s+\w+|MV\s+\w+|M\/V\s+\w+)/g);
+            if (entityMatches && entityMatches.length > 0) {
+              specificEntity = entityMatches[entityMatches.length - 1];
+              console.log(`🔍 Extracted entity from context: "${specificEntity}"`);
+            }
+          }
+          
+          if (specificEntity) {
             enhancedQuery = `${specificEntity} ${currentQuery}`;
-            console.log(`🔍 Enhanced query with context: "${currentQuery}" → "${enhancedQuery}"`);
+            console.log(`🔍 Enhanced query: "${currentQuery}" → "${enhancedQuery}"`);
           }
         }
         
@@ -502,13 +520,28 @@ export async function onRequestPost(context) {
       model: usedModel,
       messages: browsingContext
         ? [
-            { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL INSTRUCTIONS:**
-1. You MUST use these research results to answer the user's question with current information
-2. Cite sources with [1], [2], etc. inline in your answer
-3. At the end of your answer, include a "**Sources:**" section formatted as: "Source 1: [URL](URL)" on separate lines for each source
+            { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL VERIFICATION & RESPONSE INSTRUCTIONS:**
+
+**BEFORE answering, you MUST verify:**
+1. Do the search results actually refer to the EXACT company/entity the user asked about?
+   - Check company name, location, country, region in the sources
+   - If user asked about "Dynamic Marine Services UAE", verify sources mention UAE/United Arab Emirates
+   - If sources are about a DIFFERENT company with similar name, you MUST clarify or ask for confirmation
+
+2. If search results don't match the user's query:
+   - State clearly: "The search results appear to be about [Different Entity]. Can you confirm you meant [Entity Name] in [Location]?"
+   - Do NOT answer about the wrong company
+   - Ask user to clarify which specific entity they're interested in
+
+3. Only if results DO match the user's query:
+   - Use these research results to answer with current information
+   - Cite sources with [1], [2], etc. inline in your answer
+   - At the end, include a "**Sources:**" section formatted as: "Source 1: [URL](URL)" on separate lines
+   - Preserve ALL markdown formatting (bold, links, etc.)
+   - Prioritize **fleetcore**-specific information when relevant
+
 4. DO NOT say you cannot browse the web when research results are provided
-5. Preserve ALL markdown formatting (bold, links, etc.) in your response
-6. Prioritize **fleetcore**-specific information when relevant` },
+5. ALWAYS verify company location/region matches before providing technical details` },
             ...messages,
           ]
         : conversationMessages,
@@ -547,13 +580,28 @@ export async function onRequestPost(context) {
         model: usedModel,
         messages: browsingContext
           ? [
-              { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL INSTRUCTIONS:**
-1. You MUST use these research results to answer the user's question with current information
-2. Cite sources with [1], [2], etc. inline in your answer
-3. At the end of your answer, include a "**Sources:**" section formatted as: "Source 1: [URL](URL)" on separate lines for each source
+              { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL VERIFICATION & RESPONSE INSTRUCTIONS:**
+
+**BEFORE answering, you MUST verify:**
+1. Do the search results actually refer to the EXACT company/entity the user asked about?
+   - Check company name, location, country, region in the sources
+   - If user asked about "Dynamic Marine Services UAE", verify sources mention UAE/United Arab Emirates
+   - If sources are about a DIFFERENT company with similar name, you MUST clarify or ask for confirmation
+
+2. If search results don't match the user's query:
+   - State clearly: "The search results appear to be about [Different Entity]. Can you confirm you meant [Entity Name] in [Location]?"
+   - Do NOT answer about the wrong company
+   - Ask user to clarify which specific entity they're interested in
+
+3. Only if results DO match the user's query:
+   - Use these research results to answer with current information
+   - Cite sources with [1], [2], etc. inline in your answer
+   - At the end, include a "**Sources:**" section formatted as: "Source 1: [URL](URL)" on separate lines
+   - Preserve ALL markdown formatting (bold, links, etc.)
+   - Prioritize **fleetcore**-specific information when relevant
+
 4. DO NOT say you cannot browse the web when research results are provided
-5. Preserve ALL markdown formatting (bold, links, etc.) in your response
-6. Prioritize **fleetcore**-specific information when relevant` },
+5. ALWAYS verify company location/region matches before providing technical details` },
               ...messages,
             ]
           : conversationMessages,
