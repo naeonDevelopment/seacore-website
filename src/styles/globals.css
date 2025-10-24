@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* FleetCore Enterprise Design System */
+/* fleetcore Enterprise Design System */
 
 @layer base {
   :root {
@@ -67,7 +67,7 @@
   }
 }
 
-/* FleetCore Maritime Glassmorphism Effects */
+/* fleetcore Maritime Glassmorphism Effects */
 @layer utilities {
   .maritime-glass {
     @apply backdrop-blur-xl bg-white/10 dark:bg-slate-800/10 border border-white/20 dark:border-slate-700/20 shadow-2xl;

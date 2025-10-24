@@ -29,7 +29,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
       content: [
         {
           subtitle: 'Personal Information',
-          text: 'When you interact with FleetCore, we may collect the following personal information:',
+          text: 'When you interact with fleetcore, we may collect the following personal information:',
           list: [
             'Contact details: Name, email address, phone number, company name, job title',
             'Account information: Username, password (encrypted), profile information',
@@ -111,7 +111,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
       content: [
         {
           subtitle: 'We Do Not Sell Your Data',
-          text: 'FleetCore does not sell, rent, or trade your personal information to third parties for marketing purposes.'
+          text: 'fleetcore does not sell, rent, or trade your personal information to third parties for marketing purposes.'
         },
         {
           subtitle: 'Service Providers',
@@ -130,11 +130,11 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
         },
         {
           subtitle: 'Legal Requirements',
-          text: 'We may disclose your information when required by law, court order, or to protect the rights, property, or safety of FleetCore, our users, or the public.'
+          text: 'We may disclose your information when required by law, court order, or to protect the rights, property, or safety of fleetcore, our users, or the public.'
         },
         {
           subtitle: 'Multi-Tenant Architecture',
-          text: 'FleetCore uses row-level security (RLS) to ensure complete data isolation between organizations. Your operational data is never visible to other customers.'
+          text: 'fleetcore uses row-level security (RLS) to ensure complete data isolation between organizations. Your operational data is never visible to other customers.'
         }
       ]
     },
@@ -249,7 +249,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
       content: [
         {
           subtitle: 'Service Integrations',
-          text: 'FleetCore integrates with third-party services to enhance functionality:',
+          text: 'fleetcore integrates with third-party services to enhance functionality:',
           list: [
             'Supabase: Backend infrastructure, database, authentication, real-time sync',
             'Calendly: Meeting scheduling and calendar management',
@@ -275,7 +275,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
       content: [
         {
           subtitle: 'Global Operations',
-          text: 'FleetCore serves maritime operations worldwide. Your data may be transferred to and processed in countries other than your country of residence.'
+          text: 'fleetcore serves maritime operations worldwide. Your data may be transferred to and processed in countries other than your country of residence.'
         },
         {
           subtitle: 'Transfer Safeguards',
@@ -299,7 +299,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
       icon: AlertTriangle,
       content: [
         {
-          text: 'FleetCore\'s services are intended for business and professional use. We do not knowingly collect personal information from individuals under 18 years of age. If we become aware that we have collected data from a minor, we will promptly delete it.'
+          text: 'fleetcore\'s services are intended for business and professional use. We do not knowingly collect personal information from individuals under 18 years of age. If we become aware that we have collected data from a minor, we will promptly delete it.'
         }
       ]
     },
@@ -320,7 +320,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
           ]
         },
         {
-          text: 'Your continued use of FleetCore after changes take effect constitutes acceptance of the updated Privacy Policy.'
+          text: 'Your continued use of fleetcore after changes take effect constitutes acceptance of the updated Privacy Policy.'
         }
       ]
     }
@@ -329,19 +329,19 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>FleetCore Privacy Policy</title>
-        <meta name="description" content="How FleetCore collects, uses, and protects your data across our platform and website." />
+        <title>fleetcore Privacy Policy</title>
+        <meta name="description" content="How fleetcore collects, uses, and protects your data across our platform and website." />
         <link rel="canonical" href="https://fleetcore.ai/privacy-policy" />
-        <meta property="og:title" content="FleetCore Privacy Policy" />
-        <meta property="og:description" content="How FleetCore collects, uses, and protects your data across our platform and website." />
+        <meta property="og:title" content="fleetcore Privacy Policy" />
+        <meta property="og:description" content="How fleetcore collects, uses, and protects your data across our platform and website." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/privacy-policy" />
-        <meta property="og:image" content="/og/privacy_policy.png" />
+        <meta property="og:image" content="https://fleetcore.ai/og/privacy_policy.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "PrivacyPolicy",
-            "name": "FleetCore Privacy Policy",
+            "name": "fleetcore Privacy Policy",
             "url": "https://fleetcore.ai/privacy-policy",
             "mainEntity": {
               "@type": "FAQPage",
@@ -353,7 +353,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
                 },
                 {
                   "@type": "Question",
-                  "name": "How can I contact FleetCore about privacy?",
+                  "name": "How can I contact fleetcore about privacy?",
                   "acceptedAnswer": { "@type": "Answer", "text": "Email hello@fleetcore.ai. We respond to privacy requests within 30 days." }
                 }
               ]
@@ -362,9 +362,9 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
         </script>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="FleetCore Privacy Policy" />
-        <meta name="twitter:description" content="How FleetCore collects, uses, and protects your data across our platform and website." />
-        <meta name="twitter:image" content="/og/privacy_policy.png" />
+        <meta name="twitter:title" content="fleetcore Privacy Policy" />
+        <meta name="twitter:description" content="How fleetcore collects, uses, and protects your data across our platform and website." />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/privacy_policy.png" />
       </Helmet>
       {/* Hero Section */}
       <section className="relative pt-16 lg:pt-32 pb-20 overflow-hidden">
@@ -387,7 +387,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
             </h1>
 
             <p className="text-lg text-slate-600 dark:text-slate-400 enterprise-body mb-8">
-              Your privacy is important to us. This policy explains how FleetCore collects, uses, 
+              Your privacy is important to us. This policy explains how fleetcore collects, uses, 
               protects, and shares your personal information.
             </p>
 

@@ -171,40 +171,8 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
     {
       icon: Award,
       title: 'Industry Standard Platform',
-      description: 'Establishing FleetCore as the reference platform for maritime maintenance intelligence, adopted by classification societies and industry bodies.',
+      description: 'Establishing fleetcore as the reference platform for maritime maintenance intelligence, adopted by classification societies and industry bodies.',
       timeline: '2027-2030'
-    }
-  ]
-
-  // Essential documentation (minimal)
-  const essentialDocs = [
-    {
-      icon: FileText,
-      title: 'Platform Overview',
-      description: 'Comprehensive guide to FleetCore\'s maintenance intelligence platform and core features',
-      size: '2.4 MB',
-      gradient: 'from-blue-500 to-indigo-600'
-    },
-    {
-      icon: BookOpen,
-      title: 'Technical Documentation',
-      description: 'API reference, integration guides, and implementation best practices',
-      size: '5.1 MB',
-      gradient: 'from-indigo-500 to-purple-600'
-    },
-    {
-      icon: Award,
-      title: 'Product Roadmap',
-      description: 'Vision, upcoming features, and development timeline for 2025-2027',
-      size: '1.8 MB',
-      gradient: 'from-purple-500 to-pink-600'
-    },
-    {
-      icon: Database,
-      title: 'Data Architecture',
-      description: 'Database schemas, security framework, and compliance documentation',
-      size: '3.2 MB',
-      gradient: 'from-pink-500 to-rose-600'
     }
   ]
 
@@ -263,19 +231,19 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
   return (
     <div className="relative min-h-screen">
       <Helmet>
-        <title>About FleetCore: Maritime Intelligence Built by Experts</title>
+        <title>About fleetcore: Maritime Intelligence Built by Experts</title>
         <meta name="description" content="Decades of maritime and software engineering experience. Our mission is to build the first intelligent PMS for fleets." />
         <link rel="canonical" href="https://fleetcore.ai/about" />
-        <meta property="og:title" content="About FleetCore" />
+        <meta property="og:title" content="About fleetcore" />
         <meta property="og:description" content="Decades of maritime and software engineering experience; building the first intelligent PMS." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/about" />
-        <meta property="og:image" content="/og/about.png" />
+        <meta property="og:image" content="https://fleetcore.ai/og/about.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "AboutPage",
-            "name": "About FleetCore",
+            "name": "About fleetcore",
             "url": "https://fleetcore.ai/about",
             "breadcrumb": {
               "@type": "BreadcrumbList",
@@ -289,12 +257,12 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
               "mainEntity": [
                 {
                   "@type": "Question",
-                  "name": "Where is FleetCore based?",
+                  "name": "Where is fleetcore based?",
                   "acceptedAnswer": { "@type": "Answer", "text": "Dubai, United Arab Emirates, serving maritime operators globally." }
                 },
                 {
                   "@type": "Question",
-                  "name": "What’s FleetCore’s mission?",
+                  "name": "What’s fleetcore’s mission?",
                   "acceptedAnswer": { "@type": "Answer", "text": "To build the first truly intelligent preventive maintenance system for maritime fleets." }
                 }
               ]
@@ -303,9 +271,9 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
         </script>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="About FleetCore" />
+        <meta name="twitter:title" content="About fleetcore" />
         <meta name="twitter:description" content="Decades of maritime and software engineering experience; building the first intelligent PMS." />
-        <meta name="twitter:image" content="/og/about.png" />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/about.png" />
       </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
@@ -337,7 +305,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
               }}
             >
               <Ship className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">About FleetCore</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">About fleetcore</span>
             </div>
 
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-8 leading-tight enterprise-heading">
@@ -801,75 +769,6 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
                 })}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Resources Section - Minimal */}
-      <section id="resources" className="py-24 relative overflow-hidden">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-pink-100 to-orange-100 dark:from-pink-900/30 dark:to-orange-900/30 mb-6">
-              <BookOpen className="w-5 h-5 text-pink-600 dark:text-pink-400" />
-              <span className="text-sm font-medium text-pink-700 dark:text-pink-300">Resources</span>
-            </div>
-
-            <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              <span className="maritime-gradient-text">Essential</span> Documentation
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto enterprise-body">
-              Download key resources to learn more about our platform and capabilities.
-            </p>
-          </motion.div>
-
-          {/* Minimal Documentation Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            {essentialDocs.map((doc, index) => {
-              const Icon = doc.icon
-              return (
-                <motion.div
-                  key={doc.title}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <div className="h-full p-6 rounded-2xl border bg-white dark:bg-slate-800 shadow-lg opacity-50 cursor-not-allowed flex flex-col relative">
-                    {/* Coming Soon Badge */}
-                    <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 text-white text-xs font-bold shadow-lg">
-                      Coming Soon
-                    </div>
-                    
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4 shadow-lg opacity-60",
-                      doc.gradient
-                    )}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2 enterprise-heading">
-                      {doc.title}
-                    </h3>
-
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-4 enterprise-body flex-1">
-                      {doc.description}
-                    </p>
-
-                    <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                        PDF · {doc.size}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
           </div>
         </div>
       </section>

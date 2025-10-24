@@ -397,19 +397,19 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>FleetCore Platform: AI Maritime Maintenance OS</title>
+        <title>fleetcore Platform: AI Maritime Maintenance OS</title>
         <meta name="description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics for maritime operations." />
         <link rel="canonical" href="https://fleetcore.ai/platform" />
-        <meta property="og:title" content="FleetCore Platform: AI Maritime Maintenance OS" />
+        <meta property="og:title" content="fleetcore Platform: AI Maritime Maintenance OS" />
         <meta property="og:description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/platform" />
-        <meta property="og:image" content="/og/platform.png" />
+        <meta property="og:image" content="https://fleetcore.ai/og/platform.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "FleetCore Platform",
+            "name": "fleetcore Platform",
             "url": "https://fleetcore.ai/platform",
             "breadcrumb": {
               "@type": "BreadcrumbList",
@@ -423,7 +423,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
               "mainEntity": [
                 {
                   "@type": "Question",
-                  "name": "What are FleetCore’s core pillars?",
+                  "name": "What are fleetcore’s core pillars?",
                   "acceptedAnswer": { "@type": "Answer", "text": "Modern cloud architecture, intelligent automation, and maritime-specific design with built-in compliance." }
                 },
                 {
@@ -437,9 +437,9 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
         </script>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="FleetCore Platform: AI Maritime Maintenance OS" />
+        <meta name="twitter:title" content="fleetcore Platform: AI Maritime Maintenance OS" />
         <meta name="twitter:description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics." />
-        <meta name="twitter:image" content="/og/platform.png" />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/platform.png" />
       </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
@@ -635,7 +635,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              What Makes FleetCore Different
+              What Makes fleetcore Different
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
               Industry-leading capabilities that set a new standard for maritime maintenance platforms
@@ -875,7 +875,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              FleetCore vs Traditional CMMS
+              fleetcore vs Traditional CMMS
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
               Direct comparison showing how modern architecture delivers measurable advantages
@@ -901,7 +901,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
                   Traditional CMMS
                 </div>
                 <div className="font-bold text-emerald-600 dark:text-emerald-400 text-center">
-                  FleetCore Platform
+                  fleetcore Platform
                 </div>
                 <div className="font-bold text-blue-600 dark:text-blue-400 text-center">
                   Impact
@@ -1000,12 +1000,12 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
                         </p>
                       </div>
 
-                      {/* FleetCore (After) */}
+                      {/* fleetcore (After) */}
                       <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                           <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
-                            FleetCore Platform
+                            fleetcore Platform
                           </span>
                         </div>
                         <p className="text-sm text-slate-900 dark:text-slate-100 font-medium leading-relaxed">
@@ -1081,7 +1081,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
               </h2>
 
               <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 enterprise-body max-w-3xl mx-auto">
-                Join leading maritime operators who trust FleetCore's enterprise platform for critical
+                Join leading maritime operators who trust fleetcore's enterprise platform for critical
                 maintenance operations across their entire fleet.
               </p>
 
@@ -1093,7 +1093,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
                 <Link to="/about">
                   <Button variant="ghost" size="xl">
                     <Calendar className="w-5 h-5" />
-                    Learn about FleetCore
+                    Learn about fleetcore
                   </Button>
                 </Link>
               </div>

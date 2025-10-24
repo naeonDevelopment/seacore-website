@@ -16,33 +16,33 @@ function isBot(userAgent: string): boolean {
 function generateBotHTML(pathname: string): string {
   const routes: Record<string, { title: string; description: string; url: string }> = {
     '/': {
-      title: 'FleetCore - Agentic Maritime Intelligence Platform',
+      title: 'fleetcore - Agentic Maritime Intelligence Platform',
       description: 'Revolutionary AI-powered maritime maintenance platform with predictive intelligence, automated SOLAS/MARPOL/ISM compliance, and cross-manufacturer optimization. Transform your fleet operations with agentic maritime intelligence.',
       url: 'https://fleetcore.ai/'
     },
     '/solutions': {
-      title: 'Maritime Solutions - FleetCore',
+      title: 'Maritime Solutions - fleetcore',
       description: 'Industry-specific maritime intelligence solutions for commercial shipping, offshore energy, cruise lines, naval defense, port operations, and yacht management. Automated compliance and predictive maintenance.',
       url: 'https://fleetcore.ai/solutions'
     },
     '/platform': {
-      title: 'Platform - FleetCore Agentic Maritime Intelligence',
+      title: 'Platform - fleetcore Agentic Maritime Intelligence',
       description: 'Agentic Fleet AI, Global Intelligence Graph, automated regulatory compliance, predictive maintenance, and vendor-neutral OEM integration. Transform maritime operations with AI.',
       url: 'https://fleetcore.ai/platform'
     },
     '/about': {
-      title: 'About FleetCore - Maritime Intelligence Leadership',
+      title: 'About fleetcore - Maritime Intelligence Leadership',
       description: 'Leading provider of agentic maritime intelligence solutions. Dubai-based innovation team transforming fleet operations with AI-powered predictive maintenance and compliance automation.',
       url: 'https://fleetcore.ai/about'
     },
     '/contact': {
-      title: 'Contact FleetCore - Get Started',
-      description: 'Transform your fleet operations with FleetCore\'s agentic maritime intelligence platform. Schedule a demo to see how AI-powered predictive maintenance reduces costs by 20-30%.',
+      title: 'Contact fleetcore - Get Started',
+      description: 'Transform your fleet operations with fleetcore\'s agentic maritime intelligence platform. Schedule a demo to see how AI-powered predictive maintenance reduces costs by 20-30%.',
       url: 'https://fleetcore.ai/contact'
     },
     '/privacy-policy': {
-      title: 'Privacy Policy - FleetCore',
-      description: 'FleetCore privacy policy outlining data collection, usage, and protection practices for our maritime intelligence platform.',
+      title: 'Privacy Policy - fleetcore',
+      description: 'fleetcore privacy policy outlining data collection, usage, and protection practices for our maritime intelligence platform.',
       url: 'https://fleetcore.ai/privacy-policy'
     }
   };
@@ -80,7 +80,7 @@ function generateBotHTML(pathname: string): string {
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "FleetCore",
+    "name": "fleetcore",
     "url": "https://fleetcore.ai/",
     "description": "${route.description}",
     "potentialAction": {
@@ -95,7 +95,7 @@ function generateBotHTML(pathname: string): string {
   {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "FleetCore",
+    "name": "fleetcore",
     "url": "https://fleetcore.ai",
     "logo": "https://fleetcore.ai/Light.svg",
     "description": "Leading provider of agentic maritime intelligence solutions for predictive maintenance and regulatory compliance."
@@ -168,11 +168,11 @@ export async function onRequest(context: {
   // This prevents Cloudflare from issuing 308 redirects
   const mainRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
   if (mainRoutes.includes(pathname)) {
-    console.log(`SPA route detected: ${pathname}, serving homepage`);
+    console.log(`SPA route detected: ${pathname}, serving index.html`);
     
-    // Fetch from root path instead of /index.html to avoid URL normalization issues
+    // Directly fetch index.html
     const indexUrl = new URL(context.request.url);
-    indexUrl.pathname = '/';
+    indexUrl.pathname = '/index.html';
     
     return context.env.ASSETS.fetch(new Request(indexUrl, context.request));
   }

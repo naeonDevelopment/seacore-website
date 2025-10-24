@@ -29,7 +29,7 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
   
   // Executive Role section videos
   const videoSources = useMemo(() => [
-    getAssetPath('assets/section_experts/vid_section_experts_1.mp4'),
+    getAssetPath('assets/section_experts/vid_section_experts1.mp4'),
     getAssetPath('assets/section_experts/vid_section_experts_2.mp4')
   ], [])
   

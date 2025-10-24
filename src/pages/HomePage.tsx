@@ -310,24 +310,24 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>FleetCore: Agentic Maritime Maintenance OS</title>
+        <title>fleetcore: Agentic Maritime Maintenance OS</title>
         <meta name="description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
         <link rel="canonical" href="https://fleetcore.ai/" />
-        <meta property="og:title" content="FleetCore: Agentic Maritime Maintenance OS" />
+        <meta property="og:title" content="fleetcore: Agentic Maritime Maintenance OS" />
         <meta property="og:description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/" />
-        <meta property="og:image" content="/og/home.png" />
+        <meta property="og:image" content="https://fleetcore.ai/og/home.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="FleetCore: Agentic Maritime Maintenance OS" />
+        <meta name="twitter:title" content="fleetcore: Agentic Maritime Maintenance OS" />
         <meta name="twitter:description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
-        <meta name="twitter:image" content="/og/home.png" />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/home.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "FleetCore Home",
+            "name": "fleetcore Home",
             "url": "https://fleetcore.ai/",
             "breadcrumb": {
               "@type": "BreadcrumbList",
@@ -340,12 +340,12 @@ const HomePage: React.FC = () => {
               "mainEntity": [
                 {
                   "@type": "Question",
-                  "name": "What is FleetCore?",
+                  "name": "What is fleetcore?",
                   "acceptedAnswer": { "@type": "Answer", "text": "An AI-powered maritime maintenance OS that automates scheduling, ensures SOLAS/MARPOL compliance, and delivers fleet-wide intelligence." }
                 },
                 {
                   "@type": "Question",
-                  "name": "Who is FleetCore for?",
+                  "name": "Who is fleetcore for?",
                   "acceptedAnswer": { "@type": "Answer", "text": "Enterprise maritime operators—technical superintendents, chief engineers, and fleet operations teams managing multi-vessel fleets." }
                 }
               ]
@@ -575,7 +575,7 @@ const HomePage: React.FC = () => {
                         <DollarSign className="w-6 h-6 text-red-600 dark:text-red-400" />
                       </div>
                       <div className="text-left">
-                        <h3 className="text-xl font-bold text-red-600 dark:text-red-400">$20-40k per vessel, $17B+ annually</h3>
+                        <h3 className="text-xl font-bold text-red-600 dark:text-red-400">$17B+ annually</h3>
                         <p className="text-sm text-slate-600 dark:text-slate-400">Global maintenance overrun costs</p>
                     </div>
                     </div>
@@ -591,15 +591,8 @@ const HomePage: React.FC = () => {
                   </p>
                   <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
                     <div className="flex flex-col space-y-1">
-                      <button 
-                        onClick={() => window.open('https://www.shipuniverse.com/news/ship-repair-and-maintenance-rising-costs-and-industry-challenges-in-2025/', '_blank')}
-                        className="inline-flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        <span>Source: Ship Universe 2025</span>
-                      </button>
                       <div className="inline-flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
-                        <span>Source: Own research 2025</span>
+                        <span>Source: Ship Universe 2025</span>
                       </div>
                     </div>
                   </div>
@@ -615,7 +608,7 @@ const HomePage: React.FC = () => {
                         <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                       </div>
                       <div className="text-left">
-                        <h3 className="text-xl font-bold text-orange-600 dark:text-orange-400">30%</h3>
+                        <h3 className="text-xl font-bold text-orange-600 dark:text-orange-400">40%</h3>
                         <p className="text-sm text-slate-600 dark:text-slate-400">Higher costs from reactive maintenance</p>
                     </div>
                     </div>
@@ -625,18 +618,14 @@ const HomePage: React.FC = () => {
               >
                 <div className="px-6 pb-6">
                   <p className="text-slate-700 dark:text-slate-300 enterprise-body">
-                    Reactive "break-fix" maintenance strategies cost 30% more than predictive approaches, creating 
+                    Reactive "break-fix" maintenance strategies cost 40% more than predictive approaches, creating 
                     a vicious cycle of unplanned downtime and emergency interventions. Aging global fleets compound this 
                     challenge, with overwhelming maintenance demands affecting crew morale, operational safety, and vessel availability.
                   </p>
                   <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-                    <button 
-                      onClick={() => window.open('https://maritimetechnologyreview.com/2025/05/10/seafarers-report-mixed-progress-persistent-challenges-in-2025/', '_blank')}
-                      className="inline-flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
-                    >
-                      <ExternalLink className="w-3 h-3" />
+                    <div className="inline-flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
                       <span>Source: Maritime Technology Review 2025</span>
-                    </button>
+                    </div>
                   </div>
                 </div>
               </Collapsible>
@@ -650,8 +639,8 @@ const HomePage: React.FC = () => {
                         <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
                       </div>
                       <div className="text-left">
-                        <h3 className="text-xl font-bold text-yellow-600 dark:text-yellow-400">$100k+</h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Potential fines per compliance failure</p>
+                        <h3 className="text-xl font-bold text-yellow-600 dark:text-yellow-400">3 Years</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Poor CII ratings trigger mandatory corrective action</p>
                     </div>
                     </div>
                   </div>
@@ -660,17 +649,15 @@ const HomePage: React.FC = () => {
               >
                 <div className="px-6 pb-6">
                   <p className="text-slate-700 dark:text-slate-300 enterprise-body">
-                    Manual planned maintenance systems (PMS) and paper-based compliance tracking create operational bottlenecks 
-                    and regulatory risks. With stringent IMO environmental standards requiring up to 30% energy efficiency improvements 
-                    by 2025, non-compliance can trigger fines exceeding $100,000 per incident, operational restrictions, and reputational damage.
+                    Paper checklists and spreadsheet PMS trap data in silos, delay work orders, and make audits painful. IMO's 2023 efficiency rules (EEXI & CII) require documented performance tracking, and three consecutive years of poor CII ratings trigger mandatory corrective action plans. When "paper trails" can't prove compliance, vessels face operational restrictions. fleetcore replaces manual effort with an agentic PMS that plans, executes, and proves compliance automatically.
                   </p>
                   <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
                     <button 
-                      onClick={() => window.open('https://www.fortunebusinessinsights.com/ship-repair-and-maintenance-services-market-105801', '_blank')}
+                      onClick={() => window.open('https://www.imo.org/en/OurWork/Environment/Pages/Air-Pollution.aspx', '_blank')}
                       className="inline-flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
                     >
                       <ExternalLink className="w-3 h-3" />
-                      <span>Source: Fortune Business Insights 2025</span>
+                      <span>Source: International Maritime Organization</span>
                     </button>
                   </div>
                 </div>
@@ -687,7 +674,7 @@ const HomePage: React.FC = () => {
               <div className="p-8 pl-12">
                   <div className="text-left mb-8">
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4 enterprise-heading">
-                      FleetCore's Solution
+                      fleetcore's Solution
                     </h3>
                     <p className="text-slate-600 dark:text-slate-300 mb-8 enterprise-body">
                       Our agentic maritime intelligence platform transforms these challenges into competitive advantages 
@@ -742,17 +729,6 @@ const HomePage: React.FC = () => {
                   </div>
                   <p className="text-lg text-slate-600 dark:text-slate-400 enterprise-body max-w-2xl mx-auto">
                     Reduce maintenance costs by up to 40% through predictive analytics and automated compliance management
-                    <button
-                      onClick={() => window.open('https://www.advancedtech.com/blog/predictive-maintenance-cost-savings/', '_blank')}
-                      className="relative inline-block ml-1 group"
-                      aria-label="View source for cost reduction claim"
-                    >
-                      <sup className="text-green-600 dark:text-green-400 font-bold cursor-help">*</sup>
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-xl">
-                        Source: Advanced Technology Services - Predictive Maintenance Cost Savings Study
-                        <span className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-900"></span>
-                      </span>
-                    </button>
                   </p>
                 </div>
               </div>
@@ -761,7 +737,7 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* How FleetCore Solves These Challenges - Solution Architecture */}
+      {/* How fleetcore Solves These Challenges - Solution Architecture */}
       <section className="py-24 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]">
@@ -781,7 +757,7 @@ const HomePage: React.FC = () => {
           >
             <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 mb-6">
               <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">The FleetCore Solution</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">The fleetcore Solution</span>
             </div>
             
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
@@ -790,7 +766,7 @@ const HomePage: React.FC = () => {
               <span className="text-slate-900 dark:text-slate-100">That Eliminates Maintenance Chaos</span>
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
-              FleetCore transforms reactive maintenance into proactive intelligence through a systematic approach 
+              fleetcore transforms reactive maintenance into proactive intelligence through a systematic approach 
               that bridges OEM recommendations with real-world operations
             </p>
           </motion.div>
@@ -1082,7 +1058,7 @@ const HomePage: React.FC = () => {
                   <div className="text-center">
                     <div className="flex items-center justify-center space-x-2 mb-2">
                       <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">30%</div>
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">40%</div>
                     </div>
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Cost Reduction Achieved</p>
                     <p className="text-xs text-slate-600 dark:text-slate-400">Reactive maintenance costs eliminated through predictive approach</p>
@@ -1414,7 +1390,7 @@ const HomePage: React.FC = () => {
             </h2>
             
             <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 mb-12 enterprise-body leading-relaxed">
-              Join the maritime intelligence revolution. See how FleetCore can optimize your fleet operations 
+              Join the maritime intelligence revolution. See how fleetcore can optimize your fleet operations 
               with enterprise-grade reliability and measurable ROI.
             </p>
 

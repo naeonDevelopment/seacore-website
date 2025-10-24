@@ -1,8 +1,8 @@
-# FleetCore Enterprise Website
+# fleetcore Enterprise Website
 
 > **Agentic Maritime Intelligence Platform - Marketing Website**
 
-Modern, high-performance enterprise marketing website showcasing FleetCore's revolutionary AI-powered maritime maintenance platform.
+Modern, high-performance enterprise marketing website showcasing fleetcore's revolutionary AI-powered maritime maintenance platform.
 
 ## 🚀 Quick Start
 
@@ -122,11 +122,11 @@ npm run type-check # TypeScript type checking
 
 ## 📝 License
 
-MIT License - Copyright © 2025 FleetCore
+MIT License - Copyright © 2025 fleetcore
 
 ## 🤝 Contributing
 
-This is the official FleetCore enterprise marketing website. For contributions or issues, please contact the development team.
+This is the official fleetcore enterprise marketing website. For contributions or issues, please contact the development team.
 
 ## 📞 Support
 
@@ -135,5 +135,5 @@ This is the official FleetCore enterprise marketing website. For contributions o
 
 ---
 
-**Built with ❤️ by the FleetCore Team**
+**Built with ❤️ by the fleetcore Team**
 

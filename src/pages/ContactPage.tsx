@@ -235,19 +235,19 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>Contact FleetCore</title>
+        <title>Contact fleetcore</title>
         <meta name="description" content="Book a demo or reach our team by email or phone. Fast response, global support." />
         <link rel="canonical" href="https://fleetcore.ai/contact" />
-        <meta property="og:title" content="Contact FleetCore" />
+        <meta property="og:title" content="Contact fleetcore" />
         <meta property="og:description" content="Book a demo or reach our team by email or phone." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/contact" />
-        <meta property="og:image" content="/og/contact.png" />
+        <meta property="og:image" content="https://fleetcore.ai/og/contact.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "ContactPage",
-            "name": "Contact FleetCore",
+            "name": "Contact fleetcore",
             "url": "https://fleetcore.ai/contact",
             "breadcrumb": {
               "@type": "BreadcrumbList",
@@ -275,9 +275,9 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
         </script>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="Contact FleetCore" />
+        <meta name="twitter:title" content="Contact fleetcore" />
         <meta name="twitter:description" content="Book a demo or reach our team by email or phone." />
-        <meta name="twitter:image" content="/og/contact.png" />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/contact.png" />
       </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
@@ -481,7 +481,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
               <span className="maritime-gradient-text">Schedule</span> a Personalized Demo
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto enterprise-body mb-12">
-              See FleetCore in action. Book a time that works for you and we'll provide a comprehensive 
+              See fleetcore in action. Book a time that works for you and we'll provide a comprehensive 
               walkthrough tailored to your fleet's needs.
             </p>
           </motion.div>
@@ -688,7 +688,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
               </h2>
               
               <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 enterprise-body">
-                Join leading maritime operators who trust FleetCore for their fleet maintenance operations
+                Join leading maritime operators who trust fleetcore for their fleet maintenance operations
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">

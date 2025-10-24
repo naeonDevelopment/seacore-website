@@ -45,13 +45,13 @@ function App() {
   return (
     <Router basename="/">
       <Helmet>
-        <title>FleetCore - Agentic Maritime Intelligence Platform</title>
+        <title>fleetcore - Agentic Maritime Intelligence Platform</title>
         <meta name="description" content="AI-powered maritime maintenance OS: predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "name": "FleetCore",
+            "name": "fleetcore",
             "url": "https://fleetcore.ai/",
             "potentialAction": {
               "@type": "SearchAction",

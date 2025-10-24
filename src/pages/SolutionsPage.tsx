@@ -59,7 +59,7 @@ const SolutionsPage: React.FC = () => {
       description: 'Traditional systems only track work orders after breakdowns occur. No predictive capabilities to anticipate failures or optimize maintenance timing.',
       icon: AlertTriangle,
       color: 'from-red-500 to-orange-600',
-      impact: '25-30% Higher Operating Costs'
+      impact: '40% Higher Operating Costs'
     },
     {
       title: 'Data Silos & Manual Entry',
@@ -81,67 +81,6 @@ const SolutionsPage: React.FC = () => {
       icon: Network,
       color: 'from-blue-500 to-indigo-600',
       impact: 'Repeated Failures Across Fleet'
-    }
-  ]
-
-  // Maintenance Intelligence Architecture - Three layers
-  const threeLayers = [
-    {
-      layer: 'Layer 1',
-      title: 'Centralized Data Hub',
-      subtitle: 'The Foundation',
-      description: 'Unified database normalizing OEM specifications, manufacturer recommendations, SOLAS requirements, and historical maintenance records into a single, queryable system.',
-      icon: Database,
-      gradient: 'from-blue-500 to-indigo-600',
-      features: [
-        'Automated import of manufacturer PMS schedules',
-        'Cross-manufacturer equipment standardization',
-        'SOLAS/MARPOL compliance tracking',
-        'Real-time equipment health monitoring'
-      ],
-      metrics: {
-        value: '100%',
-        label: 'Data Centralization',
-        subtext: 'Single source of truth'
-      }
-    },
-    {
-      layer: 'Layer 2',
-      title: 'Automated Scheduling Engine',
-      subtitle: 'The Automation',
-      description: 'Intelligent algorithms automatically generate, prioritize, and optimize maintenance schedules based on equipment running hours, calendar intervals, and operational constraints.',
-      icon: Calendar,
-      gradient: 'from-emerald-500 to-teal-600',
-      features: [
-        'Automatic task generation from PMS schedules',
-        'Dual-interval tracking (hours + calendar)',
-        'Crew workload balancing and optimization',
-        'Port stay coordination and planning'
-      ],
-      metrics: {
-        value: '90%+',
-        label: 'Automation Rate',
-        subtext: 'Tasks auto-generated'
-      }
-    },
-    {
-      layer: 'Layer 3',
-      title: 'Intelligence & Analytics Layer',
-      subtitle: 'The Innovation',
-      description: 'Advanced analytics identify patterns in maintenance data, predict high-risk equipment, and optimize operations through continuous monitoring and smart recommendations.',
-      icon: Brain,
-      gradient: 'from-purple-500 to-violet-600',
-      features: [
-        'Pattern analysis across fleet operations',
-        'Predictive alerts for overdue maintenance',
-        'Cross-vessel performance benchmarking',
-        'Cost tracking and budget forecasting'
-      ],
-      metrics: {
-        value: '30-40%',
-        label: 'Efficiency Gain',
-        subtext: 'Through smart automation'
-      }
     }
   ]
 
@@ -195,37 +134,37 @@ const SolutionsPage: React.FC = () => {
   const operatingSystemFeatures = [
     {
       title: 'Abstraction Layer',
-      description: 'Like how an OS abstracts hardware complexity, FleetCore abstracts maintenance complexity from end users.',
+      description: 'Like how an OS abstracts hardware complexity, fleetcore abstracts maintenance complexity from end users.',
       icon: Layers,
       example: 'Engineers see "Change Oil" task, not complex interval calculations'
     },
     {
       title: 'Resource Management',
-      description: 'OS manages CPU and memory; FleetCore manages crew time, parts inventory, and vessel schedules.',
+      description: 'OS manages CPU and memory; fleetcore manages crew time, parts inventory, and vessel schedules.',
       icon: Settings,
       example: 'Optimal allocation of 12 crew members across 50 maintenance tasks'
     },
     {
       title: 'Process Scheduling',
-      description: 'OS schedules programs; FleetCore schedules maintenance with priority-based execution.',
+      description: 'OS schedules programs; fleetcore schedules maintenance with priority-based execution.',
       icon: Calendar,
       example: 'Critical safety tasks get priority over routine inspections'
     },
     {
       title: 'File System (Data Layer)',
-      description: 'OS provides unified file access; FleetCore provides unified maintenance data access.',
+      description: 'OS provides unified file access; fleetcore provides unified maintenance data access.',
       icon: Database,
       example: 'One query accesses data from 500 vessels, 5000 equipment items'
     },
     {
       title: 'Device Drivers (Integrations)',
-      description: 'OS has drivers for hardware; FleetCore has adapters for any OEM, ERP, or IoT system.',
+      description: 'OS has drivers for hardware; fleetcore has adapters for any OEM, ERP, or IoT system.',
       icon: GitBranch,
       example: 'Plug-and-play integration with Caterpillar, MAN, Wärtsilä systems'
     },
     {
       title: 'System Updates (Continuous Improvement)',
-      description: 'OS updates for security and features; FleetCore continuously improves through pattern analysis and operational feedback.',
+      description: 'OS updates for security and features; fleetcore continuously improves through pattern analysis and operational feedback.',
       icon: TrendingUp,
       example: 'System analytics identify optimization opportunities from fleet-wide data'
     }
@@ -286,14 +225,14 @@ const SolutionsPage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>Maritime Maintenance Solutions | FleetCore</title>
+        <title>Maritime Maintenance Solutions | fleetcore</title>
         <meta name="description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
         <link rel="canonical" href="https://fleetcore.ai/solutions" />
-        <meta property="og:title" content="Maritime Maintenance Solutions | FleetCore" />
+        <meta property="og:title" content="Maritime Maintenance Solutions | fleetcore" />
         <meta property="og:description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/solutions" />
-        <meta property="og:image" content="/og/solution.png" />
+        <meta property="og:image" content="https://fleetcore.ai/og/solution.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -312,7 +251,7 @@ const SolutionsPage: React.FC = () => {
               "mainEntity": [
                 {
                   "@type": "Question",
-                  "name": "How does FleetCore differ from CMMS?",
+                  "name": "How does fleetcore differ from CMMS?",
                   "acceptedAnswer": { "@type": "Answer", "text": "It’s an AI operating system that predicts failures, automates scheduling, and embeds compliance—going beyond work-order tracking." }
                 },
                 {
@@ -326,9 +265,9 @@ const SolutionsPage: React.FC = () => {
         </script>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="Maritime Maintenance Solutions | FleetCore" />
+        <meta name="twitter:title" content="Maritime Maintenance Solutions | fleetcore" />
         <meta name="twitter:description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
-        <meta name="twitter:image" content="/og/solution.png" />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/solution.png" />
       </Helmet>
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
@@ -445,7 +384,7 @@ const SolutionsPage: React.FC = () => {
                 backfaceVisibility: 'hidden'
               }}
             >
-              Traditional CMMS systems only track maintenance. FleetCore <strong>automates scheduling, prevents failures, 
+              Traditional CMMS systems only track maintenance. fleetcore <strong>automates scheduling, prevents failures, 
               and optimizes operations</strong> — transforming reactive chaos into proactive intelligence.
             </p>
 
@@ -553,7 +492,7 @@ const SolutionsPage: React.FC = () => {
           >
             <div className="rounded-3xl border bg-gradient-to-br from-purple-50/50 via-indigo-50/30 to-blue-50/50 dark:from-purple-950/20 dark:via-indigo-950/15 dark:to-blue-950/20 p-12 text-center">
               <h3 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4 enterprise-heading">
-                FleetCore Changes Everything
+                fleetcore Changes Everything
               </h3>
               <p className="text-xl text-slate-600 dark:text-slate-300 enterprise-body">
                 We're not improving traditional CMMS — we're replacing it with an 
@@ -565,118 +504,7 @@ const SolutionsPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Section 2: Three-Layer AI Architecture - Isometric Stack */}
-      <section className="py-32 relative overflow-hidden">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 mb-6">
-              <Layers className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Maintenance Intelligence Architecture</span>
-            </div>
-
-            <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              Three-Layer Intelligence System
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
-              Each layer uses advanced AI to transform raw data into actionable intelligence
-            </p>
-          </motion.div>
-
-          {/* Three Cards in a Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-              {threeLayers.map((layer, index) => {
-                return (
-                  <motion.div
-                    key={layer.layer}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                  >
-                    {/* Card */}
-                    <div 
-                      className={cn(
-                        "rounded-3xl border shadow-xl overflow-hidden h-full hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300",
-                        index === 0 && "bg-gradient-to-br from-white via-purple-50/30 to-indigo-50/20 dark:from-slate-800 dark:via-purple-950/30 dark:to-indigo-950/20 border-purple-200 dark:border-purple-800",
-                        index === 1 && "bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/20 dark:from-slate-800 dark:via-blue-950/30 dark:to-cyan-950/20 border-blue-200 dark:border-blue-800",
-                        index === 2 && "bg-gradient-to-br from-white via-cyan-50/30 to-teal-50/20 dark:from-slate-800 dark:via-cyan-950/30 dark:to-teal-950/20 border-cyan-200 dark:border-cyan-800"
-                      )}
-                    >
-                        <div className="p-8 flex flex-col h-full">
-                          {/* Layer Badge */}
-                          <div className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-4">
-                            {layer.layer}
-                          </div>
-
-                          {/* Icon */}
-                          <div 
-                            className={cn(
-                              "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg mb-6 mx-auto",
-                              layer.gradient
-                            )}
-                          >
-                            <layer.icon className="w-8 h-8 text-white" />
-                          </div>
-
-                          {/* Title */}
-                          <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2 text-center enterprise-heading">
-                            {layer.title}
-                          </h3>
-
-                          {/* Subtitle */}
-                          <div className="text-sm font-semibold text-purple-600 dark:text-purple-400 mb-4 text-center">
-                            {layer.subtitle}
-                          </div>
-
-                          {/* Description */}
-                          <p className="text-sm text-slate-600 dark:text-slate-300 enterprise-body leading-relaxed mb-6 text-center">
-                            {layer.description}
-                          </p>
-
-                          {/* Features */}
-                          <div className="space-y-3 mb-6 flex-grow">
-                            {layer.features.slice(0, 3).map((feature, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-start space-x-2"
-                              >
-                                <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                                <span className="text-xs text-slate-700 dark:text-slate-300">
-                                  {feature}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Metric Card */}
-                          <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 border border-purple-200 dark:border-purple-700 text-center mt-auto">
-                            <div className="text-3xl font-bold maritime-gradient-text mb-1">
-                              {layer.metrics.value}
-                            </div>
-                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                              {layer.metrics.label}
-                            </div>
-                            <div className="text-xs text-slate-600 dark:text-slate-400">
-                              {layer.metrics.subtext}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                  </motion.div>
-                )
-              })}
-          </div>
-
-        </div>
-      </section>
-
-      {/* Section 3: AI Capabilities Deep Dive */}
+      {/* Section 2: AI Capabilities Deep Dive */}
       <section className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
@@ -766,7 +594,7 @@ const SolutionsPage: React.FC = () => {
               Why We Call It an <span className="maritime-gradient-text">Operating System</span>
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
-              Like Windows, macOS, or Linux manage your computer's resources, FleetCore manages your maritime 
+              Like Windows, macOS, or Linux manage your computer's resources, fleetcore manages your maritime 
               operations — abstracting complexity, optimizing resources, and providing a unified interface.
             </p>
           </motion.div>
@@ -855,7 +683,7 @@ const SolutionsPage: React.FC = () => {
               </h2>
 
               <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 enterprise-body max-w-3xl mx-auto">
-                See how FleetCore's maintenance operating system can automate 90%+ of your tasks, improve efficiency by 30-40%, 
+                See how fleetcore's maintenance operating system can automate 90%+ of your tasks, improve efficiency by 30-40%, 
                 and ensure full compliance — all through smart automation and real-time intelligence.
               </p>
 

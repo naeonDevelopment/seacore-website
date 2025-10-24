@@ -2,8 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Mail, 
-  Linkedin,
-  ExternalLink
+  Linkedin
 } from 'lucide-react'
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo'
 
@@ -20,8 +19,7 @@ export const Footer: React.FC<FooterProps> = () => {
     ],
     resources: [
       { label: 'Contact', href: '/contact' },
-      { label: 'Privacy Policy', href: '/privacy-policy' },
-      { label: 'Imprint', href: '#', inactive: true }
+      { label: 'Privacy Policy', href: '/privacy-policy' }
     ]
   }
 
@@ -102,7 +100,7 @@ export const Footer: React.FC<FooterProps> = () => {
         {/* Bottom Bar */}
         <div className="py-6 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-slate-400 text-sm text-center md:text-left">
-            © {currentYear} FleetCore. All rights reserved. Maritime Intelligence Platform.
+            © {currentYear} fleetcore. All rights reserved. Maritime Intelligence Platform.
           </div>
 
           {/* Social Links */}

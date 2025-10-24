@@ -1,4 +1,4 @@
-## FleetCore Website – SEO and AI Search Optimizations
+## fleetcore Website – SEO and AI Search Optimizations
 
 This document audits the invisible SEO and AI search improvements implemented in the repository, explains how each works in this codebase, and notes recommended follow‑ups.
 

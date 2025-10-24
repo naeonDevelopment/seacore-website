@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# FleetCore Website - Standalone Repository Setup Script
+# fleetcore Website - Standalone Repository Setup Script
 # This script copies source files and sets up the Git repository
 
 set -e  # Exit on error
 
-echo "🚀 FleetCore Website - Standalone Repository Setup"
+echo "🚀 fleetcore Website - Standalone Repository Setup"
 echo "================================================="
 echo ""
 
@@ -105,7 +105,7 @@ echo "   # Visit http://localhost:8000"
 echo ""
 echo "2. Create initial commit:"
 echo "   git add ."
-echo "   git commit -m \"Initial commit: FleetCore Website standalone repository\""
+echo "   git commit -m \"Initial commit: fleetcore Website standalone repository\""
 echo ""
 echo "3. Push to GitHub:"
 echo "   git branch -M main"

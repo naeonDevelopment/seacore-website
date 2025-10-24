@@ -190,13 +190,13 @@ const VesselDashboardMockup: React.FC<VesselDashboardMockupProps> = ({ className
           {/* Left Sidebar - Dark Theme Like Real System */}
           <div className="w-12 bg-slate-800 flex flex-col items-center py-3 space-y-2 relative z-10">
             {/* Logo/Brand Area */}
-            <Tooltip content="FleetCore Dashboard" position="right">
+            <Tooltip content="fleetcore Dashboard" position="right">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mb-2 hover:bg-blue-500 transition-colors duration-200 cursor-pointer">
                 <Anchor className="w-4 h-4 text-white" />
               </div>
             </Tooltip>
             
-            {/* Navigation Icons - Based on Real FleetCore System */}
+            {/* Navigation Icons - Based on Real fleetcore System */}
             <Tooltip content="Fleet Overview" position="right">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-500 transition-colors duration-200 cursor-pointer">
                 <div className="w-3 h-3 bg-white rounded-sm"></div>
@@ -248,7 +248,7 @@ const VesselDashboardMockup: React.FC<VesselDashboardMockupProps> = ({ className
                 ? 'bg-slate-800/80 border-slate-600/20' 
                 : 'bg-white/80 border-white/20'
             }`}>
-              <HeaderTooltip content="FleetCore Maritime Navigator - Main Dashboard">
+              <HeaderTooltip content="fleetcore Maritime Navigator - Main Dashboard">
                 <div className={`flex items-center cursor-pointer rounded-lg p-0 transition-colors duration-200 ${
                   isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-gray-50/50'
                 }`}>
