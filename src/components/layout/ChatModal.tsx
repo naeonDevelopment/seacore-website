@@ -330,6 +330,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      // Blur input immediately on mobile to reset zoom and hide keyboard
+      if (typeof window !== 'undefined' && window.innerWidth < 640) {
+        inputRef.current?.blur();
+        // Small delay to let keyboard hide before scrolling
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+        }, 100);
+      }
       sendMessage();
     }
   };
@@ -587,9 +595,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
+                  onBlur={() => {
+                    // Force blur to reset zoom on mobile after submit
+                    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+                      window.scrollTo(0, 0);
+                    }
+                  }}
                   placeholder="Ask about maritime maintenance, SOLAS..."
                   disabled={isLoading}
-                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
+                  style={{ 
+                    fontSize: '16px',
+                    touchAction: 'manipulation'
+                  }}
                 />
                 <button
                   onClick={sendMessage}

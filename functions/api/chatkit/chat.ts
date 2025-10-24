@@ -5,6 +5,9 @@
 
 import { 
   classifyQuery, 
+  extractEntities,
+  normalizeData,
+  performComparativeAnalysis,
   extractClaims, 
   verifyClaims, 
   generateGroundedAnswer, 
@@ -411,7 +414,7 @@ export async function onRequestPost(context) {
           }
         }
         
-        // Tavily API configuration
+        // Tavily API configuration with SPECIALIZED DOCUMENTATION SOURCES
         const tavilyConfig = {
           headers: { 
             'Content-Type': 'application/json',
@@ -420,14 +423,30 @@ export async function onRequestPost(context) {
           },
           domains: {
             include: [
-              // Prioritize manufacturer & technical documentation sites
-              'wingd.com', 'wartsila.com', 'man-es.com', 'rolls-royce.com',
-              'alfalaval.com', 'kongsberg.com', 'dnv.com', 'lr.org', 'abs.org',
+              // TIER 1: Technical Documentation & Manuals (HIGHEST PRIORITY)
+              'catpublications.com',      // Caterpillar official docs
+              'marinedieselbasics.com',   // Marine diesel manuals & maintenance guides
+              'epcatalogs.com',            // Electronic spare part catalogues
+              'scribd.com',                // Technical documents repository
+              'slideshare.net',            // Technical presentations
+              'manualslib.com',            // Equipment manuals library
+              
+              // TIER 2: OEM Manufacturer Sites
+              'caterpillar.com', 'cat.com', 'perkins.com',
+              'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com',
+              'cummins.com', 'mtu-online.com', 'detroit.com',
+              'alfalaval.com', 'kongsberg.com', 'yanmar.com',
+              
+              // TIER 3: Classification Societies & Standards
+              'dnv.com', 'lr.org', 'abs.org', 'rina.org',
+              'imo.org', 'classnk.or.jp', 'bureauveritas.com',
+              
+              // TIER 4: Maritime News & Publications
               'marinelink.com', 'marinelog.com', 'safety4sea.com',
               'gcaptain.com', 'offshoreenergytoday.com', 'marineinsight.com',
               'ship-technology.com', 'maritime-executive.com', 'seatrade-maritime.com'
             ],
-            exclude: ['wikipedia.org', 'reddit.com']
+            exclude: ['wikipedia.org', 'reddit.com', 'facebook.com']
           }
         };
         
@@ -626,18 +645,33 @@ export async function onRequestPost(context) {
         // Apply verification for factual queries that passed entity check
         if (classification.requiresSearch && classification.type === 'factual' && topResults.length > 0 && OPENAI_API_KEY && researchPerformed) {
           try {
-            console.log(`🔬 UNIVERSAL VERIFICATION: Extracting and verifying claims for ${classification.domain} query...`);
+            console.log(`🔬 DISTRIBUTED VERIFICATION SYSTEM: Starting ${classification.domain} query verification...`);
             
-            // STEP 1: Extract claims from all sources
-            const claims = await extractClaims(currentQuery, topResults, OPENAI_API_KEY);
+            // STEP 1: Extract entities
+            const entities = await extractEntities(currentQuery, topResults, OPENAI_API_KEY);
+            console.log(`🏢 Extracted ${entities.length} entities from sources`);
+            
+            // STEP 2: Normalize data into structured format
+            const normalizedData = await normalizeData(currentQuery, topResults, entities, OPENAI_API_KEY);
+            console.log(`📐 Normalized ${normalizedData.length} data points`);
+            
+            // STEP 3: Comparative analysis (if needed)
+            let comparativeAnalysis: any = null;
+            if (classification.requiresComparison && normalizedData.length > 0) {
+              console.log(`⚖️ Performing comparative analysis...`);
+              comparativeAnalysis = await performComparativeAnalysis(currentQuery, normalizedData, entities, OPENAI_API_KEY);
+            }
+            
+            // STEP 4: Extract claims from all sources (with normalized data)
+            const claims = await extractClaims(currentQuery, topResults, normalizedData, OPENAI_API_KEY);
             console.log(`📋 Extracted ${claims.length} claims from sources`);
             
             if (claims.length === 0) {
               console.warn('⚠️ No claims could be extracted - sources may not contain relevant information');
               structuredData = `\n\n⚠️ **INSUFFICIENT DATA**\n\nThe search results do not contain sufficient factual information to answer this query reliably.\n\nYou MUST:\n1. Acknowledge that specific information is not available in current sources\n2. Provide only general knowledge (if appropriate)\n3. Suggest the user verify with authoritative sources or provide more context\n\n**DO NOT fabricate information.**\n\n`;
             } else {
-              // STEP 2: Verify claims based on verification level
-              const verification = verifyClaims(claims, classification.verificationLevel);
+              // STEP 5: Verify claims based on verification level (with comparative analysis)
+              const verification = verifyClaims(claims, classification.verificationLevel, comparativeAnalysis);
               console.log(`✓ Verification result: ${verification.verified ? 'PASSED' : 'FAILED'} (${verification.confidence.toFixed(0)}% confidence)`);
               
               verificationMetadata = {
@@ -651,13 +685,25 @@ export async function onRequestPost(context) {
                 conflictDetected: verification.conflictDetected,
               };
               
-              // STEP 3: Build structured data context for the AI
-              structuredData = `\n\n=== UNIVERSAL VERIFICATION SYSTEM RESULTS ===\n`;
+              // STEP 6: Build structured data context for the AI
+              structuredData = `\n\n=== DISTRIBUTED VERIFICATION SYSTEM RESULTS ===\n`;
               structuredData += `Query Type: ${classification.type} | Domain: ${classification.domain}\n`;
               structuredData += `Verification Level: ${classification.verificationLevel.toUpperCase()}\n`;
+              structuredData += `Entities Found: ${entities.length}\n`;
+              structuredData += `Normalized Data Points: ${normalizedData.length}\n`;
               structuredData += `Overall Confidence: ${verification.confidence.toFixed(0)}%\n`;
               structuredData += `Verification Status: ${verification.verified ? '✅ PASSED' : '⚠️ FAILED'}\n`;
               structuredData += `Reason: ${verification.reason}\n\n`;
+              
+              // Add comparative analysis if available
+              if (comparativeAnalysis && comparativeAnalysis.winner) {
+                structuredData += `\n=== COMPARATIVE ANALYSIS ===\n`;
+                structuredData += `Attribute: ${comparativeAnalysis.attribute}\n`;
+                structuredData += `Winner: ${comparativeAnalysis.winner.entity}\n`;
+                structuredData += `Value: ${comparativeAnalysis.winner.value}\n`;
+                structuredData += `Reason: ${comparativeAnalysis.winner.reason}\n`;
+                structuredData += `Confidence: ${comparativeAnalysis.winner.confidence}%\n\n`;
+              }
               
               if (!verification.verified) {
                 structuredData += `⚠️ **VERIFICATION FAILED** - ${verification.reason}\n\n`;
@@ -701,12 +747,12 @@ export async function onRequestPost(context) {
               
               structuredData += `==================================================\n\n`;
               
-              console.log(`✅ UNIVERSAL VERIFICATION: Complete with ${claims.length} claims (${verification.confidence.toFixed(0)}% confidence)`);
+              console.log(`✅ DISTRIBUTED VERIFICATION: Complete with ${entities.length} entities, ${normalizedData.length} data points, ${claims.length} claims (${verification.confidence.toFixed(0)}% confidence)`);
             }
             
           } catch (e) {
-            console.error('❌ UNIVERSAL VERIFICATION: Error:', e.message);
-            structuredData = `\n\n⚠️ **VERIFICATION ERROR**\n\nAn error occurred during the verification process. Please answer cautiously based on the source content provided, and cite all sources explicitly.\n\n`;
+            console.error('❌ DISTRIBUTED VERIFICATION: Error:', e.message);
+            structuredData = `\n\n⚠️ **VERIFICATION ERROR**\n\nAn error occurred during the distributed verification process. Please answer cautiously based on the source content provided, and cite all sources explicitly.\n\n`;
           }
         }
         

@@ -1,8 +1,17 @@
 /**
- * UNIVERSAL TRUTH VERIFICATION SYSTEM
+ * UNIVERSAL TRUTH VERIFICATION SYSTEM (v2.0)
  * 
- * Implements industry-standard fact verification used by Perplexity, ChatGPT, Claude
- * Works for ALL domains: vessels, maintenance, legislation, company data, etc.
+ * Distributed Prompt Architecture - Each stage uses a specialized prompt
+ * optimized for its specific task
+ * 
+ * Pipeline:
+ * 1. Entity Extraction & Disambiguation
+ * 2. Data Normalization (convert raw text to structured data)
+ * 3. Claim Extraction (with evidence)
+ * 4. Comparative Analysis (cross-source comparison for "largest/biggest" queries)
+ * 5. Conflict Resolution & Verification
+ * 6. Grounded Answer Generation
+ * 7. Self-Verification
  */
 
 interface SearchResult {
@@ -13,13 +22,50 @@ interface SearchResult {
   snippet?: string;
 }
 
+interface ExtractedEntity {
+  name: string;
+  type: 'vessel' | 'company' | 'equipment' | 'location' | 'person' | 'other';
+  aliases: string[]; // Alternative names found in sources
+  confidence: number;
+  sources: number[];
+}
+
+interface NormalizedData {
+  entity: string;
+  attribute: string; // e.g., "length", "deadweight", "owner", "built_year"
+  value: string | number;
+  unit?: string; // e.g., "meters", "tons", "year"
+  rawText: string; // Original text from source
+  sourceIndex: number;
+  confidence: number;
+}
+
 interface ExtractedClaim {
   claim: string;
   claimType: 'factual' | 'numerical' | 'date' | 'entity' | 'opinion';
-  sources: number[]; // Which source indices support this claim
-  confidence: number; // 0-100
-  evidence: string[]; // Exact quotes from sources
-  contradictions?: string[]; // Conflicting information found
+  sources: number[];
+  confidence: number;
+  evidence: string[];
+  contradictions?: string[];
+  normalizedData?: NormalizedData[]; // Structured data supporting this claim
+}
+
+interface ComparativeAnalysis {
+  attribute: string; // What we're comparing (e.g., "vessel size")
+  candidates: {
+    value: string | number;
+    entity: string;
+    sources: number[];
+    evidence: string[];
+    confidence: number;
+  }[];
+  winner: {
+    entity: string;
+    value: string | number;
+    reason: string;
+    confidence: number;
+  } | null;
+  conflicts: string[];
 }
 
 interface VerificationResult {
@@ -28,6 +74,317 @@ interface VerificationResult {
   supportingSources: number;
   conflictDetected: boolean;
   reason: string;
+  comparativeAnalysis?: ComparativeAnalysis;
+}
+
+/**
+ * STAGE 1: Entity Extraction & Disambiguation
+ * Specialized prompt for identifying and disambiguating entities across sources
+ */
+export async function extractEntities(
+  query: string,
+  sources: SearchResult[],
+  openaiKey: string
+): Promise<ExtractedEntity[]> {
+  
+  const sourceContent = sources.map((s, i) => 
+    `[Source ${i+1}: ${s.title}]\n${(s.raw_content || s.content || s.snippet || '').substring(0, 1500)}`
+  ).join('\n\n---\n\n');
+  
+  const entityPrompt = `You are an entity extraction specialist for maritime domain.
+
+TASK: Extract and disambiguate ALL entities mentioned across these sources.
+
+Query: "${query}"
+
+Sources:
+${sourceContent}
+
+CRITICAL RULES:
+1. Extract EVERY entity mentioned (vessels, companies, equipment, people, locations)
+2. Group aliases together (e.g., "Stanford Marine" = "Stanford Marine Group")
+3. Note which source mentions each entity
+4. Classify entity type accurately
+5. Return ONLY valid JSON
+
+Return JSON array:
+[
+  {
+    "name": "Primary entity name",
+    "type": "vessel|company|equipment|location|person|other",
+    "aliases": ["alternative name 1", "alternative name 2"],
+    "sources": [1, 3, 5],
+    "confidence": 85
+  }
+]
+
+Return ONLY the JSON array:`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a precise entity extraction system for maritime domain. Return valid JSON only.' 
+          },
+          { role: 'user', content: entityPrompt }
+        ],
+        temperature: 0,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('❌ Entity extraction failed:', response.status);
+      return [];
+    }
+
+    const json = await response.json();
+    const extractedText = json.choices?.[0]?.message?.content || '[]';
+    
+    const jsonMatch = extractedText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.warn('⚠️ No valid JSON in entity extraction');
+      return [];
+    }
+    
+    const entities: ExtractedEntity[] = JSON.parse(jsonMatch[0]);
+    console.log(`✅ Extracted ${entities.length} entities`);
+    return entities;
+    
+  } catch (error) {
+    console.error('❌ Entity extraction error:', error);
+    return [];
+  }
+}
+
+/**
+ * STAGE 2: Data Normalization
+ * Specialized prompt for converting raw text into structured, comparable data
+ */
+export async function normalizeData(
+  query: string,
+  sources: SearchResult[],
+  entities: ExtractedEntity[],
+  openaiKey: string
+): Promise<NormalizedData[]> {
+  
+  const sourceContent = sources.map((s, i) => 
+    `[Source ${i+1}: ${s.title}]\n${(s.raw_content || s.content || s.snippet || '').substring(0, 2000)}`
+  ).join('\n\n---\n\n');
+  
+  const entityNames = entities.map(e => e.name).join(', ');
+  
+  const normalizationPrompt = `You are a data normalization specialist for maritime information.
+
+TASK: Extract and normalize ALL measurable attributes mentioned for these entities.
+
+Query: "${query}"
+Entities Found: ${entityNames}
+
+Sources:
+${sourceContent}
+
+CRITICAL RULES:
+1. Extract EVERY measurable attribute (size, weight, capacity, year, owner, etc.)
+2. Convert units to standard format (meters, tonnes, MW, etc.)
+3. Parse dates to consistent format
+4. Note the exact raw text you're parsing from
+5. Include source index for each data point
+6. Return ONLY valid JSON
+
+Examples of attributes to extract:
+- Vessel dimensions: length, beam, draft, deadweight, gross tonnage
+- Company info: fleet size, founding year, headquarters
+- Equipment specs: power output, capacity, manufacturer
+- Dates: built year, delivery date, last survey
+
+Return JSON array:
+[
+  {
+    "entity": "Stanford Bateleur",
+    "attribute": "length",
+    "value": 87,
+    "unit": "meters",
+    "rawText": "87-meter DP2 platform supply vessel",
+    "sourceIndex": 1,
+    "confidence": 95
+  },
+  {
+    "entity": "Stanford Bateleur",
+    "attribute": "deadweight",
+    "value": 5145,
+    "unit": "tons",
+    "rawText": "deadweight of 5,145 tons",
+    "sourceIndex": 1,
+    "confidence": 95
+  }
+]
+
+Return ONLY the JSON array:`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a precise data normalization system. Extract and standardize all measurable attributes. Return valid JSON only.' 
+          },
+          { role: 'user', content: normalizationPrompt }
+        ],
+        temperature: 0,
+        max_tokens: 2500,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('❌ Data normalization failed:', response.status);
+      return [];
+    }
+
+    const json = await response.json();
+    const extractedText = json.choices?.[0]?.message?.content || '[]';
+    
+    const jsonMatch = extractedText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.warn('⚠️ No valid JSON in data normalization');
+      return [];
+    }
+    
+    const normalizedData: NormalizedData[] = JSON.parse(jsonMatch[0]);
+    console.log(`✅ Normalized ${normalizedData.length} data points`);
+    return normalizedData;
+    
+  } catch (error) {
+    console.error('❌ Data normalization error:', error);
+    return [];
+  }
+}
+
+/**
+ * STAGE 3: Comparative Analysis
+ * Specialized prompt for comparing entities across sources (e.g., "which vessel is largest?")
+ */
+export async function performComparativeAnalysis(
+  query: string,
+  normalizedData: NormalizedData[],
+  entities: ExtractedEntity[],
+  openaiKey: string
+): Promise<ComparativeAnalysis | null> {
+  
+  // Check if query requires comparison
+  const comparisonIndicators = /largest|biggest|smallest|most|least|best|worst|highest|lowest|maximum|minimum/i;
+  if (!comparisonIndicators.test(query)) {
+    console.log('⏭️ No comparison required for this query');
+    return null;
+  }
+  
+  const dataByEntity = normalizedData.reduce((acc, d) => {
+    if (!acc[d.entity]) acc[d.entity] = [];
+    acc[d.entity].push(d);
+    return acc;
+  }, {} as Record<string, NormalizedData[]>);
+  
+  const comparisonPrompt = `You are a comparative analysis specialist for maritime data.
+
+TASK: Determine which entity best answers the comparative query based on normalized data.
+
+Query: "${query}"
+
+Entities and their data:
+${Object.entries(dataByEntity).map(([entity, data]) => 
+  `\n${entity}:\n${data.map(d => `  - ${d.attribute}: ${d.value} ${d.unit || ''} (from Source ${d.sourceIndex + 1}, confidence: ${d.confidence}%)`).join('\n')}`
+).join('\n')}
+
+CRITICAL RULES:
+1. Identify what attribute is being compared (e.g., vessel size = deadweight or length)
+2. Compare ONLY entities with data for that attribute
+3. For vessel size: prioritize deadweight > length > gross tonnage
+4. Cross-check values from multiple sources if available
+5. Identify the clear winner OR note if comparison is ambiguous
+6. Flag any conflicts or inconsistencies
+7. Return ONLY valid JSON
+
+Return JSON:
+{
+  "attribute": "What is being compared",
+  "candidates": [
+    {
+      "value": 5145,
+      "entity": "Stanford Bateleur",
+      "sources": [1, 2],
+      "evidence": ["87-meter DP2 platform supply vessel", "deadweight of 5,145 tons"],
+      "confidence": 90
+    }
+  ],
+  "winner": {
+    "entity": "Stanford Bateleur",
+    "value": 5145,
+    "reason": "Highest deadweight tonnage among all vessels found",
+    "confidence": 90
+  },
+  "conflicts": ["No conflicts found"] or ["Source 1 says X but Source 2 says Y"]
+}
+
+Return ONLY the JSON object:`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a precise comparative analysis system. Determine winners in comparisons using structured data. Return valid JSON only.' 
+          },
+          { role: 'user', content: comparisonPrompt }
+        ],
+        temperature: 0,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('❌ Comparative analysis failed:', response.status);
+      return null;
+    }
+
+    const json = await response.json();
+    const extractedText = json.choices?.[0]?.message?.content || '{}';
+    
+    const jsonMatch = extractedText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn('⚠️ No valid JSON in comparative analysis');
+      return null;
+    }
+    
+    const analysis: ComparativeAnalysis = JSON.parse(jsonMatch[0]);
+    console.log(`✅ Comparative analysis complete: Winner = ${analysis.winner?.entity || 'None'}`);
+    return analysis;
+    
+  } catch (error) {
+    console.error('❌ Comparative analysis error:', error);
+    return null;
+  }
 }
 
 /**
@@ -38,6 +395,7 @@ export function classifyQuery(query: string): {
   type: 'factual' | 'opinion' | 'fleetcore' | 'mixed';
   domain: 'vessel' | 'maintenance' | 'legislation' | 'company' | 'equipment' | 'general';
   requiresSearch: boolean;
+  requiresComparison: boolean;
   verificationLevel: 'high' | 'medium' | 'low';
 } {
   const queryLower = query.toLowerCase();
@@ -51,6 +409,9 @@ export function classifyQuery(query: string): {
     /maintenance schedule|interval|frequency/i,
     /vessel|ship|fleet|company|owner/i,
   ];
+  
+  // Comparison indicators
+  const comparisonIndicators = /largest|biggest|smallest|most|least|best|worst|highest|lowest|maximum|minimum/i;
   
   // Opinion/recommendation queries - MEDIUM verification
   const opinionIndicators = [
@@ -85,47 +446,56 @@ export function classifyQuery(query: string): {
   else if (/engine|equipment|machinery|generator/i.test(queryLower)) domain = 'equipment';
   
   // Determine if search required
-  const requiresSearch = type !== 'fleetcore'; // Only skip search for fleetcore features
+  const requiresSearch = type !== 'fleetcore';
+  
+  // Determine if comparison needed
+  const requiresComparison = comparisonIndicators.test(queryLower);
   
   // Set verification level
   let verificationLevel: 'high' | 'medium' | 'low' = 'medium';
   if (type === 'factual' && (domain === 'vessel' || domain === 'legislation' || domain === 'company')) {
-    verificationLevel = 'high'; // Facts about real entities = strict verification
+    verificationLevel = 'high';
   } else if (type === 'fleetcore') {
-    verificationLevel = 'low'; // We know our own product
+    verificationLevel = 'low';
   }
   
-  return { type, domain, requiresSearch, verificationLevel };
+  return { type, domain, requiresSearch, requiresComparison, verificationLevel };
 }
 
 /**
- * STEP 2: Extract Claims from Search Results
- * Uses GPT-4 to pull out factual claims with evidence
+ * STAGE 4: Enhanced Claim Extraction (with normalized data integration)
  */
 export async function extractClaims(
   query: string,
   sources: SearchResult[],
+  normalizedData: NormalizedData[],
   openaiKey: string
 ): Promise<ExtractedClaim[]> {
   
-  // Compile source content
   const sourceContent = sources.map((s, i) => {
     const content = s.raw_content || s.content || s.snippet || '';
     return `[Source ${i+1}: ${s.title} - ${s.url}]\n${content.substring(0, 2000)}`;
   }).join('\n\n---\n\n');
   
-  const extractionPrompt = `You are a precise fact extraction system. Extract ONLY verifiable claims from these sources.
+  const normalizedDataContext = normalizedData.length > 0 
+    ? `\n\nNORMALIZED DATA AVAILABLE:\n${normalizedData.map(d => 
+        `- ${d.entity}: ${d.attribute} = ${d.value} ${d.unit || ''} [Source ${d.sourceIndex + 1}]`
+      ).join('\n')}\n`
+    : '';
+  
+  const extractionPrompt = `You are a precise fact extraction system with access to normalized data.
 
 CRITICAL RULES:
-1. Extract ONLY claims explicitly stated in sources - NO inference or reasoning
+1. Extract ONLY verifiable claims explicitly stated in sources
 2. For EACH claim, note which source(s) support it
 3. Mark claim type: factual, numerical, date, entity, opinion
 4. Include EXACT QUOTES as evidence
 5. If sources CONTRADICT each other, note the contradiction
-6. Return valid JSON only
+6. Link claims to normalized data where applicable
+7. Return valid JSON only
 
 Query: "${query}"
-
+${normalizedDataContext}
 Sources:
 ${sourceContent}
 
@@ -134,13 +504,15 @@ Return JSON array:
   {
     "claim": "exact factual statement",
     "claimType": "factual|numerical|date|entity|opinion",
-    "sources": [1, 3],  // Which sources support this
+    "sources": [1, 3],
     "evidence": ["exact quote from source 1", "exact quote from source 3"],
-    "contradictions": ["conflicting info if found"] or null
+    "confidence": 85,
+    "contradictions": null or ["conflicting info"],
+    "normalizedData": [references to normalized data points if applicable]
   }
 ]
 
-Return ONLY the JSON array, no explanation:`;
+Return ONLY the JSON array:`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -158,8 +530,8 @@ Return ONLY the JSON array, no explanation:`;
           },
           { role: 'user', content: extractionPrompt }
         ],
-        temperature: 0, // Deterministic extraction
-        max_tokens: 2000,
+        temperature: 0,
+        max_tokens: 2500,
       }),
     });
 
@@ -171,7 +543,6 @@ Return ONLY the JSON array, no explanation:`;
     const json = await response.json();
     const extractedText = json.choices?.[0]?.message?.content || '[]';
     
-    // Parse JSON - handle markdown formatting
     const jsonMatch = extractedText.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       console.warn('⚠️ No valid JSON found in extraction response');
@@ -180,27 +551,22 @@ Return ONLY the JSON array, no explanation:`;
     
     const claims: ExtractedClaim[] = JSON.parse(jsonMatch[0]);
     
-    // Compute confidence for each claim
+    // Compute confidence for each claim (if not already set)
     claims.forEach(claim => {
-      let confidence = 0;
-      
-      // Base confidence: 20 points
-      confidence += 20;
-      
-      // +30 if supported by multiple sources
-      if (claim.sources.length >= 2) confidence += 30;
-      else if (claim.sources.length >= 3) confidence += 40;
-      
-      // +20 if has direct evidence quotes
-      if (claim.evidence && claim.evidence.length > 0) confidence += 20;
-      
-      // +20 if numerical/date (easier to verify)
-      if (claim.claimType === 'numerical' || claim.claimType === 'date') confidence += 20;
-      
-      // -50 if contradictions found
-      if (claim.contradictions && claim.contradictions.length > 0) confidence -= 50;
-      
-      claim.confidence = Math.max(0, Math.min(100, confidence));
+      if (!claim.confidence) {
+        let confidence = 20; // Base
+        
+        if (claim.sources.length >= 2) confidence += 30;
+        else if (claim.sources.length >= 3) confidence += 40;
+        
+        if (claim.evidence && claim.evidence.length > 0) confidence += 20;
+        
+        if (claim.claimType === 'numerical' || claim.claimType === 'date') confidence += 20;
+        
+        if (claim.contradictions && claim.contradictions.length > 0) confidence -= 50;
+        
+        claim.confidence = Math.max(0, Math.min(100, confidence));
+      }
     });
     
     console.log(`✅ Extracted ${claims.length} claims with confidence scores`);
@@ -213,12 +579,12 @@ Return ONLY the JSON array, no explanation:`;
 }
 
 /**
- * STEP 3: Verify Claims Against Requirements
- * Cross-validates extracted claims based on verification level
+ * STAGE 5: Verify Claims (enhanced with comparative analysis)
  */
 export function verifyClaims(
   claims: ExtractedClaim[],
-  verificationLevel: 'high' | 'medium' | 'low'
+  verificationLevel: 'high' | 'medium' | 'low',
+  comparativeAnalysis?: ComparativeAnalysis | null
 ): VerificationResult {
   
   if (claims.length === 0) {
@@ -227,21 +593,30 @@ export function verifyClaims(
       confidence: 0,
       supportingSources: 0,
       conflictDetected: false,
-      reason: 'No claims could be extracted from sources'
+      reason: 'No claims could be extracted from sources',
+      comparativeAnalysis: comparativeAnalysis || undefined
     };
   }
   
-  // Check for contradictions
   const hasContradictions = claims.some(c => c.contradictions && c.contradictions.length > 0);
   
-  // Compute overall confidence
+  // If comparative analysis found conflicts, flag it
+  const hasComparativeConflicts = comparativeAnalysis?.conflicts && 
+    comparativeAnalysis.conflicts.length > 0 && 
+    !comparativeAnalysis.conflicts.some(c => c.includes('No conflicts'));
+  
   const avgConfidence = claims.reduce((sum, c) => sum + c.confidence, 0) / claims.length;
   
-  // Count unique supporting sources
+  // Boost confidence if comparative analysis has a clear winner
+  let adjustedConfidence = avgConfidence;
+  if (comparativeAnalysis?.winner && comparativeAnalysis.winner.confidence > avgConfidence) {
+    adjustedConfidence = (avgConfidence + comparativeAnalysis.winner.confidence) / 2;
+    console.log(`✅ Confidence boosted by comparative analysis: ${avgConfidence.toFixed(0)}% → ${adjustedConfidence.toFixed(0)}%`);
+  }
+  
   const allSources = new Set(claims.flatMap(c => c.sources));
   const supportingSourceCount = allSources.size;
   
-  // Verification thresholds based on level
   const thresholds = {
     high: { minConfidence: 70, minSources: 2 },
     medium: { minConfidence: 50, minSources: 1 },
@@ -250,33 +625,32 @@ export function verifyClaims(
   
   const threshold = thresholds[verificationLevel];
   
-  // Determine if verified
   let verified = true;
   let reason = 'Verification passed';
   
-  if (avgConfidence < threshold.minConfidence) {
+  if (adjustedConfidence < threshold.minConfidence) {
     verified = false;
-    reason = `Confidence ${avgConfidence.toFixed(0)}% below threshold ${threshold.minConfidence}%`;
+    reason = `Confidence ${adjustedConfidence.toFixed(0)}% below threshold ${threshold.minConfidence}%`;
   } else if (supportingSourceCount < threshold.minSources) {
     verified = false;
     reason = `Only ${supportingSourceCount} supporting sources, need ${threshold.minSources}`;
-  } else if (hasContradictions && verificationLevel === 'high') {
+  } else if ((hasContradictions || hasComparativeConflicts) && verificationLevel === 'high') {
     verified = false;
     reason = 'Sources contain contradictory information';
   }
   
   return {
     verified,
-    confidence: avgConfidence,
+    confidence: adjustedConfidence,
     supportingSources: supportingSourceCount,
-    conflictDetected: hasContradictions,
+    conflictDetected: hasContradictions || hasComparativeConflicts || false,
     reason,
+    comparativeAnalysis: comparativeAnalysis || undefined
   };
 }
 
 /**
- * STEP 4: Generate Grounded Answer
- * Creates answer using ONLY verified claims with citations
+ * STAGE 6: Generate Grounded Answer (enhanced with comparative analysis)
  */
 export async function generateGroundedAnswer(
   query: string,
@@ -288,7 +662,6 @@ export async function generateGroundedAnswer(
   model: string
 ): Promise<string> {
   
-  // Build grounded context
   let groundedContext = '=== VERIFIED CLAIMS (Use ONLY These Facts) ===\n\n';
   
   if (!verification.verified) {
@@ -296,7 +669,24 @@ export async function generateGroundedAnswer(
     groundedContext += `You MUST acknowledge the uncertainty in your response.\n\n`;
   }
   
-  // Add verified claims with evidence
+  // Add comparative analysis result if available
+  if (verification.comparativeAnalysis?.winner) {
+    groundedContext += `=== COMPARATIVE ANALYSIS RESULT ===\n`;
+    groundedContext += `Attribute Compared: ${verification.comparativeAnalysis.attribute}\n`;
+    groundedContext += `Winner: ${verification.comparativeAnalysis.winner.entity}\n`;
+    groundedContext += `Value: ${verification.comparativeAnalysis.winner.value}\n`;
+    groundedContext += `Reason: ${verification.comparativeAnalysis.winner.reason}\n`;
+    groundedContext += `Confidence: ${verification.comparativeAnalysis.winner.confidence}%\n\n`;
+    
+    if (verification.comparativeAnalysis.conflicts.length > 0) {
+      groundedContext += `Conflicts Found:\n`;
+      verification.comparativeAnalysis.conflicts.forEach(c => {
+        groundedContext += `  - ${c}\n`;
+      });
+      groundedContext += '\n';
+    }
+  }
+  
   claims.forEach((claim, idx) => {
     groundedContext += `CLAIM ${idx + 1}: ${claim.claim}\n`;
     groundedContext += `- Type: ${claim.claimType}\n`;
@@ -312,23 +702,22 @@ export async function generateGroundedAnswer(
         groundedContext += `  • ${c}\n`;
       });
     }
-    groundedContext += '\n';
+    groundedContext += `\n`;
   });
   
-  // Add source reference
   groundedContext += '\n=== SOURCE REFERENCE ===\n\n';
   sources.forEach((s, i) => {
     groundedContext += `[${i+1}] ${s.title}\n    ${s.url}\n\n`;
   });
   
-  // Add strict grounding instructions
   groundedContext += `\n=== MANDATORY ANSWER REQUIREMENTS ===\n
 1. Use ONLY the verified claims above - DO NOT add information not in claims
-2. Cite sources [1][2] for EVERY factual statement
-3. If verification failed (see above), acknowledge uncertainty
-4. If contradictions exist, present both viewpoints
-5. End with "**Sources:**" section listing all cited sources
-6. If confidence < 70%, use phrases like "According to [source]" instead of stating as absolute truth\n\n`;
+2. If comparative analysis is present, use its winner as the definitive answer
+3. Cite sources [1][2] for EVERY factual statement
+4. If verification failed, acknowledge uncertainty
+5. If contradictions exist, present both viewpoints
+6. End with "**Sources:**" section listing all cited sources with URLs
+7. If confidence < 70%, use phrases like "According to [source]" instead of stating as absolute truth\n\n`;
 
   const answerPrompt = `${systemPrompt}\n\n${groundedContext}\n\nUser Question: ${query}\n\nGenerate a grounded answer following ALL requirements above:`;
   
@@ -342,10 +731,10 @@ export async function generateGroundedAnswer(
       body: JSON.stringify({
         model: model,
         messages: [
-          { role: 'system', content: 'You are a truthful assistant that answers ONLY from provided verified claims. You cite sources for every fact.' },
+          { role: 'system', content: 'You are a truthful assistant that answers ONLY from provided verified claims and comparative analysis. You cite sources for every fact.' },
           { role: 'user', content: answerPrompt }
         ],
-        temperature: 0.0, // Deterministic for factual answers
+        temperature: 0.0,
         max_tokens: 1500,
       }),
     });
@@ -364,8 +753,7 @@ export async function generateGroundedAnswer(
 }
 
 /**
- * STEP 5: Self-Verification
- * Second LLM pass to verify the answer matches the sources
+ * STAGE 7: Self-Verification
  */
 export async function selfVerifyAnswer(
   answer: string,
@@ -419,7 +807,7 @@ Return ONLY the JSON:`;
 
     if (!response.ok) {
       console.warn('⚠️ Self-verification API call failed');
-      return { passed: true, issues: [] }; // Fail open
+      return { passed: true, issues: [] };
     }
 
     const json = await response.json();
@@ -427,7 +815,7 @@ Return ONLY the JSON:`;
     
     const jsonMatch = verificationText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return { passed: true, issues: [] }; // Fail open
+      return { passed: true, issues: [] };
     }
     
     const result = JSON.parse(jsonMatch[0]);
@@ -442,12 +830,12 @@ Return ONLY the JSON:`;
     
   } catch (error) {
     console.error('❌ Self-verification error:', error);
-    return { passed: true, issues: [] }; // Fail open
+    return { passed: true, issues: [] };
   }
 }
 
 /**
- * MAIN: Complete Verification Pipeline
+ * MAIN: Complete Verification Pipeline (Enhanced with Distributed Prompts)
  */
 export async function verifyAndAnswer(
   query: string,
@@ -462,26 +850,46 @@ export async function verifyAndAnswer(
   metadata: {
     queryType: string;
     domain: string;
+    entitiesFound: number;
+    normalizedDataPoints: number;
     claimsExtracted: number;
     supportingSources: number;
+    comparativeAnalysisPerformed: boolean;
     selfVerificationPassed: boolean;
     issues: string[];
   };
 }> {
   
-  // Step 1: Classify query
-  const classification = classifyQuery(query);
-  console.log(`🔍 Query classified:`, classification);
+  console.log('\n🔍 === STARTING DISTRIBUTED VERIFICATION PIPELINE ===\n');
   
-  // Step 2: Extract claims from sources
-  const claims = await extractClaims(query, sources, openaiKey);
+  // Stage 1: Classify query
+  const classification = classifyQuery(query);
+  console.log(`📊 Query classified:`, classification);
+  
+  // Stage 2: Extract entities
+  const entities = await extractEntities(query, sources, openaiKey);
+  console.log(`🏢 Extracted ${entities.length} entities`);
+  
+  // Stage 3: Normalize data
+  const normalizedData = await normalizeData(query, sources, entities, openaiKey);
+  console.log(`📐 Normalized ${normalizedData.length} data points`);
+  
+  // Stage 4: Comparative analysis (if needed)
+  let comparativeAnalysis: ComparativeAnalysis | null = null;
+  if (classification.requiresComparison && normalizedData.length > 0) {
+    console.log(`⚖️ Performing comparative analysis...`);
+    comparativeAnalysis = await performComparativeAnalysis(query, normalizedData, entities, openaiKey);
+  }
+  
+  // Stage 5: Extract claims with normalized data
+  const claims = await extractClaims(query, sources, normalizedData, openaiKey);
   console.log(`📋 Extracted ${claims.length} claims`);
   
-  // Step 3: Verify claims
-  const verification = verifyClaims(claims, classification.verificationLevel);
+  // Stage 6: Verify claims
+  const verification = verifyClaims(claims, classification.verificationLevel, comparativeAnalysis);
   console.log(`✓ Verification result:`, verification);
   
-  // Step 4: Generate grounded answer
+  // Stage 7: Generate grounded answer
   const answer = await generateGroundedAnswer(
     query,
     claims,
@@ -492,8 +900,10 @@ export async function verifyAndAnswer(
     model
   );
   
-  // Step 5: Self-verify the answer
+  // Stage 8: Self-verify the answer
   const selfVerification = await selfVerifyAnswer(answer, claims, sources, openaiKey);
+  
+  console.log('\n✅ === VERIFICATION PIPELINE COMPLETE ===\n');
   
   return {
     answer,
@@ -502,11 +912,13 @@ export async function verifyAndAnswer(
     metadata: {
       queryType: classification.type,
       domain: classification.domain,
+      entitiesFound: entities.length,
+      normalizedDataPoints: normalizedData.length,
       claimsExtracted: claims.length,
       supportingSources: verification.supportingSources,
+      comparativeAnalysisPerformed: comparativeAnalysis !== null,
       selfVerificationPassed: selfVerification.passed,
       issues: selfVerification.issues,
     },
   };
 }
-
