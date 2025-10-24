@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Brain } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Brain, Globe } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 interface Message {
@@ -32,14 +32,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   // Track the index of the currently streaming assistant message reliably
   const streamingIndexRef = useRef<number | null>(null);
+  const lastMessageCountRef = useRef<number>(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Only scroll when a NEW message is added, not during streaming updates
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (messages.length > lastMessageCountRef.current) {
+      scrollToBottom();
+      lastMessageCountRef.current = messages.length;
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,6 +66,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
+      // Show visual feedback for online research
+      if (useBrowsing) {
+        console.log('🌐 Online research enabled - fetching fresh data...');
+      }
+      
       const response = await fetch('/api/chatkit/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,8 +133,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'thinking') {
                   thinking = parsed.content;
+                  console.log('💭 Chain of thought:', thinking);
                 } else if (parsed.type === 'content') {
                   streamedContent += parsed.content;
+                } else if (parsed.type === 'research') {
+                  console.log('🔍 Research data:', parsed.content);
                 }
 
                 setMessages((prev) => {
@@ -303,10 +316,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         </div>
                       )}
                       
-                      <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-medium enterprise-body">
-                        {message.content}
+                      <div className="text-sm sm:text-base leading-relaxed font-medium enterprise-body space-y-2">
+                        {message.content.split('\n\n').map((paragraph, pIdx) => (
+                          <p key={pIdx} className="whitespace-pre-wrap">
+                            {paragraph}
+                          </p>
+                        ))}
                         {message.isStreaming && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse" />}
-                      </p>
+                      </div>
                       <p className={cn(
                         'text-xs mt-2 font-semibold',
                         message.role === 'user' ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'
@@ -333,7 +350,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                       <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div className="backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg">
-                      <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-maritime-600" />
+                      <div className="flex items-center gap-3">
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-maritime-600" />
+                        {useBrowsing && (
+                          <div className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold">
+                            <Globe className="w-3.5 h-3.5 animate-pulse" />
+                            <span>Researching...</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 )}

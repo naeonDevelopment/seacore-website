@@ -74,9 +74,11 @@ export async function onRequestPost(context) {
 
     // Optional lightweight web browsing: fetch top 3 search snippets and include as context
     let browsingContext = '';
+    let researchPerformed = false;
     if (enableBrowsing && TAVILY_API_KEY) {
       try {
         const q = messages[messages.length - 1]?.content || '';
+        console.log('🔍 Performing online research for:', q);
         const tavilyRes = await fetch('https://api.tavily.com/search', {
           method: 'POST',
           headers: { 
@@ -92,9 +94,12 @@ export async function onRequestPost(context) {
           const items = tavilyJson?.results || [];
           if (Array.isArray(items) && items.length) {
             browsingContext = items.map((r, i) => `(${i+1}) ${r.title}\n${r.snippet}\nSource: ${r.url}`).join('\n\n');
+            researchPerformed = true;
+            console.log(`✅ Found ${items.length} research results`);
           }
         }
       } catch (e) {
+        console.error('❌ Research failed:', e);
         // Ignore browsing failures silently
       }
     }
@@ -198,12 +203,45 @@ export async function onRequestPost(context) {
                   const parsed = JSON.parse(data);
                   const content = parsed.choices?.[0]?.delta?.content || '';
                   
-                  // Generate thinking/reasoning for first chunk
+                  // Generate detailed thinking/reasoning for first chunk
                   if (isFirstChunk && content) {
-                    thinking = 'Analyzing your question with fleetcore knowledge' + (browsingContext ? ' and fresh web sources...' : '...');
+                    // Build detailed chain of thought
+                    const userQuery = messages[messages.length - 1]?.content || '';
+                    const thinkingParts = ['Analyzing your question about'];
+                    
+                    // Add context-aware reasoning
+                    if (userQuery.toLowerCase().includes('pms')) {
+                      thinkingParts.push('PMS (Planned Maintenance System)');
+                    } else if (userQuery.toLowerCase().includes('solas') || userQuery.toLowerCase().includes('marpol')) {
+                      thinkingParts.push('maritime regulations and compliance');
+                    } else if (userQuery.toLowerCase().includes('maintenance')) {
+                      thinkingParts.push('maintenance management');
+                    } else {
+                      thinkingParts.push('maritime operations');
+                    }
+                    
+                    if (researchPerformed) {
+                      thinkingParts.push('| Searched latest industry sources');
+                      thinkingParts.push('| Cross-referencing with fleetcore capabilities');
+                    } else {
+                      thinkingParts.push('| Drawing from fleetcore knowledge base');
+                    }
+                    
+                    thinkingParts.push('| Formulating comprehensive response...');
+                    
+                    thinking = thinkingParts.join(' ');
+                    
                     controller.enqueue(
                       encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: thinking })}\n\n`)
                     );
+                    
+                    // Send research indicator if browsing was used
+                    if (researchPerformed) {
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ type: 'research', content: 'Online research completed' })}\n\n`)
+                      );
+                    }
+                    
                     isFirstChunk = false;
                   }
 

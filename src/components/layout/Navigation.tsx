@@ -147,16 +147,28 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
               />
             </Link>
 
-            {/* Mobile Theme Switcher */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleDarkMode}
-              className="w-10 h-10 text-slate-700 dark:text-slate-300"
-              aria-label="Toggle theme"
-            >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </Button>
+            {/* Mobile Actions */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleDarkMode}
+                className="w-10 h-10 text-slate-700 dark:text-slate-300"
+                aria-label="Toggle theme"
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
+              
+              <Button 
+                variant="gradient" 
+                size="icon"
+                onClick={() => setIsChatOpen(true)}
+                className="w-10 h-10"
+                aria-label="Ask AI"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </motion.nav>
