@@ -458,17 +458,70 @@ export async function onRequestPost(context) {
         
         console.log(`📊 Total unique sources: ${allResults.length} from ${queries.length} queries`);
         
+        // PHASE 1 FIX: Rank results by authority and relevance
+        const rankedResults = allResults.sort((a, b) => {
+          let scoreA = 0, scoreB = 0;
+          
+          // +15 points if title contains specific entity (exact match)
+          if (specificEntity && a.title.toLowerCase().includes(specificEntity.toLowerCase())) {
+            scoreA += 15;
+          }
+          if (specificEntity && b.title.toLowerCase().includes(specificEntity.toLowerCase())) {
+            scoreB += 15;
+          }
+          
+          // +10 points for authoritative maritime domains
+          const authoritativeDomains = [
+            'marinelink.com', 'gcaptain.com', 'safety4sea.com',
+            'maritime-executive.com', 'seatrade-maritime.com',
+            'offshoreenergytoday.com', 'marinelog.com',
+            // OEM/manufacturer sites
+            'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com',
+            // Classification societies
+            'dnv.com', 'lr.org', 'abs.org'
+          ];
+          if (authoritativeDomains.some(d => a.url.includes(d))) scoreA += 10;
+          if (authoritativeDomains.some(d => b.url.includes(d))) scoreB += 10;
+          
+          // +8 points for recent content (2024-2025)
+          const contentA = a.title + ' ' + (a.content || a.snippet || '');
+          const contentB = b.title + ' ' + (b.content || b.snippet || '');
+          if (/\b(2025|2024)\b/.test(contentA)) scoreA += 8;
+          if (/\b(2025|2024)\b/.test(contentB)) scoreB += 8;
+          
+          // +5 points if entity appears in content multiple times (high relevance)
+          if (specificEntity) {
+            const entityRegex = new RegExp(specificEntity.replace(/\s+/g, '\\s+'), 'gi');
+            const matchesA = (contentA.match(entityRegex) || []).length;
+            const matchesB = (contentB.match(entityRegex) || []).length;
+            scoreA += Math.min(matchesA * 2, 5);
+            scoreB += Math.min(matchesB * 2, 5);
+          }
+          
+          // +3 points for longer content (more detailed)
+          const lengthA = (a.raw_content || a.content || a.snippet || '').length;
+          const lengthB = (b.raw_content || b.content || b.snippet || '').length;
+          if (lengthA > 2000) scoreA += 3;
+          if (lengthB > 2000) scoreB += 3;
+          
+          return scoreB - scoreA; // Higher score first
+        });
+        
+        // PHASE 1 FIX: Limit to top 5 most authoritative sources
+        const topResults = rankedResults.slice(0, 5);
+        
         // Detailed logging
-        allResults.forEach((item, idx) => {
+        console.log(`🎯 RANKED TOP 5 SOURCES (from ${allResults.length} total):`);
+        topResults.forEach((item, idx) => {
           console.log(`  [${idx+1}] ${item.title} - ${item.url}`);
           console.log(`      Content: ${(item.raw_content || item.content || item.snippet || '').length} chars`);
         });
         
-        // Process aggregated results
-        if (allResults.length > 0) {
+        // Process top-ranked results
+        if (topResults.length > 0) {
           // Format with markdown-friendly links and citations
           // Prioritize raw_content (full page) > content > snippet
-          browsingContext = allResults.map((r, i) => {
+          browsingContext = topResults.map((r, i) => {
             const citation = `[${i+1}]`;
             const sourceLink = `[${r.url}](${r.url})`;
             const contentToUse = r.raw_content || r.content || r.snippet || '';
@@ -483,11 +536,11 @@ export async function onRequestPost(context) {
           
           // Add summary if available from primary query
           if (tavilySummary) {
-            browsingContext = `**Research Summary**: ${tavilySummary}\n\n**Detailed Sources** (${allResults.length} total):\n\n${browsingContext}`;
+            browsingContext = `**Research Summary**: ${tavilySummary}\n\n**Detailed Sources** (${topResults.length} high-authority sources from ${allResults.length} total):\n\n${browsingContext}`;
           }
           
           researchPerformed = true;
-          console.log(`✅ Compiled ${allResults.length} research results (${browsingContext.length} total chars) with citations`);
+          console.log(`✅ Compiled TOP ${topResults.length} research results from ${allResults.length} total (${browsingContext.length} chars) with citations`);
         } else {
           console.log('⚠️ No research results returned from any query');
         }
@@ -525,6 +578,13 @@ export async function onRequestPost(context) {
     
     // Detect if using reasoning-capable models (o1/o3 have built-in chain of thought)
     const isO1O3Model = selectedModel.includes('o1') || selectedModel.includes('o3');
+
+    // PHASE 1 FIX: Detect factual queries to use deterministic temperature
+    const currentQuery = messages[messages.length - 1]?.content || '';
+    const isFactualQuery = /\b(what is|find|tell me|how many|when|where|which|largest|biggest|smallest|newest|oldest|first|last|list|show me|give me|get me)\b/i.test(currentQuery);
+    const queryTemperature = isFactualQuery ? 0.1 : 0.7; // Low temp for facts, normal for conversation
+    
+    console.log(`🎯 Query type: ${isFactualQuery ? 'FACTUAL' : 'CONVERSATIONAL'} - Using temperature: ${queryTemperature}`);
 
     // Call OpenAI API with streaming enabled
     let usedModel = selectedModel;
@@ -583,8 +643,8 @@ export async function onRequestPost(context) {
             max_completion_tokens: 4000,
           }
         : {
-            // Standard models: full parameter control
-            temperature: 0.7,
+            // Standard models: full parameter control with dynamic temperature
+            temperature: queryTemperature, // 0.1 for factual, 0.7 for conversational
             max_tokens: 3000, // Increased for complete responses
             presence_penalty: 0.6,
             frequency_penalty: 0.3,
@@ -647,7 +707,7 @@ export async function onRequestPost(context) {
               ...messages,
             ]
           : conversationMessages,
-        temperature: 0.7,
+        temperature: queryTemperature, // 0.1 for factual, 0.7 for conversational
         max_tokens: 3000,
         presence_penalty: 0.6,
         frequency_penalty: 0.3,
