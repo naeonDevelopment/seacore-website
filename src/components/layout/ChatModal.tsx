@@ -629,7 +629,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   onClick={resetChat}
                   disabled={isLoading}
                   className={cn(
-                    'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
+                    'group inline-flex items-center gap-3 px-4 py-2 rounded-xl border transition-all',
                     'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700',
                     'text-slate-600 dark:text-slate-400',
                     'hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
@@ -638,7 +638,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   aria-label="Reset chat"
                 >
                   <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                  <span className="text-[11px] sm:text-xs font-semibold">Reset</span>
+                  <span className="text-xs sm:text-sm font-semibold">Reset Chat</span>
                 </button>
               </div>
             </div>
