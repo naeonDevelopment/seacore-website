@@ -1,220 +1,108 @@
 /**
  * Bot-optimized content for About page (/about)
+ * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-export const aboutContent = {
-  title: 'About FleetCore: Maritime Intelligence Built by Industry Experts',
-  description: 'Decades of maritime operations and software engineering experience. Based in Dubai with global vision. Mission: Build the first intelligent PMS for maritime fleets.',
+const LAST_UPDATED = '2025-10-24';
+
+export function generateAboutContent(): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About SeaCore - Building the Future of Maritime Maintenance</title>
+  <meta name="description" content="SeaCore is developing the maritime industry's first schedule-specific maintenance tracking platform. Production-ready technology launching Q1 2026.">
+  <meta name="robots" content="index, follow">
+  <meta name="revised" content="${LAST_UPDATED}">
+  <link rel="canonical" href="https://fleetcore.ai/about">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; color: #1e293b; }
+    .status-badge { background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); color: white; padding: 12px 20px; border-radius: 8px; display: inline-block; margin-bottom: 24px; font-weight: 600; }
+    h1 { color: #0f172a; font-size: 2.5em; margin-bottom: 0.5em; }
+    h2 { color: #1e293b; font-size: 1.8em; margin-top: 1.8em; border-bottom: 3px solid #e2e8f0; padding-bottom: 0.4em; }
+    h3 { color: #334155; font-size: 1.4em; margin-top: 1.4em; }
+    strong { color: #0ea5e9; font-weight: 600; }
+    ul { margin: 1em 0; padding-left: 2em; }
+    li { margin: 0.6em 0; }
+  </style>
+</head>
+<body>
+
+  <div class="status-badge">
+    ℹ️ <strong>About SeaCore</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Launch:</strong> Q1 2026
+  </div>
+
+  <h1>Building the Future of Maritime Maintenance</h1>
+  <p style="font-size: 1.2em; color: #475569;">SeaCore is developing the maritime industry's first schedule-specific maintenance tracking platform, launching Q1 2026.</p>
+
+  <h2>🎯 Our Mission</h2>
+  <p>To revolutionize maritime maintenance through modern software engineering and deep maritime domain expertise, solving fundamental problems that traditional CMMS platforms cannot address.</p>
+
+  <h2>💡 The Innovation</h2>
+  <h3>Schedule-Specific Hours Tracking (Industry First)</h3>
+  <p>Traditional maritime maintenance systems have a fundamental limitation: one equipment installation = one hours counter. When you reset hours for one maintenance schedule, you reset hours for ALL schedules on that equipment.</p>
   
-  content: `
-    <h1>Building the Future of Maritime Intelligence</h1>
-    <strong>Decades of Maritime Expertise + Advanced Software Engineering</strong>
-    
-    <h2>🌊 Our Story: From Maritime Operations to Intelligent Solutions</h2>
-    
-    <h3>Deep Maritime Roots</h3>
-    <p>Our journey began on the decks and in the engine rooms of operating vessels, where we witnessed firsthand:</p>
-    <ul>
-      <li>The challenges of reactive maintenance approaches</li>
-      <li>Aging fleet management infrastructure</li>
-      <li>Manual PMS tracking with paper checklists</li>
-      <li>Isolated vessel operations without knowledge sharing</li>
-      <li>The $17+ billion annual industry losses from maintenance inefficiencies</li>
-    </ul>
-    
-    <h3>Extensive Industry Network</h3>
-    <p>Decades of building relationships across the maritime ecosystem:</p>
-    <ul>
-      <li><strong>Shipyards:</strong> Design, construction, repair facilities worldwide</li>
-      <li><strong>Classification Societies:</strong> DNV, Lloyd's Register, ABS, Bureau Veritas</li>
-      <li><strong>Equipment Manufacturers:</strong> MAN, Wärtsilä, Caterpillar, Rolls-Royce, ABB</li>
-      <li><strong>Fleet Operators:</strong> Commercial shipping, offshore energy, cruise lines</li>
-      <li><strong>Technical Managers:</strong> Ship management companies globally</li>
-    </ul>
-    
-    <h3>Software Engineering Excellence</h3>
-    <p>Combining maritime domain expertise with cutting-edge technology:</p>
-    <ul>
-      <li>Enterprise software development experience</li>
-      <li>Cloud-native architecture expertise</li>
-      <li>AI/ML and predictive analytics</li>
-      <li>Real-time data processing systems</li>
-      <li>Maritime-specific compliance and safety systems</li>
-    </ul>
-    
-    <h3>Problem-First Approach</h3>
-    <p>Rather than building technology looking for problems:</p>
-    <ul>
-      <li>Identified critical gaps in maintenance intelligence</li>
-      <li>Validated solutions with real operational data</li>
-      <li>Designed based on actual fleet manager needs</li>
-      <li>Built for maritime operations by maritime professionals</li>
-    </ul>
+  <p><strong>SeaCore's breakthrough:</strong> Each maintenance schedule tracks its own hours independently, enabling:</p>
+  <ul>
+    <li>Precise maintenance timing per activity</li>
+    <li>Accurate alert generation per schedule</li>
+    <li>Complete reset history audit trail</li>
+    <li>Isolated schedule management</li>
+  </ul>
 
-    <h2>🌍 Global Presence & Reach</h2>
-    
-    <h3>Dubai Based - Strategically Positioned</h3>
-    <p>Located at the crossroads of global maritime trade:</p>
-    <ul>
-      <li>Direct access to major shipping routes</li>
-      <li>Proximity to Middle East maritime hubs</li>
-      <li>Gateway to Asian, European, African markets</li>
-      <li>Business-friendly environment for technology innovation</li>
-    </ul>
-    
-    <h3>Global Vision & Reach</h3>
-    <p>Building solutions for international maritime operations:</p>
-    <ul>
-      <li>Multi-region cloud infrastructure support</li>
-      <li>Compliance with international regulations (SOLAS, MARPOL, ISM)</li>
-      <li>Support for all vessel types and operational models</li>
-      <li>24/7 support across all time zones</li>
-    </ul>
-    
-    <h3>Industry Connections</h3>
-    <p>Leveraging extensive maritime relationships:</p>
-    <ul>
-      <li>OEM partnerships with equipment manufacturers</li>
-      <li>Classification society collaborations</li>
-      <li>Maritime technology provider integrations</li>
-      <li>Industry association memberships</li>
-    </ul>
-    
-    <h3>Technology-First Culture</h3>
-    <p>Cloud-native platform designed for scale:</p>
-    <ul>
-      <li>Enterprise-grade infrastructure (99.9% uptime SLA)</li>
-      <li>Supports fleets of any size from day one</li>
-      <li>Horizontal scaling for unlimited vessels</li>
-      <li>Real-time synchronization across global fleets</li>
-    </ul>
+  <h2>🏗️ Technology Foundation</h2>
+  <h3>Modern 2025 Architecture</h3>
+  <ul>
+    <li><strong>Frontend:</strong> React 18.3.1 + TypeScript 5.5.3 (100% type safety)</li>
+    <li><strong>Backend:</strong> Supabase PostgreSQL with Row-Level Security</li>
+    <li><strong>Real-Time:</strong> WebSocket subscriptions (&lt;200ms latency)</li>
+    <li><strong>Security:</strong> Multi-tenant architecture with organization isolation</li>
+    <li><strong>Performance:</strong> &lt;100ms API response, &gt;95 Lighthouse score</li>
+  </ul>
 
-    <h2>🎯 Our Strategy: Real-World Data, Real Solutions</h2>
-    
-    <h3>1. Real-World Data Foundation</h3>
-    <p><strong>Collecting actual maintenance events, failures, and conditions from operating vessels</strong></p>
-    <p>Building a global knowledge base of maritime equipment behavior:</p>
-    <ul>
-      <li><strong>Actual failure patterns:</strong> Not theoretical models, but real operational data</li>
-      <li><strong>Condition-based insights:</strong> From real vessel operations in diverse conditions</li>
-      <li><strong>Maintenance effectiveness tracking:</strong> What works and what doesn't</li>
-      <li><strong>Equipment lifecycle data:</strong> Performance across entire service life</li>
-    </ul>
-    
-    <h3>2. Intelligent Pattern Recognition</h3>
-    <p><strong>Using advanced analytics to correlate maintenance outcomes</strong></p>
-    <p>Understanding relationships between:</p>
-    <ul>
-      <li><strong>Predictive failure analysis:</strong> Identifying early warning signs</li>
-      <li><strong>Optimal maintenance timing:</strong> When to service for best results</li>
-      <li><strong>Cost-benefit optimization:</strong> Balancing maintenance costs vs failure risks</li>
-      <li><strong>Risk-based prioritization:</strong> Focus on highest-impact maintenance</li>
-    </ul>
-    
-    <h3>3. Continuous Learning System</h3>
-    <p><strong>Every maintenance event feeds back into the system</strong></p>
-    <p>Making predictions more accurate over time:</p>
-    <ul>
-      <li><strong>Self-improving accuracy:</strong> Learns from every maintenance outcome</li>
-      <li><strong>Fleet-wide knowledge sharing:</strong> One vessel's experience benefits entire fleet</li>
-      <li><strong>Adaptive to new equipment:</strong> Quickly learns behavior of new systems</li>
-      <li><strong>Industry benchmark insights:</strong> Performance comparison across maritime sector</li>
-    </ul>
+  <h2>🚀 Q1 2026 Launch</h2>
+  <h3>Current Status</h3>
+  <ul>
+    <li><strong>Platform Development:</strong> Production-ready, undergoing final maritime operator validation</li>
+    <li><strong>Technology Stack:</strong> Fully implemented and tested</li>
+    <li><strong>Database Architecture:</strong> 5-schema design with comprehensive automation</li>
+    <li><strong>Client Discussions:</strong> Advanced discussions with several maritime operators</li>
+    <li><strong>Launch Timeline:</strong> Q1 2026 full production launch</li>
+  </ul>
 
-    <h2>🚀 Our Vision: The Future We're Building</h2>
-    
-    <h3>2025-2027: World's First Intelligent PMS</h3>
-    <p>Building the first preventive maintenance system that truly learns:</p>
-    <ul>
-      <li>Predicts failures before they happen using global fleet data</li>
-      <li>Adapts to each vessel's unique operational patterns</li>
-      <li>Continuously improves accuracy with every maintenance event</li>
-      <li>Provides actionable insights, not just data tracking</li>
-    </ul>
-    
-    <h3>2026-2028: Global Knowledge Network</h3>
-    <p>Creating comprehensive database of maritime equipment intelligence:</p>
-    <ul>
-      <li>Equipment behavior patterns across all manufacturers</li>
-      <li>Maintenance outcomes and effectiveness data</li>
-      <li>Operational condition correlations</li>
-      <li>Best practices from thousands of vessels</li>
-    </ul>
-    
-    <h3>2027-2030: Industry Standard Platform</h3>
-    <p>Establishing FleetCore as the reference platform:</p>
-    <ul>
-      <li>Adopted by classification societies for digital inspections</li>
-      <li>Recognized by industry bodies as best practice</li>
-      <li>Integrated with all major OEM maintenance systems</li>
-      <li>Setting the standard for maritime maintenance intelligence</li>
-    </ul>
+  <h2>🎓 Why This Matters</h2>
+  <h3>SOLAS 2024 & Regulatory Compliance</h3>
+  <p>New regulatory requirements are driving digital transformation in maritime operations. SeaCore embeds SOLAS 2024, MARPOL, and ISM Code compliance directly into the system architecture, not as afterthought add-ons.</p>
+  
+  <h3>Modern Technology for Maritime Operations</h3>
+  <p>The maritime industry deserves modern software built with 2025 technology, not legacy systems from the 1990s. SeaCore brings enterprise-grade cloud-native architecture to maritime maintenance management.</p>
 
-    <h2>💡 Why Maritime Operators Choose FleetCore</h2>
-    
-    <h3>Built by Maritime Professionals</h3>
-    <p>"The first system that truly understands maritime operations. Built by people who have actually done the job, not software developers guessing about our needs."</p>
-    <p>- Technical Superintendent, 50-vessel commercial fleet</p>
-    
-    <h3>Proven Results</h3>
-    <p>"90% task automation eliminated months of manual PMS setup work. ROI achieved in 8 months just from labor savings alone."</p>
-    <p>- Fleet Manager, International Shipping Company</p>
-    
-    <h3>Real Innovation</h3>
-    <p>"First system with dual-interval tracking that actually works. Running hours AND calendar intervals monitored simultaneously - industry game-changer."</p>
-    <p>- Chief Engineer, Offshore Support Vessels</p>
-    
-    <h3>Compliance Made Easy</h3>
-    <p>"100% ready for Port State Control inspections. Built-in SOLAS/MARPOL tracking means we never worry about compliance gaps."</p>
-    <p>- DPA (Designated Person Ashore), Maritime Safety Management Company</p>
+  <h2>📞 Contact & Partnership</h2>
+  <h3>For Maritime Operators</h3>
+  <ul>
+    <li>Schedule a technical demonstration</li>
+    <li>Review platform architecture and roadmap</li>
+    <li>Discuss implementation requirements</li>
+    <li>Explore enterprise pricing</li>
+  </ul>
+  
+  <h3>For Industry Partners</h3>
+  <ul>
+    <li>OEM equipment manufacturers</li>
+    <li>Classification societies</li>
+    <li>Ship management companies</li>
+    <li>Maritime technology integrators</li>
+  </ul>
+  
+  <p><strong>Website:</strong> <a href="https://fleetcore.ai">https://fleetcore.ai</a></p>
+  <p><strong>Contact:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
+  <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/fleetcore-ai/30min">https://calendly.com/fleetcore-ai/30min</a></p>
 
-    <h2>🤝 Partner With Us</h2>
-    
-    <h3>For Fleet Operators</h3>
-    <ul>
-      <li>Transform maintenance from reactive to predictive</li>
-      <li>Reduce costs by 20-30% through intelligent automation</li>
-      <li>Achieve 100% regulatory compliance automatically</li>
-      <li>Benefit from cross-fleet learning and optimization</li>
-    </ul>
-    
-    <h3>For Equipment Manufacturers (OEMs)</h3>
-    <ul>
-      <li>Integrate your PMS schedules into leading platform</li>
-      <li>Gain insights into equipment performance across fleets</li>
-      <li>Improve maintenance recommendations based on real data</li>
-      <li>Support customers with intelligent maintenance tools</li>
-    </ul>
-    
-    <h3>For Classification Societies</h3>
-    <ul>
-      <li>Digital inspection workflows and audit trails</li>
-      <li>Automated compliance verification</li>
-      <li>Real-time access to maintenance records</li>
-      <li>Data-driven insights for safety improvements</li>
-    </ul>
-    
-    <h3>For Technology Partners</h3>
-    <ul>
-      <li>API integration opportunities</li>
-      <li>Joint development initiatives</li>
-      <li>IoT sensor data integration</li>
-      <li>Maritime AI/ML collaboration</li>
-    </ul>
+</body>
+</html>
+`;
+}
 
-    <h2>📞 Connect With Us</h2>
-    <ul>
-      <li><strong>Website:</strong> https://fleetcore.ai</li>
-      <li><strong>Schedule Demo:</strong> https://calendly.com/fleetcore-ai/30min</li>
-      <li><strong>Contact:</strong> https://fleetcore.ai/contact</li>
-      <li><strong>Location:</strong> Dubai, United Arab Emirates</li>
-    </ul>
-    
-    <h2>🎯 Our Mission</h2>
-    <p><strong>To build the world's first truly intelligent preventive maintenance system for maritime fleets.</strong></p>
-    <p>By combining decades of maritime expertise with advanced AI and software engineering, we're transforming how the global maritime industry manages maintenance — from reactive chaos to proactive intelligence.</p>
-    
-    <p><strong>Join us in revolutionizing maritime maintenance.</strong></p>
-  `
-};
-
+export { generateAboutContent };
