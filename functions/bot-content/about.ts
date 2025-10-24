@@ -12,8 +12,8 @@ export function generateAboutContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About SeaCore - Building the Future of Maritime Maintenance</title>
-  <meta name="description" content="SeaCore is developing the maritime industry's first schedule-specific maintenance tracking platform. Production-ready technology launching Q1 2026.">
+  <title>About FleetCore - Building the Future of Maritime Maintenance</title>
+  <meta name="description" content="FleetCore is developing the maritime industry's first schedule-specific maintenance tracking platform. Production-ready technology launching Q1 2026.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/about">
@@ -31,11 +31,11 @@ export function generateAboutContent(): string {
 <body>
 
   <div class="status-badge">
-    ℹ️ <strong>About SeaCore</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Launch:</strong> Q1 2026
+    ℹ️ <strong>About FleetCore</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Launch:</strong> Q1 2026
   </div>
 
   <h1>Building the Future of Maritime Maintenance</h1>
-  <p style="font-size: 1.2em; color: #475569;">SeaCore is developing the maritime industry's first schedule-specific maintenance tracking platform, launching Q1 2026.</p>
+  <p style="font-size: 1.2em; color: #475569;">FleetCore is developing the maritime industry's first schedule-specific maintenance tracking platform, launching Q1 2026.</p>
 
   <h2>🎯 Our Mission</h2>
   <p>To revolutionize maritime maintenance through modern software engineering and deep maritime domain expertise, solving fundamental problems that traditional CMMS platforms cannot address.</p>
@@ -44,7 +44,7 @@ export function generateAboutContent(): string {
   <h3>Schedule-Specific Hours Tracking (Industry First)</h3>
   <p>Traditional maritime maintenance systems have a fundamental limitation: one equipment installation = one hours counter. When you reset hours for one maintenance schedule, you reset hours for ALL schedules on that equipment.</p>
   
-  <p><strong>SeaCore's breakthrough:</strong> Each maintenance schedule tracks its own hours independently, enabling:</p>
+  <p><strong>FleetCore's breakthrough:</strong> Each maintenance schedule tracks its own hours independently, enabling:</p>
   <ul>
     <li>Precise maintenance timing per activity</li>
     <li>Accurate alert generation per schedule</li>
@@ -74,10 +74,10 @@ export function generateAboutContent(): string {
 
   <h2>🎓 Why This Matters</h2>
   <h3>SOLAS 2024 & Regulatory Compliance</h3>
-  <p>New regulatory requirements are driving digital transformation in maritime operations. SeaCore embeds SOLAS 2024, MARPOL, and ISM Code compliance directly into the system architecture, not as afterthought add-ons.</p>
+  <p>New regulatory requirements are driving digital transformation in maritime operations. FleetCore embeds SOLAS 2024, MARPOL, and ISM Code compliance directly into the system architecture, not as afterthought add-ons.</p>
   
   <h3>Modern Technology for Maritime Operations</h3>
-  <p>The maritime industry deserves modern software built with 2025 technology, not legacy systems from the 1990s. SeaCore brings enterprise-grade cloud-native architecture to maritime maintenance management.</p>
+  <p>The maritime industry deserves modern software built with 2025 technology, not legacy systems from the 1990s. FleetCore brings enterprise-grade cloud-native architecture to maritime maintenance management.</p>
 
   <h2>📞 Contact & Partnership</h2>
   <h3>For Maritime Operators</h3>

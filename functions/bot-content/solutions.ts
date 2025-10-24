@@ -14,8 +14,8 @@ export function generateSolutionsContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SeaCore Solutions - Why Maritime Operators Are Choosing SeaCore</title>
-  <meta name="description" content="SeaCore vs Traditional Maritime CMMS: Schedule-specific tracking, real-time monitoring, modern architecture. Production-ready Q1 2026 launch.">
+  <title>FleetCore Solutions - Why Maritime Operators Are Choosing FleetCore</title>
+  <meta name="description" content="FleetCore vs Traditional Maritime CMMS: Schedule-specific tracking, real-time monitoring, modern architecture. Production-ready Q1 2026 launch.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   
@@ -45,13 +45,13 @@ export function generateSolutionsContent(): string {
   </div>
 
   <h1>Not Just Another CMMS. An Operating System for Maritime Maintenance.</h1>
-  <p style="font-size: 1.2em; color: #475569;">Why maritime operators are choosing SeaCore over traditional maintenance software</p>
+  <p style="font-size: 1.2em; color: #475569;">Why maritime operators are choosing FleetCore over traditional maintenance software</p>
 
   <h2>🔴 The Traditional Maritime CMMS Problem</h2>
   
   <div class="problem-box">
     <h3>Fundamental Limitations of Legacy Systems</h3>
-    <p>Traditional maritime CMMS platforms, built in the 1990s-2000s, have three critical problems that SeaCore solves:</p>
+    <p>Traditional maritime CMMS platforms, built in the 1990s-2000s, have three critical problems that FleetCore solves:</p>
   </div>
   
   <h3>Problem 1: Hours Tracking Limitation</h3>
@@ -64,7 +64,7 @@ export function generateSolutionsContent(): string {
   </ul>
   
   <div class="solution-box">
-    <p><strong>SeaCore Solution:</strong> Schedule-specific hours tracking (industry first)</p>
+    <p><strong>FleetCore Solution:</strong> Schedule-specific hours tracking (industry first)</p>
     <ul>
       <li>Each maintenance schedule tracks its own hours independently</li>
       <li>Reset oil change → engine overhaul schedule remains unaffected</li>
@@ -84,7 +84,7 @@ export function generateSolutionsContent(): string {
   </ul>
   
   <div class="solution-box">
-    <p><strong>SeaCore Solution:</strong> Modern 2025 cloud-native architecture</p>
+    <p><strong>FleetCore Solution:</strong> Modern 2025 cloud-native architecture</p>
     <ul>
       <li>React 18 + TypeScript 5.5.3 with 100% type safety</li>
       <li>Real-time WebSocket subscriptions (&lt;200ms latency)</li>
@@ -104,7 +104,7 @@ export function generateSolutionsContent(): string {
   </ul>
   
   <div class="solution-box">
-    <p><strong>SeaCore Solution:</strong> Compliance embedded in system architecture</p>
+    <p><strong>FleetCore Solution:</strong> Compliance embedded in system architecture</p>
     <ul>
       <li>SOLAS 2024, MARPOL, ISM Code built into database design</li>
       <li>Automatic equipment criticality classification</li>
@@ -114,13 +114,13 @@ export function generateSolutionsContent(): string {
     </ul>
   </div>
 
-  <h2>📊 Feature Comparison: SeaCore vs Traditional CMMS</h2>
+  <h2>📊 Feature Comparison: FleetCore vs Traditional CMMS</h2>
   
   <table>
     <tr>
       <th>Feature</th>
       <th>Traditional Maritime CMMS</th>
-      <th>SeaCore Maritime Navigator</th>
+      <th>FleetCore Maritime Navigator</th>
     </tr>
     <tr>
       <td><strong>Hours Tracking</strong></td>
@@ -181,7 +181,7 @@ export function generateSolutionsContent(): string {
   <ul>
     <li><strong>Scenario:</strong> Main engine has 10 different maintenance schedules (oil change, filter replacement, bearing inspection, overhaul, etc.)</li>
     <li><strong>Traditional CMMS:</strong> Complete oil change at 250 hours → resets all 10 schedules to hour 0 → engine overhaul schedule (due at 8000 hours) now shows 7750 hours remaining instead of 7500</li>
-    <li><strong>SeaCore:</strong> Complete oil change → resets only oil change schedule → all other schedules maintain their independent hour tracking → accurate maintenance timing across all activities</li>
+    <li><strong>FleetCore:</strong> Complete oil change → resets only oil change schedule → all other schedules maintain their independent hour tracking → accurate maintenance timing across all activities</li>
   </ul>
   
   <h3>2. Real-Time Fleet Intelligence</h3>
@@ -199,13 +199,13 @@ export function generateSolutionsContent(): string {
     <li>"MAN B&W" vs "MAN Energy Solutions" vs "MAN Diesel"</li>
     <li>"Wärtsilä" vs "Wartsila" vs "Wärtsilä Corporation"</li>
   </ul>
-  <p><strong>SeaCore Solution:</strong> Global intelligence pool normalizing all manufacturer data into single source of truth</p>
+  <p><strong>FleetCore Solution:</strong> Global intelligence pool normalizing all manufacturer data into single source of truth</p>
   
   <h3>4. Embedded Regulatory Compliance</h3>
   <table>
     <tr>
       <th>Regulation</th>
-      <th>SeaCore Implementation</th>
+      <th>FleetCore Implementation</th>
     </tr>
     <tr>
       <td><strong>SOLAS 2024</strong></td>
@@ -230,7 +230,7 @@ export function generateSolutionsContent(): string {
     <li>Maintenance completed → paper records filed → difficult to find later</li>
   </ol>
   
-  <p><strong>SeaCore Automated Workflow:</strong></p>
+  <p><strong>FleetCore Automated Workflow:</strong></p>
   <ol>
     <li>Crew reports event with mobile device → photo evidence attached automatically</li>
     <li>System creates work request → links to equipment and PMS schedule</li>
@@ -267,7 +267,7 @@ export function generateSolutionsContent(): string {
     <li>Standardized processes ensuring consistency across all vessels</li>
   </ul>
 
-  <h2>💡 Why Consider SeaCore</h2>
+  <h2>💡 Why Consider FleetCore</h2>
   
   <h3>Modern Technology Foundation</h3>
   <ul>
