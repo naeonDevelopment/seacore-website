@@ -164,32 +164,8 @@ export async function onRequest(context: {
     }
   }
   
-  // For SPA routes (paths without file extensions), serve index.html directly
-  // This prevents Cloudflare from issuing 308 redirects
-  const mainRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
-  if (mainRoutes.includes(pathname)) {
-    console.log(`SPA route detected: ${pathname}, serving index.html`);
-    
-    // Directly fetch index.html
-    const indexUrl = new URL(context.request.url);
-    indexUrl.pathname = '/index.html';
-    
-    return context.env.ASSETS.fetch(new Request(indexUrl, context.request));
-  }
-  
-  // For all other requests (static assets, etc.), serve normally
-  const response = await context.next();
-  
-  // If it's a 404 and not a file request, serve index.html for SPA routing
-  if (response.status === 404 && !pathname.includes('.')) {
-    console.log(`404 detected for ${pathname}, serving index.html`);
-    
-    const indexUrl = new URL(context.request.url);
-    indexUrl.pathname = '/index.html';
-    
-    return context.env.ASSETS.fetch(new Request(indexUrl, context.request));
-  }
-  
-  return response;
+  // For all other requests, pass through to static assets
+  // The _redirects file handles SPA fallback
+  return context.next();
 }
 
