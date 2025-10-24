@@ -77,9 +77,36 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     }
   }, [messages.length]);
 
-  // Focus input when modal opens
+  // Mobile-only: Lock body scroll to prevent confusion with chat scroll
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && typeof window !== 'undefined' && window.innerWidth < 640) {
+      // Store original styles and scroll position
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      const originalTop = document.body.style.top;
+      const scrollY = window.scrollY;
+      
+      // Lock body scroll on mobile only
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.overflow = 'hidden';
+      
+      // Focus input
+      inputRef.current?.focus();
+      
+      return () => {
+        // Restore original styles
+        document.body.style.position = originalPosition;
+        document.body.style.top = originalTop;
+        document.body.style.overflow = originalOverflow;
+        
+        // Restore scroll position
+        window.scrollTo(0, scrollY);
+      };
+    } else if (isOpen) {
+      // Desktop: just focus input
       inputRef.current?.focus();
     }
   }, [isOpen]);
@@ -311,15 +338,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Backdrop - transparent, allows interaction with page behind */}
+          {/* Backdrop - transparent on desktop, blocks on mobile */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2147483600] pointer-events-none"
+            className="fixed inset-0 z-[2147483600] pointer-events-none sm:pointer-events-none max-sm:pointer-events-auto max-sm:bg-black/10"
             style={{
-              background: 'transparent'
+              background: typeof window !== 'undefined' && window.innerWidth < 640 ? undefined : 'transparent'
             }}
           />
 
@@ -412,7 +439,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                       className={cn(
                         'max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
                         message.role === 'user'
-                          ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white/95 border border-blue-500/20'
+                          ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
                           : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto'
                       )}
                     >
@@ -501,7 +528,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                       )}
                       <p className={cn(
                         'text-xs mt-2 font-semibold',
-                        message.role === 'user' ? 'text-white/60 dark:text-white/75' : 'text-slate-500 dark:text-slate-400'
+                        message.role === 'user' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
                       )}>
                         {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                       </p>
