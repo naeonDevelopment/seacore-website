@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Brain, Globe } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -307,10 +309,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     
                     <div
                       className={cn(
-                        'max-w-[85%] sm:max-w-[70%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
+                        'max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
                         message.role === 'user'
                           ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
-                          : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
+                          : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto'
                       )}
                     >
                       {/* Thinking animation - shows before content starts */}
@@ -335,14 +337,61 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         </motion.div>
                       )}
                       
-                      {/* Message content */}
+                      {/* Message content with markdown support */}
                       {message.content && (
-                        <div className="text-sm sm:text-base leading-relaxed font-medium enterprise-body space-y-2">
-                          {message.content.split('\n\n').map((paragraph, pIdx) => (
-                            <p key={pIdx} className="whitespace-pre-wrap">
-                              {paragraph}
-                            </p>
-                          ))}
+                        <div className="text-sm sm:text-base leading-relaxed font-medium enterprise-body prose prose-slate dark:prose-invert max-w-none">
+                          {message.role === 'assistant' ? (
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                // Make links clickable and styled
+                                a: ({ node, ...props }) => (
+                                  <a
+                                    {...props}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 underline font-semibold break-words"
+                                  />
+                                ),
+                                // Style strong/bold (including **fleetcore**)
+                                strong: ({ node, ...props }) => (
+                                  <strong {...props} className="font-bold text-maritime-700 dark:text-maritime-300" />
+                                ),
+                                // Style code blocks
+                                code: ({ node, inline, ...props }: any) => 
+                                  inline ? (
+                                    <code {...props} className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-sm font-mono" />
+                                  ) : (
+                                    <code {...props} className="block px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-sm font-mono overflow-x-auto" />
+                                  ),
+                                // Style lists
+                                ul: ({ node, ...props }) => (
+                                  <ul {...props} className="list-disc list-inside space-y-1 my-2" />
+                                ),
+                                ol: ({ node, ...props }) => (
+                                  <ol {...props} className="list-decimal list-inside space-y-1 my-2" />
+                                ),
+                                // Style paragraphs
+                                p: ({ node, ...props }) => (
+                                  <p {...props} className="my-2 leading-relaxed" />
+                                ),
+                                // Style headings
+                                h1: ({ node, ...props }) => (
+                                  <h1 {...props} className="text-xl font-bold mt-4 mb-2" />
+                                ),
+                                h2: ({ node, ...props }) => (
+                                  <h2 {...props} className="text-lg font-bold mt-3 mb-2" />
+                                ),
+                                h3: ({ node, ...props }) => (
+                                  <h3 {...props} className="text-base font-bold mt-2 mb-1" />
+                                ),
+                              }}
+                            >
+                              {message.content}
+                            </ReactMarkdown>
+                          ) : (
+                            <div className="whitespace-pre-wrap">{message.content}</div>
+                          )}
                           {message.isStreaming && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse" />}
                         </div>
                       )}
