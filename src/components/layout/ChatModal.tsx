@@ -27,7 +27,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
-  const [useBrowsing, setUseBrowsing] = useState<boolean>(true);
+  const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Track the index of the currently streaming assistant message reliably
@@ -303,17 +303,35 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                           : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100'
                       )}
                     >
-                      {/* Chain of Thought shown above content while streaming */}
+                      {/* Chain of Thought shown above content with animation */}
                       {message.role === 'assistant' && message.thinking && (
-                        <div className="mb-3 p-3 rounded-xl bg-blue-50/80 dark:bg-slate-700/50 border border-blue-200/50 dark:border-slate-600/50 order-first">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Thinking</span>
+                        <motion.div 
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          className="mb-3 p-3 rounded-xl bg-gradient-to-br from-blue-50/90 via-indigo-50/80 to-purple-50/70 dark:from-slate-700/60 dark:via-slate-700/50 dark:to-slate-700/40 border border-blue-200/50 dark:border-slate-600/50 order-first shadow-sm"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 2, repeat: message.isStreaming ? Infinity : 0, ease: "linear" }}
+                            >
+                              <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </motion.div>
+                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                              {message.isStreaming ? 'Thinking...' : 'Chain of Thought'}
+                            </span>
                           </div>
-                          <p className="text-xs sm:text-sm text-blue-900/80 dark:text-blue-100/80 leading-relaxed italic font-medium">
+                          <motion.p 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3, delay: 0.2 }}
+                            className="text-xs sm:text-sm text-blue-900/80 dark:text-blue-100/80 leading-relaxed italic font-medium"
+                          >
                             {message.thinking}
-                          </p>
-                        </div>
+                            {message.isStreaming && <span className="inline-block w-1 h-3 ml-1 bg-blue-600 dark:bg-blue-400 animate-pulse" />}
+                          </motion.p>
+                        </motion.div>
                       )}
                       
                       <div className="text-sm sm:text-base leading-relaxed font-medium enterprise-body space-y-2">

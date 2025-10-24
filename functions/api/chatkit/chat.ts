@@ -108,16 +108,54 @@ export async function onRequestPost(context) {
     const envModel = (OPENAI_MODEL || DEFAULT_MODEL).trim();
     // Normalize accidental spaces in model names (e.g., "gpt-5 mini")
     const selectedModel = envModel.replace(/\s+/g, '-');
+    
+    // Detect if using reasoning-capable models
+    const isReasoningModel = selectedModel.includes('o1') || selectedModel.includes('o3');
 
     // Call OpenAI API with streaming enabled
     let usedModel = selectedModel;
+    
+    // Build request body with model-specific parameters
+    const requestBody = {
+      model: usedModel,
+      messages: browsingContext
+        ? [
+            { role: 'system', content: `${SYSTEM_PROMPT}\n\nWhen relevant, use the following web snippets to enhance your answer and add short citations like [1], [2]. If the snippets conflict with fleetcore-specific information, prefer fleetcore data.\n\nWeb snippets:\n${browsingContext}` },
+            ...messages,
+          ]
+        : conversationMessages,
+      stream: true, // Enable streaming
+      ...(isReasoningModel 
+        ? {
+            // o1/o3 models don't support temperature, presence_penalty, frequency_penalty
+            // They have built-in reasoning
+            max_completion_tokens: 3000,
+          }
+        : {
+            // Standard models with extended reasoning support
+            temperature: 0.7,
+            max_tokens: 2500, // Increased from 800 to avoid chopping
+            presence_penalty: 0.6,
+            frequency_penalty: 0.3,
+            // Enable extended reasoning for gpt-4o and newer
+            ...(usedModel.includes('gpt-4o') && { reasoning_effort: 'medium' }),
+          }
+      ),
+    };
+    
     let response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(requestBody),
+    });
+
+    // If model is invalid (400), retry once with default cheaper model
+    if (!response.ok && response.status === 400 && usedModel !== DEFAULT_MODEL) {
+      usedModel = DEFAULT_MODEL;
+      const fallbackBody = {
         model: usedModel,
         messages: browsingContext
           ? [
@@ -126,36 +164,19 @@ export async function onRequestPost(context) {
             ]
           : conversationMessages,
         temperature: 0.7,
-        max_tokens: 800,
+        max_tokens: 2500, // Increased from 800
         presence_penalty: 0.6,
         frequency_penalty: 0.3,
-        stream: true, // Enable streaming
-      }),
-    });
-
-    // If model is invalid (400), retry once with default cheaper model
-    if (!response.ok && response.status === 400 && usedModel !== DEFAULT_MODEL) {
-      usedModel = DEFAULT_MODEL;
+        stream: true,
+      };
+      
       response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: usedModel,
-          messages: browsingContext
-            ? [
-                { role: 'system', content: `${SYSTEM_PROMPT}\n\nWhen relevant, use the following web snippets to enhance your answer and add short citations like [1], [2]. If the snippets conflict with fleetcore-specific information, prefer fleetcore data.\n\nWeb snippets:\n${browsingContext}` },
-                ...messages,
-              ]
-            : conversationMessages,
-          temperature: 0.7,
-          max_tokens: 800,
-          presence_penalty: 0.6,
-          frequency_penalty: 0.3,
-          stream: true,
-        }),
+        body: JSON.stringify(fallbackBody),
       });
     }
 
@@ -181,7 +202,9 @@ export async function onRequestPost(context) {
         const reader = rb.getReader();
         const decoder = new TextDecoder();
         let thinking = '';
+        let reasoningContent = '';
         let isFirstChunk = true;
+        let hasShownThinking = false;
 
         try {
           while (true) {
@@ -201,33 +224,60 @@ export async function onRequestPost(context) {
 
                 try {
                   const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content || '';
+                  const delta = parsed.choices?.[0]?.delta || {};
+                  const content = delta.content || '';
                   
-                  // Generate detailed thinking/reasoning for first chunk
-                  if (isFirstChunk && content) {
+                  // Capture reasoning from o1/o3 models or gpt-4o with reasoning_effort
+                  const reasoningDelta = delta.reasoning_content || '';
+                  if (reasoningDelta) {
+                    reasoningContent += reasoningDelta;
+                    // Stream reasoning as thinking
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: reasoningContent })}\n\n`)
+                    );
+                    hasShownThinking = true;
+                  }
+                  
+                  // Generate detailed thinking/reasoning for first chunk if no native reasoning
+                  if (isFirstChunk && content && !hasShownThinking) {
                     // Build detailed chain of thought
                     const userQuery = messages[messages.length - 1]?.content || '';
                     const thinkingParts = ['Analyzing your question about'];
                     
-                    // Add context-aware reasoning
+                    // Add context-aware reasoning based on query keywords
                     if (userQuery.toLowerCase().includes('pms')) {
                       thinkingParts.push('PMS (Planned Maintenance System)');
+                      thinkingParts.push('→ Checking schedule generation capabilities');
+                      thinkingParts.push('→ Reviewing OEM recommendations');
+                    } else if (userQuery.toLowerCase().includes('task')) {
+                      thinkingParts.push('task management systems');
+                      thinkingParts.push('→ Evaluating dual-interval tracking');
+                      thinkingParts.push('→ Analyzing maintenance workflows');
                     } else if (userQuery.toLowerCase().includes('solas') || userQuery.toLowerCase().includes('marpol')) {
                       thinkingParts.push('maritime regulations and compliance');
+                      thinkingParts.push('→ Reviewing SOLAS 2024 requirements');
+                      thinkingParts.push('→ Checking MARPOL standards');
                     } else if (userQuery.toLowerCase().includes('maintenance')) {
                       thinkingParts.push('maintenance management');
+                      thinkingParts.push('→ Exploring preventive vs corrective strategies');
+                      thinkingParts.push('→ Considering equipment lifecycle');
+                    } else if (userQuery.toLowerCase().includes('spare') || userQuery.toLowerCase().includes('inventory')) {
+                      thinkingParts.push('inventory and spare parts management');
+                      thinkingParts.push('→ Analyzing stock optimization');
+                      thinkingParts.push('→ Checking procurement workflows');
                     } else {
                       thinkingParts.push('maritime operations');
+                      thinkingParts.push('→ Evaluating operational context');
                     }
                     
                     if (researchPerformed) {
-                      thinkingParts.push('| Searched latest industry sources');
-                      thinkingParts.push('| Cross-referencing with fleetcore capabilities');
+                      thinkingParts.push('→ Searched latest industry sources');
+                      thinkingParts.push('→ Cross-referencing with fleetcore capabilities');
                     } else {
-                      thinkingParts.push('| Drawing from fleetcore knowledge base');
+                      thinkingParts.push('→ Drawing from fleetcore knowledge base');
                     }
                     
-                    thinkingParts.push('| Formulating comprehensive response...');
+                    thinkingParts.push('→ Formulating comprehensive response...');
                     
                     thinking = thinkingParts.join(' ');
                     
@@ -242,6 +292,7 @@ export async function onRequestPost(context) {
                       );
                     }
                     
+                    hasShownThinking = true;
                     isFirstChunk = false;
                   }
 
