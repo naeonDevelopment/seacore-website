@@ -394,6 +394,21 @@ export async function onRequestPost(context) {
             enhancedQuery = `${specificEntity} ${currentQuery}`;
             console.log(`🔍 Enhanced query: "${currentQuery}" → "${enhancedQuery}"`);
           }
+        } else {
+          // NEW: Direct entity extraction for queries like "stanford marine", "maersk", "hapag lloyd"
+          // Look for maritime company patterns in the query itself
+          const directEntityMatch = currentQuery.match(/\b(owned by|operated by|fleet of|vessels? (?:of|from|by))\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3})/i);
+          if (directEntityMatch) {
+            specificEntity = directEntityMatch[2].trim();
+            console.log(`🔍 Direct entity extraction: "${specificEntity}"`);
+          } else {
+            // Fallback: Look for any capitalized multi-word entity
+            const capitalizedMatch = currentQuery.match(/\b([A-Z][A-Za-z]+\s+[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\b/);
+            if (capitalizedMatch) {
+              specificEntity = capitalizedMatch[1].trim();
+              console.log(`🔍 Capitalized entity found: "${specificEntity}"`);
+            }
+          }
         }
         
         // Tavily API configuration
@@ -559,16 +574,21 @@ export async function onRequestPost(context) {
           
           console.log(`🔍 ENTITY VERIFICATION: "${specificEntity}" mentioned in ${resultsWithEntity}/${topResults.length} sources (${(matchRate*100).toFixed(0)}% match rate)`);
           
-          // If < 40% of results mention the entity, likely wrong company/entity
-          if (matchRate < 0.4) {
+          // If < 30% of results mention the entity AND we have good-quality sources, likely wrong company
+          // More lenient threshold (30% instead of 40%) to reduce false rejections
+          if (matchRate < 0.3 && topResults.length >= 5) {
             console.warn(`⚠️ LOW ENTITY MATCH RATE: Only ${(matchRate*100).toFixed(0)}% of sources mention "${specificEntity}"`);
             console.warn(`⚠️ Search results may be about a different entity with a similar name`);
             
             // Inject warning into context instead of unreliable results
-            browsingContext = `⚠️ **ENTITY VERIFICATION WARNING**\n\nThe search for "${specificEntity}" returned results with LOW confidence:\n- Only ${resultsWithEntity} out of ${topResults.length} top sources actually mention "${specificEntity}"\n- Match rate: ${(matchRate*100).toFixed(0)}% (threshold: 40%)\n\n**This suggests the search may have found a different entity with a similar name.**\n\n**You MUST:**\n1. Acknowledge that search results are inconclusive or may refer to a different entity\n2. Ask the user to clarify the exact entity name, location, or provide more context\n3. DO NOT present information as if it's about the queried entity without strong verification\n\n**Example response:** "I found some results, but they appear to be about different companies or entities with similar names. Could you provide more specific details about [Entity], such as location, full company name, or other identifying information?"\n\n**DO NOT answer with unverified information.**`;
+            browsingContext = `⚠️ **ENTITY VERIFICATION WARNING**\n\nThe search for "${specificEntity}" returned results with LOW confidence:\n- Only ${resultsWithEntity} out of ${topResults.length} top sources actually mention "${specificEntity}"\n- Match rate: ${(matchRate*100).toFixed(0)}% (threshold: 30%)\n\n**This suggests the search may have found a different entity with a similar name.**\n\n**You MUST:**\n1. Acknowledge that search results are inconclusive or may refer to a different entity\n2. Ask the user to clarify the exact entity name, location, or provide more context\n3. DO NOT present information as if it's about the queried entity without strong verification\n\n**Example response:** "I found some results, but they appear to be about different companies or entities with similar names. Could you provide more specific details about [Entity], such as location, full company name, or other identifying information?"\n\n**DO NOT answer with unverified information.**`;
             
             researchPerformed = false;
             // Skip structured extraction for low-quality matches
+          } else if (matchRate < 0.5) {
+            // Match rate between 30-50%: Allow research but inject warning about medium confidence
+            console.warn(`⚠️ MEDIUM ENTITY MATCH RATE: ${(matchRate*100).toFixed(0)}% of sources mention "${specificEntity}"`);
+            console.warn(`⚠️ Proceeding with research but flagging medium confidence`);
           }
         }
         
