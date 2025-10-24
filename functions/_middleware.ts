@@ -565,50 +565,43 @@ export async function onRequest(context: {
   request: Request;
   env: Env;
   next: () => Promise<Response>;
-  waitUntil: (promise: Promise<any>) => void;
+  waitUntil?: (promise: Promise<any>) => void;
 }) {
-  const userAgent = context.request.headers.get('user-agent') || '';
-  const url = new URL(context.request.url);
-  const pathname = url.pathname;
-  
-  // Define SPA routes that need bot optimization
-  const spaRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
-  
-  // Enhanced edge caching with Cloudflare-specific optimizations
-  const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm)$/i.test(pathname);
-  
-  // Static assets - aggressive caching
-  if (isStaticAsset) {
-    const response = await context.next();
-    const newResponse = new Response(response.body, response);
+  try {
+    const userAgent = context.request.headers.get('user-agent') || '';
+    const url = new URL(context.request.url);
+    const pathname = url.pathname;
     
-    // Immutable assets (hashed filenames)
-    if (/\.[a-f0-9]{8,}\.(js|css)$/i.test(pathname)) {
-      newResponse.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    } else {
-      // Regular assets - 1 week cache
-      newResponse.headers.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+    // Define SPA routes that need bot optimization
+    const spaRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
+    
+    // Enhanced edge caching with Cloudflare-specific optimizations
+    const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm)$/i.test(pathname);
+    
+    // Static assets - aggressive caching
+    if (isStaticAsset) {
+      const response = await context.next();
+      const newResponse = new Response(response.body, response);
+      
+      // Immutable assets (hashed filenames)
+      if (/\.[a-f0-9]{8,}\.(js|css)$/i.test(pathname)) {
+        newResponse.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        // Regular assets - 1 week cache
+        newResponse.headers.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+      }
+      
+      return newResponse;
     }
     
-    return newResponse;
-  }
-  
-  // Check if this is a bot accessing an SPA route
-  if (isBot(userAgent) && spaRoutes.includes(pathname)) {
-    console.log(`[BOT DETECTED] ${userAgent.substring(0, 50)} -> ${pathname}`);
-    
-    // Check if we have cached bot content (Cloudflare edge cache)
-    const cacheKey = `bot:${pathname}`;
-    const cache = (caches as any).default;
-    
-    // Try to get from edge cache first
-    let cachedResponse = await cache.match(cacheKey);
-    
-    if (!cachedResponse) {
-      // Generate fresh content
+    // Check if this is a bot accessing an SPA route
+    if (isBot(userAgent) && spaRoutes.includes(pathname)) {
+      console.log(`[BOT DETECTED] ${userAgent.substring(0, 50)} -> ${pathname}`);
+      
+      // Generate optimized HTML for bots
       const html = generateBotHTML(pathname);
       
-      cachedResponse = new Response(html, {
+      const botResponse = new Response(html, {
         status: 200,
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
@@ -617,42 +610,52 @@ export async function onRequest(context: {
           'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
           'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
           'X-Content-Type-Options': 'nosniff',
-          'X-Cache-Status': 'MISS',
           'Vary': 'User-Agent',
           'CDN-Cache-Control': 'max-age=86400',
           'Cloudflare-CDN-Cache-Control': 'max-age=86400'
         }
       });
       
-      // Store in edge cache for 1 day
-      const cacheResponse = cachedResponse.clone();
-      context.waitUntil(cache.put(cacheKey, cacheResponse));
-    } else {
-      // Served from cache
-      const headers = new Headers(cachedResponse.headers);
-      headers.set('X-Cache-Status', 'HIT');
-      cachedResponse = new Response(cachedResponse.body, {
-        ...cachedResponse,
-        headers
-      });
+      // Optional: Try edge caching (non-blocking, won't fail if unavailable)
+      try {
+        if (typeof caches !== 'undefined' && caches.default) {
+          const cacheKey = new Request(`https://bot-cache/${pathname}`, { method: 'GET' });
+          const cache = caches.default;
+          
+          // Non-blocking cache write
+          if (context.waitUntil) {
+            context.waitUntil(cache.put(cacheKey, botResponse.clone()));
+          } else {
+            // Fire and forget if waitUntil not available
+            cache.put(cacheKey, botResponse.clone()).catch(() => {});
+          }
+        }
+      } catch (cacheError) {
+        // Silently ignore cache errors - content delivery is more important
+        console.log('[Cache] Optional caching failed, continuing...');
+      }
+      
+      return botResponse;
     }
     
-    return cachedResponse;
-  }
-  
-  // For regular users - HTML pages with smart caching
-  if (spaRoutes.includes(pathname)) {
-    const response = await context.next();
-    const newResponse = new Response(response.body, response);
+    // For regular users - HTML pages with smart caching
+    if (spaRoutes.includes(pathname)) {
+      const response = await context.next();
+      const newResponse = new Response(response.body, response);
+      
+      // SPA pages: short cache, always revalidate
+      newResponse.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, stale-while-revalidate=3600');
+      newResponse.headers.set('X-Content-Type-Options', 'nosniff');
+      newResponse.headers.set('X-Served-To', 'User');
+      
+      return newResponse;
+    }
     
-    // SPA pages: short cache, always revalidate
-    newResponse.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, stale-while-revalidate=3600');
-    newResponse.headers.set('X-Content-Type-Options', 'nosniff');
-    newResponse.headers.set('X-Served-To', 'User');
-    
-    return newResponse;
+    // For all other requests, pass through
+    return context.next();
+  } catch (error) {
+    // If middleware fails, pass through to avoid breaking the site
+    console.error('[Middleware Error]', error);
+    return context.next();
   }
-  
-  // For all other requests, pass through
-  return context.next();
 }
