@@ -686,5 +686,3 @@ export function generateHomeContent(): string {
 </html>
 `;
 }
-
-export { generateHomeContent };

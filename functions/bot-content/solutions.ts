@@ -327,5 +327,3 @@ export function generateSolutionsContent(): string {
 </html>
 `;
 }
-
-export { generateSolutionsContent };

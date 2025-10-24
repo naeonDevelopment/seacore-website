@@ -185,5 +185,3 @@ export function generatePrivacyPolicyContent(): string {
 </html>
 `;
 }
-
-export { generatePrivacyPolicyContent };

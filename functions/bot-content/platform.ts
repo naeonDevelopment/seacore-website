@@ -470,5 +470,3 @@ USING (
 </html>
 `;
 }
-
-export { generatePlatformContent };

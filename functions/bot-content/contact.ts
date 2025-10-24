@@ -100,5 +100,3 @@ export function generateContactContent(): string {
 </html>
 `;
 }
-
-export { generateContactContent };

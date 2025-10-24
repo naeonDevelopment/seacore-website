@@ -104,5 +104,3 @@ export function generateAboutContent(): string {
 </html>
 `;
 }
-
-export { generateAboutContent };

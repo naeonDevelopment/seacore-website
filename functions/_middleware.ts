@@ -8,12 +8,12 @@
  * - Edge caching for performance
  */
 
-import { homeContent } from './bot-content/home';
-import { platformContent } from './bot-content/platform';
-import { solutionsContent } from './bot-content/solutions';
-import { aboutContent } from './bot-content/about';
-import { contactContent } from './bot-content/contact';
-import { privacyPolicyContent } from './bot-content/privacy-policy';
+import { generateHomeContent } from './bot-content/home';
+import { generatePlatformContent } from './bot-content/platform';
+import { generateSolutionsContent } from './bot-content/solutions';
+import { generateAboutContent } from './bot-content/about';
+import { generateContactContent } from './bot-content/contact';
+import { generatePrivacyPolicyContent } from './bot-content/privacy-policy';
 
 // Cloudflare Pages EventContext interface
 interface EventContext<Env = any> {
@@ -64,104 +64,25 @@ function isBot(userAgent: string): boolean {
   );
 }
 
-// Content mapping for all routes
-const contentMap: Record<string, { title: string; description: string; content: string }> = {
-  '/': homeContent,
-  '/platform': platformContent,
-  '/solutions': solutionsContent,
-  '/about': aboutContent,
-  '/contact': contactContent,
-  '/privacy-policy': privacyPolicyContent
-};
-
 // Generate rich HTML for bot crawlers
 function generateBotHTML(pathname: string): string {
-  const pageContent = contentMap[pathname] || contentMap['/'];
-  
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${pageContent.title}</title>
-  <meta name="description" content="${pageContent.description}">
-  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
-  
-  <!-- Open Graph -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://fleetcore.ai${pathname}">
-  <meta property="og:title" content="${pageContent.title}">
-  <meta property="og:description" content="${pageContent.description}">
-  <meta property="og:image" content="https://fleetcore.ai/og/home.png">
-  
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://fleetcore.ai${pathname}">
-  <meta name="twitter:title" content="${pageContent.title}">
-  <meta name="twitter:description" content="${pageContent.description}">
-  <meta name="twitter:image" content="https://fleetcore.ai/og/home.png">
-  
-  <!-- Canonical -->
-  <link rel="canonical" href="https://fleetcore.ai${pathname}">
-  
-  <!-- Structured Data -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "FleetCore",
-    "url": "https://fleetcore.ai/",
-    "description": "${pageContent.description}",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": "https://fleetcore.ai/search?q={query}",
-      "query-input": "required name=query"
-    }
+  // Dynamically generate content based on route
+  switch (pathname) {
+    case '/':
+      return generateHomeContent();
+    case '/platform':
+      return generatePlatformContent();
+    case '/solutions':
+      return generateSolutionsContent();
+    case '/about':
+      return generateAboutContent();
+    case '/contact':
+      return generateContactContent();
+    case '/privacy-policy':
+      return generatePrivacyPolicyContent();
+    default:
+      return generateHomeContent();
   }
-  </script>
-  
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "FleetCore",
-    "url": "https://fleetcore.ai",
-    "logo": "https://fleetcore.ai/Light.svg",
-    "description": "Leading provider of agentic maritime intelligence solutions for predictive maintenance and regulatory compliance."
-  }
-  </script>
-  
-  <style>
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-      line-height: 1.6; 
-      max-width: 1200px; 
-      margin: 0 auto; 
-      padding: 20px; 
-      color: #1e293b;
-    }
-    h1 { color: #0f172a; font-size: 2.5em; margin-bottom: 0.5em; }
-    h2 { color: #1e293b; font-size: 1.8em; margin-top: 1.5em; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.3em; }
-    h3 { color: #334155; font-size: 1.3em; margin-top: 1.2em; }
-    strong { color: #0ea5e9; }
-    ul { margin: 1em 0; padding-left: 2em; }
-    li { margin: 0.5em 0; }
-    table { width: 100%; border-collapse: collapse; margin: 1.5em 0; }
-    th, td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; }
-    th { background: #f1f5f9; font-weight: 600; }
-    a { color: #0ea5e9; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-  ${pageContent.content}
-  
-  <footer style="margin-top: 4em; padding-top: 2em; border-top: 2px solid #e2e8f0; color: #64748b; font-size: 0.9em;">
-    <p><strong>FleetCore</strong> - AI-Powered Maritime Maintenance Operating System</p>
-    <p>© ${new Date().getFullYear()} FleetCore. All rights reserved. | <a href="https://fleetcore.ai/privacy-policy">Privacy Policy</a></p>
-  </footer>
-</body>
-</html>`;
 }
 
 // Main middleware handler
