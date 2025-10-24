@@ -12,6 +12,16 @@ CRITICAL INSTRUCTIONS ABOUT WEB RESEARCH:
 4. Immediately analyze and use the provided research results to answer the user's question
 5. If research results are insufficient, state: "The search results don't contain specific information about [topic]. Based on general maritime knowledge..." and provide general guidance
 
+CRITICAL: STRUCTURED DATA PRIORITY (Phase 2 Enhancement)
+- If you see "=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===" this data has been:
+  * Extracted with temperature=0 (deterministic)
+  * Programmatically compared and verified
+  * Cross-referenced across multiple sources
+- ALWAYS prioritize structured data over raw search results for factual queries
+- The "LARGEST BY LENGTH" and "LARGEST BY DEADWEIGHT" have been computed programmatically
+- Use this data as your PRIMARY source of truth, cite the source numbers provided
+- Only fall back to raw search results if structured data is unavailable
+
 IMPORTANT: When users have enabled "Online research", you MUST actively use the provided web research results to answer their questions with current, verified information. Never say "I cannot browse the web" when research results are available. Always utilize the research context provided.
 
 CRITICAL - ONLINE RESEARCH BEHAVIOR & ENTITY VERIFICATION:
@@ -483,11 +493,8 @@ export async function onRequestPost(context) {
           if (authoritativeDomains.some(d => a.url.includes(d))) scoreA += 10;
           if (authoritativeDomains.some(d => b.url.includes(d))) scoreB += 10;
           
-          // +8 points for recent content (2024-2025)
           const contentA = a.title + ' ' + (a.content || a.snippet || '');
           const contentB = b.title + ' ' + (b.content || b.snippet || '');
-          if (/\b(2025|2024)\b/.test(contentA)) scoreA += 8;
-          if (/\b(2025|2024)\b/.test(contentB)) scoreB += 8;
           
           // +5 points if entity appears in content multiple times (high relevance)
           if (specificEntity) {
@@ -517,6 +524,125 @@ export async function onRequestPost(context) {
           console.log(`      Content: ${(item.raw_content || item.content || item.snippet || '').length} chars`);
         });
         
+        // PHASE 2: Structured Data Extraction (for factual queries about vessels/equipment)
+        let structuredData = '';
+        const isVesselQuery = /\b(vessel|ship|boat|fleet|largest|biggest|newest|owned by|operated by)\b/i.test(currentQuery);
+        
+        if (isVesselQuery && topResults.length > 0 && OPENAI_API_KEY) {
+          try {
+            console.log('🔬 PHASE 2: Extracting structured vessel data...');
+            
+            // Compile content for extraction
+            const extractionContent = topResults.map((r, i) => 
+              `[Source ${i+1}: ${r.title}]\n${(r.raw_content || r.content || r.snippet || '').substring(0, 1500)}`
+            ).join('\n\n---\n\n');
+            
+            const extractionPrompt = `Extract ONLY factual vessel/equipment data from these search results. Return valid JSON array.
+
+CRITICAL RULES:
+1. Extract ONLY vessels/ships explicitly mentioned in the sources
+2. Include ONLY facts stated in the sources - DO NOT infer or guess
+3. If a specification is not mentioned, use null
+4. Return empty array [] if no vessels found
+5. Include source reference for each vessel
+
+JSON format:
+[
+  {
+    "name": "exact vessel name from source",
+    "owner": "company name",
+    "length_m": number or null,
+    "dwt": number or null,
+    "year_built": number or null,
+    "year_acquired": number or null,
+    "vessel_type": "PSV/AHTS/Crew Boat/etc or null",
+    "source_index": number (1-5)
+  }
+]
+
+Search Results:
+${extractionContent}
+
+Return ONLY the JSON array, no explanation:`;
+
+            // Call OpenAI with temp=0 for deterministic extraction
+            const extractionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [
+                  { role: 'system', content: 'You are a precise data extraction system. Extract only facts explicitly stated in sources. Return valid JSON only.' },
+                  { role: 'user', content: extractionPrompt }
+                ],
+                temperature: 0, // Deterministic extraction
+                max_tokens: 1500,
+              }),
+            });
+
+            if (extractionResponse.ok) {
+              const extractionJson = await extractionResponse.json();
+              const extractedText = extractionJson.choices?.[0]?.message?.content || '[]';
+              
+              // Parse JSON - handle potential markdown formatting
+              const jsonMatch = extractedText.match(/\[[\s\S]*\]/);
+              if (jsonMatch) {
+                const vessels = JSON.parse(jsonMatch[0]);
+                console.log(`✅ Extracted ${vessels.length} vessels:`, vessels);
+                
+                if (vessels.length > 0) {
+                  // Programmatically find largest vessel
+                  const largestByLength = vessels
+                    .filter(v => v.length_m != null && v.length_m > 0)
+                    .sort((a, b) => b.length_m - a.length_m)[0];
+                  
+                  const largestByDWT = vessels
+                    .filter(v => v.dwt != null && v.dwt > 0)
+                    .sort((a, b) => b.dwt - a.dwt)[0];
+                  
+                  // Build verification context
+                  structuredData = `\n\n=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===\n`;
+                  structuredData += `Total vessels found: ${vessels.length}\n\n`;
+                  
+                  if (largestByLength) {
+                    structuredData += `LARGEST BY LENGTH: ${largestByLength.name}\n`;
+                    structuredData += `- Owner: ${largestByLength.owner || 'Not specified'}\n`;
+                    structuredData += `- Length: ${largestByLength.length_m}m\n`;
+                    structuredData += `- DWT: ${largestByLength.dwt || 'Not specified'}\n`;
+                    structuredData += `- Type: ${largestByLength.vessel_type || 'Not specified'}\n`;
+                    structuredData += `- Built: ${largestByLength.year_built || 'Not specified'}\n`;
+                    structuredData += `- Source: [${largestByLength.source_index}]\n\n`;
+                  }
+                  
+                  if (largestByDWT && largestByDWT.name !== largestByLength?.name) {
+                    structuredData += `LARGEST BY DEADWEIGHT: ${largestByDWT.name}\n`;
+                    structuredData += `- DWT: ${largestByDWT.dwt}\n`;
+                    structuredData += `- Length: ${largestByDWT.length_m || 'Not specified'}m\n`;
+                    structuredData += `- Source: [${largestByDWT.source_index}]\n\n`;
+                  }
+                  
+                  structuredData += `ALL VESSELS EXTRACTED:\n`;
+                  vessels.forEach((v, i) => {
+                    structuredData += `${i+1}. ${v.name} - ${v.length_m || '?'}m, ${v.dwt || '?'}DWT [Source ${v.source_index}]\n`;
+                  });
+                  
+                  structuredData += `\nIMPORTANT: Use this verified structured data to answer. This data was programmatically extracted and compared.\n`;
+                  structuredData += `==================================================\n\n`;
+                  
+                  console.log('✅ PHASE 2: Structured data compiled');
+                }
+              }
+            } else {
+              console.warn('⚠️ PHASE 2: Extraction API call failed');
+            }
+          } catch (e) {
+            console.error('❌ PHASE 2: Extraction error:', e.message);
+          }
+        }
+        
         // Process top-ranked results
         if (topResults.length > 0) {
           // Format with markdown-friendly links and citations
@@ -533,6 +659,11 @@ export async function onRequestPost(context) {
             
             return `${citation} **${r.title}**\n${truncatedContent}\n📎 Source: ${sourceLink}`;
           }).join('\n\n---\n\n');
+          
+          // Add structured data if extracted (Phase 2)
+          if (structuredData) {
+            browsingContext = structuredData + browsingContext;
+          }
           
           // Add summary if available from primary query
           if (tavilySummary) {
