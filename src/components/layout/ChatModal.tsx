@@ -37,9 +37,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const streamingIndexRef = useRef<number | null>(null);
   const lastMessageCountRef = useRef<number>(0);
   
-  // Track keyboard visibility for mobile
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  // Track viewport dimensions for mobile keyboard handling
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
+  const [viewportTop, setViewportTop] = useState(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,94 +77,88 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     }
   }, [messages.length]);
 
+  // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
+      // Store original styles
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      
+      // Lock body scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      
+      // Focus input
       inputRef.current?.focus();
+      
+      return () => {
+        // Restore original styles
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.width = '';
+        document.body.style.height = '';
+      };
     }
   }, [isOpen]);
 
-  // Handle mobile keyboard visibility and viewport changes
+  // Handle mobile viewport changes (keyboard appearance)
   useEffect(() => {
     if (!isOpen) return;
 
-    // Visual Viewport API for precise keyboard detection
-    const handleViewportResize = () => {
+    const updateViewportDimensions = () => {
       if (typeof window === 'undefined') return;
       
       const visualViewport = window.visualViewport;
-      if (!visualViewport) return;
-
-      // Calculate keyboard height
-      const windowHeight = window.innerHeight;
-      const viewportHeight = visualViewport.height;
-      const heightDiff = windowHeight - viewportHeight;
-
-      // Keyboard is likely visible if there's significant height difference
-      const keyboardVisible = heightDiff > 100;
-      
-      setIsKeyboardVisible(keyboardVisible);
-      setKeyboardHeight(keyboardVisible ? heightDiff : 0);
-
-      // Scroll input into view when keyboard appears
-      if (keyboardVisible && document.activeElement === inputRef.current) {
-        scrollInputIntoView();
+      if (visualViewport) {
+        // Use Visual Viewport API for accurate dimensions
+        setViewportHeight(visualViewport.height);
+        setViewportTop(visualViewport.offsetTop);
+        
+        // Scroll input into view when keyboard appears
+        if (document.activeElement === inputRef.current) {
+          scrollInputIntoView();
+        }
+      } else {
+        // Fallback for browsers without Visual Viewport API
+        setViewportHeight(window.innerHeight);
+        setViewportTop(0);
       }
     };
 
-    // Fallback for browsers without visualViewport API
-    const handleResize = () => {
-      if (typeof window === 'undefined' || window.visualViewport) return;
-      
-      const windowHeight = window.innerHeight;
-      const screenHeight = window.screen.height;
-      const heightDiff = screenHeight - windowHeight;
-      
-      const keyboardVisible = heightDiff > 200;
-      setIsKeyboardVisible(keyboardVisible);
-      setKeyboardHeight(keyboardVisible ? heightDiff : 0);
-    };
+    // Initial update
+    updateViewportDimensions();
 
     // Handle input focus - ensure input is visible
     const handleFocus = () => {
-      setIsKeyboardVisible(true);
       scrollInputIntoView();
-    };
-
-    // Handle input blur - reset keyboard state
-    const handleBlur = () => {
-      // Small delay to allow keyboard to fully hide
-      setTimeout(() => {
-        setIsKeyboardVisible(false);
-        setKeyboardHeight(0);
-      }, 100);
     };
 
     // Add event listeners
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleViewportResize);
-      window.visualViewport.addEventListener('scroll', handleViewportResize);
+      window.visualViewport.addEventListener('resize', updateViewportDimensions);
+      window.visualViewport.addEventListener('scroll', updateViewportDimensions);
     } else {
-      window.addEventListener('resize', handleResize);
+      window.addEventListener('resize', updateViewportDimensions);
     }
 
     const inputElement = inputRef.current;
     if (inputElement) {
       inputElement.addEventListener('focus', handleFocus);
-      inputElement.addEventListener('blur', handleBlur);
     }
 
     // Cleanup
     return () => {
       if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleViewportResize);
-        window.visualViewport.removeEventListener('scroll', handleViewportResize);
+        window.visualViewport.removeEventListener('resize', updateViewportDimensions);
+        window.visualViewport.removeEventListener('scroll', updateViewportDimensions);
       } else {
-        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('resize', updateViewportDimensions);
       }
 
       if (inputElement) {
         inputElement.removeEventListener('focus', handleFocus);
-        inputElement.removeEventListener('blur', handleBlur);
       }
     };
   }, [isOpen]);
@@ -336,19 +330,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Backdrop with maritime gradient overlay */}
+          {/* Backdrop - blocks clicks and scrolling */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2147483600] pointer-events-none"
+            className="fixed inset-0 z-[2147483600] bg-black/20"
             style={{
-              background: 'transparent'
+              touchAction: 'none'
             }}
           />
 
-          {/* Modal - Mobile: full screen with margins, Desktop: centered with max-width */}
+          {/* Modal - Mobile: full viewport, Desktop: centered with max-width */}
           <motion.div
             initial={{ opacity: 0, y: 100 }}
             animate={{ opacity: 1, y: 0 }}
@@ -359,10 +353,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
               opacity: { duration: 0.3 }
             }}
             style={{
-              // On mobile, adjust height when keyboard is visible
-              height: isKeyboardVisible && window.innerWidth < 640 
-                ? `calc(100vh - ${keyboardHeight}px)` 
-                : undefined
+              // On mobile, use Visual Viewport dimensions to fit above keyboard
+              ...(typeof window !== 'undefined' && window.innerWidth < 640 ? {
+                position: 'fixed',
+                top: `${viewportTop}px`,
+                left: 0,
+                right: 0,
+                height: `${viewportHeight}px`,
+                maxHeight: `${viewportHeight}px`
+              } : {})
             }}
             className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:left-auto sm:top-auto sm:w-[min(36rem,90vw)] sm:h-[min(80vh,44rem)] backdrop-blur-2xl bg-white/85 dark:bg-slate-900/85 border border-white/20 dark:border-slate-700/30 rounded-none sm:rounded-3xl shadow-2xl z-[2147483601] flex flex-col overflow-hidden"
           >
