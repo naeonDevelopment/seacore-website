@@ -77,40 +77,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     }
   }, [messages.length]);
 
-  // Lock body scroll when modal is open
+  // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Store original styles and scroll position
-      const originalOverflow = document.body.style.overflow;
-      const originalPosition = document.body.style.position;
-      const originalTop = document.body.style.top;
-      const originalLeft = document.body.style.left;
-      const originalRight = document.body.style.right;
-      const originalWidth = document.body.style.width;
-      const scrollY = window.scrollY;
-      
-      // Lock body scroll with proper constraints (left + right = auto width, no overflow)
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.overflow = 'hidden';
-      
-      // Focus input
       inputRef.current?.focus();
-      
-      return () => {
-        // Restore original styles
-        document.body.style.position = originalPosition;
-        document.body.style.top = originalTop;
-        document.body.style.left = originalLeft;
-        document.body.style.right = originalRight;
-        document.body.style.width = originalWidth;
-        document.body.style.overflow = originalOverflow;
-        
-        // Restore scroll position
-        window.scrollTo(0, scrollY);
-      };
     }
   }, [isOpen]);
 
@@ -341,15 +311,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Backdrop - blocks clicks and scrolling */}
+          {/* Backdrop - transparent, allows interaction with page behind */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2147483600] bg-black/20"
+            className="fixed inset-0 z-[2147483600] pointer-events-none"
             style={{
-              touchAction: 'none'
+              background: 'transparent'
             }}
           />
 
