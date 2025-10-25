@@ -311,6 +311,52 @@ export function generateSolutionsContent(): string {
     <li><strong>Market Opportunity:</strong> Ship management companies seeking manufacturer-agnostic solutions</li>
   </ul>
   
+  <h2>🤖 AI Expert: Compare Solutions & Make Decisions</h2>
+  <p><strong>Not Sure If fleetcore Is Right For You?</strong> Ask our AI assistant to compare, explain, and help you evaluate:</p>
+  
+  <h3>Questions To Help Your Decision</h3>
+  <table>
+    <tr>
+      <th>Your Concern</th>
+      <th>Ask the AI</th>
+    </tr>
+    <tr>
+      <td>Understanding the main advantage</td>
+      <td>"Explain schedule-specific hours tracking in simple terms"<br>"Why is it better than traditional PMS?"</td>
+    </tr>
+    <tr>
+      <td>Comparing to your current system</td>
+      <td>"How does fleetcore compare to [your current CMMS]?"<br>"What features am I missing in my current system?"</td>
+    </tr>
+    <tr>
+      <td>Implementation concerns</td>
+      <td>"How long does implementation take?"<br>"What's the migration process from legacy PMS?"</td>
+    </tr>
+    <tr>
+      <td>Cost justification</td>
+      <td>"What ROI can I expect?"<br>"How does fleetcore reduce unplanned downtime?"</td>
+    </tr>
+    <tr>
+      <td>Technical requirements</td>
+      <td>"What IT infrastructure do I need?"<br>"Does it work offline on vessels?"</td>
+    </tr>
+    <tr>
+      <td>Compliance verification</td>
+      <td>"How does fleetcore help with PSC inspections?"<br>"SOLAS 2024 compliance features?"</td>
+    </tr>
+  </table>
+  
+  <h3>Get Intelligent Comparisons</h3>
+  <p><strong>Enable "Online Research" mode</strong> to compare fleetcore with other maritime software:</p>
+  <ul>
+    <li><strong>"Compare fleetcore with [Competitor X] features"</strong> - AI researches both platforms and gives factual comparison with sources</li>
+    <li><strong>"What do maritime operators say about [Traditional CMMS]?"</strong> - Get industry feedback and pain points</li>
+    <li><strong>"Latest maritime maintenance software trends"</strong> - Understand what's happening in the industry</li>
+    <li><strong>"SOLAS 2024 requirements for PMS systems"</strong> - Verify compliance needs for your decision</li>
+  </ul>
+  
+  <p><strong>Make Informed Decisions:</strong> The AI helps you evaluate fleetcore objectively, answers technical questions, and provides comparison data - all with cited sources.</p>
+
   <h3>Get Started</h3>
   <p><strong>Maritime operators interested in early adoption:</strong></p>
   <ul>

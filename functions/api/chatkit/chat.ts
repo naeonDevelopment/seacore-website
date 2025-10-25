@@ -17,12 +17,71 @@ import {
 
 const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital transformation specialist for **fleetcore**.ai - the world's most advanced Maritime Maintenance Operating System.
 
-CRITICAL INSTRUCTIONS ABOUT WEB RESEARCH:
-1. When you see "=== WEB RESEARCH RESULTS ===" in your context, the search has ALREADY been performed
-2. NEVER say "I will search" or "Please hold on while I find information" - the results are already provided
-3. NEVER say "Searching..." or indicate you need to perform a search - just use the results
-4. Immediately analyze and use the provided research results to answer the user's question
-5. If research results are insufficient, state: "The search results don't contain specific information about [topic]. Based on general maritime knowledge..." and provide general guidance
+# OPERATING MODES
+
+## MODE 1: EXPERT MODE (Default - No Research Context)
+When you DO NOT see "=== RESEARCH CONTEXT ===" or "=== WEB RESEARCH RESULTS ===" in the context:
+
+**Your Expertise Scope:**
+- **fleetcore** system features, capabilities, and implementation
+- SOLAS 2024, MARPOL, ISM Code, and maritime regulations (general knowledge)
+- Vessel types, equipment categories, and maintenance concepts (general)
+- Classification societies, port state control, flag state requirements (general)
+- Maritime compliance, safety management, and operational best practices (general)
+
+**What You CAN answer confidently:**
+✅ "Explain SOLAS Chapter II-2 requirements" → Answer from training
+✅ "What is a DP2 vessel?" → Answer from training
+✅ "How does **fleetcore** handle maintenance scheduling?" → Answer from training
+✅ "What are MARPOL Annex VI regulations?" → Answer from training
+
+**What You CANNOT answer (requires research):**
+❌ Questions about specific vessels: "What is the biggest vessel owned by Stanford Marine?"
+❌ Questions about specific companies: "Tell me about Dynamic Marine Services fleet"
+❌ Questions about specific equipment specs: "What are the specs of Dynamic 17?"
+❌ Current/recent maritime news or developments
+
+**CRITICAL: Detecting Specific Entity Queries**
+
+Queries about SPECIFIC entities require online research. These include:
+- Named vessels: "Dynamic 17", "MV Seacore", "Stanford Buzzard"
+- Named companies: "Stanford Marine", "Dynamic Marine Services", "Maersk"
+- Specific equipment models: "Caterpillar 3516B", "Wärtsilä 20DF"
+- Company fleet queries: "What vessels does [Company] own?"
+- "Biggest/largest/newest vessel owned by [Company]"
+
+**When you detect a specific entity query, respond with:**
+
+"📊 To answer questions about **specific vessels, companies, or equipment**, please enable the **'Online research'** toggle (located at the top of the chat).
+
+This allows me to search authoritative sources like:
+- Company websites and fleet databases
+- Vessel registries and technical specifications
+- Manufacturer documentation and equipment specs
+
+Without research enabled, I can help you with:
+✅ **fleetcore** system features and implementation
+✅ Maritime regulations (SOLAS, MARPOL, ISM Code)
+✅ Vessel types and classification concepts
+✅ Maintenance best practices and compliance
+
+Would you like to enable research, or would you prefer I answer a general maritime question?"
+
+**Important:** 
+- NEVER give weak answers like "I don't have specific information" without suggesting research
+- ALWAYS guide users to the research toggle for entity-specific queries
+- Make it clear that research toggle exists and why it's needed
+
+## MODE 2: RESEARCH MODE (When Web Research Enabled)
+When you SEE "=== RESEARCH CONTEXT ===" or "=== WEB RESEARCH RESULTS ===" in the context:
+- Web research has been performed and sources are provided
+- Sources are ranked by authority (official sources first, then manufacturers, then technical docs, then news)
+- NEVER say "I will search" or "Please hold on" - the results are already provided
+- Immediately analyze and use the provided sources to answer the user's question
+- CITE sources [1][2][3] for EVERY factual statement - this builds trust
+- End responses with "**Sources:**" section listing all cited URLs
+- If research results are insufficient but general knowledge applies: "While the search didn't find specifics about [X], here's what I know about [general topic]..."
+- Trust your intelligence - you are capable of filtering relevant from irrelevant information in search results
 
 CRITICAL: STRUCTURED DATA PRIORITY (Phase 2 & 3 Enhancement)
 - If you see "=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===" this data has been:
@@ -39,33 +98,32 @@ CRITICAL: STRUCTURED DATA PRIORITY (Phase 2 & 3 Enhancement)
 - Use this data as your PRIMARY source of truth, cite the source numbers provided
 - Only fall back to raw search results if structured data is unavailable
 
-IMPORTANT: When users have enabled "Online research", you MUST actively use the provided web research results to answer their questions with current, verified information. Never say "I cannot browse the web" when research results are available. Always utilize the research context provided.
+## RESEARCH MODE - ENTITY VERIFICATION (MANDATORY when in Research Mode)
 
-CRITICAL - ONLINE RESEARCH BEHAVIOR & ENTITY VERIFICATION:
+When answering from web research, follow these verification steps:
 
-**STEP 1: ENTITY DISAMBIGUATION (MANDATORY)**
-If a query mentions a company name that could refer to multiple entities:
+**STEP 1: ENTITY DISAMBIGUATION**
+If a query mentions a company/vessel that could refer to multiple entities:
 1. Check if location/country is specified (e.g., "Dynamic Marine Services UAE" vs just "Dynamic Marine")
-2. If NO location specified and multiple companies exist with similar names:
-   - STOP and ask: "I found multiple companies with similar names. Which one do you mean: [Company A in Location X], [Company B in Location Y]?"
-   - DO NOT attempt to answer until user clarifies
-3. If location IS specified, verify search results match that exact company in that location
-4. Remember the company+location for the entire conversation - use this context for follow-up questions
+2. If NO location specified and you see multiple entities in results:
+   - Ask: "I found multiple companies with similar names. Which one: [Company A in Location X], [Company B in Location Y]?"
+   - Wait for clarification
+3. If location IS specified, verify search results match that exact entity
+4. Remember the entity+location for the entire conversation
 
-**STEP 2: SEARCH RESULT VERIFICATION (MANDATORY)**
-Before using search results to answer:
-1. Check if results mention the EXACT company name + location from the query
-2. If results are about a DIFFERENT company (even with similar name):
-   - State: "The search results appear to be about [Different Company/Location]. I need to verify you meant [Query Company]. Can you confirm?"
-   - DO NOT provide information about the wrong company
-3. Only proceed if results clearly match the company user asked about
+**STEP 2: RESULT RELEVANCE CHECK**
+Before using search results:
+1. Check if results mention the EXACT entity from the query
+2. If results are about a DIFFERENT entity (even with similar name):
+   - State: "The search results appear to be about [Different Entity]. Can you confirm you meant [Query Entity]?"
+   - DO NOT provide information about the wrong entity
+3. Only proceed if confident results match the user's query
 
-**STEP 3: CONSISTENCY CHECK (MANDATORY)**
+**STEP 3: CONSISTENCY CHECK**
 - Review your previous responses in the conversation
-- If your new answer contradicts a previous answer, acknowledge this: "I apologize, my earlier response was inconsistent. Based on current research, the correct information is..."
-- Never give different answers to the same question without acknowledgment
+- If giving a different answer now, acknowledge: "I apologize for the earlier inconsistency. Based on current research, the accurate information is..."
 
-**STEP 4: TECHNICAL ANALYSIS** (only after Steps 1-3 pass)
+**STEP 4: TECHNICAL ANALYSIS** (after verification passes)
 1. **Extract Specific Details**: 
    - Exact model numbers, manufacturer names, technical specifications
    - OEM maintenance intervals, component part numbers
@@ -177,69 +235,40 @@ You possess deep expertise in:
 - Maintenance efficiency metrics (scheduled vs emergency)
 - ROI calculation: cost savings + efficiency gains + uptime impact
 
-# ONLINE RESEARCH REQUIREMENTS (When Web Research is Enabled)
+## RESEARCH MODE - QUALITY STANDARDS (When web research is enabled)
 
-When providing information from online research, you MUST:
+When providing information from web research, ensure:
 
-## MARITIME EQUIPMENT & MACHINERY
-**Required**:
-- ✅ Cite specific manufacturer documentation (model numbers, part numbers)
-- ✅ Reference OEM maintenance intervals with source
-- ✅ Include equipment specifications from official sources
-- ✅ Verify compatibility information from manufacturer websites
+### Maritime Equipment & Machinery
+- Cite specific manufacturer documentation (model numbers, part numbers) with source [1]
+- Reference OEM maintenance intervals from official sources [2]
+- Include equipment specifications with authoritative citations
+- Example: "Caterpillar 3516B requires oil changes every 500 hours per Cat maintenance manual [1]"
 
-**Examples**:
-- "Caterpillar 3516B requires oil changes every 500 hours per Cat maintenance manual section 7.2 [1]"
-- "Wärtsilä 20DF uses spark plugs P/N 300-8262-0 with 8,000h replacement interval [2]"
+### Maritime Compliance & Regulations  
+- Cite specific SOLAS regulation chapters with sources (e.g., "SOLAS Chapter II-1, Regulation 26 [1]")
+- Reference MARPOL Annex with regulation number and effective date
+- Include dates for regulatory changes
+- Example: "SOLAS 2024 Chapter II-2 Regulation 10 requires annual fire-fighting equipment inspection [1]"
 
-**Never**:
-- ❌ Generic maintenance advice without manufacturer verification
-- ❌ Approximate intervals ("around 500 hours")
-- ❌ Unverified compatibility claims
+### Spare Parts & Components
+- Official part numbers from manufacturer catalogs with sources
+- Cross-reference numbers from verified suppliers
+- Lead times from authorized distributors
+- Example: "Mann+Hummel WK 8110 fuel filter (OE ref: 51.12503-0107) [1]"
 
-## MARITIME COMPLIANCE & REGULATIONS
-**Required**:
-- ✅ Cite specific SOLAS regulation chapters (e.g., "SOLAS Chapter II-1, Regulation 26")
-- ✅ Reference MARPOL Annex with regulation number
-- ✅ Include effective dates for regulatory changes
-- ✅ Link to official IMO or classification society documents
-
-**Examples**:
-- "SOLAS 2024 Chapter II-2 Regulation 10 requires annual fire-fighting equipment inspection [1]"
-- "MARPOL Annex VI Regulation 14 limits sulphur content to 0.50% m/m globally as of Jan 2020 [2]"
-
-**Never**:
-- ❌ Regulatory advice without official source citation
-- ❌ Outdated compliance information
-- ❌ Generalized "maritime law" statements
-
-## SPARE PARTS & COMPONENTS
-**Required**:
-- ✅ Official part numbers from manufacturer catalogs
-- ✅ Cross-reference numbers from verified suppliers
-- ✅ Lead times from authorized distributors
-- ✅ Technical specifications (dimensions, materials, certifications)
-
-**Examples**:
-- "Mann+Hummel WK 8110 fuel filter (OE ref: 51.12503-0107) - 7-10 day lead time via Wrist Ship Supply [1]"
-
-**Never**:
-- ❌ Generic "equivalent" parts without verification
-- ❌ Pricing without source (prices vary by region/supplier)
-- ❌ Availability claims without current verification
-
-## CITATION FORMAT
-Every researched fact MUST include:
-- [1], [2], [3] inline citations
+### Citation Format (Research Mode Only)
+- [1], [2], [3] inline citations for every fact from research
+- End with "**Sources:**" section listing all URLs
 - Source type: Manufacturer manual, IMO regulation, Classification society rule
 - Date of information (for time-sensitive data)
 
 **Example Response with Research**:
-"The MAN B&W 6S50MC-C requires cylinder oil with BN 70-100 for high-sulfur fuel operation [1]. MARPOL Annex VI allows max 3.5% sulfur in ECAs, requiring BN adjustment [2]. **fleetcore**'s parts management tracks oil consumption per cylinder, alerting when consumption exceeds 1.2g/kWh baseline [**fleetcore** feature]."
+"The MAN B&W 6S50MC-C requires cylinder oil with BN 70-100 for high-sulfur fuel operation [1]. MARPOL Annex VI allows max 3.5% sulfur in ECAs [2]. **fleetcore**'s parts management tracks oil consumption per cylinder [**fleetcore** feature]."
 
-Citations:
-[1] MAN Energy Solutions, "Lubricating Oil for Two-Stroke Engines", 2023
-[2] IMO MARPOL Annex VI, Regulation 14, effective January 2020
+**Sources:**
+[1] MAN Energy Solutions, "Lubricating Oil for Two-Stroke Engines", 2023 - https://...
+[2] IMO MARPOL Annex VI, Regulation 14 - https://...
 
 ## **fleetcore**-SPECIFIC INFORMATION (No Research Needed)
 Always prioritize **fleetcore** platform capabilities over general industry information:
@@ -361,20 +390,41 @@ export async function onRequestPost(context) {
     let researchPerformed = false;
     if (enableBrowsing && TAVILY_API_KEY) {
       try {
-        // Build context-aware search query by including relevant entities from recent conversation
+        // MARITIME-AWARE ENTITY EXTRACTION
+        // Detect vessel names, companies, equipment with maritime-specific patterns
         const currentQuery = messages[messages.length - 1]?.content || '';
         let enhancedQuery = currentQuery;
         let specificEntity = '';
         
-        // Extract company/entity name with location if mentioned
-        // Look for patterns like "Dynamic Marine Services UAE", "Company Name Country"
-        const companyWithLocationMatch = currentQuery.match(/([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,4})\s+(UAE|United Arab Emirates|USA|Singapore|UK|China|Japan|Korea|Norway|Germany|France|Italy|Spain|Netherlands|Denmark|Sweden)/i);
+        // PATTERN 1: Vessel identification (IMO numbers, call signs, vessel names)
+        const vesselPatterns = [
+          /\b(IMO\s*\d{7})\b/i,                                    // IMO numbers
+          /\b(M\/V|MV|AHTS|PSV|OSV|FSV)\s+([A-Z][A-Za-z0-9\s]+)/i, // Vessel type + name
+          /\b([A-Z][a-z]+\s+\d{1,3})\b/,                           // Name + Number (e.g., "Dynamic 17")
+          /\b([A-Z][a-z]+\s+[A-Z][a-z]+\s+\d{1,3})\b/,             // Multi-word + Number
+        ];
         
-        if (companyWithLocationMatch) {
-          // Found company with location - use this for precise search
-          specificEntity = `${companyWithLocationMatch[1]} ${companyWithLocationMatch[2]}`;
-          console.log(`🔍 Detected company with location: "${specificEntity}"`);
-        } else if (/\b(this|that|the|it|its|their)\b\s+(ship|vessel|equipment|system|company|fleet)/i.test(currentQuery)) {
+        for (const pattern of vesselPatterns) {
+          const match = currentQuery.match(pattern);
+          if (match) {
+            specificEntity = match[1] || match[0];
+            console.log(`🚢 Detected vessel identifier: "${specificEntity}"`);
+            break;
+          }
+        }
+        
+        // PATTERN 2: Company with location (e.g., "Dynamic Marine Services UAE")
+        if (!specificEntity) {
+          const companyWithLocationMatch = currentQuery.match(/([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,4})\s+(UAE|United Arab Emirates|USA|Singapore|UK|China|Japan|Korea|Norway|Germany|France|Italy|Spain|Netherlands|Denmark|Sweden)/i);
+          
+          if (companyWithLocationMatch) {
+            specificEntity = `${companyWithLocationMatch[1]} ${companyWithLocationMatch[2]}`;
+            console.log(`🏢 Detected company with location: "${specificEntity}"`);
+          }
+        }
+        
+        // PATTERN 3: Pronoun reference - look back in conversation
+        if (!specificEntity && /\b(this|that|the|it|its|their)\b\s+(ship|vessel|equipment|system|company|fleet)/i.test(currentQuery)) {
           // Query contains pronouns - look back in conversation history
           const recentContext = messages.slice(-5).map(m => m.content).join(' ');
           
@@ -414,7 +464,9 @@ export async function onRequestPost(context) {
           }
         }
         
-        // Tavily API configuration with SPECIALIZED DOCUMENTATION SOURCES
+        // Tavily API configuration - OPEN SEARCH with smart spam filtering
+        // Strategy: Let Tavily search the entire web, then rank results by authority
+        // This matches ChatGPT's approach (unrestricted Bing search)
         const tavilyConfig = {
           headers: { 
             'Content-Type': 'application/json',
@@ -422,44 +474,71 @@ export async function onRequestPost(context) {
             'x-api-key': TAVILY_API_KEY,
           },
           domains: {
-            include: [
-              // TIER 1: Technical Documentation & Manuals (HIGHEST PRIORITY)
-              'catpublications.com',      // Caterpillar official docs
-              'marinedieselbasics.com',   // Marine diesel manuals & maintenance guides
-              'epcatalogs.com',            // Electronic spare part catalogues
-              'scribd.com',                // Technical documents repository
-              'slideshare.net',            // Technical presentations
-              'manualslib.com',            // Equipment manuals library
-              
-              // TIER 2: OEM Manufacturer Sites
-              'caterpillar.com', 'cat.com', 'perkins.com',
-              'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com',
-              'cummins.com', 'mtu-online.com', 'detroit.com',
-              'alfalaval.com', 'kongsberg.com', 'yanmar.com',
-              
-              // TIER 3: Classification Societies & Standards
-              'dnv.com', 'lr.org', 'abs.org', 'rina.org',
-              'imo.org', 'classnk.or.jp', 'bureauveritas.com',
-              
-              // TIER 4: Maritime News & Publications
-              'marinelink.com', 'marinelog.com', 'safety4sea.com',
-              'gcaptain.com', 'offshoreenergytoday.com', 'marineinsight.com',
-              'ship-technology.com', 'maritime-executive.com', 'seatrade-maritime.com'
+            // NO WHITELIST - search entire web like ChatGPT does
+            // Only exclude spam/low-quality domains
+            exclude: [
+              'reddit.com', 'facebook.com', 'twitter.com', 'instagram.com',
+              'pinterest.com', 'tiktok.com', 'youtube.com', // Social media
+              'quora.com', 'answers.yahoo.com', // Q&A sites with unverified answers
+              'aliexpress.com', 'alibaba.com', // E-commerce spam
+            ]
+          },
+          // Authority ranking for post-search prioritization
+          authorityDomains: {
+            tier1_official: [
+              // Vessel operators & technical databases
+              'marinetraffic.com',
+              'vesselfinder.com', 'vesselregister.com', 'equasis.org', 'fleetmon.com',
+              // Classification societies
+              'dnv.com', 'lr.org', 'abs.org', 'rina.org', 'imo.org', 'classnk.or.jp', 'bureauveritas.com',
             ],
-            exclude: ['wikipedia.org', 'reddit.com', 'facebook.com']
+            tier2_manufacturers: [
+              'caterpillar.com', 'cat.com', 'wartsila.com', 'man-es.com', 'wingd.com',
+              'rolls-royce.com', 'cummins.com', 'mtu-online.com', 'yanmar.com',
+              'alfalaval.com', 'kongsberg.com', 'furuno.com', 'volvo.com',
+            ],
+            tier3_technical: [
+              'catpublications.com', 'marinedieselbasics.com', 'epcatalogs.com',
+              'scribd.com', 'slideshare.net', 'manualslib.com',
+            ],
+            tier4_news: [
+              'marinelink.com', 'marinelog.com', 'safety4sea.com', 'gcaptain.com',
+              'offshoreenergytoday.com', 'marineinsight.com', 'ship-technology.com',
+              'maritime-executive.com', 'seatrade-maritime.com',
+            ]
           }
         };
         
-        // Multi-query strategy to aggregate up to 28 sources (Tavily limit: 20 per query)
+        // MARITIME-OPTIMIZED QUERY STRATEGY
+        // Detect query type and optimize search terms accordingly
+        const isVesselQuery = /vessel|ship|boat|fleet|mv|m\/v/i.test(currentQuery);
+        const isEquipmentQuery = /equipment|machinery|system|engine|generator|pump|thruster/i.test(currentQuery);
+        const isSpecificationQuery = /specification|spec|datasheet|technical|overview|details/i.test(currentQuery);
+        
         const queries = [
           { query: enhancedQuery, maxResults: 20, label: 'Primary' }
         ];
         
-        // Add complementary query if we have a specific entity (for deeper research)
+        // Add complementary query based on query type
         if (specificEntity) {
-          // Second query focuses on technical specifications and OEM data
-          const complementaryQuery = `${specificEntity} OEM maintenance specifications technical documentation`;
-          queries.push({ query: complementaryQuery, maxResults: 8, label: 'Technical' });
+          let complementaryQuery = '';
+          
+          if (isVesselQuery && isEquipmentQuery) {
+            // Query like "Dynamic 17 vessel equipment overview" - add specification focus
+            complementaryQuery = `"${specificEntity}" technical specifications datasheet equipment list`;
+          } else if (isVesselQuery) {
+            // General vessel query - add vessel database terms
+            complementaryQuery = `"${specificEntity}" vessel particulars specifications`;
+          } else if (isEquipmentQuery) {
+            // Equipment query - add OEM/manufacturer focus
+            complementaryQuery = `"${specificEntity}" OEM maintenance manual specifications`;
+          } else {
+            // Generic entity query
+            complementaryQuery = `"${specificEntity}" technical documentation specifications`;
+          }
+          
+          queries.push({ query: complementaryQuery, maxResults: 10, label: 'Technical' });
+          console.log(`🎯 Maritime-optimized complementary query: "${complementaryQuery}"`);
         }
         
         console.log(`🔍 Performing ${queries.length} research queries for up to 28 sources`);
@@ -479,7 +558,7 @@ export async function onRequestPost(context) {
               query, 
               search_depth: 'advanced',
               max_results: maxResults,
-              include_domains: tavilyConfig.domains.include,
+              // NO WHITELIST - search entire web like ChatGPT
               exclude_domains: tavilyConfig.domains.exclude,
               include_answer: label === 'Primary', // Only get summary from primary query
               include_raw_content: true
@@ -516,53 +595,153 @@ export async function onRequestPost(context) {
         
         console.log(`📊 Total unique sources: ${allResults.length} from ${queries.length} queries`);
         
-        // UNIVERSAL VERIFICATION SYSTEM: Rank results by authority and relevance
+        // INTELLIGENT RANKING: Dynamic operator detection + smart prioritization
+        // Step 1: Scan all results to detect vessel operator/owner
+        let detectedOperator = '';
+        let operatorDomain = '';
+        
+        if (isVesselQuery && specificEntity) {
+          // Look for ownership patterns in all results
+          const ownershipPatterns = [
+            // Direct ownership statements
+            /owned by\s+([A-Z][A-Za-z\s\-&]+(?:Marine|Maritime|Shipping|Services|Group|Fleet|Offshore|LLC|Ltd|Inc|DMS|UAE|GmbH|AS|SA))/i,
+            /operated by\s+([A-Z][A-Za-z\s\-&]+(?:Marine|Maritime|Shipping|Services|Group|Fleet|Offshore|LLC|Ltd|Inc|DMS|UAE|GmbH|AS|SA))/i,
+            
+            // Structured data patterns (common in vessel specs)
+            /operator[:\s]+([A-Z][A-Za-z\s\-&]+(?:Marine|Maritime|Shipping|Services|Group|Fleet|Offshore|LLC|Ltd|Inc|DMS|UAE|GmbH|AS|SA))/i,
+            /owner[:\s]+([A-Z][A-Za-z\s\-&]+(?:Marine|Maritime|Shipping|Services|Group|Fleet|Offshore|LLC|Ltd|Inc|DMS|UAE|GmbH|AS|SA))/i,
+            /management[:\s]+([A-Z][A-Za-z\s\-&]+(?:Marine|Maritime|Shipping|Services|Group|Fleet|Offshore|LLC|Ltd|Inc|DMS|UAE|GmbH|AS|SA))/i,
+            
+            // Domain-based detection (e.g., from dynamicmarine.net)
+            /fleet of\s+([A-Z][A-Za-z\s\-&]+(?:Marine|Maritime|Shipping|Services|Group|Fleet|Offshore|DMS|UAE))/i,
+            /([A-Z][A-Za-z\s\-&]+(?:Marine|Maritime|Shipping|Services|Group|Fleet|Offshore|DMS|UAE))['']s fleet/i,
+          ];
+          
+          for (const result of allResults) {
+            const content = result.title + ' ' + (result.raw_content || result.content || result.snippet || '');
+            
+            for (const pattern of ownershipPatterns) {
+              const match = content.match(pattern);
+              if (match) {
+                detectedOperator = match[1].trim();
+                // Extract domain from this result's URL
+                const urlMatch = result.url.match(/^https?:\/\/(?:www\.)?([^\/]+)/);
+                if (urlMatch) {
+                  operatorDomain = urlMatch[1];
+                  console.log(`🏢 SMART DETECTION: Vessel "${specificEntity}" operated by "${detectedOperator}" (${operatorDomain})`);
+                  break;
+                }
+              }
+            }
+            if (detectedOperator) break;
+          }
+          
+          // Fallback: If no operator found via patterns, check if any result is from a maritime company domain
+          // that mentions the vessel multiple times (likely the operator's site)
+          if (!detectedOperator) {
+            const domainMentions = new Map<string, number>();
+            
+            for (const result of allResults) {
+              const content = (result.title + ' ' + (result.raw_content || result.content || result.snippet || '')).toLowerCase();
+              const entityLower = specificEntity.toLowerCase();
+              const mentions = (content.match(new RegExp(entityLower.replace(/\s+/g, '\\s+'), 'g')) || []).length;
+              
+              if (mentions >= 3) { // Vessel mentioned 3+ times = likely operator's site
+                const urlMatch = result.url.match(/^https?:\/\/(?:www\.)?([^\/]+)/);
+                if (urlMatch) {
+                  const domain = urlMatch[1];
+                  domainMentions.set(domain, (domainMentions.get(domain) || 0) + mentions);
+                }
+              }
+            }
+            
+            if (domainMentions.size > 0) {
+              // Get domain with most mentions
+              const topDomain = Array.from(domainMentions.entries())
+                .sort((a, b) => b[1] - a[1])[0];
+              
+              if (topDomain[1] >= 5) { // High confidence threshold
+                operatorDomain = topDomain[0];
+                // Try to extract company name from domain
+                const domainParts = operatorDomain.replace(/\.(com|net|org|ae|uk|no)$/, '').split('.');
+                detectedOperator = domainParts[0].charAt(0).toUpperCase() + domainParts[0].slice(1) + ' Marine';
+                console.log(`🏢 SMART DETECTION (fallback): Likely operator domain "${operatorDomain}" (${topDomain[1]} vessel mentions)`);
+              }
+            }
+          }
+        }
+        
+        // Step 2: Rank results with dynamic operator prioritization
         const rankedResults = allResults.sort((a, b) => {
           let scoreA = 0, scoreB = 0;
           
-          // +20 points if title contains specific entity (exact match)
+          // +40 points: HIGHEST PRIORITY - Result from detected operator's website
+          if (operatorDomain && (a.url.includes(operatorDomain) || a.url.includes(operatorDomain.replace(/\.[^.]+$/, '')))) {
+            scoreA += 40;
+            console.log(`  🎯 Boosting result from operator's site: ${a.url}`);
+          }
+          if (operatorDomain && (b.url.includes(operatorDomain) || b.url.includes(operatorDomain.replace(/\.[^.]+$/, '')))) {
+            scoreB += 40;
+          }
+          
+          // +30 points: Exact entity match in title
           if (specificEntity && a.title.toLowerCase().includes(specificEntity.toLowerCase())) {
-            scoreA += 20;
+            scoreA += 30;
           }
           if (specificEntity && b.title.toLowerCase().includes(specificEntity.toLowerCase())) {
-            scoreB += 20;
+            scoreB += 30;
           }
           
-          // +15 points for HIGHLY authoritative domains (official sources, class societies)
-          const highAuthorityDomains = [
-            'imo.org', 'dnv.com', 'lr.org', 'abs.org', 'rina.org',
-            'wartsila.com', 'man-es.com', 'wingd.com', 'rolls-royce.com', 'caterpillar.com',
-          ];
+          // +25 points: Tier 1 Official Sources (vessel databases, class societies)
+          const tier1Domains = tavilyConfig.authorityDomains.tier1_official;
+          if (tier1Domains.some(d => a.url.includes(d))) scoreA += 25;
+          if (tier1Domains.some(d => b.url.includes(d))) scoreB += 25;
           
-          // +10 points for authoritative maritime domains (news, publications)
-          const authoritativeDomains = [
-            'marinelink.com', 'gcaptain.com', 'safety4sea.com',
-            'maritime-executive.com', 'seatrade-maritime.com',
-            'offshoreenergytoday.com', 'marinelog.com', 'ship-technology.com',
-          ];
+          // +20 points: Tier 2 Manufacturers (OEMs)
+          const tier2Domains = tavilyConfig.authorityDomains.tier2_manufacturers;
+          if (tier2Domains.some(d => a.url.includes(d))) scoreA += 20;
+          if (tier2Domains.some(d => b.url.includes(d))) scoreB += 20;
           
-          if (highAuthorityDomains.some(d => a.url.includes(d))) scoreA += 15;
-          if (highAuthorityDomains.some(d => b.url.includes(d))) scoreB += 15;
-          if (authoritativeDomains.some(d => a.url.includes(d))) scoreA += 10;
-          if (authoritativeDomains.some(d => b.url.includes(d))) scoreB += 10;
+          // +15 points: Tier 3 Technical Documentation
+          const tier3Domains = tavilyConfig.authorityDomains.tier3_technical;
+          if (tier3Domains.some(d => a.url.includes(d))) scoreA += 15;
+          if (tier3Domains.some(d => b.url.includes(d))) scoreB += 15;
           
-          const contentA = a.title + ' ' + (a.content || a.snippet || '');
-          const contentB = b.title + ' ' + (b.content || b.snippet || '');
+          // +10 points: Tier 4 Maritime News & Publications
+          const tier4Domains = tavilyConfig.authorityDomains.tier4_news;
+          if (tier4Domains.some(d => a.url.includes(d))) scoreA += 10;
+          if (tier4Domains.some(d => b.url.includes(d))) scoreB += 10;
           
-          // +10 points if entity appears in content multiple times (high relevance)
+          // +15 points: Entity appears multiple times in content (relevance)
+          const contentA = a.title + ' ' + (a.raw_content || a.content || a.snippet || '');
+          const contentB = b.title + ' ' + (b.raw_content || b.content || b.snippet || '');
+          
           if (specificEntity) {
             const entityRegex = new RegExp(specificEntity.replace(/\s+/g, '\\s+'), 'gi');
             const matchesA = (contentA.match(entityRegex) || []).length;
             const matchesB = (contentB.match(entityRegex) || []).length;
-            scoreA += Math.min(matchesA * 3, 10);
-            scoreB += Math.min(matchesB * 3, 10);
+            scoreA += Math.min(matchesA * 3, 15);
+            scoreB += Math.min(matchesB * 3, 15);
           }
           
-          // +5 points for longer content (more detailed)
+          // +10 points: Long, detailed content (technical depth)
           const lengthA = (a.raw_content || a.content || a.snippet || '').length;
           const lengthB = (b.raw_content || b.content || b.snippet || '').length;
-          if (lengthA > 2000) scoreA += 5;
-          if (lengthB > 2000) scoreB += 5;
+          if (lengthA > 2000) scoreA += 10;
+          if (lengthB > 2000) scoreB += 10;
+          
+          // +8 points: Detected operator name in content (relationship relevance)
+          if (detectedOperator && contentA.toLowerCase().includes(detectedOperator.toLowerCase())) {
+            scoreA += 8;
+          }
+          if (detectedOperator && contentB.toLowerCase().includes(detectedOperator.toLowerCase())) {
+            scoreB += 8;
+          }
+          
+          // +5 points: Maritime-specific keywords in content
+          const maritimeKeywords = /specification|datasheet|equipment|technical|particulars|vessel|machinery/i;
+          if (maritimeKeywords.test(contentA)) scoreA += 5;
+          if (maritimeKeywords.test(contentB)) scoreB += 5;
           
           return scoreB - scoreA; // Higher score first
         });
@@ -572,12 +751,18 @@ export async function onRequestPost(context) {
         
         // Detailed logging
         console.log(`🎯 RANKED TOP ${topResults.length} SOURCES (from ${allResults.length} total):`);
+        if (detectedOperator) {
+          console.log(`   🏢 Operator Detection: "${detectedOperator}" (${operatorDomain})`);
+        }
         topResults.forEach((item, idx) => {
-          console.log(`  [${idx+1}] ${item.title} - ${item.url}`);
+          const isOperatorSite = operatorDomain && item.url.includes(operatorDomain);
+          const marker = isOperatorSite ? '⭐' : '  ';
+          console.log(`${marker}[${idx+1}] ${item.title} - ${item.url}`);
           console.log(`      Content: ${(item.raw_content || item.content || item.snippet || '').length} chars`);
         });
         
-        // ENTITY VERIFICATION: Check if results actually match the query
+        // LIGHTWEIGHT ENTITY VERIFICATION: Log match rate but don't block results
+        // This matches ChatGPT's approach - trust ranking + LLM intelligence over strict filtering
         if (specificEntity && topResults.length > 0) {
           const entityMentionCounts = topResults.map(r => {
             const content = (r.title + ' ' + (r.raw_content || r.content || r.snippet || '')).toLowerCase();
@@ -591,24 +776,19 @@ export async function onRequestPost(context) {
           const resultsWithEntity = entityMentionCounts.filter(count => count > 0).length;
           const matchRate = resultsWithEntity / topResults.length;
           
-          console.log(`🔍 ENTITY VERIFICATION: "${specificEntity}" mentioned in ${resultsWithEntity}/${topResults.length} sources (${(matchRate*100).toFixed(0)}% match rate)`);
+          console.log(`🔍 ENTITY MATCH RATE: "${specificEntity}" mentioned in ${resultsWithEntity}/${topResults.length} sources (${(matchRate*100).toFixed(0)}%)`);
           
-          // If < 30% of results mention the entity AND we have good-quality sources, likely wrong company
-          // More lenient threshold (30% instead of 40%) to reduce false rejections
-          if (matchRate < 0.3 && topResults.length >= 5) {
-            console.warn(`⚠️ LOW ENTITY MATCH RATE: Only ${(matchRate*100).toFixed(0)}% of sources mention "${specificEntity}"`);
-            console.warn(`⚠️ Search results may be about a different entity with a similar name`);
-            
-            // Inject warning into context instead of unreliable results
-            browsingContext = `⚠️ **ENTITY VERIFICATION WARNING**\n\nThe search for "${specificEntity}" returned results with LOW confidence:\n- Only ${resultsWithEntity} out of ${topResults.length} top sources actually mention "${specificEntity}"\n- Match rate: ${(matchRate*100).toFixed(0)}% (threshold: 30%)\n\n**This suggests the search may have found a different entity with a similar name.**\n\n**You MUST:**\n1. Acknowledge that search results are inconclusive or may refer to a different entity\n2. Ask the user to clarify the exact entity name, location, or provide more context\n3. DO NOT present information as if it's about the queried entity without strong verification\n\n**Example response:** "I found some results, but they appear to be about different companies or entities with similar names. Could you provide more specific details about [Entity], such as location, full company name, or other identifying information?"\n\n**DO NOT answer with unverified information.**`;
-            
-            researchPerformed = false;
-            // Skip structured extraction for low-quality matches
+          // Log warnings but DON'T block - let LLM decide
+          if (matchRate < 0.3) {
+            console.warn(`⚠️ LOW entity match rate: ${(matchRate*100).toFixed(0)}% - LLM will validate relevance`);
           } else if (matchRate < 0.5) {
-            // Match rate between 30-50%: Allow research but inject warning about medium confidence
-            console.warn(`⚠️ MEDIUM ENTITY MATCH RATE: ${(matchRate*100).toFixed(0)}% of sources mention "${specificEntity}"`);
-            console.warn(`⚠️ Proceeding with research but flagging medium confidence`);
+            console.log(`ℹ️ Medium entity match rate: ${(matchRate*100).toFixed(0)}% - acceptable for broader searches`);
+          } else {
+            console.log(`✅ High entity match rate: ${(matchRate*100).toFixed(0)}%`);
           }
+          
+          // ALWAYS proceed with results - trust the LLM to filter irrelevant content
+          // This is how ChatGPT works: provide context, let AI decide what's relevant
         }
         
         // Process top-ranked results FIRST to set researchPerformed flag
@@ -634,125 +814,66 @@ export async function onRequestPost(context) {
           console.log('⚠️ No research results returned from any query');
         }
         
-        // UNIVERSAL VERIFICATION SYSTEM: Apply to ALL factual queries, not just vessels
+        // FAST MODE: Skip heavy verification pipeline (ChatGPT-style)
+        // The multi-stage verification (6+ API calls) is only used for high-stakes queries
+        // For most queries, we trust LLM intelligence with raw sources (2 API calls total)
+        const ENABLE_DEEP_VERIFICATION = false; // Set to true for critical compliance/safety queries
+        
         let structuredData = '';
         let verificationMetadata: any = null;
         
-        // Classify query to determine if verification needed
-        const classification = classifyQuery(currentQuery);
-        console.log(`🔍 Query Classification:`, classification);
-        
-        // Apply verification for factual queries that passed entity check
-        if (classification.requiresSearch && classification.type === 'factual' && topResults.length > 0 && OPENAI_API_KEY && researchPerformed) {
+        if (ENABLE_DEEP_VERIFICATION && topResults.length > 0 && OPENAI_API_KEY && researchPerformed) {
+          // DEEP VERIFICATION MODE (6+ API calls) - for high-stakes queries
+          const classification = classifyQuery(currentQuery);
+          console.log(`🔬 DEEP VERIFICATION MODE: ${classification.domain} query`);
+          
           try {
-            console.log(`🔬 DISTRIBUTED VERIFICATION SYSTEM: Starting ${classification.domain} query verification...`);
-            
-            // STEP 1: Extract entities
             const entities = await extractEntities(currentQuery, topResults, OPENAI_API_KEY);
-            console.log(`🏢 Extracted ${entities.length} entities from sources`);
-            
-            // STEP 2: Normalize data into structured format
             const normalizedData = await normalizeData(currentQuery, topResults, entities, OPENAI_API_KEY);
-            console.log(`📐 Normalized ${normalizedData.length} data points`);
-            
-            // STEP 3: Comparative analysis (if needed)
             let comparativeAnalysis: any = null;
+            
             if (classification.requiresComparison && normalizedData.length > 0) {
-              console.log(`⚖️ Performing comparative analysis...`);
               comparativeAnalysis = await performComparativeAnalysis(currentQuery, normalizedData, entities, OPENAI_API_KEY);
             }
             
-            // STEP 4: Extract claims from all sources (with normalized data)
             const claims = await extractClaims(currentQuery, topResults, normalizedData, OPENAI_API_KEY);
-            console.log(`📋 Extracted ${claims.length} claims from sources`);
             
-            if (claims.length === 0) {
-              console.warn('⚠️ No claims could be extracted - sources may not contain relevant information');
-              structuredData = `\n\n⚠️ **INSUFFICIENT DATA**\n\nThe search results do not contain sufficient factual information to answer this query reliably.\n\nYou MUST:\n1. Acknowledge that specific information is not available in current sources\n2. Provide only general knowledge (if appropriate)\n3. Suggest the user verify with authoritative sources or provide more context\n\n**DO NOT fabricate information.**\n\n`;
-            } else {
-              // STEP 5: Verify claims based on verification level (with comparative analysis)
+            if (claims.length > 0) {
               const verification = verifyClaims(claims, classification.verificationLevel, comparativeAnalysis);
-              console.log(`✓ Verification result: ${verification.verified ? 'PASSED' : 'FAILED'} (${verification.confidence.toFixed(0)}% confidence)`);
               
-              verificationMetadata = {
-                queryType: classification.type,
-                domain: classification.domain,
-                verificationLevel: classification.verificationLevel,
-                claimsExtracted: claims.length,
-                verified: verification.verified,
-                confidence: verification.confidence,
-                supportingSources: verification.supportingSources,
-                conflictDetected: verification.conflictDetected,
-              };
-              
-              // STEP 6: Build structured data context for the AI
-              structuredData = `\n\n=== DISTRIBUTED VERIFICATION SYSTEM RESULTS ===\n`;
-              structuredData += `Query Type: ${classification.type} | Domain: ${classification.domain}\n`;
-              structuredData += `Verification Level: ${classification.verificationLevel.toUpperCase()}\n`;
-              structuredData += `Entities Found: ${entities.length}\n`;
-              structuredData += `Normalized Data Points: ${normalizedData.length}\n`;
-              structuredData += `Overall Confidence: ${verification.confidence.toFixed(0)}%\n`;
-              structuredData += `Verification Status: ${verification.verified ? '✅ PASSED' : '⚠️ FAILED'}\n`;
-              structuredData += `Reason: ${verification.reason}\n\n`;
-              
-              // Add comparative analysis if available
-              if (comparativeAnalysis && comparativeAnalysis.winner) {
-                structuredData += `\n=== COMPARATIVE ANALYSIS ===\n`;
-                structuredData += `Attribute: ${comparativeAnalysis.attribute}\n`;
-                structuredData += `Winner: ${comparativeAnalysis.winner.entity}\n`;
-                structuredData += `Value: ${comparativeAnalysis.winner.value}\n`;
-                structuredData += `Reason: ${comparativeAnalysis.winner.reason}\n`;
-                structuredData += `Confidence: ${comparativeAnalysis.winner.confidence}%\n\n`;
-              }
-              
-              if (!verification.verified) {
-                structuredData += `⚠️ **VERIFICATION FAILED** - ${verification.reason}\n\n`;
-                structuredData += `You MUST acknowledge this in your response. Do NOT present unverified information as fact.\n\n`;
-              }
-              
-              // Add all claims with evidence
-              structuredData += `=== VERIFIED CLAIMS (${claims.length} total) ===\n\n`;
+              structuredData = `\n\n=== DEEP VERIFICATION RESULTS ===\n`;
+              structuredData += `Entities: ${entities.length} | Data Points: ${normalizedData.length} | Claims: ${claims.length}\n`;
+              structuredData += `Confidence: ${verification.confidence.toFixed(0)}% | Status: ${verification.verified ? '✅ PASSED' : '⚠️ FAILED'}\n\n`;
               
               claims.forEach((claim, idx) => {
-                const statusEmoji = claim.confidence >= 70 ? '✅' : claim.confidence >= 50 ? '⚠️' : '❌';
-                structuredData += `${statusEmoji} CLAIM ${idx + 1}: ${claim.claim}\n`;
-                structuredData += `   Type: ${claim.claimType} | Confidence: ${claim.confidence}%\n`;
-                structuredData += `   Sources: [${claim.sources.join(', ')}]\n`;
-                
-                if (claim.evidence && claim.evidence.length > 0) {
-                  structuredData += `   Evidence:\n`;
-                  claim.evidence.forEach(e => {
-                    structuredData += `     • "${e}"\n`;
-                  });
-                }
-                
-                if (claim.contradictions && claim.contradictions.length > 0) {
-                  structuredData += `   ⚠️ CONTRADICTIONS:\n`;
-                  claim.contradictions.forEach(c => {
-                    structuredData += `     • ${c}\n`;
-                  });
-                }
-                
-                structuredData += `\n`;
+                const emoji = claim.confidence >= 70 ? '✅' : claim.confidence >= 50 ? '⚠️' : '❌';
+                structuredData += `${emoji} CLAIM ${idx + 1}: ${claim.claim}\n`;
+                structuredData += `   Confidence: ${claim.confidence}% | Sources: [${claim.sources.join(', ')}]\n\n`;
               });
               
-              // Add usage instructions
-              structuredData += `\n=== MANDATORY ANSWER REQUIREMENTS ===\n`;
-              structuredData += `1. Use ONLY the claims above - DO NOT add information not present in claims\n`;
-              structuredData += `2. Cite sources [1][2][3] for EVERY factual statement\n`;
-              structuredData += `3. If verification failed, acknowledge uncertainty explicitly\n`;
-              structuredData += `4. If contradictions exist, present multiple viewpoints\n`;
-              structuredData += `5. For low-confidence claims (< 70%), use phrases like "According to [source]" instead of stating as absolute truth\n`;
-              structuredData += `6. End response with "**Sources:**" section listing all cited sources with URLs\n\n`;
-              
-              structuredData += `==================================================\n\n`;
-              
-              console.log(`✅ DISTRIBUTED VERIFICATION: Complete with ${entities.length} entities, ${normalizedData.length} data points, ${claims.length} claims (${verification.confidence.toFixed(0)}% confidence)`);
+              console.log(`✅ Deep verification: ${verification.confidence.toFixed(0)}% confidence`);
+            }
+          } catch (e) {
+            console.error('❌ Deep verification error:', e.message);
+            structuredData = `\n\n⚠️ Verification error - answering from raw sources\n\n`;
+          }
+        } else {
+          // FAST MODE (2 API calls: search + answer) - ChatGPT-style
+          console.log(`⚡ FAST MODE: Providing ${topResults.length} sources directly to LLM (ChatGPT-style)`);
+          
+          // Add lightweight metadata for context
+          if (topResults.length > 0) {
+            structuredData = `\n\n=== RESEARCH CONTEXT (${topResults.length} sources) ===\n`;
+            structuredData += `ℹ️ Sources ranked by authority and relevance\n`;
+            
+            // Add operator detection context if found
+            if (detectedOperator && operatorDomain) {
+              structuredData += `🏢 SMART DETECTION: Vessel "${specificEntity}" is operated by "${detectedOperator}" (${operatorDomain})\n`;
+              structuredData += `⭐ Results from operator's official website have been prioritized\n`;
             }
             
-          } catch (e) {
-            console.error('❌ DISTRIBUTED VERIFICATION: Error:', e.message);
-            structuredData = `\n\n⚠️ **VERIFICATION ERROR**\n\nAn error occurred during the distributed verification process. Please answer cautiously based on the source content provided, and cite all sources explicitly.\n\n`;
+            structuredData += `ℹ️ Cite sources [1][2][3] for all factual statements\n`;
+            structuredData += `ℹ️ End with "**Sources:**" section listing URLs\n\n`;
           }
         }
         
@@ -817,43 +938,49 @@ export async function onRequestPost(context) {
     }
     
     // Build request body with model-specific parameters
+    // When research is enabled, OVERRIDE system prompt to emphasize RESEARCH MODE
+    const effectiveSystemPrompt = browsingContext 
+      ? `${SYSTEM_PROMPT}
+
+🔬 **YOU ARE NOW IN RESEARCH MODE** 🔬
+
+Web research has been performed and results are provided below. You MUST follow these MANDATORY rules:
+
+**RULE #1: MANDATORY SOURCE CITATIONS**
+- CITE SOURCES [1][2][3] for EVERY factual statement
+- End response with "**Sources:**" section listing ALL URLs with titles
+- Format: **Sources:**
+           [1] Page Title - https://example.com/page1
+           [2] Page Title - https://example.com/page2
+- **NO CITATIONS = FAILED RESPONSE**
+
+**RULE #2: NO GENERIC ANSWERS ALLOWED**
+- ❌ NEVER use phrases like: "Typically equipped with...", "Usually features...", "Approximately...", "Generally includes..."
+- ❌ NEVER provide generic equipment descriptions without specific model numbers/manufacturers from sources
+- ✅ ONLY provide SPECIFIC information directly from the search results with citations
+- ✅ If search results lack specific details, explicitly state: "The search results don't contain specific technical details about [entity]. Based on the available information: [cite what you found]"
+
+**RULE #3: SEARCH RESULT VERIFICATION**
+1. Check if results mention the EXACT entity the user asked about
+2. If results are about a different or generic entity, acknowledge this
+3. Don't fabricate specifics - stick to what's actually in the sources
+
+**RULE #4: QUALITY CHECK**
+Before submitting your answer, verify:
+- [ ] Every fact has a [citation]
+- [ ] No "typically" or "usually" without source backing
+- [ ] "**Sources:**" section is present at the end
+- [ ] All sources are actually from the research results provided
+
+**REMEMBER:** In research mode, your job is to EXTRACT and CITE from sources, NOT to provide general maritime knowledge. Generic answers without citations = FAILURE.`
+      : SYSTEM_PROMPT;
+
     const requestBody = {
       model: usedModel,
       messages: browsingContext
         ? [
-            { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL: MANDATORY VERIFICATION STEPS BEFORE ANSWERING**
-
-**STEP 1 - ENTITY VERIFICATION (MANDATORY):**
-1. What EXACT company did the user ask about? Check the conversation history.
-2. Is a location/country specified? (e.g., "Dynamic Marine Services UAE" has location, "Dynamic Marine" does not)
-3. If NO location and you know multiple companies exist with this name:
-   - IMMEDIATELY ask: "I found multiple companies with similar names. Which one: [List options with locations]?"
-   - STOP. Do not attempt to answer.
-4. If location IS specified, check: Do the search results match this EXACT company + location?
-
-**STEP 2 - RESULT MATCHING (MANDATORY):**
-- Scan search results for company name + location mentions
-- If results are about DIFFERENT company: "Search results appear to be about [Other Company]. Can you confirm you meant [Query Company]?"
-- If results don't clearly match: "I couldn't find specific information about [Query Company] in the search results. Can you verify the company name and location?"
-- Only proceed if confident results match the user's query
-
-**STEP 3 - CONSISTENCY CHECK (MANDATORY):**
-- Review your previous responses about this company
-- If giving a different answer now: "I apologize for the earlier inconsistency. Based on current research, the accurate information is..."
-- Be consistent or explicitly acknowledge changes
-
-**STEP 4 - ANSWER FORMATTING (only after Steps 1-3 pass):**
-- Use research results to provide accurate, current information
-- Cite sources [1], [2], etc. inline for every fact
-- End with "**Sources:**" section: "Source 1: [URL](URL)" on separate lines
-- Preserve ALL markdown formatting
-- Prioritize **fleetcore**-specific information when relevant
-
-**ABSOLUTE RULES:**
-- NEVER answer about the wrong company
-- NEVER give inconsistent answers without acknowledgment
-- NEVER say you cannot browse when research results are provided
-- ALWAYS ask for clarification when entity is ambiguous` },
+            { role: 'system', content: effectiveSystemPrompt },
+            { role: 'system', content: `=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}` },
             ...messages,
           ]
         : conversationMessages,
@@ -892,39 +1019,8 @@ export async function onRequestPost(context) {
         model: usedModel,
         messages: browsingContext
           ? [
-              { role: 'system', content: `${SYSTEM_PROMPT}\n\n=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}\n\n**CRITICAL: MANDATORY VERIFICATION STEPS BEFORE ANSWERING**
-
-**STEP 1 - ENTITY VERIFICATION (MANDATORY):**
-1. What EXACT company did the user ask about? Check the conversation history.
-2. Is a location/country specified? (e.g., "Dynamic Marine Services UAE" has location, "Dynamic Marine" does not)
-3. If NO location and you know multiple companies exist with this name:
-   - IMMEDIATELY ask: "I found multiple companies with similar names. Which one: [List options with locations]?"
-   - STOP. Do not attempt to answer.
-4. If location IS specified, check: Do the search results match this EXACT company + location?
-
-**STEP 2 - RESULT MATCHING (MANDATORY):**
-- Scan search results for company name + location mentions
-- If results are about DIFFERENT company: "Search results appear to be about [Other Company]. Can you confirm you meant [Query Company]?"
-- If results don't clearly match: "I couldn't find specific information about [Query Company] in the search results. Can you verify the company name and location?"
-- Only proceed if confident results match the user's query
-
-**STEP 3 - CONSISTENCY CHECK (MANDATORY):**
-- Review your previous responses about this company
-- If giving a different answer now: "I apologize for the earlier inconsistency. Based on current research, the accurate information is..."
-- Be consistent or explicitly acknowledge changes
-
-**STEP 4 - ANSWER FORMATTING (only after Steps 1-3 pass):**
-- Use research results to provide accurate, current information
-- Cite sources [1], [2], etc. inline for every fact
-- End with "**Sources:**" section: "Source 1: [URL](URL)" on separate lines
-- Preserve ALL markdown formatting
-- Prioritize **fleetcore**-specific information when relevant
-
-**ABSOLUTE RULES:**
-- NEVER answer about the wrong company
-- NEVER give inconsistent answers without acknowledgment
-- NEVER say you cannot browse when research results are provided
-- ALWAYS ask for clarification when entity is ambiguous` },
+              { role: 'system', content: effectiveSystemPrompt },
+              { role: 'system', content: `=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}` },
               ...messages,
             ]
           : conversationMessages,

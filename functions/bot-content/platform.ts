@@ -5,7 +5,7 @@
  * ACCURACY VERIFIED: Real technical architecture, no fake metrics
  */
 
-const LAST_UPDATED = '2025-10-24';
+const LAST_UPDATED = '2025-10-25';
 const PLATFORM_VERSION = 'v2.3.0';
 
 export function generatePlatformContent(): string {
@@ -33,7 +33,7 @@ export function generatePlatformContent(): string {
       "@type": "Organization",
       "name": "fleetcore Engineering Team"
     },
-    "description": "Enterprise maritime maintenance platform architecture with React 18, TypeScript 5.5.3, Supabase PostgreSQL, and real-time WebSocket subscriptions",
+    "description": "Enterprise maritime maintenance platform architecture with React 18, TypeScript 5.5.3, Supabase PostgreSQL, OpenAI GPT-4o ChatKit AI maritime expert, Universal Truth Verification System, and real-time WebSocket subscriptions",
     "technicalScholarlyWork": true
   }
   </script>
@@ -231,6 +231,103 @@ export function generatePlatformContent(): string {
     <li><strong>Orphan Protection:</strong> 24-hour grace period before automatic cleanup</li>
   </ul>
 
+  <h2>🤖 AI Assistant: Learn the Platform Conversationally</h2>
+  
+  <div class="tech-box">
+    <p><strong>Never Read Documentation Again:</strong> The fleetcore AI assistant knows every platform feature. Ask how to do something, get instant answers with examples.</p>
+  </div>
+  
+  <h3>Platform Help & Guidance</h3>
+  <table>
+    <tr>
+      <th>What You're Trying To Do</th>
+      <th>Just Ask the AI</th>
+      <th>What You Get</th>
+    </tr>
+    <tr>
+      <td>Set up a new vessel</td>
+      <td>"How do I add a new vessel to the system?"</td>
+      <td>Step-by-step walkthrough of vessel setup, required fields, best practices</td>
+    </tr>
+    <tr>
+      <td>Configure maintenance schedule</td>
+      <td>"How do I create a 500-hour oil change schedule?"</td>
+      <td>Explanation of schedule-specific hours, intervals, alert thresholds, with screenshots references</td>
+    </tr>
+    <tr>
+      <td>Understand alert system</td>
+      <td>"Why am I getting a critical alert?"</td>
+      <td>Explanation of alert triggers, how to clear them, when to reset hours</td>
+    </tr>
+    <tr>
+      <td>Track parts inventory</td>
+      <td>"How does parts consumption tracking work?"</td>
+      <td>Guide to recording parts used, reorder points, cost tracking per task</td>
+    </tr>
+    <tr>
+      <td>Export compliance report</td>
+      <td>"How do I generate a report for PSC inspection?"</td>
+      <td>Instructions for filtering data, exporting maintenance logs, audit trail access</td>
+    </tr>
+  </table>
+  
+  <h3>Maritime Knowledge + Technical Specs</h3>
+  <p><strong>Beyond Platform Help:</strong> The AI also answers maritime technical questions while you work:</p>
+  <ul>
+    <li><strong>"What's the SOLAS requirement for this equipment?"</strong> - Get regulatory context for maintenance tasks</li>
+    <li><strong>"Recommended oil for Caterpillar 3516B?"</strong> - OEM specs while creating maintenance schedules</li>
+    <li><strong>"How often should I service this pump type?"</strong> - Industry best practices for interval planning</li>
+    <li><strong>"What's the classification for this safety equipment?"</strong> - Criticality ratings for SOLAS compliance</li>
+  </ul>
+  
+  <h3>Intelligent Research for Vessel Data</h3>
+  <p><strong>Enable "Online Research" toggle</strong> when you need current vessel or equipment information:</p>
+  
+  <table>
+    <tr>
+      <th>Scenario</th>
+      <th>How AI Helps</th>
+    </tr>
+    <tr>
+      <td>Adding a vessel you're taking over management for</td>
+      <td>Ask: "What are the specifications for MV [Vessel Name]?" - AI searches 28 optimized maritime sources (vessel registries, class societies) and gives you dimensions, DWT, equipment list with citations</td>
+    </tr>
+    <tr>
+      <td>Need OEM part numbers for procurement</td>
+      <td>Ask: "Wärtsilä 32 fuel injector part number" - AI finds manufacturer catalogs and cross-references</td>
+    </tr>
+    <tr>
+      <td>Comparing equipment for specification</td>
+      <td>Ask: "Compare Caterpillar vs MAN B&W auxiliary generators" - AI analyzes multiple sources and gives factual comparison</td>
+    </tr>
+    <tr>
+      <td>Fleet benchmarking research</td>
+      <td>Ask: "What vessels does [Competitor] operate?" - AI finds fleet lists, vessel types, and operational data</td>
+    </tr>
+  </table>
+  
+  <h3>Why 28 Sources Are Optimal</h3>
+  <p>We don't search the entire web randomly. We use <strong>highly optimized search criteria</strong> targeting 28 carefully selected authoritative maritime sources:</p>
+  <ul>
+    <li><strong>Tier 1 Official:</strong> MarineTraffic, VesselFinder, Equasis, DNV, Lloyd's Register, ABS, IMO (vessel registries & class societies)</li>
+    <li><strong>Tier 2 Manufacturers:</strong> Caterpillar, Wärtsilä, MAN Energy Solutions, Rolls-Royce, Cummins (OEM documentation)</li>
+    <li><strong>Tier 3 Technical:</strong> Manufacturer catalogs, technical databases, maritime engineering resources</li>
+    <li><strong>Smart Filtering:</strong> AI prioritizes official sources over news, manufacturer docs over forums, excludes unreliable sites</li>
+  </ul>
+  <p><strong>Result:</strong> Fast, accurate, verified answers - not overwhelming you with 100+ random web pages.</p>
+  
+  <h3>Real Operational Scenarios</h3>
+  <ul>
+    <li><strong>Chief Engineer at 2 AM:</strong> Equipment alarm sounds. Opens fleetcore, asks AI: "Fuel pressure drop on Wärtsilä 32 troubleshooting" - gets systematic diagnostic steps immediately, no waiting for office hours</li>
+    <li><strong>Technical Superintendent Planning:</strong> Creating annual maintenance budget. Asks AI: "What's the recommended overhaul interval for MAN B&W 6S50MC-C?" - gets OEM recommendation with source citation, adds to planning</li>
+    <li><strong>New Fleet Manager Onboarding:</strong> Joining company, needs to understand vessels. Asks AI about each vessel in fleet - gets full briefing on capabilities, equipment, maintenance status</li>
+    <li><strong>PSC Inspection Tomorrow:</strong> Asks AI: "SOLAS Chapter III requirements for life-saving equipment" - gets regulation text, practical checklist, what inspector will verify</li>
+    <li><strong>Procurement Decision:</strong> Needs to replace generator. Asks AI: "Compare specs and maintenance costs for Cat 3516B vs Cummins QSK60" - gets data-driven comparison</li>
+  </ul>
+  
+  <h3>Available Everywhere</h3>
+  <p><strong>Chat icon visible on every page.</strong> Working on maintenance schedules? Ask a question. Reviewing compliance? Ask a question. Planning procurement? Ask a question. Your maritime expert is always there.</p>
+
   <h2>🔄 Real-Time System Architecture</h2>
   
   <h3>WebSocket Subscriptions</h3>
@@ -259,6 +356,11 @@ export function generatePlatformContent(): string {
       <td>File Attachments</td>
       <td>&lt;200ms</td>
       <td>Organization + task filtering</td>
+    </tr>
+    <tr>
+      <td>AI Assistant Responses</td>
+      <td>&lt;1s first token</td>
+      <td>Streaming SSE with chunk delivery</td>
     </tr>
   </table>
   

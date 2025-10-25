@@ -87,6 +87,52 @@ export function generateContactContent(): string {
   <h3>Q: Does fleetcore integrate with existing systems?</h3>
   <p><strong>A:</strong> Yes, RESTful API available for ERP, procurement, inventory, and other system integrations.</p>
 
+  <h2>🤖 Get Instant Answers from AI First</h2>
+  <p><strong>Before Scheduling a Demo:</strong> Our AI assistant can answer most questions immediately - no waiting for emails or callbacks.</p>
+  
+  <h3>Quick Questions? Ask the AI</h3>
+  <table>
+    <tr>
+      <th>Common Question</th>
+      <th>Ask AI Instead</th>
+    </tr>
+    <tr>
+      <td>"What's the pricing?"</td>
+      <td>"What's the pricing model for fleetcore?"<br>"Enterprise licensing for 10 vessels?"</td>
+    </tr>
+    <tr>
+      <td>"When can I start using it?"</td>
+      <td>"When is Q1 2026 launch?"<br>"Can I get early access?"</td>
+    </tr>
+    <tr>
+      <td>"Does it support my vessel type?"</td>
+      <td>"Does fleetcore support PSV vessels?"<br>"Maritime sectors supported?"</td>
+    </tr>
+    <tr>
+      <td>"What about integrations?"</td>
+      <td>"Does fleetcore have API for ERP integration?"<br>"Can it integrate with our procurement system?"</td>
+    </tr>
+    <tr>
+      <td>"Implementation time?"</td>
+      <td>"How long does implementation take?"<br>"What's the onboarding process?"</td>
+    </tr>
+    <tr>
+      <td>"Technical requirements?"</td>
+      <td>"What are the system requirements?"<br>"Does it work on tablets?"</td>
+    </tr>
+  </table>
+  
+  <h3>Still Need To Contact Us?</h3>
+  <p>After using the AI assistant, if you need to:</p>
+  <ul>
+    <li><strong>Schedule a personalized demo</strong> - use the Calendly link</li>
+    <li><strong>Discuss custom enterprise requirements</strong> - use the contact form</li>
+    <li><strong>Partnership inquiries</strong> - mention it in the form</li>
+    <li><strong>Technical deep-dive for your IT team</strong> - schedule extended demo</li>
+  </ul>
+  
+  <p><strong>AI Available 24/7:</strong> Click the chat button in the corner for instant answers about features, pricing, implementation, or technical questions.</p>
+
   <h2>🚀 Q1 2026 Launch Program</h2>
   <p><strong>Maritime operators interested in early adoption:</strong></p>
   <ul>

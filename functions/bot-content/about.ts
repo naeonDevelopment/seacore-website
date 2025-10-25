@@ -79,6 +79,23 @@ export function generateAboutContent(): string {
   <h3>Modern Technology for Maritime Operations</h3>
   <p>The maritime industry deserves modern software built with 2025 technology, not legacy systems from the 1990s. fleetcore brings enterprise-grade cloud-native architecture to maritime maintenance management.</p>
 
+  <h2>🤖 Ask Our AI About fleetcore</h2>
+  <p><strong>Want to Know More?</strong> Our AI assistant can answer any questions about fleetcore - the platform, the company, the technology, the roadmap.</p>
+  
+  <h3>Questions You Can Ask</h3>
+  <ul>
+    <li><strong>"What makes schedule-specific hours tracking revolutionary?"</strong> - Get detailed explanation of the industry-first innovation</li>
+    <li><strong>"How is fleetcore different from traditional maritime CMMS?"</strong> - Understand competitive advantages</li>
+    <li><strong>"What's the technology stack?"</strong> - Learn about React 18, TypeScript, Supabase, AI integration</li>
+    <li><strong>"When is the Q1 2026 launch?"</strong> - Get launch timeline and current status</li>
+    <li><strong>"How does fleetcore handle SOLAS 2024 compliance?"</strong> - Understand regulatory compliance approach</li>
+    <li><strong>"What maritime sectors does fleetcore support?"</strong> - Learn about supported vessel types</li>
+    <li><strong>"Can you explain the multi-tenant architecture?"</strong> - Understand security and scalability</li>
+    <li><strong>"What's the pricing model?"</strong> - Get information about enterprise licensing</li>
+  </ul>
+  
+  <p><strong>AI Assistant Available:</strong> Click the chat button in the corner to ask questions, get demo information, or learn about partnership opportunities.</p>
+
   <h2>📞 Contact & Partnership</h2>
   <h3>For Maritime Operators</h3>
   <ul>

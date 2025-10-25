@@ -5,7 +5,7 @@
  * ACCURACY VERIFIED: Q1 2026 Launch | Production-Ready Platform
  */
 
-const LAST_UPDATED = '2025-10-24';
+const LAST_UPDATED = '2025-10-25';
 const PLATFORM_VERSION = 'v2.3.0';
 const LAUNCH_DATE = 'Q1 2026';
 
@@ -63,6 +63,12 @@ export function generateHomeContent(): string {
     },
     "featureList": [
       "Schedule-specific maintenance hours tracking (industry first)",
+      "AI maritime expert with dual-mode intelligence (expert knowledge + real-time web research)",
+      "Universal Truth Verification System with entity extraction and comparative analysis",
+      "Real-time web research across 28+ authoritative maritime sources (Tavily API)",
+      "Intelligent entity disambiguation for vessels, companies, and equipment",
+      "Mandatory source citation system with confidence scoring",
+      "Maritime-aware pattern recognition (IMO numbers, vessel names, classifications)",
       "Real-time equipment health monitoring (<200ms latency)",
       "Automated SOLAS 2024 compliance verification",
       "Multi-tenant enterprise architecture with Row-Level Security",
@@ -94,7 +100,7 @@ export function generateHomeContent(): string {
     "description": "Developer of fleetcore Maritime Navigator, a production-ready maritime maintenance platform launching Q1 2026",
     "foundingDate": "2024",
     "sameAs": [
-      "https://www.linkedin.com/company/seacore"
+      "https://www.linkedin.com/company/fleetcore"
     ]
   }
   </script>
@@ -337,6 +343,11 @@ export function generateHomeContent(): string {
       <td>Supabase Storage</td>
       <td>Organization-based access control</td>
     </tr>
+    <tr>
+      <td>AI Intelligence</td>
+      <td>OpenAI GPT-4o + Tavily API</td>
+      <td>ChatKit maritime expert with verification system</td>
+    </tr>
   </table>
   
   <h3>Performance Specifications (Production Targets)</h3>
@@ -511,6 +522,116 @@ export function generateHomeContent(): string {
     <li><strong>File Metadata:</strong> Complete tracking of uploads, file types, sizes</li>
   </ul>
 
+  <h2>🤖 Your 24/7 AI Maritime Expert</h2>
+  
+  <div class="innovation-highlight">
+    <p><strong>Ask Anything Maritime:</strong> fleetcore includes an intelligent AI assistant that understands maritime operations, regulations, and technical details. It's like having a senior technical superintendent, chief engineer, and compliance officer available instantly.</p>
+  </div>
+  
+  <h3>What You Can Ask</h3>
+  <table>
+    <tr>
+      <th>Question Type</th>
+      <th>Example Questions</th>
+      <th>How It Helps</th>
+    </tr>
+    <tr>
+      <td><strong>Vessel Specifications</strong></td>
+      <td>
+        "What are the specifications of MSC Irina?"<br/>
+        "Which is the largest vessel in Stanford Marine's fleet?"<br/>
+        "Tell me about Dynamic 17's equipment"
+      </td>
+      <td>Get detailed vessel specs, dimensions, equipment lists with sources - no need to search multiple databases</td>
+    </tr>
+    <tr>
+      <td><strong>Regulatory Compliance</strong></td>
+      <td>
+        "What does SOLAS 2024 Chapter II-2 require?"<br/>
+        "MARPOL Annex VI sulfur limits in ECAs?"<br/>
+        "ISM Code maintenance documentation requirements"
+      </td>
+      <td>Instant regulatory guidance with specific chapter references - prepare for PSC inspections confidently</td>
+    </tr>
+    <tr>
+      <td><strong>Equipment & Maintenance</strong></td>
+      <td>
+        "Caterpillar 3516B oil change intervals?"<br/>
+        "Wärtsilä 20DF maintenance schedule"<br/>
+        "What oil grade for MAN B&W 6S50MC-C?"
+      </td>
+      <td>Get OEM recommendations and part numbers instantly - no manual searching through thick manuals</td>
+    </tr>
+    <tr>
+      <td><strong>Platform Features</strong></td>
+      <td>
+        "How does schedule-specific hours tracking work?"<br/>
+        "Can I track parts inventory?"<br/>
+        "How do I set up automated alerts?"
+      </td>
+      <td>Learn platform features conversationally - faster than reading documentation</td>
+    </tr>
+    <tr>
+      <td><strong>Operational Decisions</strong></td>
+      <td>
+        "Best practices for cylinder oil consumption monitoring"<br/>
+        "How to optimize maintenance scheduling?"<br/>
+        "What's the difference between DP1 and DP2 vessels?"
+      </td>
+      <td>Get expert guidance for daily operational decisions - like having a mentor on call</td>
+    </tr>
+  </table>
+  
+  <h3>Intelligent Research Mode</h3>
+  <p><strong>Toggle "Online Research"</strong> for questions about specific vessels, companies, or current information:</p>
+  <ul>
+    <li><strong>Smart Search:</strong> Optimized search across 28 carefully selected authoritative maritime sources (classification societies, manufacturers, vessel registries) - not random web results</li>
+    <li><strong>Source Verification:</strong> Every fact is cited with [1][2][3] references to official sources - you can trust the accuracy</li>
+    <li><strong>Entity Recognition:</strong> Understands maritime-specific terms (IMO numbers, vessel types like AHTS/PSV, equipment models)</li>
+    <li><strong>Comparative Intelligence:</strong> Answers "what's the largest" or "which is better" by actually analyzing and comparing data across sources</li>
+    <li><strong>Disambiguation:</strong> If you ask about "Dynamic Marine", it asks which one (UAE? Singapore?) - avoids confusion</li>
+  </ul>
+  
+  <h3>Why This Changes Maritime Software</h3>
+  <table>
+    <tr>
+      <th>Traditional Approach</th>
+      <th>With fleetcore AI Expert</th>
+    </tr>
+    <tr>
+      <td>Search through multiple PDFs and manuals</td>
+      <td>Ask naturally: "What's the maintenance interval?" - instant answer with source</td>
+    </tr>
+    <tr>
+      <td>Call manufacturer hotline, wait for callback</td>
+      <td>Get OEM specs and part numbers in seconds, with citations to official manuals</td>
+    </tr>
+    <tr>
+      <td>Search IMO website for regulation text</td>
+      <td>Ask "SOLAS requirements for fire equipment" - get chapter, regulation, and practical guidance</td>
+    </tr>
+    <tr>
+      <td>Contact vessel owner for fleet information</td>
+      <td>Research mode finds official vessel registries, specifications, and ownership data</td>
+    </tr>
+    <tr>
+      <td>Generic chatbots give wrong maritime advice</td>
+      <td>Maritime-trained AI with verification system - only accurate, sourced answers</td>
+    </tr>
+  </table>
+  
+  <h3>Real-World Impact</h3>
+  <ul>
+    <li><strong>PSC Inspection Prep:</strong> "What does the surveyor check for SOLAS Chapter III?" - get complete checklist in 30 seconds</li>
+    <li><strong>Emergency Troubleshooting:</strong> "Fuel pressure drop on Wärtsilä 32 - what to check?" - get systematic diagnostic steps</li>
+    <li><strong>Procurement Decisions:</strong> "Compare Caterpillar vs MAN generator sets for PSV" - get factual comparison with sources</li>
+    <li><strong>Training New Crew:</strong> Chief engineer asks AI instead of explaining same thing repeatedly</li>
+    <li><strong>Fleet Analysis:</strong> "Which of our vessels needs port state control attention?" - intelligent fleet-wide insights</li>
+  </ul>
+  
+  <h3>Available Everywhere in Platform</h3>
+  <p><strong>Chat button in corner of every page</strong> - ask questions while you work. Maritime expertise at your fingertips.</p>
+
   <h2>🔒 Security & Compliance Framework</h2>
   
   <h3>Row-Level Security (RLS) Architecture</h3>
@@ -553,12 +674,13 @@ export function generateHomeContent(): string {
   <h3>Why Maritime Operators Are Interested</h3>
   <ol>
     <li><strong>Industry-First Innovation:</strong> Schedule-specific hours tracking solves fundamental PMS limitation</li>
+    <li><strong>AI Maritime Expert:</strong> ChatKit-powered intelligent assistant with Universal Truth Verification and real-time research capabilities</li>
     <li><strong>Modern Architecture:</strong> Cloud-native 2025 technology vs 1990s legacy systems</li>
     <li><strong>Regulatory Compliance:</strong> SOLAS 2024 requirements built into system architecture</li>
     <li><strong>Real-Time Intelligence:</strong> Live fleet monitoring with &lt;200ms data synchronization</li>
     <li><strong>Manufacturer-Agnostic:</strong> Unified equipment intelligence across all maritime OEMs</li>
     <li><strong>Enterprise Scalability:</strong> Multi-tenant design supporting unlimited vessels</li>
-    <li><strong>Proven Technology Stack:</strong> React 18, TypeScript 5.5, Supabase PostgreSQL</li>
+    <li><strong>Proven Technology Stack:</strong> React 18, TypeScript 5.5, Supabase PostgreSQL, OpenAI GPT-4o</li>
   </ol>
 
   <h2>📊 Target Market & Use Cases</h2>
@@ -620,9 +742,14 @@ export function generateHomeContent(): string {
       <td>Schedule-specific independent tracking (industry first)</td>
     </tr>
     <tr>
+      <td><strong>AI Assistant</strong></td>
+      <td>None or basic chatbot</td>
+      <td>ChatKit-powered maritime expert with Universal Truth Verification, real-time research, entity disambiguation</td>
+    </tr>
+    <tr>
       <td><strong>Technology Stack</strong></td>
       <td>1990s legacy systems</td>
-      <td>React 18 + TypeScript + Supabase (2025 tech)</td>
+      <td>React 18 + TypeScript + Supabase + GPT-4o (2025 tech)</td>
     </tr>
     <tr>
       <td><strong>Real-Time Updates</strong></td>
@@ -680,7 +807,7 @@ export function generateHomeContent(): string {
   <p><strong>Contact Form:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
 
   <h2>🔍 Technical Keywords for Search Optimization</h2>
-  <p>maritime maintenance software, vessel PMS system, SOLAS 2024 compliance platform, schedule-specific maintenance tracking, maritime fleet management, ship maintenance management system, maritime CMMS, planned maintenance system maritime, OEM PMS integration, automated maintenance scheduling, maritime real-time monitoring, fleet intelligence system, MARPOL compliance software, ISM Code management, vessel lifecycle management, spare parts inventory maritime, maritime digital transformation, React TypeScript maritime platform, Supabase maritime application, cloud-native vessel management, enterprise maritime software, multi-tenant maritime platform, Row-Level Security maritime, maritime regulatory compliance automation, ship equipment health monitoring, predictive maintenance maritime, maritime workflow automation, vessel operations management</p>
+  <p>maritime maintenance software, AI maritime expert, ChatKit maritime assistant, vessel PMS system, SOLAS 2024 compliance platform, schedule-specific maintenance tracking, maritime fleet management, ship maintenance management system, AI-powered maritime CMMS, planned maintenance system maritime, OEM PMS integration, automated maintenance scheduling, maritime real-time monitoring, fleet intelligence system, MARPOL compliance software, ISM Code management, vessel lifecycle management, spare parts inventory maritime, maritime digital transformation, React TypeScript maritime platform, Supabase maritime application, OpenAI GPT-4o maritime integration, Universal Truth Verification System, maritime entity extraction, vessel specifications AI search, real-time maritime research, Tavily API maritime, cloud-native vessel management, enterprise maritime software, multi-tenant maritime platform, Row-Level Security maritime, maritime regulatory compliance automation, ship equipment health monitoring, predictive maintenance maritime, maritime workflow automation, vessel operations management, AI assistant maritime industry, maritime knowledge base AI, intelligent vessel management, maritime AI chatbot</p>
 
 </body>
 </html>

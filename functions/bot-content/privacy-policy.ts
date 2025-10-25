@@ -169,6 +169,17 @@ export function generatePrivacyPolicyContent(): string {
   <h2>11. Changes to This Policy</h2>
   <p>We may update this Privacy Policy periodically. Significant changes will be communicated via email to organization administrators. Continued use of the platform after changes constitutes acceptance of updated policy.</p>
 
+  <h2>🤖 Questions About Privacy?</h2>
+  <p><strong>Ask Our AI Assistant:</strong> Get instant answers about data protection, GDPR compliance, and privacy policies.</p>
+  <ul>
+    <li><strong>"How is my vessel data protected?"</strong> - Learn about RLS and organization isolation</li>
+    <li><strong>"Is fleetcore GDPR compliant?"</strong> - Understand compliance measures</li>
+    <li><strong>"Can I export my data?"</strong> - Data portability details</li>
+    <li><strong>"Where is data stored?"</strong> - Server locations and security</li>
+    <li><strong>"Who can access my organization's data?"</strong> - Access control explanation</li>
+  </ul>
+  <p><strong>AI Available:</strong> Click the chat button for immediate privacy and security answers.</p>
+
   <h2>12. Contact Information</h2>
   <p><strong>Privacy Inquiries:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
   <p><strong>Data Protection Officer:</strong> Available through contact form</p>
