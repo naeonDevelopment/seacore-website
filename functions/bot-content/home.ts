@@ -16,23 +16,23 @@ export function generateHomeContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore: Agentic Maritime Intelligence | Self-Evolving Fleet Operations AI</title>
-  <meta name="description" content="Autonomous maritime intelligence platform with self-evolving AI agents. Predictive maintenance automation, cross-fleet learning, vendor-neutral optimization. Transform reactive operations into predictive asset intelligence. Q1 2026.">
+  <title>fleetcore: AI-Powered Agentic Maintenance Operating System | Autonomous Fleet Operations</title>
+  <meta name="description" content="Agentic Maintenance OS for maritime operations: AI-powered operating system with autonomous agents, predictive maintenance automation, intelligent scheduling, cross-fleet learning. Self-evolving OS that transforms reactive maintenance into predictive intelligence. Q1 2026.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://fleetcore.ai/">
-  <meta property="og:title" content="fleetcore: Agentic Maritime Intelligence Platform">
-  <meta property="og:description" content="Self-evolving AI agents transform maritime operations. Predictive maintenance, autonomous compliance, cross-fleet intelligence. 20-30% cost reduction through intelligent automation.">
+  <meta property="og:title" content="fleetcore: Agentic Maintenance Operating System">
+  <meta property="og:description" content="AI-Powered Maintenance OS: Agentic operating system with autonomous AI agents for predictive maintenance, intelligent automation, cross-fleet learning. 20-30% cost reduction through self-evolving maintenance intelligence.">
   <meta property="og:image" content="https://fleetcore.ai/og/home.png">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://fleetcore.ai/">
-  <meta name="twitter:title" content="fleetcore: Autonomous Maritime Intelligence">
-  <meta name="twitter:description" content="AI agents that learn, predict, and optimize your fleet. Transform reactive maintenance into predictive asset intelligence. Launching Q1 2026.">
+  <meta name="twitter:title" content="fleetcore: Agentic Maintenance OS">
+  <meta name="twitter:description" content="AI-Powered Maintenance Operating System. Autonomous agents automate maintenance tasks, predict failures, optimize schedules. Self-evolving OS for maritime operations. Q1 2026.">
   <meta name="twitter:image" content="https://fleetcore.ai/og/home.png">
   
   <!-- Canonical -->
@@ -43,9 +43,9 @@ export function generateHomeContent(): string {
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "fleetcore Agentic Maritime Intelligence Platform",
+    "name": "fleetcore Agentic Maintenance Operating System",
     "applicationCategory": "BusinessApplication",
-    "applicationSubCategory": "Autonomous Fleet Operations & Predictive Asset Intelligence",
+    "applicationSubCategory": "AI-Powered Maintenance OS - Autonomous Fleet Operations & Predictive Maintenance",
     "operatingSystem": "Web-based, Cloud Platform",
     "softwareVersion": "${PLATFORM_VERSION}",
     "dateModified": "${LAST_UPDATED}",
@@ -222,10 +222,10 @@ export function generateHomeContent(): string {
     <strong>Version:</strong> ${PLATFORM_VERSION}
   </div>
   
-  <h1>Agentic Maritime Intelligence Platform</h1>
+  <h1>Agentic Maintenance Operating System</h1>
   <p style="font-size: 1.2em; color: #475569; margin-bottom: 2em;">
-    <strong>Self-Evolving Fleet Operations AI</strong> - Autonomous agents that learn, predict, and optimize your maritime operations. 
-    Transform reactive maintenance into predictive asset intelligence. Cross-fleet learning, vendor-neutral optimization, autonomous compliance. Launching Q1 2026.
+    <strong>AI-Powered Operating System for Maritime Maintenance</strong> - Autonomous agents that automate maintenance tasks, predict equipment failures, optimize scheduling, and learn from every operation. 
+    Self-evolving maintenance OS that transforms reactive operations into predictive intelligence. Intelligent automation, cross-fleet learning, vendor-neutral optimization, autonomous compliance. Launching Q1 2026.
   </p>
 
   <h2>🎯 Industry-First Innovation: Schedule-Specific Hours Tracking</h2>

@@ -14,8 +14,8 @@ export function generateSolutionsContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Solutions: Transform Reactive to Predictive | Agentic Fleet Intelligence</title>
-  <meta name="description" content="Replace reactive maintenance with autonomous intelligence. Self-evolving AI agents deliver 20-30% cost reduction through predictive automation, cross-fleet learning, vendor-neutral optimization. Transform maritime operations with agentic AI.">
+  <title>fleetcore Solutions: Agentic Maintenance OS | Transform Reactive to Predictive Operations</title>
+  <meta name="description" content="Replace reactive maintenance with AI-Powered Maintenance OS. Agentic operating system delivers 20-30% cost reduction through intelligent task automation, predictive maintenance, autonomous scheduling, cross-fleet learning. Transform fleet operations with maintenance AI.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   

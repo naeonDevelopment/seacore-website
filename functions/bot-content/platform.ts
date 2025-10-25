@@ -15,8 +15,8 @@ export function generatePlatformContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Platform: Agentic AI Architecture | Self-Evolving Maritime Intelligence</title>
-  <meta name="description" content="Enterprise agentic intelligence architecture: autonomous agents, global learning graph, predictive analytics. Multi-OEM optimization, self-evolving algorithms, real-time fleet intelligence. Transform operations with autonomous maritime AI.">
+  <title>fleetcore Platform: Agentic Maintenance OS Architecture | AI-Powered Automation System</title>
+  <meta name="description" content="Agentic Maintenance Operating System architecture: autonomous AI agents, intelligent task automation, predictive maintenance engine, global learning graph. Self-evolving OS that powers automated fleet maintenance operations. Multi-OEM optimization, real-time intelligence.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   
@@ -33,7 +33,7 @@ export function generatePlatformContent(): string {
       "@type": "Organization",
       "name": "fleetcore Engineering Team"
     },
-    "description": "Agentic maritime intelligence platform with autonomous vessel-specific agents, self-evolving global learning graph, predictive maintenance automation, vendor-neutral multi-OEM optimization, and real-time cross-fleet intelligence transfer",
+    "description": "Agentic Maintenance Operating System architecture: AI-powered agents automate maintenance tasks, predictive failure detection, intelligent scheduling, self-evolving algorithms, vendor-neutral multi-OEM optimization. The maintenance OS that powers autonomous fleet operations.",
     "technicalScholarlyWork": true
   }
   </script>
@@ -76,8 +76,8 @@ export function generatePlatformContent(): string {
     🏗️ <strong>Platform Architecture</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Version:</strong> ${PLATFORM_VERSION}
   </div>
 
-  <h1>Agentic Intelligence Architecture</h1>
-  <p style="font-size: 1.2em; color: #475569;">Self-evolving fleet operations AI with autonomous agents, predictive intelligence, and cross-fleet learning capabilities</p>
+  <h1>Agentic Maintenance OS Architecture</h1>
+  <p style="font-size: 1.2em; color: #475569;">AI-Powered Maintenance Operating System architecture: autonomous agents for task automation, predictive maintenance engine, intelligent scheduling algorithms, self-evolving learning capabilities, and cross-fleet intelligence</p>
 
   <h2>🏗️ Technology Stack (Production-Verified)</h2>
   

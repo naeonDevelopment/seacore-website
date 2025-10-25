@@ -12,8 +12,8 @@ export function generatePrivacyPolicyContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Privacy Policy: Enterprise Security & GDPR Compliance | Data Protection</title>
-  <meta name="description" content="Enterprise-grade security for autonomous maritime intelligence platform. GDPR compliant, organization-level isolation, encrypted data, comprehensive audit trails. Secure agentic AI operations with full data protection.">
+  <title>fleetcore Privacy Policy: Secure Agentic Maintenance OS | Enterprise GDPR Compliance</title>
+  <meta name="description" content="Enterprise-grade security for AI-Powered Maintenance Operating System. GDPR compliant, organization-level isolation, encrypted maintenance data, comprehensive audit trails. Secure agentic automation with full data protection for fleet operations.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/privacy-policy">

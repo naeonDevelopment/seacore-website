@@ -12,8 +12,8 @@ export function generateContactContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact fleetcore: Transform Your Fleet with Agentic AI | Demo & Pricing</title>
-  <meta name="description" content="Experience autonomous maritime intelligence. Schedule demo of self-evolving AI agents, predictive maintenance automation, cross-fleet learning. Transform reactive operations into predictive asset intelligence. Enterprise pricing available.">
+  <title>Contact fleetcore: Experience Agentic Maintenance OS | Demo & Pricing</title>
+  <meta name="description" content="Experience AI-Powered Maintenance Operating System. Schedule demo of autonomous agents, intelligent task automation, predictive maintenance, automated scheduling. Transform reactive maintenance into predictive intelligence. Enterprise pricing available.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/contact">
