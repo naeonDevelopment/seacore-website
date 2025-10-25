@@ -41,7 +41,7 @@ export function generateSolutionsContent(): string {
 <body>
 
   <div class="status-badge">
-    💡 <strong>Solutions Overview</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Launch:</strong> Q1 2026
+    💡 <strong>Solutions Overview</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Enterprise Platform</strong>
   </div>
 
   <h1>Not Just Another CMMS. An Operating System for Maritime Maintenance.</h1>

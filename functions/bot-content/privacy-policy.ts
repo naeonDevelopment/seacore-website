@@ -12,8 +12,8 @@ export function generatePrivacyPolicyContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Privacy Policy: Secure Agentic Maintenance OS | Enterprise GDPR Compliance</title>
-  <meta name="description" content="Enterprise-grade security for AI-Powered Maintenance Operating System. GDPR compliant, organization-level isolation, encrypted maintenance data, comprehensive audit trails. Secure agentic automation with full data protection for fleet operations.">
+  <title>fleetcore Privacy Policy: Enterprise Security & Data Protection | GDPR Compliant</title>
+  <meta name="description" content="Enterprise-grade security for global maritime intelligence platform. Multi-tenant isolation, encrypted data, comprehensive audit trails, GDPR compliance. Secure platform protecting fleet operations data with organization-level access control.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/privacy-policy">
@@ -31,10 +31,10 @@ export function generatePrivacyPolicyContent(): string {
 
   <h1>Privacy Policy</h1>
   <p><strong>Last Updated:</strong> ${LAST_UPDATED}</p>
-  <p><strong>Effective Date:</strong> Q1 2026 Production Launch</p>
+  <p><strong>Effective Date:</strong> Platform Production Deployment</p>
 
   <h2>1. Introduction</h2>
-  <p>fleetcore ("we", "our", "us") is committed to protecting the privacy and security of your personal and operational data. This Privacy Policy explains how we collect, use, store, and protect data when you use the fleetcore Maritime Navigator platform.</p>
+  <p>fleetcore ("we", "our", "us") is committed to protecting the privacy and security of your personal and operational data. This Privacy Policy explains how we collect, use, store, and protect data when you use the fleetcore Agentic Maintenance Operating System platform.</p>
 
   <h2>2. Data We Collect</h2>
   
@@ -185,11 +185,16 @@ export function generatePrivacyPolicyContent(): string {
   <p><strong>Data Protection Officer:</strong> Available through contact form</p>
   <p><strong>General Support:</strong> <a href="https://fleetcore.ai">https://fleetcore.ai</a></p>
 
-  <h2>13. Regulatory Compliance</h2>
+  <h2>13. Enterprise Security & Regulatory Compliance</h2>
   <ul>
-    <li><strong>GDPR:</strong> General Data Protection Regulation (EU)</li>
-    <li><strong>ISO 27001:</strong> Information Security Management (in progress)</li>
-    <li><strong>SOC 2 Type II:</strong> Security, Availability, Processing Integrity (planned)</li>
+    <li><strong>GDPR Compliance:</strong> Full General Data Protection Regulation (EU) adherence with data portability, right to erasure, and consent management</li>
+    <li><strong>Multi-Tenant Isolation:</strong> PostgreSQL Row-Level Security ensures complete organization-level data separation</li>
+    <li><strong>Encryption Standards:</strong> TLS/SSL for data in transit, AES-256 encryption for data at rest</li>
+    <li><strong>Access Control:</strong> Role-Based Access Control (RBAC) with granular permissions and audit logging</li>
+    <li><strong>Data Residency:</strong> Compliance with regional data sovereignty requirements</li>
+    <li><strong>Security Monitoring:</strong> Real-time threat detection and automated incident response</li>
+    <li><strong>Audit Trails:</strong> Comprehensive logging of all data access and modifications with timestamp and user attribution</li>
+    <li><strong>Backup & Recovery:</strong> Automated backups with point-in-time recovery capabilities</li>
   </ul>
 
 </body>

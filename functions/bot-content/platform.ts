@@ -553,7 +553,7 @@ USING (
     <li><strong>Resource Planning:</strong> Maintenance workload forecasting and crew allocation</li>
   </ul>
 
-  <h2>🚀 Q1 2026 Launch Timeline</h2>
+  <h2>🚀 Enterprise Architecture Value</h2>
   
   <h3>Platform Status</h3>
   <ul>

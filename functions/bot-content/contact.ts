@@ -66,8 +66,8 @@ export function generateContactContent(): string {
 
   <h2>❓ Frequently Asked Questions</h2>
   
-  <h3>Q: When is fleetcore launching?</h3>
-  <p><strong>A:</strong> Q1 2026 full production launch. Platform is production-ready and undergoing final maritime operator validation.</p>
+  <h3>Q: When can we deploy fleetcore?</h3>
+  <p><strong>A:</strong> fleetcore is production-ready and available for enterprise deployment. Contact us to discuss your fleet-specific implementation timeline and integration requirements.</p>
   
   <h3>Q: What makes fleetcore different from traditional CMMS?</h3>
   <p><strong>A:</strong> Schedule-specific hours tracking (industry first), modern 2025 technology stack (React 18 + TypeScript + Supabase), real-time monitoring (&lt;200ms latency), and embedded SOLAS/MARPOL/ISM compliance.</p>
@@ -102,7 +102,7 @@ export function generateContactContent(): string {
     </tr>
     <tr>
       <td>"When can I start using it?"</td>
-      <td>"When is Q1 2026 launch?"<br>"Can I get early access?"</td>
+      <td>"When can we deploy fleetcore?"<br>"What's the implementation timeline?"</td>
     </tr>
     <tr>
       <td>"Does it support my vessel type?"</td>
@@ -133,7 +133,7 @@ export function generateContactContent(): string {
   
   <p><strong>AI Available 24/7:</strong> Click the chat button in the corner for instant answers about features, pricing, implementation, or technical questions.</p>
 
-  <h2>🚀 Q1 2026 Launch Program</h2>
+  <h2>🚀 Enterprise Deployment Program</h2>
   <p><strong>Maritime operators interested in early adoption:</strong></p>
   <ul>
     <li>Priority access to production platform</li>
