@@ -310,18 +310,18 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>fleetcore: Agentic Maritime Maintenance OS</title>
-        <meta name="description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
+        <title>fleetcore: Agentic Maintenance Operating System | Global Maritime Intelligence Platform</title>
+        <meta name="description" content="Transform fleet operations with centralized OEM intelligence from 100+ manufacturers and real-world global maintenance data. AI-powered maintenance OS delivers vendor-neutral optimization, predictive automation, and cross-fleet learning. Eliminate reactive maintenance, reduce costs 20-30%, ensure compliance." />
         <link rel="canonical" href="https://fleetcore.ai/" />
-        <meta property="og:title" content="fleetcore: Agentic Maritime Maintenance OS" />
-        <meta property="og:description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
+        <meta property="og:title" content="fleetcore: Agentic Maintenance Operating System" />
+        <meta property="og:description" content="Centralized OEM intelligence from 100+ maritime manufacturers. Vendor-neutral maintenance OS delivers predictive automation, cross-fleet optimization, regulatory compliance. Transform reactive operations into strategic asset management." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/" />
         <meta property="og:image" content="https://fleetcore.ai/og/home.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="fleetcore: Agentic Maritime Maintenance OS" />
-        <meta name="twitter:description" content="Predictive scheduling, SOLAS/MARPOL automation, and fleet-wide intelligence for maritime maintenance." />
+        <meta name="twitter:title" content="fleetcore: Agentic Maintenance Operating System" />
+        <meta name="twitter:description" content="Global maritime maintenance intelligence: 100+ OEM manufacturers and realworld maintenance dataunified. Vendor-neutral optimization, predictive analytics, automated compliance. Transform fleet operations with proven 20-30% cost reduction." />
         <meta name="twitter:image" content="https://fleetcore.ai/og/home.png" />
         <script type="application/ld+json">
           {JSON.stringify({

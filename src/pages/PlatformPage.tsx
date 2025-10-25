@@ -397,8 +397,8 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>fleetcore Platform: AI Maritime Maintenance OS</title>
-        <meta name="description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics for maritime operations." />
+        <title>fleetcore Platform: Agentic Maintenance OS Architecture | AI-Powered Automation System</title>
+        <meta name="description" content="Agentic Maintenance Operating System architecture: autonomous AI agents, intelligent task automation, predictive maintenance engine, global learning graph. Self-evolving OS that powers automated fleet maintenance operations. Multi-OEM optimization, real-time intelligence." />
         <link rel="canonical" href="https://fleetcore.ai/platform" />
         <meta property="og:title" content="fleetcore Platform: AI Maritime Maintenance OS" />
         <meta property="og:description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics." />
