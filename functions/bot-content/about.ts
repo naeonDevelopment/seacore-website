@@ -12,8 +12,8 @@ export function generateAboutContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About fleetcore - Building the Future of Maritime Maintenance</title>
-  <meta name="description" content="fleetcore is developing the maritime industry's first schedule-specific maintenance tracking platform. Production-ready technology launching Q1 2026.">
+  <title>About fleetcore: Pioneers of Agentic Maritime Intelligence | Self-Evolving AI</title>
+  <meta name="description" content="Building autonomous intelligence for maritime operations. Self-evolving AI agents, predictive automation, cross-fleet learning. Transforming reactive maritime maintenance into predictive asset intelligence. Q1 2026 launch.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/about">

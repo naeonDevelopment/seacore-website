@@ -15,8 +15,8 @@ export function generatePlatformContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Platform Architecture - Enterprise Maritime Technology Stack</title>
-  <meta name="description" content="Production-ready maritime platform: React 18 + TypeScript 5.5 + Supabase PostgreSQL. Schedule-specific tracking, real-time monitoring, Row-Level Security. Q1 2026 launch.">
+  <title>fleetcore Platform: Agentic AI Architecture | Self-Evolving Maritime Intelligence</title>
+  <meta name="description" content="Enterprise agentic intelligence architecture: autonomous agents, global learning graph, predictive analytics. Multi-OEM optimization, self-evolving algorithms, real-time fleet intelligence. Transform operations with autonomous maritime AI.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   
@@ -33,7 +33,7 @@ export function generatePlatformContent(): string {
       "@type": "Organization",
       "name": "fleetcore Engineering Team"
     },
-    "description": "Enterprise maritime maintenance platform architecture with React 18, TypeScript 5.5.3, Supabase PostgreSQL, OpenAI GPT-4o ChatKit AI maritime expert, Universal Truth Verification System, and real-time WebSocket subscriptions",
+    "description": "Agentic maritime intelligence platform with autonomous vessel-specific agents, self-evolving global learning graph, predictive maintenance automation, vendor-neutral multi-OEM optimization, and real-time cross-fleet intelligence transfer",
     "technicalScholarlyWork": true
   }
   </script>
@@ -76,8 +76,8 @@ export function generatePlatformContent(): string {
     🏗️ <strong>Platform Architecture</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Version:</strong> ${PLATFORM_VERSION}
   </div>
 
-  <h1>Enterprise Platform Architecture</h1>
-  <p style="font-size: 1.2em; color: #475569;">Production-verified technology stack and system design for fleetcore Maritime Navigator</p>
+  <h1>Agentic Intelligence Architecture</h1>
+  <p style="font-size: 1.2em; color: #475569;">Self-evolving fleet operations AI with autonomous agents, predictive intelligence, and cross-fleet learning capabilities</p>
 
   <h2>🏗️ Technology Stack (Production-Verified)</h2>
   

@@ -16,23 +16,23 @@ export function generateHomeContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Maritime Navigator - Production-Ready Maritime Maintenance Platform</title>
-  <meta name="description" content="Production-ready maritime maintenance platform launching Q1 2026. Industry-first schedule-specific hours tracking, real-time fleet monitoring, SOLAS 2024 compliance. Built on React 18 + TypeScript + Supabase.">
+  <title>fleetcore: Agentic Maritime Intelligence | Self-Evolving Fleet Operations AI</title>
+  <meta name="description" content="Autonomous maritime intelligence platform with self-evolving AI agents. Predictive maintenance automation, cross-fleet learning, vendor-neutral optimization. Transform reactive operations into predictive asset intelligence. Q1 2026.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://fleetcore.ai/">
-  <meta property="og:title" content="fleetcore Maritime Navigator - Production-Ready Platform">
-  <meta property="og:description" content="Revolutionary maritime maintenance platform launching Q1 2026. Schedule-specific tracking, real-time monitoring, automated compliance.">
+  <meta property="og:title" content="fleetcore: Agentic Maritime Intelligence Platform">
+  <meta property="og:description" content="Self-evolving AI agents transform maritime operations. Predictive maintenance, autonomous compliance, cross-fleet intelligence. 20-30% cost reduction through intelligent automation.">
   <meta property="og:image" content="https://fleetcore.ai/og/home.png">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://fleetcore.ai/">
-  <meta name="twitter:title" content="fleetcore Maritime Navigator - Q1 2026 Launch">
-  <meta name="twitter:description" content="Revolutionary maritime maintenance platform launching Q1 2026. Schedule-specific tracking, real-time monitoring, automated compliance.">
+  <meta name="twitter:title" content="fleetcore: Autonomous Maritime Intelligence">
+  <meta name="twitter:description" content="AI agents that learn, predict, and optimize your fleet. Transform reactive maintenance into predictive asset intelligence. Launching Q1 2026.">
   <meta name="twitter:image" content="https://fleetcore.ai/og/home.png">
   
   <!-- Canonical -->
@@ -43,9 +43,9 @@ export function generateHomeContent(): string {
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "fleetcore Maritime Navigator",
+    "name": "fleetcore Agentic Maritime Intelligence Platform",
     "applicationCategory": "BusinessApplication",
-    "applicationSubCategory": "Maritime Maintenance Management",
+    "applicationSubCategory": "Autonomous Fleet Operations & Predictive Asset Intelligence",
     "operatingSystem": "Web-based, Cloud Platform",
     "softwareVersion": "${PLATFORM_VERSION}",
     "dateModified": "${LAST_UPDATED}",
@@ -62,22 +62,22 @@ export function generateHomeContent(): string {
       "description": "Production launch Q1 2026 - Enterprise maritime operators"
     },
     "featureList": [
-      "Schedule-specific maintenance hours tracking (industry first)",
-      "AI maritime expert with dual-mode intelligence (expert knowledge + real-time web research)",
-      "Universal Truth Verification System with entity extraction and comparative analysis",
-      "Real-time web research across 28+ authoritative maritime sources (Tavily API)",
-      "Intelligent entity disambiguation for vessels, companies, and equipment",
-      "Mandatory source citation system with confidence scoring",
-      "Maritime-aware pattern recognition (IMO numbers, vessel names, classifications)",
-      "Real-time equipment health monitoring (<200ms latency)",
-      "Automated SOLAS 2024 compliance verification",
-      "Multi-tenant enterprise architecture with Row-Level Security",
-      "Manufacturer-agnostic OEM PMS integration",
-      "Event-driven workflow automation",
-      "Comprehensive parts inventory management",
-      "Real-time fleet-wide analytics dashboard",
-      "React 18 + TypeScript 5.5.3 frontend",
-      "Supabase PostgreSQL with real-time subscriptions"
+      "Agentic Fleet AI: Autonomous vessel-specific intelligence agents",
+      "Self-Evolving Intelligence: Global learning graph across entire fleet",
+      "Predictive Maintenance Automation: 20-30% operational cost reduction",
+      "Cross-Fleet Knowledge Transfer: Every vessel learns from the entire fleet",
+      "Vendor-Neutral Multi-OEM Optimization: Unified intelligence across manufacturers",
+      "Autonomous Compliance Monitoring: SOLAS 2024, MARPOL, ISM Code automation",
+      "Precision Hours Tracking: Schedule-specific independent counters (industry first)",
+      "Real-Time Asset Intelligence: Sub-200ms fleet-wide synchronization",
+      "Intelligent Maritime Assistant: Dual-mode AI with 28+ authoritative sources",
+      "Predictive Failure Detection: Proactive intervention before breakdowns",
+      "Autonomous Scheduling: 90%+ task auto-generation with crew optimization",
+      "Universal Truth Verification: Entity extraction and comparative intelligence",
+      "Multi-Tenant Enterprise Architecture: Organization-level isolation and security",
+      "Event-Driven Operations: Automated workflows from detection to resolution",
+      "Digital Asset Intelligence: Complete operational transparency and audit trails",
+      "Cloud-Native Scalability: Modern architecture for unlimited fleet growth"
     ],
     "screenshot": "https://fleetcore.ai/og/platform.png",
     "applicationSuite": "Maritime Operations Management",
@@ -222,10 +222,10 @@ export function generateHomeContent(): string {
     <strong>Version:</strong> ${PLATFORM_VERSION}
   </div>
   
-  <h1>Maritime Maintenance Operating System</h1>
+  <h1>Agentic Maritime Intelligence Platform</h1>
   <p style="font-size: 1.2em; color: #475569; margin-bottom: 2em;">
-    <strong>fleetcore Maritime Navigator</strong> - Production-ready enterprise platform launching Q1 2026. 
-    Revolutionary schedule-specific tracking, real-time fleet intelligence, and embedded SOLAS 2024 compliance.
+    <strong>Self-Evolving Fleet Operations AI</strong> - Autonomous agents that learn, predict, and optimize your maritime operations. 
+    Transform reactive maintenance into predictive asset intelligence. Cross-fleet learning, vendor-neutral optimization, autonomous compliance. Launching Q1 2026.
   </p>
 
   <h2>🎯 Industry-First Innovation: Schedule-Specific Hours Tracking</h2>
@@ -807,7 +807,7 @@ export function generateHomeContent(): string {
   <p><strong>Contact Form:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
 
   <h2>🔍 Technical Keywords for Search Optimization</h2>
-  <p>maritime maintenance software, AI maritime expert, ChatKit maritime assistant, vessel PMS system, SOLAS 2024 compliance platform, schedule-specific maintenance tracking, maritime fleet management, ship maintenance management system, AI-powered maritime CMMS, planned maintenance system maritime, OEM PMS integration, automated maintenance scheduling, maritime real-time monitoring, fleet intelligence system, MARPOL compliance software, ISM Code management, vessel lifecycle management, spare parts inventory maritime, maritime digital transformation, React TypeScript maritime platform, Supabase maritime application, OpenAI GPT-4o maritime integration, Universal Truth Verification System, maritime entity extraction, vessel specifications AI search, real-time maritime research, Tavily API maritime, cloud-native vessel management, enterprise maritime software, multi-tenant maritime platform, Row-Level Security maritime, maritime regulatory compliance automation, ship equipment health monitoring, predictive maintenance maritime, maritime workflow automation, vessel operations management, AI assistant maritime industry, maritime knowledge base AI, intelligent vessel management, maritime AI chatbot</p>
+  <p>agentic maritime intelligence, self-evolving fleet AI, autonomous maritime operations, predictive maintenance automation, maritime AI agents, cross-fleet learning system, vendor-neutral maritime optimization, multi-OEM fleet intelligence, autonomous compliance monitoring, predictive asset intelligence, self-healing maritime systems, intelligent fleet automation, maritime digital twin, proactive maintenance AI, fleet intelligence graph, autonomous vessel operations, predictive failure detection, maritime machine learning, intelligent asset optimization, maritime AI platform, autonomous scheduling automation, cross-vessel intelligence transfer, predictive operations center, maritime autonomous agents, self-optimizing fleet management, AI-driven maritime compliance, intelligent maritime assistant, real-time fleet intelligence, predictive analytics maritime, autonomous work planning, maritime intelligent automation, SOLAS 2024 AI compliance, vendor-agnostic fleet intelligence, maritime predictive analytics, autonomous maritime AI, intelligent vessel management, self-evolving maintenance AI, maritime operations intelligence, predictive maritime platform, autonomous fleet optimization, intelligent compliance automation, maritime AI transformation</p>
 
 </body>
 </html>
