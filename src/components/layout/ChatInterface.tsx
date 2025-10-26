@@ -791,6 +791,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         // Mark active research session as complete
         if (activeResearchIdRef.current) {
           const completedResearchId = activeResearchIdRef.current;
+          const completedIdx: number | null = streamingIndexRef.current;
           
           setResearchSessions((prev) => {
             const updated = new Map(prev);
@@ -803,9 +804,17 @@ This is **specialized maritime search** – not general web search. Get precise,
             return updated;
           });
           
-          // REMOVED AUTO-COLLAPSE: Keep research panel expanded so users can review sources
-          // Users can manually collapse the panel if they want using the chevron button
-          // This ensures sources are always visible after research completes
+          // AUTO-COLLAPSE: Close the panel 2 seconds after answer finishes streaming
+          // This keeps the chat clean while allowing users to see sources during research
+          if (completedIdx !== null) {
+            setTimeout(() => {
+              setExpandedSources((prev) => {
+                const ns = new Set(prev);
+                ns.delete(completedIdx as number);
+                return ns;
+              });
+            }, 2000); // 2 seconds after answer completes
+          }
           
           // DON'T reset activeResearchIdRef yet - keep for potential follow-ups
           // It will be reset on next sendMessage

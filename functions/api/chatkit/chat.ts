@@ -1510,6 +1510,7 @@ You are operating in EXPERT MODE. This means:
         
         // DYNAMIC SOURCE SELECTION: Quality-based, up to 28 sources
         console.log(`\n🎯 Selecting best sources from ${rankedResults.length} ranked results...`);
+        console.log(`   📊 Top 3 scores: ${rankedResults.slice(0, 3).map(r => r.score?.toFixed(1) || 'N/A').join(', ')}`);
         const selectionResult = selectBestSources(rankedResults, {
           minSources: 5,         // At least 5 for good coverage
           maxSources: 28,        // Up to 28 high-quality sources
@@ -1518,6 +1519,8 @@ You are operating in EXPERT MODE. This means:
         });
         let topResults = selectionResult.selected;
         let rejectedSources = selectionResult.rejected;
+        console.log(`   ✅ SELECTED: ${topResults.length} sources`);
+        console.log(`   ❌ REJECTED: ${rejectedSources.length} sources`);
         
         // PHASE 2: ITERATIVE RESEARCH LOOP (only if enabled by complexity level)
         // Analyze initial results and refine if confidence is low
@@ -1685,6 +1688,7 @@ You are operating in EXPERT MODE. This means:
             title: r.title,
             score: r.score
           }));
+          console.log(`\n💾 Saved ${actualSourcesUsed.length} sources for emission (actualSourcesUsed)`);
           
           // Save rejected sources for transparency
           actualRejectedSources = rejectedSources.map(r => ({
@@ -1693,6 +1697,7 @@ You are operating in EXPERT MODE. This means:
             score: r.score,
             rejectionReason: r.rejectionReason
           }));
+          console.log(`💾 Saved ${actualRejectedSources.length} rejected sources for emission (actualRejectedSources)`);
           
           // Format with markdown-friendly links and citations
           // Prioritize raw_content (full page) > content > snippet
