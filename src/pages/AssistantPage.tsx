@@ -299,7 +299,7 @@ const AssistantPage: React.FC = () => {
                   variant={isDarkMode ? 'dark' : 'light'}
                   className="!max-w-[60px] !h-auto transition-all duration-300"
                 />
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap mt-1">
                   AI Maritime Expert
                 </span>
               </div>
