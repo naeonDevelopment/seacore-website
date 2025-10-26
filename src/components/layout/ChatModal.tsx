@@ -87,9 +87,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   // Extract clean thinking steps WITHOUT labels (Understanding:, Analysis:, etc.)
   // Cursor-style: Extract individual thoughts for sequential display
   const extractThinkingSteps = (thinking: string): string[] => {
-    if (!thinking) return [];
+    if (!thinking) {
+      console.log('🔍 No thinking content to extract');
+      return [];
+    }
     
-    console.log('🔍 Extracting thinking steps from:', thinking.substring(0, 200));
+    console.log('🔍 Extracting thinking steps. Total length:', thinking.length);
+    console.log('🔍 First 300 chars:', thinking.substring(0, 300));
     
     // Remove markers
     const cleaned = thinking
@@ -97,55 +101,77 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
       .replace(/\*\*ANSWER:\*\*/gi, '')
       .trim();
     
+    console.log('🔍 After cleaning, length:', cleaned.length);
+    
     // Try to split by the standard thinking step labels (Cursor-style structured reasoning)
     const stepLabels = ['Understanding:', 'Analysis:', 'Source Review:', 'Cross-Reference:', 'Synthesis:', 'Conclusion:'];
     const steps: string[] = [];
     
-    // Build a comprehensive regex to capture all steps at once
-    // Split the text by any of the labels
-    let remainingText = cleaned;
+    // Check if ANY labels exist
+    const hasLabels = stepLabels.some(label => cleaned.includes(label));
+    console.log('🔍 Has structured labels?', hasLabels);
     
-    for (let i = 0; i < stepLabels.length; i++) {
-      const currentLabel = stepLabels[i];
-      const labelIndex = remainingText.indexOf(currentLabel);
-      
-      if (labelIndex !== -1) {
-        // Find the next label or end of text
-        let nextLabelIndex = remainingText.length;
-        for (let j = i + 1; j < stepLabels.length; j++) {
-          const nextIndex = remainingText.indexOf(stepLabels[j], labelIndex + currentLabel.length);
-          if (nextIndex !== -1 && nextIndex < nextLabelIndex) {
-            nextLabelIndex = nextIndex;
+    if (hasLabels) {
+      // Parse by finding each label and extracting content until the next label
+      for (let i = 0; i < stepLabels.length; i++) {
+        const currentLabel = stepLabels[i];
+        const labelIndex = cleaned.indexOf(currentLabel);
+        
+        if (labelIndex !== -1) {
+          // Find the next label or end of text
+          let nextLabelIndex = cleaned.length;
+          for (let j = 0; j < stepLabels.length; j++) {
+            if (i === j) continue;
+            const nextIndex = cleaned.indexOf(stepLabels[j], labelIndex + currentLabel.length);
+            if (nextIndex !== -1 && nextIndex < nextLabelIndex) {
+              nextLabelIndex = nextIndex;
+            }
           }
-        }
-        
-        // Extract the content between this label and the next
-        const stepContent = remainingText.substring(labelIndex + currentLabel.length, nextLabelIndex).trim();
-        
-        if (stepContent.length > 10) {
-          steps.push(stepContent);
-          console.log(`   ✓ Found ${currentLabel} "${stepContent.substring(0, 50)}..."`);
+          
+          // Extract the content between this label and the next
+          const stepContent = cleaned.substring(labelIndex + currentLabel.length, nextLabelIndex).trim();
+          
+          if (stepContent.length > 5) {
+            steps.push(stepContent);
+            console.log(`   ✓ Found ${currentLabel}: "${stepContent.substring(0, 60)}..."`);
+          }
         }
       }
     }
     
-    // Fallback: if no structured steps found, split by newlines or sentences
+    // Fallback: if no structured steps found, try intelligent splitting
     if (steps.length === 0 && cleaned.length > 0) {
-      console.log('   ⚠️ No structured steps found, using fallback parsing');
-      // Try splitting by double newlines first (paragraph breaks)
-      let fallbackSteps = cleaned.split(/\n\n+/).filter(s => s.trim().length > 20);
+      console.log('   ⚠️ No structured steps found, trying intelligent fallbacks...');
       
-      // If that doesn't work, try single newlines
+      // Try 1: Split by newline (common in AI responses)
+      let fallbackSteps = cleaned.split(/\n+/).map(s => s.trim()).filter(s => s.length > 20);
+      console.log(`   → Newline split: ${fallbackSteps.length} steps`);
+      
+      // Try 2: If only 1 step, split by sentences with period
       if (fallbackSteps.length < 2) {
-        fallbackSteps = cleaned.split(/\n+/).filter(s => s.trim().length > 20);
+        fallbackSteps = cleaned.split(/\.\s+/).map(s => s.trim()).filter(s => s.length > 20);
+        console.log(`   → Sentence split: ${fallbackSteps.length} steps`);
       }
       
-      // If still nothing, split by sentences
-      if (fallbackSteps.length < 2) {
-        fallbackSteps = cleaned.split(/\.\s+/).filter(s => s.trim().length > 15);
+      // Try 3: If text is really long but no breaks, create artificial breaks
+      if (fallbackSteps.length < 2 && cleaned.length > 200) {
+        // Split into chunks of ~100 characters at word boundaries
+        const words = cleaned.split(' ');
+        fallbackSteps = [];
+        let currentChunk = '';
+        
+        for (const word of words) {
+          if (currentChunk.length + word.length > 100 && currentChunk.length > 0) {
+            fallbackSteps.push(currentChunk.trim());
+            currentChunk = word;
+          } else {
+            currentChunk += (currentChunk ? ' ' : '') + word;
+          }
+        }
+        if (currentChunk) fallbackSteps.push(currentChunk.trim());
+        console.log(`   → Chunk split: ${fallbackSteps.length} steps`);
       }
       
-      console.log(`   → Extracted ${fallbackSteps.length} fallback steps`);
       return fallbackSteps.slice(0, 6); // Max 6 thoughts
     }
     
@@ -371,6 +397,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 if (parsed.type === 'thinking') {
                   streamedThinking += parsed.content;
                   console.log('🧠 Received thinking section, length:', parsed.content.length);
+                  console.log('🧠 Thinking content preview:', parsed.content.substring(0, 300));
                 } else if (parsed.type === 'content') {
                   // First content received = answer is ready
                   if (!hasReceivedContent) {
