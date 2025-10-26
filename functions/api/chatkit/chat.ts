@@ -767,6 +767,88 @@ interface ResearchConfig {
   estimatedCalls: number;
 }
 
+// DYNAMIC SOURCE SELECTION STRATEGY
+// Intelligently selects sources based on quality scores, not hardcoded limits
+interface SourceSelectionConfig {
+  minSources: number;        // Always include at least this many (if available)
+  maxSources: number;        // Never exceed this limit
+  qualityThreshold: number;  // Minimum score to be included (0-100)
+  scoreGapThreshold: number; // Max score gap between consecutive sources
+}
+
+interface SourceSelectionResult {
+  selected: any[];
+  rejected: any[];
+}
+
+function selectBestSources(
+  rankedResults: any[],
+  config: SourceSelectionConfig = {
+    minSources: 5,
+    maxSources: 28,          // Expanded to 28 for comprehensive research
+    qualityThreshold: 12,    // Lowered threshold to allow more sources
+    scoreGapThreshold: 30    // Allow larger gaps for more sources
+  }
+): SourceSelectionResult {
+  if (rankedResults.length === 0) return { selected: [], rejected: [] };
+  
+  const selected: any[] = [];
+  const rejected: any[] = [];
+  let previousScore = rankedResults[0]?.score || 0;
+  
+  for (let i = 0; i < rankedResults.length; i++) {
+    const result = rankedResults[i];
+    const score = result.score || 0;
+    const scoreGap = previousScore - score;
+    
+    // Always include minimum sources
+    if (i < config.minSources) {
+      selected.push(result);
+      previousScore = score;
+      continue;
+    }
+    
+    // Reached max sources limit
+    if (selected.length >= config.maxSources) {
+      rejected.push({ ...result, rejectionReason: 'Max sources limit reached' });
+      continue;
+    }
+    
+    // Score below threshold - reject
+    if (score < config.qualityThreshold) {
+      rejected.push({ ...result, rejectionReason: `Low score: ${score.toFixed(1)} < ${config.qualityThreshold}` });
+      continue;
+    }
+    
+    // Large quality gap - reject
+    if (scoreGap > config.scoreGapThreshold) {
+      rejected.push({ ...result, rejectionReason: `Quality gap: ${scoreGap.toFixed(1)} > ${config.scoreGapThreshold}` });
+      continue;
+    }
+    
+    selected.push(result);
+    previousScore = score;
+  }
+  
+  console.log(`   ✅ Selected: ${selected.length} sources (min: ${config.minSources}, max: ${config.maxSources})`);
+  console.log(`   ❌ Rejected: ${rejected.length} sources`);
+  console.log(`   📈 Score range: ${(selected[0]?.score || 0).toFixed(1)} → ${(selected[selected.length-1]?.score || 0).toFixed(1)}`);
+  
+  if (rejected.length > 0) {
+    console.log(`   🗑️  Top rejection reasons:`);
+    const reasons = rejected.reduce((acc: any, r) => {
+      const key = r.rejectionReason.split(':')[0];
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    Object.entries(reasons).forEach(([reason, count]) => {
+      console.log(`      - ${reason}: ${count}`);
+    });
+  }
+  
+  return { selected, rejected };
+}
+
 function getResearchConfig(
   complexity: ResearchComplexity,
   query: string
@@ -957,11 +1039,17 @@ You are operating in EXPERT MODE. This means:
       console.log(`📚 Accumulated ${previousResearchContext.length} chars of previous research context`);
     }
     
-    // Multi-query research strategy: aggregate up to 28 sources from multiple searches
+    // DYNAMIC MULTI-QUERY RESEARCH STRATEGY
+    // - Aggregate sources from multiple search queries
+    // - Rank all sources by authority and relevance 
+    // - Intelligently select 5-28 best sources based on quality scores
+    // - Number varies per query based on source quality distribution
+    // - Rejected sources are tracked and emitted for transparency
     let browsingContext = '';
     let researchPerformed = false;
     const currentQuery = messages[messages.length - 1]?.content || ''; // Declare once at top level
     let actualSourcesUsed: any[] = []; // Track actual sources sent to LLM for citation
+    let actualRejectedSources: any[] = []; // Track rejected sources for transparency
     
     // SIMPLIFIED FOLLOW-UP QUESTION DETECTION
     // Reduce complexity - check for clear follow-up indicators only
@@ -1190,7 +1278,7 @@ You are operating in EXPERT MODE. This means:
           }
         }
         
-        console.log(`🔍 Performing ${queries.length} research queries for up to 28 sources`);
+        console.log(`🔍 Performing ${queries.length} research queries (dynamic source selection based on quality)`);
         
         let allResults: any[] = [];
         let tavilySummary = '';
@@ -1420,8 +1508,16 @@ You are operating in EXPERT MODE. This means:
           return scoreB - scoreA; // Higher score first
         });
         
-        // Use top 8 sources for analysis
-        let topResults = rankedResults.slice(0, 8);
+        // DYNAMIC SOURCE SELECTION: Quality-based, up to 28 sources
+        console.log(`\n🎯 Selecting best sources from ${rankedResults.length} ranked results...`);
+        const selectionResult = selectBestSources(rankedResults, {
+          minSources: 5,         // At least 5 for good coverage
+          maxSources: 28,        // Up to 28 high-quality sources
+          qualityThreshold: 12,  // Must score at least 12 points
+          scoreGapThreshold: 30  // Stop if quality drops by 30+ points
+        });
+        let topResults = selectionResult.selected;
+        let rejectedSources = selectionResult.rejected;
         
         // PHASE 2: ITERATIVE RESEARCH LOOP (only if enabled by complexity level)
         // Analyze initial results and refine if confidence is low
@@ -1519,9 +1615,17 @@ You are operating in EXPERT MODE. This means:
               return scoreB - scoreA;
             });
             
-            // Update topResults with re-ranked sources
-            topResults = reRankedResults.slice(0, 8);
-            console.log(`   📊 Total sources now: ${allIterationResults.length}, using top 8`);
+            // DYNAMIC SOURCE SELECTION for refined results
+            console.log(`\n🎯 Re-selecting best sources from ${reRankedResults.length} refined results...`);
+            const refinedSelection = selectBestSources(reRankedResults, {
+              minSources: 6,         // Higher minimum after refinement
+              maxSources: 28,        // Full 28 sources allowed after refinement
+              qualityThreshold: 12,
+              scoreGapThreshold: 30
+            });
+            topResults = refinedSelection.selected;
+            rejectedSources = [...rejectedSources, ...refinedSelection.rejected];
+            console.log(`   📊 Total sources now: ${allIterationResults.length}, using ${topResults.length} best`);
             
           } else {
             console.error(`   ❌ Refined search failed: ${refinedSearchRes.status}`);
@@ -1575,11 +1679,19 @@ You are operating in EXPERT MODE. This means:
         
         // Process top-ranked results FIRST to set researchPerformed flag
         if (topResults.length > 0) {
-          // Save actual sources for stream emission
+          // Save actual sources for stream emission (selected)
           actualSourcesUsed = topResults.map(r => ({
             url: r.url,
             title: r.title,
             score: r.score
+          }));
+          
+          // Save rejected sources for transparency
+          actualRejectedSources = rejectedSources.map(r => ({
+            url: r.url,
+            title: r.title,
+            score: r.score,
+            rejectionReason: r.rejectionReason
           }));
           
           // Format with markdown-friendly links and citations
@@ -2117,10 +2229,48 @@ ${previousResearchContext}
     console.log('📥 OpenAI response has body:', !!response.body);
     console.log('📥 OpenAI response body type:', response.body ? typeof response.body : 'null');
     console.log('📥 OpenAI response bodyUsed:', response.bodyUsed);
+    console.log('📥 OpenAI response headers:', {
+      'content-type': response.headers.get('content-type'),
+      'transfer-encoding': response.headers.get('transfer-encoding'),
+      'content-length': response.headers.get('content-length')
+    });
     
-    // CLOUDFLARE PAGES FIX: Check if body exists and hasn't been consumed
+    // CRITICAL FIX: Check if body exists and hasn't been consumed
     if (!response.body && response.ok) {
-      console.error('❌ CRITICAL: OpenAI returned OK status but no body - possible streaming issue');
+      console.error('❌ CRITICAL: OpenAI returned OK status but no body - streaming issue detected');
+      console.error('   This typically means:');
+      console.error('   1. Response body was already consumed');
+      console.error('   2. Cloudflare Pages streaming compatibility issue');
+      console.error('   3. OpenAI API returned malformed stream response');
+      
+      // Try to get error details
+      try {
+        const textResponse = await response.text();
+        console.error('   Response text (if any):', textResponse?.substring(0, 200));
+      } catch (e) {
+        console.error('   Cannot read response text:', (e as any)?.message);
+      }
+    }
+    
+    // CLOUDFLARE PAGES WORKAROUND: If body is missing but request succeeded, return error
+    if (response.ok && !response.body) {
+      return new Response(
+        JSON.stringify({ 
+          message: '⚠️ **Critical Streaming Error**\n\nThe OpenAI API returned a successful response but the stream body is missing. This is likely a Cloudflare Pages streaming compatibility issue.\n\n**Debug Information:**\n- Response Status: ' + response.status + '\n- Content-Type: ' + response.headers.get('content-type') + '\n- Body Present: false\n- Body Used: ' + response.bodyUsed + '\n\n**Possible Solutions:**\n1. This may be a transient API issue - try again\n2. Check Cloudflare Pages streaming settings\n3. Verify OpenAI API key and model access\n\n**Technical Details:**\nThe response.body stream is null despite successful HTTP response. Check server logs for detailed diagnostics.',
+          error: true,
+          errorType: 'streaming_failure',
+          diagnostics: {
+            status: response.status,
+            bodyPresent: false,
+            bodyUsed: response.bodyUsed,
+            contentType: response.headers.get('content-type')
+          }
+        }),
+        { 
+          status: 200, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     // PHASE 1: INTELLIGENT FALLBACK MECHANISM
@@ -2234,8 +2384,8 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'rank', status: 'end', title: 'Ranked sources' })}\n\n`));
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'verify', status: 'end', title: 'Verified/Extracted key data' })}\n\n`));
             
-            // Emit the ACTUAL sources that will be cited in the answer
-            console.log(`📤 Emitting ${actualSourcesUsed.length} actual sources used in answer`);
+            // Emit the SELECTED sources that will be cited in the answer
+            console.log(`📤 Emitting ${actualSourcesUsed.length} selected sources`);
             for (let i = 0; i < actualSourcesUsed.length; i++) {
               const result = actualSourcesUsed[i];
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
@@ -2246,6 +2396,20 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                 reason: `Score: ${result.score?.toFixed(1) || 'N/A'}`,
                 citation: i + 1
               })}\n\n`));
+            }
+            
+            // Emit REJECTED sources for transparency
+            if (actualRejectedSources.length > 0) {
+              console.log(`📤 Emitting ${actualRejectedSources.length} rejected sources`);
+              for (const result of actualRejectedSources) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                  type: 'source', 
+                  action: 'rejected', 
+                  url: result.url,
+                  title: result.title,
+                  reason: result.rejectionReason || 'Quality threshold not met'
+                })}\n\n`));
+              }
             }
             
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'synthesize', status: 'start', title: 'Synthesize answer with citations' })}\n\n`));
