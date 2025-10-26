@@ -1980,12 +1980,16 @@ You are operating in EXPERT MODE. This means:
     const modelCapabilities = getModelCapabilities(selectedModel);
     const isO1O3Model = modelCapabilities.nativeReasoning;
     const hasNativeCoT = isO1O3Model;
-    let needsSyntheticCoT = useChainOfThought && !hasNativeCoT; // Use 'let' to allow dynamic fallback
+    // CRITICAL FIX: Disable synthetic CoT when research is enabled
+    // Research mode has its own thinking display via the research panel
+    // Synthetic CoT parsing interferes with research streaming
+    let needsSyntheticCoT = useChainOfThought && !hasNativeCoT && !enableBrowsing;
     
     console.log(`🤖 Model Selected: ${selectedModel}`);
     console.log(`   Tier: ${modelCapabilities.tier.toUpperCase()}`);
     console.log(`   Context: ${modelCapabilities.contextWindow.toLocaleString()} tokens`);
-    console.log(`   Chain-of-Thought: ${useChainOfThought ? (hasNativeCoT ? 'Native (o1/o3)' : 'Synthetic') : 'Disabled'}`);
+    console.log(`   Research Mode: ${enableBrowsing ? 'ENABLED' : 'Disabled'}`);
+    console.log(`   Chain-of-Thought: ${useChainOfThought ? (hasNativeCoT ? 'Native (o1/o3)' : enableBrowsing ? 'Disabled (Research Active)' : 'Synthetic') : 'Disabled'}`);
     console.log(`   needsSyntheticCoT: ${needsSyntheticCoT}, hasNativeCoT: ${hasNativeCoT}`);
 
     // PHASE 1: INTELLIGENT TEMPERATURE SELECTION
