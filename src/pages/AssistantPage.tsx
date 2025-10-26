@@ -1,11 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
+import { Menu, X, Home } from 'lucide-react';
 import { ChatInterface } from '@/components/layout/ChatInterface';
+import { SessionSidebar } from '@/components/layout/SessionSidebar';
+import { useSessions } from '@/hooks/useSessions';
 import { generatePageSEO } from '@/utils/seoGenerator';
+import { cn } from '@/utils/cn';
 
 const AssistantPage: React.FC = () => {
   const navigate = useNavigate();
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  const {
+    sessions,
+    activeSession,
+    activeSessionId,
+    createSession,
+    deleteSession,
+    switchSession,
+    updateSessionMessages,
+    renameSession,
+  } = useSessions();
   
   const seo = generatePageSEO('assistant', '/assistant', {
     mainKeywords: ['maritime AI assistant', 'fleet maintenance chatbot', 'SOLAS compliance assistant'],
@@ -15,8 +32,20 @@ const AssistantPage: React.FC = () => {
   });
 
   const handleClose = () => {
-    navigate(-1); // Go back to previous page
+    navigate('/'); // Go to home page
   };
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   return (
     <>
@@ -206,13 +235,78 @@ const AssistantPage: React.FC = () => {
         </script>
       </Helmet>
 
-      {/* Fullscreen Chat Interface */}
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
-        <ChatInterface 
-          isFullscreen={true} 
-          onClose={handleClose}
-          className="min-h-screen"
-        />
+      {/* Main Layout */}
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
+        {/* Desktop: Session Sidebar (Fixed Left) */}
+        {!isMobile && (
+          <SessionSidebar
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onCreateSession={createSession}
+            onSwitchSession={switchSession}
+            onDeleteSession={deleteSession}
+            onRenameSession={renameSession}
+          />
+        )}
+
+        {/* Mobile: Session Drawer */}
+        {isMobile && (
+          <SessionSidebar
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onCreateSession={createSession}
+            onSwitchSession={switchSession}
+            onDeleteSession={deleteSession}
+            onRenameSession={renameSession}
+            isMobile={true}
+            isOpen={isMobileSidebarOpen}
+            onClose={() => setIsMobileSidebarOpen(false)}
+          />
+        )}
+
+        {/* Mobile: Top Action Bar */}
+        {isMobile && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between px-4 py-3">
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
+                aria-label="Open sessions"
+              >
+                <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+              </button>
+              
+              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 enterprise-heading truncate">
+                {activeSession.name}
+              </h1>
+              
+              <button
+                onClick={handleClose}
+                className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
+                aria-label="Go home"
+              >
+                <Home className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Chat Interface Container with Max Width */}
+        <div className={cn(
+          "transition-all duration-300",
+          isMobile ? "pt-14" : "lg:ml-80"
+        )}>
+          <div className="mx-auto" style={{ maxWidth: '1400px' }}>
+            <ChatInterface 
+              isFullscreen={true}
+              messages={activeSession.messages}
+              onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
+              onClose={!isMobile ? handleClose : undefined}
+              showHeader={!isMobile}
+              className="min-h-screen"
+            />
+          </div>
+        </div>
       </div>
     </>
   );

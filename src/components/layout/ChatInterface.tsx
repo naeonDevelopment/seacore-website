@@ -18,20 +18,41 @@ interface ChatInterfaceProps {
   isFullscreen?: boolean;
   onClose?: () => void;
   className?: string;
+  showHeader?: boolean;
+  messages?: Message[];
+  onMessagesChange?: (messages: Message[]) => void;
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   isFullscreen = false, 
   onClose,
-  className 
+  className,
+  showHeader = true,
+  messages: externalMessages,
+  onMessagesChange
 }) => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [internalMessages, setInternalMessages] = useState<Message[]>([
     {
       role: 'assistant',
       content: "Hi! I'm your maritime maintenance expert. I can help you understand fleetcore's features, maritime regulations, and answer questions about maintenance management. What would you like to know?",
       timestamp: new Date(),
     },
   ]);
+
+  // Use external messages if provided, otherwise use internal state
+  const messages = externalMessages || internalMessages;
+  const setMessages = (newMessages: Message[] | ((prev: Message[]) => Message[])) => {
+    if (onMessagesChange) {
+      if (typeof newMessages === 'function') {
+        const updatedMessages = newMessages(messages);
+        onMessagesChange(updatedMessages);
+      } else {
+        onMessagesChange(newMessages);
+      }
+    } else {
+      setInternalMessages(newMessages as any);
+    }
+  };
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
@@ -423,20 +444,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div 
       className={cn(
         "flex flex-col overflow-hidden",
-        isFullscreen ? "fixed inset-0 z-50" : "",
+        isFullscreen ? "h-screen" : "",
         className
       )}
       style={isFullscreen && typeof window !== 'undefined' && window.innerWidth < 640 ? {
-        position: 'fixed',
-        top: `${viewportTop}px`,
-        left: 0,
-        right: 0,
         height: `${viewportHeight}px`,
         maxHeight: `${viewportHeight}px`
       } : undefined}
     >
       {/* Header */}
-      <div className="relative flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
+      {showHeader && (
+        <div className="relative flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg overflow-hidden">
             <img
@@ -460,9 +478,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           >
             <X className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
           </button>
-        )}
+        )}        
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
       </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 space-y-4 sm:space-y-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
