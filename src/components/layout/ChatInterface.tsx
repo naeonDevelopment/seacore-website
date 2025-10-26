@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, Search, FileText, Sparkles } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -119,13 +119,15 @@ This is **specialized maritime search** – not general web search. Get precise,
   const researchStartedRef = useRef<boolean>(false);
   // Transient analysis line shown briefly, then auto-hidden
   const [transientAnalysis, setTransientAnalysis] = useState<string>('');
-  // Animated batch cycling for sources
-  const [batchCycle, setBatchCycle] = useState<number>(0);
-  const MAX_BATCH_CYCLES = 4;
   const [, setViewportHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [, setViewportTop] = useState<number>(0);
   // Throttle streaming UI updates
   const lastStreamUpdateRef = useRef<number>(0);
+  // Pagination for sources
+  const [currentSourcePage, setCurrentSourcePage] = useState<number>(0);
+  const SOURCES_PER_PAGE = 8;
+  // Track verified sources (accepted ones)
+  const [verifiedSources, setVerifiedSources] = useState<ResearchEvent[]>([]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -463,6 +465,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                       // First research event: reset and auto-expand timeline
                       researchStartedRef.current = true;
                       setResearchEvents([parsed]);
+                      setVerifiedSources([]);
+                      setCurrentSourcePage(0);
                       setExpandedSources((prev) => {
                         const ns = new Set(prev);
                         ns.add(-1);
@@ -471,9 +475,13 @@ This is **specialized maritime search** – not general web search. Get precise,
                     } else {
                       setResearchEvents((prev) => [...prev, parsed]);
                     }
-                    // Kick a batch cycle when sources accumulate
-                    if (parsed.type === 'source') {
-                      setBatchCycle((c) => (c + 1) % MAX_BATCH_CYCLES);
+                    // Track verified sources (selected ones)
+                    if (parsed.type === 'source' && parsed.action === 'selected') {
+                      setVerifiedSources((prev) => {
+                        const updated = [...prev, parsed];
+                        // Keep max 28 verified sources
+                        return updated.slice(-28);
+                      });
                     }
                   }
                   // Do not treat as content/thinking; continue
@@ -744,85 +752,310 @@ This is **specialized maritime search** – not general web search. Get precise,
               {/* Hide animated thinking bubble; we use only the Research steps panel */}
               {false && useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking}
               
-              {/* Research timeline (structured events) - anchored under the last user message */}
+              {/* Dynamic Research Panel - positioned after user message, before assistant response */}
               {useBrowsing && researchEvents.length > 0 && message.role === 'user' && index === lastUserIndex && (
-                <div className="mb-2">
-                  <div className="flex items-center gap-2 ml-2">
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 ml-12 mr-4"
+                >
+                  {/* Panel Header */}
+                  <div className="flex items-center justify-between mb-3">
                     <button
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-maritime-700 dark:text-maritime-300"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-maritime-50 to-blue-50 dark:from-maritime-900/30 dark:to-blue-900/30 border border-maritime-200 dark:border-maritime-700 hover:shadow-md transition-all group"
                       onClick={() => {
                         const newSet = new Set(expandedSources);
                         if (newSet.has(-1)) newSet.delete(-1); else newSet.add(-1);
                         setExpandedSources(newSet);
                       }}
                     >
+                      <Sparkles className="w-4 h-4 text-maritime-600 dark:text-maritime-400 animate-pulse" />
+                      <span className="text-sm font-bold text-maritime-700 dark:text-maritime-300">
+                        AI Research in Progress
+                      </span>
                       {expandedSources.has(-1) ? (
-                        <>
-                          <ChevronUp className="w-3.5 h-3.5" />
-                          Research steps (hide)
-                        </>
+                        <ChevronUp className="w-4 h-4 text-maritime-600 dark:text-maritime-400 group-hover:-translate-y-0.5 transition-transform" />
                       ) : (
-                        <>
-                          <ChevronDown className="w-3.5 h-3.5" />
-                          Research steps (show)
-                        </>
+                        <ChevronDown className="w-4 h-4 text-maritime-600 dark:text-maritime-400 group-hover:translate-y-0.5 transition-transform" />
                       )}
                     </button>
+                    
+                    {verifiedSources.length > 0 && (
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                          {verifiedSources.length} {verifiedSources.length === 1 ? 'Source' : 'Sources'} Verified
+                        </span>
+                      </motion.div>
+                    )}
                   </div>
-                  {expandedSources.has(-1) && (
-                    <div className="mt-2 ml-8 text-xs text-slate-700 dark:text-slate-300 max-w-[85%]">
-                      {transientAnalysis && (
-                        <div className="px-3 py-2 mb-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/50 text-blue-900 dark:text-blue-100">
-                          {transientAnalysis}
-                        </div>
-                      )}
-                      {/* Animated batch list */}
-                      <div className="relative overflow-hidden">
-                        <motion.ul
-                          key={batchCycle}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -8 }}
-                          transition={{ duration: 0.25 }}
-                          className="space-y-1"
-                        >
-                          {(() => {
-                            const recent = researchEvents.slice(-20);
-                            const sources = recent.filter(e => e.type === 'source');
-                            const searches = recent.filter(e => e.type === 'tool' && e.tool === 'search');
-                            const steps = recent.filter(e => e.type === 'step');
-                            const batch: any[] = [];
-                            if (steps.length) batch.push({ kind: 'step', value: steps[steps.length - 1] });
-                            if (searches.length) batch.push({ kind: 'search', value: searches[searches.length - 1] });
-                            batch.push(...sources.slice(-6).map(v => ({ kind: 'source', value: v })));
-                            return batch.map((item, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <div className={cn(
-                                  'mt-1 w-2 h-2 rounded-full flex-shrink-0',
-                                  item.kind === 'search' ? 'bg-violet-500' : item.kind === 'source' ? (item.value.action === 'selected' ? 'bg-emerald-500' : 'bg-rose-500') : 'bg-blue-500'
-                                )} />
-                                <div>
-                                  {item.kind === 'step' && (
-                                    <div className="font-semibold">{item.value.title} {item.value.status === 'start' ? '(start)' : item.value.status === 'end' ? '(done)' : ''}</div>
-                                  )}
-                                  {item.kind === 'search' && (
-                                    <div>Search: "{item.value.query}" → {item.value.results} results</div>
-                                  )}
-                                  {item.kind === 'source' && (
-                                    <div>{item.value.action === 'selected' ? 'Keep' : 'Reject'}: {String(item.value.url || '').replace(/^https?:\/\//, '').slice(0, 80)}</div>
-                                  )}
-                                  {item.value.detail && Array.isArray(item.value.detail) && item.value.detail.length > 0 && (
-                                    <div className="opacity-80">{item.value.detail.slice(0, 3).map((u: string) => String(u).replace(/^https?:\/\//, '')).join(', ')}</div>
-                                  )}
+
+                  <AnimatePresence>
+                    {expandedSources.has(-1) && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-4 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 shadow-lg">
+                          
+                          {/* Current Analysis */}
+                          {transientAnalysis && (
+                            <motion.div 
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 10 }}
+                              className="mb-4 p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-l-4 border-blue-500"
+                            >
+                              <div className="flex items-start gap-2">
+                                <Loader2 className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin mt-0.5 flex-shrink-0" />
+                                <div className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+                                  {transientAnalysis}
                                 </div>
-                              </li>
-                            ));
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {/* Research Steps Timeline */}
+                          {(() => {
+                            const recent = researchEvents.slice(-30);
+                            const steps = recent.filter(e => e.type === 'step');
+                            const searches = recent.filter(e => e.type === 'tool' && e.tool === 'search');
+                            
+                            return (
+                              <>
+                                {/* Active Steps */}
+                                {steps.length > 0 && (
+                                  <div className="mb-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <FileText className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Research Steps</h4>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {steps.slice(-3).map((step, idx) => (
+                                        <motion.div
+                                          key={idx}
+                                          initial={{ opacity: 0, x: -10 }}
+                                          animate={{ opacity: 1, x: 0 }}
+                                          transition={{ delay: idx * 0.1 }}
+                                          className="flex items-center gap-2 text-xs"
+                                        >
+                                          <div className={cn(
+                                            "w-2 h-2 rounded-full flex-shrink-0",
+                                            step.status === 'end' ? 'bg-emerald-500' : 'bg-blue-500 animate-pulse'
+                                          )} />
+                                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                            {step.title}
+                                          </span>
+                                          {step.status === 'start' && (
+                                            <span className="text-slate-500 dark:text-slate-400">processing...</span>
+                                          )}
+                                          {step.status === 'end' && (
+                                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                          )}
+                                        </motion.div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Search Queries */}
+                                {searches.length > 0 && (
+                                  <div className="mb-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Search className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Search Queries</h4>
+                                    </div>
+                                    <div className="space-y-1">
+                                      {searches.slice(-2).map((search, idx) => (
+                                        <motion.div
+                                          key={idx}
+                                          initial={{ opacity: 0, scale: 0.95 }}
+                                          animate={{ opacity: 1, scale: 1 }}
+                                          className="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800"
+                                        >
+                                          <div className="text-xs text-violet-900 dark:text-violet-100 font-medium">
+                                            "{search.query}"
+                                          </div>
+                                          {search.results && (
+                                            <div className="text-xs text-violet-600 dark:text-violet-400 mt-1">
+                                              → {search.results} results found
+                                            </div>
+                                          )}
+                                        </motion.div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            );
                           })()}
-                        </motion.ul>
-                      </div>
-                    </div>
-                  )}
-                </div>
+
+                          {/* Dynamic Source Evaluation Badges */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Globe className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Source Evaluation</h4>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className="flex items-center gap-1">
+                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  <span className="text-slate-600 dark:text-slate-400">Accepted</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                  <span className="text-slate-600 dark:text-slate-400">Rejected</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Animated Source Badges */}
+                            <div className="relative min-h-[120px] p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700">
+                              <AnimatePresence mode="popLayout">
+                                {(() => {
+                                  const recentSources = researchEvents.filter(e => e.type === 'source').slice(-12);
+                                  return recentSources.map((source, idx) => {
+                                    const isAccepted = source.action === 'selected';
+                                    const domain = String(source.url || '').replace(/^https?:\/\//, '').split('/')[0];
+                                    
+                                    return (
+                                      <motion.div
+                                        key={`${source.url}-${idx}`}
+                                        layout
+                                        initial={{ opacity: 0, scale: 0.8, y: -20 }}
+                                        animate={{ 
+                                          opacity: 1, 
+                                          scale: 1, 
+                                          y: 0,
+                                          rotate: isAccepted ? 0 : [0, -5, 5, 0]
+                                        }}
+                                        exit={{ 
+                                          opacity: 0, 
+                                          scale: 0.3, 
+                                          y: isAccepted ? 0 : 50,
+                                          x: isAccepted ? 0 : (idx % 2 ? 100 : -100),
+                                          rotate: isAccepted ? 0 : (idx % 2 ? 45 : -45)
+                                        }}
+                                        transition={{ 
+                                          duration: 0.5,
+                                          type: "spring",
+                                          stiffness: 200,
+                                          damping: 20
+                                        }}
+                                        className={cn(
+                                          "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium m-1 transition-all",
+                                          isAccepted 
+                                            ? "bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200"
+                                            : "bg-rose-100 dark:bg-rose-900/30 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200"
+                                        )}
+                                      >
+                                        {isAccepted ? (
+                                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                                        ) : (
+                                          <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                        )}
+                                        <span className="truncate max-w-[180px]">{domain}</span>
+                                      </motion.div>
+                                    );
+                                  });
+                                })()}
+                              </AnimatePresence>
+                            </div>
+                          </div>
+
+                          {/* Verified Sources with Pagination */}
+                          {verifiedSources.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                                    Verified Sources ({verifiedSources.length})
+                                  </h4>
+                                </div>
+                                {verifiedSources.length > SOURCES_PER_PAGE && (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => setCurrentSourcePage(p => Math.max(0, p - 1))}
+                                      disabled={currentSourcePage === 0}
+                                      className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      <ChevronUp className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                                    </button>
+                                    <span className="text-xs text-slate-600 dark:text-slate-400 px-2">
+                                      {currentSourcePage + 1}/{Math.ceil(verifiedSources.length / SOURCES_PER_PAGE)}
+                                    </span>
+                                    <button
+                                      onClick={() => setCurrentSourcePage(p => Math.min(Math.ceil(verifiedSources.length / SOURCES_PER_PAGE) - 1, p + 1))}
+                                      disabled={currentSourcePage >= Math.ceil(verifiedSources.length / SOURCES_PER_PAGE) - 1}
+                                      className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <AnimatePresence mode="wait">
+                                <motion.div
+                                  key={currentSourcePage}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="space-y-1.5"
+                                >
+                                  {verifiedSources
+                                    .slice(currentSourcePage * SOURCES_PER_PAGE, (currentSourcePage + 1) * SOURCES_PER_PAGE)
+                                    .map((source, idx) => {
+                                      const url = String(source.url || '');
+                                      const domain = url.replace(/^https?:\/\//, '').split('/')[0];
+                                      const path = url.replace(/^https?:\/\/[^/]+/, '').slice(0, 60);
+                                      
+                                      return (
+                                        <motion.a
+                                          key={idx}
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          initial={{ opacity: 0, x: -10 }}
+                                          animate={{ opacity: 1, x: 0 }}
+                                          transition={{ delay: idx * 0.05 }}
+                                          className="flex items-start gap-2 p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group"
+                                        >
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 truncate">
+                                              {domain}
+                                            </div>
+                                            {path && (
+                                              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                                {path}
+                                              </div>
+                                            )}
+                                          </div>
+                                          <svg className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                          </svg>
+                                        </motion.a>
+                                      );
+                                    })}
+                                </motion.div>
+                              </AnimatePresence>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
               )}
 
               <motion.div
