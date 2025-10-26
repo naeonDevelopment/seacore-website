@@ -285,7 +285,7 @@ const AssistantPage: React.FC = () => {
         {/* Mobile: Top Action Bar with Logo */}
         {isMobile && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center justify-between px-4 py-4">
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
                 className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"

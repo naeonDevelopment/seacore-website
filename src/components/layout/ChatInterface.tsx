@@ -459,7 +459,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {showHeader && (
         <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full">
           <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 py-3 md:py-4 lg:py-6 flex items-center justify-between">
-            <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-2">
               <div className="flex items-center justify-center">
                 <svg 
                   viewBox="170 450 690 130"
@@ -499,12 +499,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </g>
                 </svg>
               </div>
-              <h1 className="text-sm md:text-base lg:text-lg font-bold text-white enterprise-heading whitespace-nowrap">
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <h1 className="text-base md:text-lg lg:text-xl font-bold text-white enterprise-heading whitespace-nowrap">
                 AI Maritime Expert
               </h1>
             </div>
-            <div className="flex-1"></div>
-            <div className="flex items-center justify-end">
+            <div className="w-[100px] md:w-[120px] flex items-center justify-end">
               {onClose && (
                 <button
                   onClick={onClose}
