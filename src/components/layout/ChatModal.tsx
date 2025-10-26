@@ -499,15 +499,18 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'thinking') {
-                  streamedThinking += parsed.content;
-                  
-                  // FIXED: Start thinking timer when we FIRST receive thinking content
-                  if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
-                    thinkingStartTimeRef.current = Date.now();
-                    console.log('🧠 Thinking started - timer started');
+                  // Only accumulate thinking when online research is enabled
+                  if (useBrowsing) {
+                    streamedThinking += parsed.content;
+                    
+                    // FIXED: Start thinking timer when we FIRST receive thinking content
+                    if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
+                      thinkingStartTimeRef.current = Date.now();
+                      console.log('🧠 Thinking started - timer started');
+                    }
+                    
+                    console.log(`🧠 Received thinking chunk (+${parsed.content.length}chars), total: ${streamedThinking.length}chars`);
                   }
-                  
-                  console.log(`🧠 Received thinking chunk (+${parsed.content.length}chars), total: ${streamedThinking.length}chars`);
                 } else if (parsed.type === 'content') {
                   // First content received = answer is ready
                   if (!hasReceivedContent) {
@@ -535,7 +538,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                 const hasThinking = streamedThinking.length > 0;
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
                 const MINIMUM_THINKING_TIME = 800;
-                const shouldShowThinking = hasThinking && (!answerReadyToShow || thinkingElapsedTime < MINIMUM_THINKING_TIME);
+                const shouldShowThinking = useBrowsing && hasThinking && (!answerReadyToShow || thinkingElapsedTime < MINIMUM_THINKING_TIME);
 
                 setMessages((prev) => {
                   const updated = [...prev];
@@ -560,7 +563,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                   updated[idx] = {
                     ...updated[idx],
                     content: streamedContent, // Direct from accumulator
-                    thinkingContent: streamedThinking, // Direct from accumulator
+                    thinkingContent: useBrowsing ? streamedThinking : '', // Gate thinking by research toggle
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
@@ -604,6 +607,12 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           streamedContent = "I apologize, but I encountered an error while generating the response. Please try again.";
         }
         
+        // If no content but we only received thinking and thinking is disabled, show a safe fallback
+        if (!streamedContent && streamedThinking && !useBrowsing) {
+          console.warn('⚠️ Only thinking received while research is off — using safe fallback content.');
+          streamedContent = "I couldn't display the response correctly. Please try again.";
+        }
+
         // Wait for thinking display if needed
         const MINIMUM_THINKING_TIME = 800;
         const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
@@ -623,15 +632,25 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
             console.log(`🏁 Finalizing at index ${idx}`);
             
             if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
-              console.error(`❌ Invalid finalize index: ${idx}`);
-              return prev;
+              console.error(`❌ Invalid finalize index: ${idx} — appending assistant message as fallback`);
+              // Fallback: append a new assistant message so the answer is not lost
+              const fallbackAssistant = {
+                id: 'assistant-' + Date.now(),
+                role: 'assistant' as const,
+                content: streamedContent || "I apologize, but I couldn't render the response. Please try again.",
+                thinkingContent: useBrowsing ? streamedThinking : '',
+                timestamp: new Date(),
+                isStreaming: false,
+                isThinking: false,
+              };
+              return [...prev, fallbackAssistant];
             }
             
             // CRITICAL: Use accumulator values ONLY - never read from state
             updated[idx] = {
               ...updated[idx],
               content: streamedContent, // Accumulator is source of truth
-              thinkingContent: streamedThinking, // Accumulator is source of truth
+              thinkingContent: useBrowsing ? streamedThinking : '', // Gate thinking by research toggle
               isStreaming: false,
               isThinking: false,
             };
