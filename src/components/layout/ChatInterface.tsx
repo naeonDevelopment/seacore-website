@@ -458,11 +458,11 @@ This is **specialized maritime search** – not general web search. Get precise,
                     }
                   }
                   // Show streaming content even while thinking
+                  // Preserve original timestamp to keep React keys stable during streaming
                   updated[idx] = {
-                    role: 'assistant',
+                    ...updated[idx],
                     content: streamedContent,
                     thinkingContent: useBrowsing ? streamedThinking : '',
-                    timestamp: new Date(),
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
