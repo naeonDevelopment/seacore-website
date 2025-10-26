@@ -52,7 +52,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   const sidebarContent = (
     <div className="h-full flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 enterprise-heading flex items-center gap-2">
           <MessageSquare className="w-4 h-4" />
           <span>Sessions</span>
@@ -72,9 +72,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       <div className="p-3">
         <button
           onClick={onCreateSession}
-          className="w-full px-4 py-3 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:-translate-y-0.5"
+          className="w-full px-4 py-2.5 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:-translate-y-0.5"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           <span>New Chat</span>
         </button>
       </div>
@@ -92,14 +92,14 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className={cn(
-                  'group relative rounded-xl transition-all cursor-pointer',
+                  'group relative rounded-lg transition-all cursor-pointer',
                   isActive
                     ? 'bg-maritime-50 dark:bg-maritime-950/50 border-2 border-maritime-500'
                     : 'bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:border-maritime-300 dark:hover:border-maritime-700'
                 )}
                 onClick={() => !isEditing && onSwitchSession(session.id)}
               >
-                <div className="w-full px-3 py-3 flex items-center gap-2">
+                <div className="w-full px-3 py-2.5 flex items-center gap-2">
                   <MessageSquare
                     className={cn(
                       'w-4 h-4 flex-shrink-0',
@@ -201,7 +201,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       </div>
 
       {/* Footer Info */}
-      <div className="p-3 border-t border-slate-200 dark:border-slate-700">
+      <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700">
         <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
           {sessions.length} session{sessions.length !== 1 ? 's' : ''}
         </p>
@@ -209,15 +209,15 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     </div>
   );
 
-  // Desktop: Floating sidebar with padding
+  // Desktop: Floating sidebar centered vertically with auto height
   if (!isMobile) {
     return (
       <motion.div
-        initial={{ x: -320, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: -320, opacity: 0 }}
-        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="fixed left-4 top-4 bottom-4 w-80 z-[100]"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 20, opacity: 0 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="fixed left-4 top-1/2 -translate-y-1/2 w-72 max-h-[70vh] z-[100]"
       >
         {sidebarContent}
       </motion.div>

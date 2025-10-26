@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Home } from 'lucide-react';
+import { Menu, X, ArrowLeft } from 'lucide-react';
 import { ChatInterface } from '@/components/layout/ChatInterface';
 import { SessionSidebar } from '@/components/layout/SessionSidebar';
 import { useSessions } from '@/hooks/useSessions';
@@ -264,7 +264,7 @@ const AssistantPage: React.FC = () => {
           />
         )}
 
-        {/* Mobile: Top Action Bar */}
+        {/* Mobile: Top Action Bar with Logo */}
         {isMobile && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center justify-between px-4 py-3">
@@ -276,16 +276,21 @@ const AssistantPage: React.FC = () => {
                 <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
               </button>
               
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 enterprise-heading truncate">
-                {activeSession.name}
-              </h1>
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <img
+                  src="/Light.svg"
+                  alt="fleetcore"
+                  className="h-6 w-auto"
+                  loading="lazy"
+                />
+              </div>
               
               <button
                 onClick={handleClose}
                 className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
-                aria-label="Go home"
+                aria-label="Go back"
               >
-                <Home className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
               </button>
             </div>
           </div>
@@ -294,9 +299,9 @@ const AssistantPage: React.FC = () => {
         {/* Chat Interface Container with Max Width */}
         <div className={cn(
           "transition-all duration-300",
-          isMobile ? "pt-14" : "lg:ml-[21rem]"
+          isMobile ? "pt-14" : "lg:ml-80"
         )}>
-          <div className="mx-auto px-4" style={{ maxWidth: '1400px' }}>
+          <div className="mx-auto" style={{ maxWidth: '1400px' }}>
             <ChatInterface 
               isFullscreen={true}
               messages={activeSession.messages}
