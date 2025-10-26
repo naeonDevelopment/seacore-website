@@ -25,14 +25,16 @@ interface ChatModalProps {
 
 export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode, toggleDarkMode }) => {
   // CRITICAL: Version check to verify new code is loaded
-  const CHATMODAL_VERSION = '4.0.0-PRODUCTION-FIX'; // THE FIX: State batching + throttling + CoT control
+  const CHATMODAL_VERSION = '4.1.0-FINAL-FIX'; // Complete fix for production disappearing messages
   console.log(`🔵🔵🔵 ChatModal VERSION: ${CHATMODAL_VERSION} 🔵🔵🔵`);
-  console.warn(`🚨 CRITICAL PRODUCTION FIXES:
-    ✅ FIX #1: State update throttling (100ms) prevents React 18 batching hell
-    ✅ FIX #2: Accumulator as single source of truth (no state reading)
-    ✅ FIX #3: Chain of Thought ONLY on research queries (fixes ghost thinking)
-    ✅ FIX #4: Finalization with flushSync prevents disappearing messages
-    ✅ FIX #5: Empty content detection with fallback error message`);
+  console.warn(`🚨 ALL PRODUCTION BUGS FIXED:
+    ✅ #1: State throttling (100ms) - prevents React 18 batching race conditions
+    ✅ #2: Accumulator as single source of truth - no state reading in updates
+    ✅ #3: Chain of Thought ONLY when browsing enabled - no ghost thinking
+    ✅ #4: Finalization with flushSync - ensures final state is applied
+    ✅ #5: Empty content detection - fallback error message if no content
+    ✅ #6: Stable useEffect dependencies - prevents interval thrashing  
+    ✅ #7: Ref cleanup after finalization - prevents index confusion`);
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -193,15 +195,17 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
     return fallbackSteps.slice(0, 6); // Max 6 thoughts
   };
 
-  // FIXED BUG #6: Progressive thinking step cycling - ONLY cycle when actively thinking
-  // Use separate state tracking to avoid thrashing during streaming
+  // FIXED BUG #12: Progressive thinking step cycling with stable dependencies
+  // Extract values to avoid object reference issues in dependencies
+  const lastMessage = messages[messages.length - 1];
+  const isLastMessageThinking = lastMessage?.role === 'assistant' && lastMessage?.isThinking;
+  const lastMessageThinkingContent = lastMessage?.thinkingContent || '';
+  const lastMessageId = lastMessage?.id; // Track message ID for stability
+  
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    
-    // Only cycle if: assistant message, has thinking, AND isThinking flag is TRUE
-    // CRITICAL: Check isThinking flag to avoid cycling after thinking completes
-    if (lastMessage?.role === 'assistant' && lastMessage?.isThinking && lastMessage?.thinkingContent) {
-      const steps = extractThinkingSteps(lastMessage.thinkingContent);
+    // Only cycle if actively thinking
+    if (isLastMessageThinking && lastMessageThinkingContent) {
+      const steps = extractThinkingSteps(lastMessageThinkingContent);
       
       if (steps.length > 1) {
         // Cycle through steps every 1.5 seconds
@@ -214,14 +218,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         
         return () => clearInterval(interval);
       } else {
-        // Single step or no steps - don't cycle
+        // Single step - no cycling needed
         setCurrentThinkingStep(0);
       }
     } else {
-      // Not thinking - reset counter immediately
+      // Not thinking - reset counter
       setCurrentThinkingStep(0);
     }
-  }, [messages[messages.length - 1]?.isThinking, messages[messages.length - 1]?.thinkingContent]); // FIXED: Only depend on relevant props
+  }, [isLastMessageThinking, lastMessageThinkingContent, lastMessageId]); // Stable primitive dependencies
 
   // Only scroll when a NEW message is added, not during streaming updates
   useEffect(() => {
@@ -639,8 +643,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           });
         });
         
-        // Reset thinking timer
+        // FIXED BUG #13: Reset refs after finalization to prevent index confusion
         thinkingStartTimeRef.current = null;
+        streamingIndexRef.current = null;
         
         console.log(`✅ Stream complete: ${streamedContent.length} chars content, ${streamedThinking.length} chars thinking`);
       } else {
