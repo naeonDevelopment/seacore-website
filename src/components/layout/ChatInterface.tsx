@@ -70,10 +70,17 @@ This is **specialized maritime search** – not general web search. Get precise,
 
   // Use external messages if provided, otherwise use internal state
   const messages = externalMessages || internalMessages;
+  // Keep a ref to the latest messages to avoid stale closures when delegating to parent
+  const latestMessagesRef = useRef<Message[]>(messages);
+  useEffect(() => {
+    latestMessagesRef.current = messages;
+  }, [messages]);
+
   const setMessages = (newMessages: Message[] | ((prev: Message[]) => Message[])) => {
     if (onMessagesChange) {
       if (typeof newMessages === 'function') {
-        const updatedMessages = newMessages(messages);
+        // Compute from the latest snapshot to avoid overwriting with stale arrays
+        const updatedMessages = newMessages(latestMessagesRef.current);
         onMessagesChange(updatedMessages);
       } else {
         onMessagesChange(newMessages);
@@ -98,6 +105,8 @@ This is **specialized maritime search** – not general web search. Get precise,
   const thinkingStartTimeRef = useRef<number | null>(null);
   const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [viewportTop, setViewportTop] = useState(0);
+  // Throttle streaming UI updates
+  const lastStreamUpdateRef = useRef<number>(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -368,10 +377,25 @@ This is **specialized maritime search** – not general web search. Get precise,
 
         if (reader) {
           let buffer = '';
+          // Stream safety timeouts
+          const streamStartTime = Date.now();
+          const STREAM_TIMEOUT = 120000; // 2 minutes
+          let lastChunkTime = Date.now();
+          const CHUNK_TIMEOUT = 30000; // 30 seconds
           while (true) {
+            // Check timeouts
+            const nowTs = Date.now();
+            if (nowTs - streamStartTime > STREAM_TIMEOUT) {
+              console.error('❌ [ChatInterface] Stream timeout (2m)');
+              throw new Error('Stream timeout');
+            }
+            if (nowTs - lastChunkTime > CHUNK_TIMEOUT) {
+              console.error('❌ [ChatInterface] Chunk timeout (30s)');
+              throw new Error('Stream stalled');
+            }
             const { done, value } = await reader.read();
             if (done) break;
-
+            lastChunkTime = Date.now();
             buffer += decoder.decode(value, { stream: true });
 
             let newlineIndex = buffer.indexOf('\n');
@@ -405,7 +429,15 @@ This is **specialized maritime search** – not general web search. Get precise,
                   streamedContent += parsed.content;
                 }
 
-                // Display rules match ChatModal: brief thinking then switch to answer
+                // Throttle UI updates to ~100ms
+                const now = Date.now();
+                const UPDATE_THROTTLE = 100;
+                if (now - lastStreamUpdateRef.current < UPDATE_THROTTLE) {
+                  continue;
+                }
+                lastStreamUpdateRef.current = now;
+
+                // Brief thinking then switch to answer
                 const MINIMUM_THINKING_TIME = 800;
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
                 const hasThinking = streamedThinking.length > 0;
@@ -519,7 +551,7 @@ This is **specialized maritime search** – not general web search. Get precise,
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (typeof window !== 'undefined' && window.innerWidth < 640) {
@@ -603,7 +635,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         <div className="relative z-10 space-y-3 md:space-y-4 lg:space-y-5 max-w-5xl mx-auto w-full px-2 sm:px-0">
           {messages.map((message, index) => (
-            <div key={index}>
+            <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
               {message.role === 'assistant' && message.thinkingContent && message.isThinking && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -697,7 +729,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                     </motion.div>
                   )}
                 
-                  {message.content && (
+                  {/* Always render content area; show streaming cursor even if empty */}
+                  {(
                     <>
                       {message.role === 'assistant' ? (
                         <div className="text-sm sm:text-base leading-relaxed enterprise-body prose prose-slate dark:prose-invert max-w-none prose-a:text-maritime-600 prose-a:dark:text-maritime-400 prose-a:font-semibold prose-a:no-underline prose-a:hover:underline">
@@ -796,7 +829,9 @@ This is **specialized maritime search** – not general web search. Get precise,
                           >
                             {message.content}
                           </ReactMarkdown>
-                          {message.isStreaming && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse" />}
+                          {message.isStreaming && (
+                            <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse align-baseline" />
+                          )}
                         </div>
                       ) : (
                         <div className="text-sm sm:text-base leading-relaxed font-medium whitespace-pre-wrap text-white !text-white [&_*]:!text-white">
