@@ -320,7 +320,7 @@ const AssistantPage: React.FC = () => {
         {/* Chat Interface Container with Max Width */}
         <div className={cn(
           "transition-all duration-300",
-          isMobile ? "pt-16" : ""
+          isMobile ? "mt-16" : ""
         )}>
           <ChatInterface 
             isFullscreen={true}
@@ -328,7 +328,7 @@ const AssistantPage: React.FC = () => {
             onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
             onClose={!isMobile ? handleClose : undefined}
             showHeader={!isMobile}
-            className="min-h-screen"
+            className={cn(isMobile ? "h-[calc(100vh-4rem)]" : "min-h-screen")}
           />
         </div>
       </div>
