@@ -1398,8 +1398,8 @@ export async function onRequestPost(context) {
             
             // Stage 5: Claim verification
             console.log(`   5/7 Verifying claims...`);
-            const verification = verifyClaims(claims, classification.verificationLevel, comparativeAnalysis);
-            
+              const verification = verifyClaims(claims, classification.verificationLevel, comparativeAnalysis);
+              
             // Store verification metadata for display
             verificationMetadata = {
               entities: entities.length,
@@ -1565,12 +1565,21 @@ export async function onRequestPost(context) {
       };
     }
     
-    const envModel = (OPENAI_MODEL || 'gpt-4o-mini').trim();
+    const envModel = (OPENAI_MODEL || 'gpt-4o').trim();
     // Normalize accidental spaces (e.g., "gpt-5 mini" -> "gpt-5-mini")
     let selectedModel = envModel.replace(/\s+/g, '-').toLowerCase();
     
-    // Validate and warn
-    if (!ALL_VALID_MODELS.includes(selectedModel) && !selectedModel.startsWith('gpt-5') && !selectedModel.startsWith('o1') && !selectedModel.startsWith('o3')) {
+    // GPT-5 SAFEGUARD: Check if GPT-5 is requested but not available yet
+    // As of Oct 2025, GPT-5 is not publicly available from OpenAI
+    if (selectedModel.startsWith('gpt-5')) {
+      console.warn(`⚠️ GPT-5 not yet available from OpenAI. Falling back to gpt-4o.`);
+      console.warn(`   Requested: ${selectedModel}`);
+      console.warn(`   Using: gpt-4o (latest available model)`);
+      selectedModel = 'gpt-4o';
+    }
+    
+    // Validate and warn for other models
+    if (!ALL_VALID_MODELS.includes(selectedModel) && !selectedModel.startsWith('o1') && !selectedModel.startsWith('o3')) {
       console.warn(`⚠️ Model "${selectedModel}" may not be valid. Attempting anyway, will fallback on error.`);
     }
     
@@ -1726,9 +1735,9 @@ Before submitting your answer, verify:
     });
 
     // PHASE 1: INTELLIGENT FALLBACK MECHANISM
-    // Try fallback chain if primary model fails
-    while (!response.ok && response.status === 400 && fallbackAttempts < maxFallbackAttempts) {
-      const fallbackModels = FALLBACK_CHAIN[usedModel] || ['gpt-4o-mini'];
+    // Try fallback chain if primary model fails (any 4xx error)
+    while (!response.ok && response.status >= 400 && response.status < 500 && fallbackAttempts < maxFallbackAttempts) {
+      const fallbackModels = FALLBACK_CHAIN[usedModel] || ['gpt-4o', 'gpt-4o-mini'];
       
       if (fallbackAttempts >= fallbackModels.length) {
         console.error(`❌ All fallbacks exhausted for ${selectedModel}`);
@@ -1738,7 +1747,7 @@ Before submitting your answer, verify:
       usedModel = fallbackModels[fallbackAttempts];
       fallbackAttempts++;
       
-      console.log(`⚠️ Fallback attempt ${fallbackAttempts}: Trying ${usedModel}`);
+      console.log(`⚠️ Fallback attempt ${fallbackAttempts}: Trying ${usedModel} (previous error: ${response.status})`);
       
       const fallbackCapabilities = getModelCapabilities(usedModel);
       const fallbackIsReasoning = fallbackCapabilities.nativeReasoning;
@@ -1759,10 +1768,10 @@ Before submitting your answer, verify:
             }
           : {
               temperature: queryTemperature,
-              max_tokens: 3000,
-              presence_penalty: 0.6,
-              frequency_penalty: 0.3,
-              top_p: 0.9,
+        max_tokens: 3000,
+        presence_penalty: 0.6,
+        frequency_penalty: 0.3,
+        top_p: 0.9,
             }
         ),
       };
@@ -1785,18 +1794,24 @@ Before submitting your answer, verify:
       
       // PHASE 1: Enhanced error response with fallback information
       const fallbackChain = FALLBACK_CHAIN[selectedModel] || [];
+      const triedModels = fallbackAttempts > 0 ? [selectedModel, ...fallbackChain.slice(0, fallbackAttempts)].join(', ') : selectedModel;
+      
       return new Response(
         JSON.stringify({ 
-          message: `I apologize, but I'm unable to connect with the "${selectedModel}" model${fallbackAttempts > 0 ? ` or its fallbacks (${fallbackChain.slice(0, fallbackAttempts).join(', ')})` : ''}. 
+          message: `I apologize, but I'm unable to connect with the OpenAI API.
+
+**What we tried:**
+- Models attempted: ${triedModels}
+- All attempts failed after ${fallbackAttempts + 1} tries
 
 **Troubleshooting:**
-- If using GPT-5: Verify your OpenAI account has access to GPT-5 API
-- Check OPENAI_MODEL environment variable is set correctly
-- Current value: "${envModel}"
-- Valid GPT-5 models: gpt-5, gpt-5-turbo, gpt-5-preview
-- Fallback models available: ${ALL_VALID_MODELS.slice(0, 5).join(', ')}...
+- Check your OpenAI API key is valid
+- Verify your OpenAI account has API access enabled
+- Check OPENAI_MODEL environment variable: currently set to "${envModel}"
+- Available models: ${ALL_VALID_MODELS.slice(0, 8).join(', ')}...
 
-The system will automatically fall back to available models when GPT-5 is not accessible.`,
+**Recommendation:**
+Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages environment variables.`,
           error: true,
           attempted_model: usedModel,
           original_model: selectedModel,
@@ -1876,9 +1891,9 @@ The system will automatically fall back to available models when GPT-5 is not ac
                       );
                     } else {
                       // Default to content
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
-                      );
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
+                  );
                     }
                   } else {
                     // Standard content streaming
@@ -1904,10 +1919,10 @@ The system will automatically fall back to available models when GPT-5 is not ac
 
     // PHASE 1 & 2: Enhanced response headers with model and research metadata
     const headers: Record<string, string> = {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'x-model': usedModel,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'x-model': usedModel,
       'x-model-tier': modelCapabilities.tier,
       'x-model-requested': selectedModel,
       'x-fallback-attempts': fallbackAttempts.toString(),
