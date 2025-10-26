@@ -4,107 +4,140 @@
  */
 
 export const assistantContent = {
-  title: "fleetcore Maritime AI Assistant - Ask About Fleet Maintenance & SOLAS",
-  description: "Chat with fleetcore's AI maritime expert. Get instant answers about fleet maintenance, SOLAS/MARPOL compliance, predictive maintenance, and maritime regulations. Powered by advanced AI with real-time research capabilities.",
+  title: "fleetcore Maritime Intelligence Agent - Specialized AI Expert System for Tailored Insights",
+  description: "Experience our enterprise-grade maritime intelligence agent delivering personalized insights tailored to your fleet operations. Specialized AI expert system with deep domain knowledge, adaptive reasoning, and real-time research for compliance, maintenance, and strategic decision support.",
   url: "https://fleetcore.ai/assistant",
   
   mainContent: `
-# Maritime AI Assistant - Your Expert Guide to Fleet Maintenance
+# Maritime Intelligence Agent - Your Specialized AI Expert for Tailored Maritime Insights
 
-Welcome to fleetcore's AI-powered maritime assistant. This intelligent chatbot helps you understand:
+Welcome to fleetcore's enterprise-grade maritime intelligence agent. This specialized AI expert system delivers personalized, context-aware guidance tailored specifically to your operational needs:
 
-## What You Can Ask
+## Specialized Intelligence Capabilities
 
-### Fleet Maintenance Management
-- Predictive maintenance strategies and best practices
-- Maintenance scheduling optimization
-- Cost reduction techniques (20-30% savings)
-- Equipment lifecycle management
-- Spare parts inventory optimization
-- Work order management systems
+### Tailored Strategic Guidance
+- **Personalized Recommendations**: Context-aware insights adapted to your specific fleet composition, operational profile, and business objectives
+- **Adaptive Intelligence**: Learns from conversation context to provide increasingly relevant guidance
+- **Role-Based Expertise**: Tailored communication for fleet managers, technical teams, compliance officers, and executives
+- **Custom Analysis**: Synthesizes complex maritime data into actionable insights specific to your challenges
 
-### SOLAS & MARPOL Compliance
-- SOLAS (Safety of Life at Sea) requirements
-- MARPOL pollution prevention regulations
-- Automated compliance tracking
-- Regulatory update notifications
-- Documentation requirements
-- Certification management
-- Audit preparation guidance
+### Advanced Fleet Intelligence
+- **Predictive Maintenance Strategies**: Specialized algorithms and best practices tailored to your vessel types and operational conditions
+- **Cost Optimization Intelligence**: Personalized 20-30% cost reduction strategies based on your fleet profile
+- **Equipment Lifecycle Management**: Customized guidance for your specific asset portfolio
+- **Inventory Optimization**: Tailored spare parts strategies aligned with your operational requirements
+- **Maintenance Scheduling**: Adaptive scheduling recommendations based on your operational constraints
 
-### Maritime Industry Insights
-- Commercial shipping operations
-- Offshore energy sector requirements
-- Cruise line maintenance protocols
-- Naval and defense fleet management
-- Port operations and logistics
-- Yacht and superyacht maintenance
+### Regulatory Compliance Intelligence
+- **SOLAS/MARPOL/ISM Expertise**: Specialized interpretation of regulations for your specific vessel classes and operations
+- **Tailored Compliance Strategies**: Personalized audit preparation and documentation guidance
+- **Proactive Regulatory Intelligence**: Real-time monitoring of regulatory changes affecting your operations
+- **Custom Compliance Roadmaps**: Step-by-step guidance tailored to your certification timelines
+- **Risk Assessment**: Personalized compliance risk analysis for your fleet
 
-### fleetcore Platform Features
-- AI-powered predictive analytics
-- Real-time monitoring capabilities
-- Cloud-based fleet management
-- Mobile app functionality
-- Integration with existing systems
-- Custom reporting and dashboards
-- Multi-vessel fleet coordination
+### Enterprise Decision Support
+- **Strategic Planning**: Tailored recommendations for fleet modernization and technology adoption
+- **ROI Analysis**: Customized business case development for your specific operational context
+- **Technology Integration**: Personalized guidance for integrating solutions with your existing systems
+- **Performance Benchmarking**: Comparative analysis against industry standards relevant to your sector
+- **Investment Prioritization**: Tailored recommendations on where to focus resources for maximum impact
 
-## How It Works
+## How the Specialized Intelligence Agent Works
 
-Our AI assistant uses advanced language models with:
+Our enterprise-grade intelligence agent employs advanced AI technologies to deliver tailored insights:
 
-1. **Chain-of-Thought Reasoning**: See the AI's thinking process as it analyzes your questions
-2. **Online Research Mode**: Enable real-time web searches for the latest maritime regulations and industry news
-3. **Maritime Domain Expertise**: Trained on maritime maintenance best practices, regulations, and industry standards
-4. **Contextual Understanding**: Remembers conversation context for follow-up questions
+### Core Intelligence Architecture
 
-## Common Use Cases
+1. **Adaptive Reasoning Engine**: Transparent chain-of-thought processing that shows how conclusions are reached, ensuring trust and understanding in AI-generated recommendations
 
-### For Fleet Managers
-- "How can I reduce maintenance costs by 20-30%?"
-- "What are the latest SOLAS amendments?"
-- "How does predictive maintenance work?"
-- "What's the ROI of implementing fleetcore?"
+2. **Real-Time Research Intelligence**: On-demand synthesis of current maritime regulations, industry developments, and best practices from authoritative sources worldwide
 
-### For Technical Teams
-- "How do I set up automated compliance tracking?"
-- "What maintenance intervals does SOLAS require?"
-- "How does the platform integrate with our existing systems?"
-- "What data does the AI use for predictive analytics?"
+3. **Deep Maritime Domain Expertise**: Specialized training on:
+   - International maritime regulations (SOLAS, MARPOL, ISM Code)
+   - Fleet maintenance best practices across vessel types
+   - Industry standards from classification societies
+   - Operational excellence frameworks
+   - Technology integration methodologies
 
-### For Executives
-- "What are the business benefits of fleetcore?"
-- "How long does implementation take?"
-- "What cost savings can we expect?"
-- "How does fleetcore compare to competitors?"
+4. **Context-Aware Personalization**: Multi-session memory and adaptive learning that:
+   - Remembers your operational context across conversations
+   - Builds understanding of your specific challenges
+   - Refines recommendations based on your feedback
+   - Adapts communication style to your role and expertise level
 
-## Key Features
+5. **Enterprise-Grade Reliability**: Built on robust infrastructure ensuring:
+   - Consistent availability for mission-critical decision support
+   - Secure processing of sensitive operational discussions
+   - Multi-session management for complex analysis projects
+   - Conversation history for audit trails and reference
 
-### Free to Use
-No signup required - start asking questions immediately
+## Tailored Intelligence by Role
 
-### Maritime Domain Expert
-Specialized knowledge in:
-- Ship maintenance and repair
-- Regulatory compliance (SOLAS, MARPOL, ISM)
-- Fleet operations management
-- Maritime safety standards
-- Environmental regulations
-- Port state control requirements
+### For Fleet Managers - Operational Excellence
+Ask the intelligence agent for personalized guidance on:
+- "Given my fleet of 12 container vessels, what predictive maintenance approach will deliver maximum cost savings?"
+- "How should I prioritize maintenance investments across different vessel systems?"
+- "What are the latest SOLAS amendments affecting my specific vessel class?"
+- "Create a customized roadmap for achieving 25% maintenance cost reduction in my operations"
 
-### Real-Time Research
-Enable online research to access:
-- Latest maritime regulations updates
-- Recent industry news and trends
-- Current fuel prices and market conditions
-- New technology developments
-- Best practice publications
+### For Technical Directors - Engineering Intelligence
+Leverage specialized technical expertise for:
+- "How do I architect an automated compliance tracking system for our specific operational requirements?"
+- "What sensor configurations optimize predictive analytics for our engine types?"
+- "Design an integration strategy for connecting fleetcore with our existing ERP and CMMS systems"
+- "What are best practices for implementing condition-based maintenance on [specific equipment]?"
 
-### Intelligent Responses
-- Clear, actionable answers
-- Relevant source citations
-- Industry-specific terminology
-- Practical implementation guidance
+### For Compliance Officers - Regulatory Intelligence
+Get tailored compliance guidance:
+- "Build a comprehensive SOLAS compliance checklist customized for our vessel types and routes"
+- "What regulatory changes in the next 12 months will affect our certification schedule?"
+- "Create a personalized audit preparation plan for our upcoming ISM recertification"
+- "How do new environmental regulations apply to our specific operational profile?"
+
+### For C-Level Executives - Strategic Intelligence
+Receive executive-level decision support:
+- "What's the business case and ROI timeline for implementing fleetcore across our fleet?"
+- "How does digital transformation in maritime maintenance impact our competitive position?"
+- "What are strategic technology investments that will deliver measurable business outcomes?"
+- "Provide a risk-adjusted cost-benefit analysis for predictive maintenance implementation"
+
+## What Sets This Intelligence Agent Apart
+
+### Enterprise-Grade Specialized Expertise
+Unlike generic AI chatbots, our intelligence agent offers:
+- **Deep Maritime Domain Knowledge**: Extensive training on regulations, standards, best practices across all maritime sectors
+- **Adaptive Learning**: Continuously refines understanding of your specific operational context
+- **Professional-Grade Output**: Responses suitable for decision-making, planning, and strategic analysis
+- **Industry Terminology Mastery**: Communicates fluently in maritime technical language
+
+### Tailored Intelligence Delivery
+Personalization that makes a difference:
+- **Context-Aware Recommendations**: Every answer considers your specific operational environment
+- **Role-Optimized Communication**: Adjusts technical depth and focus based on your position
+- **Multi-Session Intelligence**: Builds comprehensive understanding across conversations
+- **Custom Analysis**: Synthesizes complex information into actionable insights for your situation
+
+### Real-Time Research Integration
+Access to current maritime intelligence:
+- **Regulatory Updates**: Latest amendments to SOLAS, MARPOL, and international standards
+- **Industry Developments**: Recent technological advances and best practice evolution
+- **Market Intelligence**: Current trends affecting maritime operations and maintenance
+- **Authoritative Sources**: Credible citations from classification societies, regulatory bodies, and industry leaders
+
+### Transparent Reasoning Process
+Build trust through transparency:
+- **Chain-of-Thought Visibility**: See how the agent reaches conclusions and recommendations
+- **Source Attribution**: Clear citations for regulatory interpretations and technical guidance
+- **Confidence Levels**: Honest assessment of recommendation certainty
+- **Alternative Perspectives**: Multiple approaches considered for complex decisions
+
+### Enterprise Features
+Professional capabilities for serious operations:
+- **Instant Access**: No signup, registration, or barriers to getting started
+- **Conversation Management**: Multi-session support for complex analysis projects
+- **History & Reference**: Maintain conversation threads for audit trails and future reference
+- **Secure Processing**: Enterprise-grade security for sensitive operational discussions
+- **24/7 Availability**: Always-on intelligence support for global operations
 
 ## Privacy & Security
 
@@ -184,97 +217,114 @@ Contact us to discuss custom AI assistant deployment for your fleet.
   `,
 
   keywords: [
-    "maritime AI assistant",
-    "fleet maintenance chatbot",
-    "SOLAS compliance assistant",
-    "maritime regulations AI",
-    "ship maintenance AI",
-    "predictive maintenance assistant",
-    "maritime chatbot",
-    "fleet management AI",
-    "MARPOL assistant",
-    "maritime expert system",
-    "vessel maintenance AI",
-    "shipping industry chatbot",
-    "maritime AI technology",
-    "fleet operations assistant",
-    "marine engineering AI"
+    "maritime intelligence agent",
+    "specialized AI expert system",
+    "tailored maritime insights",
+    "enterprise AI assistant",
+    "personalized fleet intelligence",
+    "adaptive maritime AI",
+    "maritime decision support system",
+    "intelligent compliance advisor",
+    "custom maritime intelligence",
+    "specialized maritime AI",
+    "enterprise maritime agent",
+    "tailored fleet intelligence",
+    "maritime expert agent system",
+    "adaptive fleet AI",
+    "personalized maritime advisor"
   ],
 
   faqs: [
     {
-      question: "What can the fleetcore AI assistant help me with?",
-      answer: "The fleetcore AI assistant helps with maritime maintenance management, SOLAS and MARPOL compliance questions, predictive maintenance insights, fleet management best practices, and general maritime industry regulations. It uses advanced AI with real-time online research capabilities to provide accurate, helpful answers."
+      question: "What makes fleetcore's maritime intelligence agent truly specialized?",
+      answer: "Our intelligence agent represents a specialized AI expert system, not a generic chatbot. It combines deep maritime domain expertise with adaptive reasoning to deliver tailored insights specific to your fleet operations, regulatory environment, and business objectives. The agent personalizes recommendations based on your role, vessel types, operational context, and unique challenges, making it a professional decision-support tool for serious maritime operations."
     },
     {
-      question: "How does the maritime AI assistant work?",
-      answer: "Our AI assistant uses advanced language models with chain-of-thought reasoning and optional online research capabilities. It's trained on maritime regulations, fleet maintenance procedures, and industry best practices to provide accurate answers. You can see its thinking process as it analyzes your questions."
+      question: "How does the intelligence agent deliver tailored, personalized insights?",
+      answer: "The agent employs advanced contextual awareness and multi-session learning to understand your specific situation. It adapts communication style based on your role (fleet manager, technical director, compliance officer, executive), remembers your operational context across conversations, and synthesizes complex maritime data into actionable insights customized for your needs. Every recommendation considers your unique fleet composition, routes, operational constraints, and business objectives."
     },
     {
-      question: "Is the maritime AI assistant free to use?",
-      answer: "Yes, the fleetcore maritime AI assistant is completely free to use. You can ask questions about maritime maintenance, regulations, and our platform features without any cost or signup required. No credit card needed."
+      question: "What differentiates this from standard AI chatbots?",
+      answer: "Unlike generic chatbots, our specialized intelligence agent offers: (1) Deep maritime domain expertise trained on international regulations and industry best practices, (2) Enterprise-grade reliability with multi-session management and conversation history, (3) Transparent chain-of-thought reasoning showing how conclusions are reached, (4) Real-time research integration for current regulatory updates, (5) Adaptive personalization that learns from your context, and (6) Professional-quality output suitable for strategic decision-making and planning."
     },
     {
-      question: "Can the AI assistant provide SOLAS compliance guidance?",
-      answer: "Yes, the AI assistant can provide detailed guidance on SOLAS (Safety of Life at Sea) regulations, MARPOL compliance, ISM Code requirements, and other maritime safety standards. It can help you understand requirements and explain how fleetcore's platform automates compliance tracking."
+      question: "Can the intelligence agent provide customized compliance strategies?",
+      answer: "Absolutely. The agent delivers tailored compliance intelligence including personalized SOLAS/MARPOL/ISM guidance for your specific vessel classes, customized audit preparation roadmaps aligned with your certification timelines, risk assessments specific to your fleet profile, and proactive monitoring of regulatory changes affecting your operations. It creates compliance strategies adapted to your operational reality, not generic advice."
     },
     {
-      question: "Does the assistant have access to real-time information?",
-      answer: "Yes, you can enable 'Online research' mode to have the assistant search for real-time information, latest maritime regulations updates, current industry news, and recent developments. This ensures you get the most up-to-date answers to your questions."
+      question: "Is this intelligence agent suitable for enterprise decision-making?",
+      answer: "Yes, the agent is purpose-built for enterprise maritime operations. It provides executive-level strategic intelligence including ROI analysis, technology investment prioritization, competitive positioning insights, and risk-adjusted cost-benefit analyses. The transparent reasoning process, authoritative source citations, and professional-grade output make it suitable for serious business decisions, planning documents, and strategic initiatives."
     },
     {
-      question: "How accurate are the AI assistant's responses?",
-      answer: "The AI assistant is trained on verified maritime maintenance procedures, official regulatory documents, and industry best practices. For critical operational decisions, we always recommend verifying information with official sources or contacting our expert team directly."
+      question: "How does the real-time research capability enhance tailored insights?",
+      answer: "The agent's real-time research capability ensures recommendations reflect the latest regulatory amendments, industry developments, technological advances, and best practices. This means your tailored insights incorporate current maritime intelligence from classification societies, regulatory bodies, and industry leaders—not just static training data. It's like having a maritime research team continuously updating your decision support."
     },
     {
-      question: "Can I use the AI assistant on mobile devices?",
-      answer: "Yes, the maritime AI assistant is fully responsive and optimized for mobile devices. It includes smart keyboard handling on iOS and Android, making it easy to ask questions on the go from your smartphone or tablet."
+      question: "Can the intelligence agent adapt to different maritime sectors?",
+      answer: "Yes, the specialized agent delivers tailored intelligence across all maritime sectors including commercial shipping, offshore energy, cruise operations, naval fleets, superyachts, and port operations. It adapts its expertise and recommendations based on your specific sector's requirements, operational characteristics, regulatory environment, and industry best practices."
     },
     {
-      question: "What languages does the AI assistant support?",
-      answer: "Currently, the AI assistant primarily supports English, which is the standard language for maritime regulations and international shipping. We're working on adding support for additional languages commonly used in the maritime industry."
+      question: "What's included in the enterprise-grade features?",
+      answer: "Enterprise features include: multi-session conversation management for complex analysis projects, conversation history for audit trails and reference, transparent reasoning with source attribution, secure processing of sensitive operational discussions, 24/7 availability for global operations, adaptive learning from your context, and role-based communication optimization. All available instantly without signup or registration."
     },
     {
-      question: "How long does it take to get an answer?",
-      answer: "Most questions receive a response within 2-5 seconds. Complex questions requiring online research may take 5-10 seconds. The AI shows its thinking process in real-time so you can see it's working on your question."
+      question: "How quickly can I get tailored insights?",
+      answer: "The intelligence agent typically delivers personalized responses within 2-5 seconds for standard queries. Complex analyses requiring real-time research and deep reasoning may take 5-15 seconds. You'll see the transparent thinking process in real-time, showing how the agent synthesizes information and develops tailored recommendations specific to your situation."
     },
     {
-      question: "Can I integrate this AI assistant into my own systems?",
-      answer: "Yes, the maritime AI assistant technology can be integrated into your fleet management dashboard, customized for your specific vessel types, and trained on your internal documentation. Contact us to discuss custom AI assistant deployment options."
+      question: "Can this intelligence technology be deployed as a custom solution?",
+      answer: "Absolutely. The maritime intelligence agent technology can be customized and deployed as a private solution for your organization. This includes training on your internal documentation and procedures, integration with your fleet management systems, customization for your specific vessel types and operations, and white-label deployment. Contact us to discuss enterprise intelligence agent solutions tailored exclusively to your needs."
     }
   ],
 
   technicalDetails: {
-    model: "Advanced GPT-based language model",
+    model: "Enterprise-Grade Specialized Intelligence Agent",
+    architecture: "Advanced GPT-based language model with maritime domain specialization",
     features: [
-      "Chain-of-thought reasoning",
-      "Real-time online research",
-      "Maritime domain expertise",
-      "Contextual conversation memory",
-      "Source citation",
-      "Mobile-optimized interface",
-      "Dark mode support",
-      "Keyboard accessibility"
+      "Adaptive reasoning engine with transparent chain-of-thought",
+      "Real-time research and data synthesis",
+      "Deep maritime domain expertise and specialization",
+      "Context-aware personalization and learning",
+      "Multi-session conversation management",
+      "Role-based communication optimization",
+      "Enterprise-grade security and reliability",
+      "Authoritative source citation and attribution",
+      "Mobile-optimized responsive interface",
+      "Dark mode and accessibility support"
     ],
-    trainingData: [
-      "SOLAS regulations",
-      "MARPOL conventions",
-      "ISM Code documentation",
-      "Maritime maintenance best practices",
-      "Fleet management procedures",
-      "Industry standards and guidelines",
-      "Safety management systems",
-      "Vessel technical documentation"
+    specializationAreas: [
+      "International maritime regulations (SOLAS, MARPOL, ISM)",
+      "Predictive maintenance strategies and methodologies",
+      "Fleet optimization and operational excellence",
+      "Regulatory compliance and audit preparation",
+      "Equipment lifecycle and asset management",
+      "Cost reduction and ROI analysis",
+      "Technology integration and digital transformation",
+      "Risk assessment and mitigation strategies",
+      "Classification society standards",
+      "Port state control requirements"
     ],
-    capabilities: [
-      "Natural language understanding",
-      "Regulatory interpretation",
-      "Technical explanation",
-      "Cost analysis guidance",
-      "Implementation advice",
-      "Troubleshooting assistance",
-      "Best practice recommendations",
-      "Compliance verification"
+    intelligenceCapabilities: [
+      "Tailored recommendation generation",
+      "Personalized strategic guidance",
+      "Adaptive context understanding",
+      "Complex regulatory interpretation",
+      "Custom compliance roadmap creation",
+      "Operational risk analysis",
+      "Business case development",
+      "Technology assessment and selection",
+      "Performance benchmarking analysis",
+      "Investment prioritization consulting"
+    ],
+    enterpriseFeatures: [
+      "Multi-session project management",
+      "Conversation history and audit trails",
+      "Secure operational data processing",
+      "24/7 global availability",
+      "Scalable infrastructure",
+      "Professional-grade output quality",
+      "Source verification and citation",
+      "Confidence scoring for recommendations"
     ]
   },
 

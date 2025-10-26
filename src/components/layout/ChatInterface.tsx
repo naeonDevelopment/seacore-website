@@ -257,6 +257,11 @@ This is **specialized maritime search** – not general web search. Get precise,
     s = removeCotBlock(s);
     // Strip residual ANSWER labels if any
     s = s.replace(/\*\*ANSWER:\*\*\s*/i, '').replace(/^ANSWER:\s*/i, '');
+    
+    // Remove "Sources:" section at end since research panel shows them
+    // Match variations: **Sources:**, Sources:, ## Sources, ### Sources
+    s = s.replace(/\n\s*(#{1,3}\s*)?(\*\*)?Sources:?(\*\*)?\s*[\s\S]*$/i, '');
+    
     return s.trim();
   };
 
