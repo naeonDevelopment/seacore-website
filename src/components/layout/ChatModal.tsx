@@ -484,23 +484,43 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         </motion.div>
                       )}
                       
-                      {/* Chain of Thought - Embedded inline display like ChatGPT/Cursor */}
+                      {/* Chain of Thought - Progressive display like o1 (lines replace each other) */}
                       {message.role === 'assistant' && message.thinkingContent && (
                         <div className="mb-3 p-3 rounded-lg bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
                           <div className="flex items-start gap-2">
                             <Brain className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-1">
-                                {message.thinkingContent.split('\n').map((line, idx) => {
-                                  const trimmed = line.trim();
-                                  if (!trimmed) return null;
-                                  return (
-                                    <div key={idx} className="flex items-start gap-1.5">
-                                      <span className="text-slate-400 dark:text-slate-500 select-none">→</span>
-                                      <span className="flex-1">{trimmed}</span>
-                                    </div>
-                                  );
-                                }).filter(Boolean)}
+                              <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                                {(() => {
+                                  const lines = message.thinkingContent.split('\n').filter(l => l.trim());
+                                  // Show only the last line if streaming, all lines if complete
+                                  if (message.isStreaming && lines.length > 0) {
+                                    const lastLine = lines[lines.length - 1].trim();
+                                    return (
+                                      <motion.div
+                                        key={lastLine}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="flex items-start gap-1.5"
+                                      >
+                                        <span className="text-slate-400 dark:text-slate-500 select-none">→</span>
+                                        <span className="flex-1">{lastLine}</span>
+                                      </motion.div>
+                                    );
+                                  }
+                                  // Show all lines when complete
+                                  return lines.map((line, idx) => {
+                                    const trimmed = line.trim();
+                                    if (!trimmed) return null;
+                                    return (
+                                      <div key={idx} className="flex items-start gap-1.5 opacity-60">
+                                        <span className="text-slate-400 dark:text-slate-500 select-none">→</span>
+                                        <span className="flex-1">{trimmed}</span>
+                                      </div>
+                                    );
+                                  }).filter(Boolean);
+                                })()}
                               </div>
                             </div>
                           </div>

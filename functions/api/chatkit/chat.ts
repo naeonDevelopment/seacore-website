@@ -867,14 +867,24 @@ export async function onRequestPost(context) {
     const currentQuery = messages[messages.length - 1]?.content || ''; // Declare once at top level
     
     // FOLLOW-UP QUESTION DETECTION: Check if current query references previous research
-    const isFollowUpQuery = /\b(them|those|that|it|each one|the above|mentioned|listed)\b/i.test(currentQuery) ||
-                            /\b(give me|tell me|what about|how about|also)\b/i.test(currentQuery);
+    // Enhanced detection with more patterns
+    const hasReferentialPronouns = /\b(them|those|that|it|its|each one|the above|mentioned|listed|same|their)\b/i.test(currentQuery);
+    const hasFollowUpPhrases = /\b(give me|tell me|what about|how about|also|additionally|furthermore)\b/i.test(currentQuery);
+    const hasRelatedPhrases = /\b(competitor|comparison|similar|related|alternative|equivalent)\b/i.test(currentQuery);
     
+    // If previous entities are mentioned in current query, it's likely a follow-up
+    const mentionsPreviousEntity = previousResearchEntities.length > 0 && 
+                                   previousResearchEntities.some(entity => 
+                                     currentQuery.toLowerCase().includes(entity.toLowerCase())
+                                   );
+    
+    const isFollowUpQuery = hasReferentialPronouns || hasFollowUpPhrases || hasRelatedPhrases || mentionsPreviousEntity;
     const hasPreviousResearch = previousResearchContext.length > 0;
     
-    // If it's a follow-up and we have previous research, we might not need new research
+    // If it's a follow-up and we have previous research, prioritize using context over blocking
     if (isFollowUpQuery && hasPreviousResearch && !enableBrowsing) {
-      console.log('🔄 Follow-up question detected with previous research available');
+      console.log('🔄 Follow-up/Related question detected with previous research available');
+      console.log(`   Triggers: pronouns=${hasReferentialPronouns}, phrases=${hasFollowUpPhrases}, related=${hasRelatedPhrases}, entityMatch=${mentionsPreviousEntity}`);
       console.log('   Using previous research context instead of requiring new research');
       // We'll add previous research to context below
     }
@@ -1615,8 +1625,19 @@ export async function onRequestPost(context) {
               structuredData += `⭐ Results from operator's official website have been prioritized\n`;
             }
             
-            structuredData += `ℹ️ Cite sources [1][2][3] for all factual statements\n`;
-            structuredData += `ℹ️ End with "**Sources:**" section listing URLs\n\n`;
+            // LIST AVAILABLE SOURCES EXPLICITLY
+            structuredData += `\n📚 **AVAILABLE SOURCES (YOU MUST USE MULTIPLE):**\n`;
+            topResults.forEach((r, idx) => {
+              const domain = new URL(r.url).hostname.replace('www.', '');
+              structuredData += `   [${idx + 1}] ${domain} - ${r.title.substring(0, 60)}...\n`;
+            });
+            
+            structuredData += `\n🚨 **CRITICAL INSTRUCTION:**\n`;
+            structuredData += `- You have ${topResults.length} sources above\n`;
+            structuredData += `- You MUST cite AT LEAST 5-8 different sources in your answer\n`;
+            structuredData += `- Different facts should come from different sources\n`;
+            structuredData += `- Using only 1-2 sources = FAILED RESPONSE\n`;
+            structuredData += `- End with "**Sources:**" section listing ALL cited URLs\n\n`;
           }
         }
         
@@ -1878,15 +1899,25 @@ Before submitting your answer, verify:
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'system', content: `🔄 **USING PREVIOUS RESEARCH CONTEXT**
 
-The following information was researched earlier in this conversation. Use this context to answer follow-up questions:
+The following information was researched earlier in this conversation:
 
 ${previousResearchContext}
 
+**YOUR TASK:**
+1. **First**: Check if the above research contains information to answer the current question
+2. **If YES**: Answer using the research above with proper citations
+3. **If NO but question is related**: Use your general maritime knowledge to answer (without requiring research toggle)
+4. **If completely new topic**: Prompt user to enable research
+
+**Examples:**
+- "Tell me about competitors" when research was about Stanford Marine → Use general knowledge (competition in maritime industry)
+- "Give me OEM maintenance" when research lists equipment → Extract from research above
+- "Tell me about Maersk" when no context about Maersk → Prompt for research
+
 **Instructions:**
-- Extract specific technical details from the above research
-- Cite the sources already provided
-- Do NOT use general knowledge - ONLY use information from the research above
-- If the research doesn't contain the specific information requested, state: "The previous research doesn't include [X]. To answer this, I would need to perform a new search."
+- Prioritize using research context when available
+- Use general maritime expertise for related questions
+- Only block for completely new specific entities (new companies, vessels, equipment models)
 ` },
             ...messages,
           ]
