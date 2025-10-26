@@ -91,7 +91,7 @@ This is **specialized maritime search** – not general web search. Get precise,
   };
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [modelName, setModelName] = useState<string>('GPT');
+  // modelName removed (unused)
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
   // Gate chain-of-thought behind Online research
   const useChainOfThought = useBrowsing;
@@ -108,8 +108,8 @@ This is **specialized maritime search** – not general web search. Get precise,
   type ResearchEvent = { type: 'step' | 'tool' | 'source'; [key: string]: any };
   const [researchEvents, setResearchEvents] = useState<ResearchEvent[]>([]);
   const researchStartedRef = useRef<boolean>(false);
-  const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
-  const [viewportTop, setViewportTop] = useState(0);
+  const [, setViewportHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 0);
+  const [, setViewportTop] = useState<number>(0);
   // Throttle streaming UI updates
   const lastStreamUpdateRef = useRef<number>(0);
 
@@ -349,8 +349,7 @@ This is **specialized maritime search** – not general web search. Get precise,
 
       const contentType = response.headers.get('content-type');
       if (contentType?.includes('text/event-stream')) {
-        const hdrModel = response.headers.get('x-model');
-        if (hdrModel) setModelName(hdrModel);
+        // ignore model header
         
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
@@ -364,19 +363,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         // Start thinking timer only when we actually receive thinking content
         thinkingStartTimeRef.current = null;
         
-        setMessages((prev) => {
-          const index = prev.length;
-          streamingIndexRef.current = index;
-          console.log('🚀 [ChatInterface] STREAM START at index', index);
-          return [...prev, {
-            role: 'assistant',
-            content: '',
-            thinkingContent: '',
-            timestamp: new Date(),
-            isStreaming: true,
-            isThinking: false, // don't show thinking until we actually have some and only if browsing
-          }];
-        });
+        // Do NOT create the assistant bubble yet; show research timeline first
         // Hide loading spinner once streaming has started
         setIsLoading(false);
 
@@ -474,7 +461,24 @@ This is **specialized maritime search** – not general web search. Get precise,
 
                 setMessages((prev) => {
                   const updated = [...prev];
-                  let idx = streamingIndexRef.current ?? updated.length - 1;
+                  let idx = streamingIndexRef.current as number | null;
+                  if (idx == null) {
+                    // Create assistant bubble ONLY after first content arrives
+                    if (!hasReceivedContent) {
+                      return prev; // wait until content to create
+                    }
+                    idx = updated.length;
+                    streamingIndexRef.current = idx;
+                    updated.push({
+                      role: 'assistant',
+                      content: streamedContent,
+                      thinkingContent: useBrowsing ? streamedThinking : '',
+                      timestamp: new Date(),
+                      isStreaming: true,
+                      isThinking: shouldShowThinking,
+                    });
+                    return updated;
+                  }
                   if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
                     // Try to find the currently streaming assistant message
                     const found = [...updated].reverse().findIndex((m) => m.role === 'assistant' && m.isStreaming);
@@ -482,7 +486,6 @@ This is **specialized maritime search** – not general web search. Get precise,
                       idx = updated.length - 1 - found;
                       streamingIndexRef.current = idx;
                     } else {
-                      // No valid target, skip this incremental update
                       return prev;
                     }
                   }
@@ -558,7 +561,6 @@ This is **specialized maritime search** – not general web search. Get precise,
         researchStartedRef.current = false;
       } else {
         const data = await response.json();
-        if (data?.model) setModelName(data.model);
         
         const content = data.message || data.error || 'An error occurred';
         
@@ -668,7 +670,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         <div className="relative z-10 space-y-3 md:space-y-4 lg:space-y-5 max-w-5xl mx-auto w-full px-2 sm:px-0">
           {messages.map((message, index) => (
             <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
-              {message.role === 'assistant' && message.thinkingContent && message.isThinking && (
+              {false && message.role === 'assistant' && message.thinkingContent && message.isThinking && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -680,9 +682,9 @@ This is **specialized maritime search** – not general web search. Get precise,
                   <div className="max-w-[85%] sm:max-w-[80%]">
                     <AnimatePresence mode="wait">
                       {(() => {
-                        const steps = extractThinkingSteps(message.thinkingContent);
+                        const steps = extractThinkingSteps(message.thinkingContent || '');
                         if (steps.length > 0) {
-                          const currentStep = steps[currentThinkingStep % steps.length];
+                          const currentStep = String(steps[currentThinkingStep % steps.length] || '');
                           return (
                             <motion.div
                               key={currentThinkingStep}
