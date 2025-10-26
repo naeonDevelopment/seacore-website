@@ -446,13 +446,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   return (
     <div 
       className={cn(
-        "flex flex-col overflow-hidden",
-        isFullscreen ? "h-screen" : "",
+        "flex flex-col",
+        isFullscreen ? "min-h-screen" : "",
         className
       )}
       style={isFullscreen && typeof window !== 'undefined' && window.innerWidth < 640 ? {
+        position: 'fixed',
+        top: `${viewportTop}px`,
+        left: 0,
+        right: 0,
         height: `${viewportHeight}px`,
-        maxHeight: `${viewportHeight}px`
+        maxHeight: `${viewportHeight}px`,
+        overflow: 'hidden'
       } : undefined}
     >
       {/* Header - Full Width Background */}
@@ -781,7 +786,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Input Area */}
       <div 
         ref={inputAreaRef}
-        className="px-3 pt-3 pb-2 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80"
+        className="px-3 pt-3 pb-3 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 flex-shrink-0"
       >
         <div className="flex gap-2 md:gap-3 max-w-5xl mx-auto">
           <input
