@@ -103,6 +103,10 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [currentThinkingStep, setCurrentThinkingStep] = useState<number>(0);
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const thinkingStartTimeRef = useRef<number | null>(null);
+  const firstContentTimeRef = useRef<number | null>(null);
+  // Structured research timeline (server-emitted steps)
+  type ResearchEvent = { type: 'step' | 'tool' | 'source'; [key: string]: any };
+  const [researchEvents, setResearchEvents] = useState<ResearchEvent[]>([]);
   const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [viewportTop, setViewportTop] = useState(0);
   // Throttle streaming UI updates
@@ -413,6 +417,14 @@ This is **specialized maritime search** – not general web search. Get precise,
 
               try {
                 const parsed = JSON.parse(jsonStr);
+                // Capture structured research events (server emitted)
+                if (parsed?.type === 'step' || parsed?.type === 'tool' || parsed?.type === 'source') {
+                  if (useBrowsing) {
+                    setResearchEvents((prev) => [...prev, parsed]);
+                  }
+                  // Do not treat as content/thinking; continue
+                  continue;
+                }
                 if (parsed.type === 'thinking') {
                   // Only accumulate thinking when online research is enabled
                   if (useBrowsing) {
@@ -425,6 +437,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     answerReadyToShow = true;
+                    if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
                   }
                   streamedContent += parsed.content;
                 }
@@ -437,11 +450,15 @@ This is **specialized maritime search** – not general web search. Get precise,
                 }
                 lastStreamUpdateRef.current = now;
 
-                // Brief thinking then switch to answer
+                // Brief thinking then a short overlap after answer starts
                 const MINIMUM_THINKING_TIME = 800;
+                const OVERLAP_AFTER_CONTENT = 1500; // keep steps visible briefly after answer begins
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
                 const hasThinking = streamedThinking.length > 0;
-                const shouldShowThinking = useBrowsing && hasThinking && (!answerReadyToShow || thinkingElapsedTime < MINIMUM_THINKING_TIME);
+                const overlapActive = firstContentTimeRef.current ? (Date.now() - firstContentTimeRef.current) < OVERLAP_AFTER_CONTENT : false;
+                const shouldShowThinking = useBrowsing && hasThinking && (
+                  (!answerReadyToShow && thinkingElapsedTime < MINIMUM_THINKING_TIME) || (answerReadyToShow && overlapActive)
+                );
 
                 setMessages((prev) => {
                   const updated = [...prev];
@@ -524,6 +541,8 @@ This is **specialized maritime search** – not general web search. Get precise,
         });
         
         thinkingStartTimeRef.current = null;
+        firstContentTimeRef.current = null;
+        setResearchEvents([]);
       } else {
         const data = await response.json();
         if (data?.model) setModelName(data.model);
@@ -686,6 +705,45 @@ This is **specialized maritime search** – not general web search. Get precise,
                 </motion.div>
               )}
               
+              {/* Research timeline (structured events), only when browsing */}
+              {useBrowsing && researchEvents.length > 0 && message.role === 'assistant' && index === messages.length - 1 && (
+                <div className="mb-2">
+                  <button
+                    className="text-xs font-semibold text-maritime-700 dark:text-maritime-300 hover:underline"
+                    onClick={() => {
+                      const newSet = new Set(expandedSources);
+                      if (newSet.has(-1)) newSet.delete(-1); else newSet.add(-1);
+                      setExpandedSources(newSet);
+                    }}
+                  >
+                    Research steps {expandedSources.has(-1) ? '(hide)' : '(show)'}
+                  </button>
+                  {expandedSources.has(-1) && (
+                    <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                      {researchEvents.slice(-8).map((ev, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 flex-shrink-0" />
+                          <div>
+                            {ev.type === 'step' && (
+                              <div className="font-semibold">{ev.title} {ev.status === 'start' ? '(start)' : ev.status === 'end' ? '(done)' : ''}</div>
+                            )}
+                            {ev.type === 'tool' && ev.tool === 'search' && (
+                              <div>Search: "{ev.query}" → {ev.results} results</div>
+                            )}
+                            {ev.type === 'source' && (
+                              <div>{ev.action === 'selected' ? 'Keep' : 'Reject'}: {String(ev.url || '').replace(/^https?:\/\//, '').slice(0, 60)}</div>
+                            )}
+                            {ev.detail && Array.isArray(ev.detail) && ev.detail.length > 0 && (
+                              <div className="opacity-80">{ev.detail.slice(0, 3).map((u: string) => String(u).replace(/^https?:\/\//, '')).join(', ')}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

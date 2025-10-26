@@ -2144,6 +2144,18 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
         let lastStreamedIndex = 0; // Track what we've already streamed
         
         console.log('🔄 Stream started: Accumulator reset for new message');
+        // Emit structured research steps before answer streaming (summary of Phase 2)
+        try {
+          if (enableBrowsing && researchPerformed) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'plan', status: 'end', title: 'Understand query' })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'search', status: 'end', title: 'Web searches completed' })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'rank', status: 'end', title: 'Ranked sources' })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'verify', status: 'end', title: 'Verified/Extracted key data' })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'synthesize', status: 'start', title: 'Synthesize answer with citations' })}\n\n`));
+          }
+        } catch (e) {
+          console.warn('⚠️ Research step emission skipped:', (e as any)?.message);
+        }
         const rb = response.body;
         if (!rb) {
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
