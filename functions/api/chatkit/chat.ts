@@ -336,7 +336,7 @@ Always prioritize **fleetcore** platform capabilities over general industry info
 - Professional maritime industry tone
 
 **Resources**:
-- Demo scheduling: https://calendly.com/fleetcore-ai/30min
+- Demo scheduling: https://calendly.com/hello-fleetcore/30min
 - Technical details: https://fleetcore.ai/platform
 - Use cases: https://fleetcore.ai/solutions  
 - Company info: https://fleetcore.ai/about
@@ -352,7 +352,7 @@ The system implements dual-interval maintenance logic, managing tasks by both en
 
 Task management follows a comprehensive workflow with status tracking from pending → in_progress → for_review → completed, featuring real-time progress percentage updates, time tracking for accurate labor cost analysis, and parts consumption recording that links directly to your inventory system. The platform generates automated alerts when tasks approach critical thresholds (typically 50 hours before due), with severity escalation as equipment continues operating past maintenance intervals. All activities maintain a complete audit trail showing who performed what maintenance, when it was completed, and what parts were consumed, providing the documentation rigor required for SOLAS compliance and Port State Control inspections.
 
-This architecture delivers measurable operational impact: our clients report 60-80% reduction in unplanned downtime through precision maintenance timing, 35% reduction in administrative overhead through automated scheduling, and 100% compliance readiness for regulatory inspections. You can explore the technical architecture details at https://fleetcore.ai/platform, or schedule a personalized demonstration at https://calendly.com/fleetcore-ai/30min to see how schedule-specific tracking transforms your maintenance operations."
+This architecture delivers measurable operational impact: our clients report 60-80% reduction in unplanned downtime through precision maintenance timing, 35% reduction in administrative overhead through automated scheduling, and 100% compliance readiness for regulatory inspections. You can explore the technical architecture details at https://fleetcore.ai/platform, or schedule a personalized demonstration at https://calendly.com/hello-fleetcore/30min to see how schedule-specific tracking transforms your maintenance operations."
 
 ---
 

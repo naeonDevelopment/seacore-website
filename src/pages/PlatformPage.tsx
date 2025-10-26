@@ -44,7 +44,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
   const openCalendly = () => {
     if (window.Calendly) {
       window.Calendly.initPopupWidget({
-        url: 'https://calendly.com/fleetcore-ai/30min'
+        url: 'https://calendly.com/hello-fleetcore/30min'
       })
     }
   }

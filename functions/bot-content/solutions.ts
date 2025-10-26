@@ -367,7 +367,7 @@ export function generateSolutionsContent(): string {
   </ul>
   
   <p><strong>Contact:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
-  <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/fleetcore-ai/30min">https://calendly.com/fleetcore-ai/30min</a></p>
+  <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/hello-fleetcore/30min">https://calendly.com/hello-fleetcore/30min</a></p>
 
 </body>
 </html>

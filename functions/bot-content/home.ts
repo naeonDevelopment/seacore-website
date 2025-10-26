@@ -799,7 +799,7 @@ export function generateHomeContent(): string {
   </ul>
   
   <p><strong>Website:</strong> <a href="https://fleetcore.ai">https://fleetcore.ai</a></p>
-  <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/fleetcore-ai/30min">https://calendly.com/fleetcore-ai/30min</a></p>
+  <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/hello-fleetcore/30min">https://calendly.com/hello-fleetcore/30min</a></p>
   <p><strong>Contact Form:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
 
   <h2>🔍 Technical Keywords for Search Optimization</h2>

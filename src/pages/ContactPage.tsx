@@ -74,7 +74,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
     const initInline = () => {
       if (window.Calendly && calendlyContainerRef.current) {
         window.Calendly.initInlineWidget({
-          url: 'https://calendly.com/fleetcore-ai/30min',
+          url: 'https://calendly.com/hello-fleetcore/30min',
           parentElement: calendlyContainerRef.current
         })
       }

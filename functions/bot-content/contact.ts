@@ -41,7 +41,7 @@ export function generateContactContent(): string {
     <li>Compliance and reporting features</li>
     <li>Q&A with engineering team</li>
   </ul>
-  <p><strong>Book Now:</strong> <a href="https://calendly.com/fleetcore-ai/30min">https://calendly.com/fleetcore-ai/30min</a></p>
+  <p><strong>Book Now:</strong> <a href="https://calendly.com/hello-fleetcore/30min">https://calendly.com/hello-fleetcore/30min</a></p>
 
   <h2>📧 Contact Methods</h2>
   <h3>General Inquiries</h3>
