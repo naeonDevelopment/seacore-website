@@ -2184,8 +2184,11 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
             }
             const uniqueQueries = Array.from(new Set(plannerQueries)).slice(0, 3);
 
-            for (let i = 0; i < uniqueQueries.length; i++) {
-              const q = uniqueQueries[i];
+            // Multi-iteration planner (up to 3 iterations)
+            let accumulatedSelected: string[] = [];
+            const MAX_ITERS = 3;
+            for (let iter = 0; iter < Math.min(MAX_ITERS, uniqueQueries.length); iter++) {
+              const q = uniqueQueries[iter];
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q })}\n\n`));
               try {
                 const tavRes = await fetch('https://api.tavily.com/search', {
@@ -2215,6 +2218,18 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                   const action = r.__score >= 60 ? 'selected' : 'rejected';
                   const reason = r.__score >= 100 ? 'tier1 official' : r.__score >= 60 ? 'manufacturer' : 'low-authority';
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'source', action, url: r.url, reason })}\n\n`));
+                }
+                accumulatedSelected.push(...scored.filter(r => r.__score >= 60).map(r => r.url));
+
+                // If authority coverage is low, generate a refined query
+                const tier1Count = scored.filter(r => r.__score >= 100).length;
+                const tier2Count = scored.filter(r => r.__score >= 60 && r.__score < 100).length;
+                if (tier1Count === 0 && iter < MAX_ITERS - 1) {
+                  const refined = `${seedQuery} site:${tier1.join(' OR site:')} official registry`;
+                  uniqueQueries.push(refined);
+                } else if (tier1Count + tier2Count < 3 && iter < MAX_ITERS - 1) {
+                  const refined = `${seedQuery} site:${tier2.join(' OR site:')} datasheet specifications`;
+                  uniqueQueries.push(refined);
                 }
               } catch (e) {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q, error: 'search_failed' })}\n\n`));

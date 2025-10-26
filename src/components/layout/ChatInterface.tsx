@@ -107,6 +107,7 @@ This is **specialized maritime search** – not general web search. Get precise,
   // Structured research timeline (server-emitted steps)
   type ResearchEvent = { type: 'step' | 'tool' | 'source'; [key: string]: any };
   const [researchEvents, setResearchEvents] = useState<ResearchEvent[]>([]);
+  const researchStartedRef = useRef<boolean>(false);
   const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [viewportTop, setViewportTop] = useState(0);
   // Throttle streaming UI updates
@@ -420,7 +421,18 @@ This is **specialized maritime search** – not general web search. Get precise,
                 // Capture structured research events (server emitted)
                 if (parsed?.type === 'step' || parsed?.type === 'tool' || parsed?.type === 'source') {
                   if (useBrowsing) {
-                    setResearchEvents((prev) => [...prev, parsed]);
+                    if (!researchStartedRef.current) {
+                      // First research event: reset and auto-expand timeline
+                      researchStartedRef.current = true;
+                      setResearchEvents([parsed]);
+                      setExpandedSources((prev) => {
+                        const ns = new Set(prev);
+                        ns.add(-1);
+                        return ns;
+                      });
+                    } else {
+                      setResearchEvents((prev) => [...prev, parsed]);
+                    }
                   }
                   // Do not treat as content/thinking; continue
                   continue;
@@ -543,6 +555,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         thinkingStartTimeRef.current = null;
         firstContentTimeRef.current = null;
         setResearchEvents([]);
+        researchStartedRef.current = false;
       } else {
         const data = await response.json();
         if (data?.model) setModelName(data.model);
