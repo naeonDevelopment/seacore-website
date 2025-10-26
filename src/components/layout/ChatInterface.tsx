@@ -105,22 +105,29 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const thinkingStartTimeRef = useRef<number | null>(null);
   const firstContentTimeRef = useRef<number | null>(null);
-  // Structured research timeline (server-emitted steps)
+  // Structured research timeline (server-emitted steps) - PER MESSAGE
   type ResearchEvent = { type: 'step' | 'tool' | 'source'; [key: string]: any };
-  const [researchEvents, setResearchEvents] = useState<ResearchEvent[]>([]);
-  const researchStartedRef = useRef<boolean>(false);
+  type ResearchSession = {
+    messageId: string; // Assistant message ID this research belongs to
+    userMessageId: string; // User message that triggered it
+    events: ResearchEvent[];
+    verifiedSources: ResearchEvent[];
+    transientAnalysis: string;
+    isActive: boolean; // Currently streaming
+    timestamp: number;
+  };
+  
+  // Map of research sessions by assistant message ID
+  const [researchSessions, setResearchSessions] = useState<Map<string, ResearchSession>>(new Map());
+  const activeResearchIdRef = useRef<string | null>(null); // Currently streaming research
+  
   // Transient analysis line shown briefly, then auto-hidden
-  const [transientAnalysis, setTransientAnalysis] = useState<string>('');
   const [, setViewportHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [, setViewportTop] = useState<number>(0);
   // Throttle streaming UI updates
   const lastStreamUpdateRef = useRef<number>(0);
-  // Track verified sources (accepted ones)
-  const [verifiedSources, setVerifiedSources] = useState<ResearchEvent[]>([]);
   // Filter for source display: 'all', 'accepted', 'rejected'
   const [sourceFilter, setSourceFilter] = useState<'all' | 'accepted' | 'rejected'>('accepted');
-  // Track which message the current research belongs to (by timestamp)
-  const [currentResearchMessageId, setCurrentResearchMessageId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -150,6 +157,8 @@ This is **specialized maritime search** – not general web search. Get precise,
     setCurrentThinkingStep(0);
     thinkingStartTimeRef.current = null;
     setExpandedSources(new Set());
+    setResearchSessions(new Map()); // Clear all research sessions
+    activeResearchIdRef.current = null;
   };
 
   const extractThinkingSteps = (thinking: string): string[] => {
@@ -368,20 +377,17 @@ This is **specialized maritime search** – not general web search. Get precise,
       timestamp: new Date(),
     };
     
-    // Store the message ID for this research session
-    const messageId = userMessage.timestamp.getTime().toString();
+    // Store the user message ID for linking to assistant response
+    const userMessageId = userMessage.timestamp.getTime().toString();
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     
-    // Clear previous research events and set new research ID
+    // Prepare for new research session if browsing enabled
     if (useBrowsing) {
-      console.log('🌐 Online research enabled - starting fresh research for message:', messageId);
-      setCurrentResearchMessageId(messageId);
-      setResearchEvents([]);
-      setVerifiedSources([]);
-      researchStartedRef.current = false; // Reset so first event triggers expansion
+      console.log('🌐 Online research enabled - will create research session for upcoming assistant response');
+      // Research session will be created when assistant message is created
     }
 
     try {
@@ -466,28 +472,25 @@ This is **specialized maritime search** – not general web search. Get precise,
                 const parsed = JSON.parse(jsonStr);
                 // Capture structured research events (server emitted)
                 if (parsed?.type === 'step' || parsed?.type === 'tool' || parsed?.type === 'source') {
-                  if (useBrowsing) {
-                    if (!researchStartedRef.current) {
-                      // First research event: reset and auto-expand timeline
-                      researchStartedRef.current = true;
-                      setResearchEvents([parsed]);
-                      setVerifiedSources([]);
-                      setExpandedSources((prev) => {
-                        const ns = new Set(prev);
-                        ns.add(-1);
-                        return ns;
-                      });
-                    } else {
-                      setResearchEvents((prev) => [...prev, parsed]);
-                    }
-                    // Track verified sources (selected ones)
-                    if (parsed.type === 'source' && parsed.action === 'selected') {
-                      setVerifiedSources((prev) => {
-                        const updated = [...prev, parsed];
-                        // Keep max 28 verified sources
-                        return updated.slice(-28);
-                      });
-                    }
+                  if (useBrowsing && activeResearchIdRef.current) {
+                    // Update the active research session
+                    setResearchSessions((prev) => {
+                      const updated = new Map(prev);
+                      const session = updated.get(activeResearchIdRef.current!);
+                      if (session) {
+                        session.events.push(parsed);
+                        // Track verified sources
+                        if (parsed.type === 'source' && parsed.action === 'selected') {
+                          session.verifiedSources.push(parsed);
+                          // Keep max 28 verified sources
+                          if (session.verifiedSources.length > 28) {
+                            session.verifiedSources = session.verifiedSources.slice(-28);
+                          }
+                        }
+                        updated.set(activeResearchIdRef.current!, session);
+                      }
+                      return updated;
+                    });
                   }
                   // Do not treat as content/thinking; continue
                   continue;
@@ -499,23 +502,45 @@ This is **specialized maritime search** – not general web search. Get precise,
                     if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
                       thinkingStartTimeRef.current = Date.now();
                     }
-                    // Show one short analysis sentence then let it disappear later
-                    if (!transientAnalysis) {
+                    // Update transient analysis in active research session
+                    if (activeResearchIdRef.current) {
                       const snippet = String(parsed.content || '')
                         .replace(/\*\*THINKING:\*\*/i, '')
                         .split(/\n|\.\s/)[0]
                         .trim()
                         .slice(0, 240);
-                      if (snippet) setTransientAnalysis(snippet);
+                      if (snippet) {
+                        setResearchSessions((prev) => {
+                          const updated = new Map(prev);
+                          const session = updated.get(activeResearchIdRef.current!);
+                          if (session && !session.transientAnalysis) {
+                            session.transientAnalysis = snippet;
+                            updated.set(activeResearchIdRef.current!, session);
+                          }
+                          return updated;
+                        });
+                      }
                     }
                   }
-                } else if (parsed.type === 'content') {
+                } else                 if (parsed.type === 'content') {
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     answerReadyToShow = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
-                    // Hide transient analysis shortly after content begins
-                    setTimeout(() => setTransientAnalysis(''), 1200);
+                    // Keep transient analysis visible longer (3 seconds instead of 1.2)
+                    if (activeResearchIdRef.current) {
+                      setTimeout(() => {
+                        setResearchSessions((prev) => {
+                          const updated = new Map(prev);
+                          const session = updated.get(activeResearchIdRef.current!);
+                          if (session) {
+                            session.transientAnalysis = ''; // Clear after delay
+                            updated.set(activeResearchIdRef.current!, session);
+                          }
+                          return updated;
+                        });
+                      }, 3000); // Increased from 1200ms to 3000ms
+                    }
                   }
                   streamedContent += parsed.content;
                 }
@@ -548,14 +573,41 @@ This is **specialized maritime search** – not general web search. Get precise,
                     }
                     idx = updated.length;
                     streamingIndexRef.current = idx;
-                    updated.push({
-                      role: 'assistant',
+                    const assistantMessage = {
+                      role: 'assistant' as const,
                       content: streamedContent,
                       thinkingContent: useBrowsing ? streamedThinking : '',
                       timestamp: new Date(),
                       isStreaming: true,
                       isThinking: shouldShowThinking,
-                    });
+                    };
+                    updated.push(assistantMessage);
+                    
+                    // Create research session for this assistant message
+                    if (useBrowsing) {
+                      const assistantMessageId = assistantMessage.timestamp.getTime().toString();
+                      activeResearchIdRef.current = assistantMessageId;
+                      setResearchSessions((prev) => {
+                        const updated = new Map(prev);
+                        updated.set(assistantMessageId, {
+                          messageId: assistantMessageId,
+                          userMessageId: userMessageId, // Link to user question
+                          events: [],
+                          verifiedSources: [],
+                          transientAnalysis: '',
+                          isActive: true,
+                          timestamp: Date.now(),
+                        });
+                        return updated;
+                      });
+                      // Auto-expand this research panel
+                      setExpandedSources((prev) => {
+                        const ns = new Set(prev);
+                        ns.add(idx!);
+                        return ns;
+                      });
+                    }
+                    
                     return updated;
                   }
                   if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
@@ -636,13 +688,33 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         thinkingStartTimeRef.current = null;
         firstContentTimeRef.current = null;
-        // DON'T reset researchStartedRef - let it persist for next query
-        // Auto-collapse research steps after finalize
-        setExpandedSources((prev) => {
-          const ns = new Set(prev);
-          ns.delete(-1);
-          return ns;
-        });
+        
+        // Mark active research session as complete
+        if (activeResearchIdRef.current) {
+          setResearchSessions((prev) => {
+            const updated = new Map(prev);
+            const session = updated.get(activeResearchIdRef.current!);
+            if (session) {
+              session.isActive = false;
+              updated.set(activeResearchIdRef.current!, session);
+            }
+            return updated;
+          });
+          
+          // Auto-collapse research panel after a delay
+          const completedIdx = streamingIndexRef.current;
+          if (completedIdx !== null) {
+            setTimeout(() => {
+              setExpandedSources((prev) => {
+                const ns = new Set(prev);
+                ns.delete(completedIdx);
+                return ns;
+              });
+            }, 5000); // Collapse after 5 seconds
+          }
+          
+          activeResearchIdRef.current = null;
+        }
       } else {
         const data = await response.json();
         
@@ -752,20 +824,46 @@ This is **specialized maritime search** – not general web search. Get precise,
         </div>
         
         <div className="relative z-10 space-y-3 md:space-y-4 lg:space-y-5 max-w-5xl mx-auto w-full px-2 sm:px-0">
-          {messages.map((message, index) => (
+          {messages.map((message, index) => {
+            // Get research session for this message if it's an assistant message
+            const messageId = message.timestamp?.getTime?.()?.toString() || '';
+            const researchSession = message.role === 'assistant' ? researchSessions.get(messageId) : null;
+            const hasResearch = researchSession && (researchSession.events.length > 0 || researchSession.isActive);
+            
+            return (
             <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
-              {/* Hide animated thinking bubble; we use only the Research steps panel */}
-              {false && useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking}
+              {/* User message bubble */}
+              {message.role === 'user' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className="flex gap-2 sm:gap-4 justify-end"
+                >
+                  <div
+                    className="max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20"
+                  >
+                    <div className="text-sm sm:text-base leading-relaxed font-medium whitespace-pre-wrap text-white !text-white [&_*]:!text-white">
+                      {message.content}
+                    </div>
+                    <p className="text-xs mt-2 font-semibold text-white/90">
+                      {message.timestamp?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) || 'Just now'}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                </motion.div>
+              )}
               
-              {/* Dynamic Research Panel - show after the specific user message that triggered research */}
-              {useBrowsing && researchStartedRef.current && message.role === 'user' && 
-               message.timestamp && currentResearchMessageId === message.timestamp.getTime().toString() && (
+              {/* Research Panel - positioned between user and assistant */}
+              {hasResearch && message.role === 'assistant' && (
                 <motion.div 
-                  key={`research-${currentResearchMessageId}`}
+                  key={`research-${messageId}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="mt-4 mb-4 ml-14 mr-auto max-w-[85%]"
+                  className="mt-3 mb-3 ml-14 mr-auto max-w-[85%]"
                 >
                   {/* Panel Header */}
                   <div className="flex items-center justify-between mb-3">
@@ -773,7 +871,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-maritime-50 to-blue-50 dark:from-maritime-900/30 dark:to-blue-900/30 border border-maritime-200 dark:border-maritime-700 hover:shadow-md transition-all group"
                       onClick={() => {
                         const newSet = new Set(expandedSources);
-                        if (newSet.has(-1)) newSet.delete(-1); else newSet.add(-1);
+                        if (newSet.has(index)) newSet.delete(index); else newSet.add(index);
                         setExpandedSources(newSet);
                       }}
                     >
@@ -781,14 +879,14 @@ This is **specialized maritime search** – not general web search. Get precise,
                       <span className="text-sm font-bold text-maritime-700 dark:text-maritime-300">
                         AI Research
                       </span>
-                      {expandedSources.has(-1) ? (
+                      {expandedSources.has(index) ? (
                         <ChevronUp className="w-4 h-4 text-maritime-600 dark:text-maritime-400 group-hover:-translate-y-0.5 transition-transform" />
                       ) : (
                         <ChevronDown className="w-4 h-4 text-maritime-600 dark:text-maritime-400 group-hover:translate-y-0.5 transition-transform" />
                       )}
                     </button>
                     
-                    {verifiedSources.length > 0 && (
+                    {researchSession && researchSession.verifiedSources.length > 0 && (
                       <motion.div 
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -796,14 +894,14 @@ This is **specialized maritime search** – not general web search. Get precise,
                       >
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                          {verifiedSources.length} {verifiedSources.length === 1 ? 'Source' : 'Sources'} Verified
+                          {researchSession.verifiedSources.length} {researchSession.verifiedSources.length === 1 ? 'Source' : 'Sources'} Verified
                         </span>
                       </motion.div>
                     )}
                   </div>
 
                   <AnimatePresence>
-                  {expandedSources.has(-1) && (
+                  {expandedSources.has(index) && researchSession && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -814,7 +912,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                         <div className="p-4 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 shadow-lg">
                           
                           {/* Current Analysis */}
-                      {transientAnalysis && (
+                      {researchSession.transientAnalysis && (
                             <motion.div 
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
@@ -824,7 +922,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                               <div className="flex items-start gap-2">
                                 <Loader2 className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin mt-0.5 flex-shrink-0" />
                                 <div className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-                          {transientAnalysis}
+                          {researchSession.transientAnalysis}
                         </div>
                               </div>
                             </motion.div>
@@ -832,7 +930,7 @@ This is **specialized maritime search** – not general web search. Get precise,
 
                           {/* Research Steps Timeline */}
                           {(() => {
-                            const recent = researchEvents.slice(-30);
+                            const recent = researchSession.events.slice(-30);
                             const steps = recent.filter(e => e.type === 'step');
                             
                             return (
@@ -882,7 +980,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                               <div className="flex items-center gap-2">
                                 <Globe className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                                 <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                                  Source Evaluation {verifiedSources.length > 0 && `(${verifiedSources.length} Verified)`}
+                                  Source Evaluation {researchSession.verifiedSources.length > 0 && `(${researchSession.verifiedSources.length} Verified)`}
                                 </h4>
                               </div>
                               <div className="flex items-center gap-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
@@ -917,8 +1015,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                             <div className="relative min-h-[140px] p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700">
                               <AnimatePresence mode="popLayout">
                                 {(() => {
-                                  // Get all sources
-                                  const allSources = researchEvents.filter(e => e.type === 'source');
+                                  // Get all sources from this research session
+                                  const allSources = researchSession.events.filter(e => e.type === 'source');
                                   const recentSources = allSources.slice(-20);
                                   
                                   // Filter based on selected filter
@@ -929,6 +1027,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                                     return true; // 'all'
                                   });
                                   
+                                  // Improved loading state detection
                                   if (filteredSources.length === 0 && allSources.length === 0) {
                                     return (
                                       <motion.div 
@@ -938,7 +1037,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                                         className="flex items-center justify-center h-[100px] text-xs text-slate-500 dark:text-slate-400"
                                       >
                                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                        <span>Evaluating sources...</span>
+                                        <span>{researchSession.isActive ? 'Sources loading...' : 'No sources found'}</span>
                                       </motion.div>
                                     );
                                   }
@@ -1021,33 +1120,25 @@ This is **specialized maritime search** – not general web search. Get precise,
                 </motion.div>
               )}
 
+              {/* Assistant message bubble */}
+              {message.role === 'assistant' && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                className={cn(
-                  'flex gap-2 sm:gap-4',
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                )}
+                className="flex gap-2 sm:gap-4 justify-start"
               >
-                {message.role === 'assistant' && (
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
-                    <img
-                      src="/assets/avatar/Generated Image October 24, 2025 - 8_11PM.png"
-                      alt="AI"
-                      className="w-full h-full object-cover object-center transform scale-125"
-                      loading="lazy"
-                    />
-                  </div>
-                )}
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
+                  <img
+                    src="/assets/avatar/Generated Image October 24, 2025 - 8_11PM.png"
+                    alt="AI"
+                    className="w-full h-full object-cover object-center transform scale-125"
+                    loading="lazy"
+                  />
+                </div>
                 
                 <div
-                  className={cn(
-                    'max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
-                      : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto'
-                  )}
+                  className="max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto"
                 >
                   {message.role === 'assistant' && message.isThinking && !message.content && !message.thinkingContent && (
                     <motion.div 
@@ -1065,10 +1156,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                   )}
                 
                   {/* Always render content area; show streaming cursor even if empty */}
-                  {(
-                    <>
-                      {message.role === 'assistant' ? (
-                        <div className="text-sm sm:text-base leading-relaxed enterprise-body prose prose-slate dark:prose-invert max-w-none prose-a:text-maritime-600 prose-a:dark:text-maritime-400 prose-a:font-semibold prose-a:no-underline prose-a:hover:underline">
+                  <>
+                    <div className="text-sm sm:text-base leading-relaxed enterprise-body prose prose-slate dark:prose-invert max-w-none prose-a:text-maritime-600 prose-a:dark:text-maritime-400 prose-a:font-semibold prose-a:no-underline prose-a:hover:underline">
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
@@ -1167,30 +1256,17 @@ This is **specialized maritime search** – not general web search. Get precise,
                           {message.isStreaming && (
                             <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse align-baseline" />
                           )}
-                        </div>
-                      ) : (
-                        <div className="text-sm sm:text-base leading-relaxed font-medium whitespace-pre-wrap text-white !text-white [&_*]:!text-white">
-                          {message.content}
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <p className={cn(
-                    'text-xs mt-2 font-semibold',
-                    message.role === 'user' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
-                  )}>
+                    </div>
+                  </>
+                  <p className="text-xs mt-2 font-semibold text-slate-500 dark:text-slate-400">
                     {message.timestamp?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) || 'Just now'}
                   </p>
                 </div>
-
-                {message.role === 'user' && (
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                  </div>
-                )}
               </motion.div>
+              )}
             </div>
-          ))}
+          );
+          })}
           
           {isLoading && (
             <motion.div
