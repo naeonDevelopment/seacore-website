@@ -473,8 +473,8 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
     >
       {/* Header - Full Width Background */}
       {showHeader && (
-        <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full">
-          <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 py-3 md:py-4 lg:py-6 flex items-center justify-between">
+        <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full flex-shrink-0">
+          <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center">
                 <svg 
@@ -538,7 +538,7 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-6 lg:p-8 space-y-3 md:space-y-5 lg:space-y-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-4 lg:p-6 space-y-3 md:space-y-4 lg:space-y-5 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative min-h-0">
         <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
           <div className="absolute inset-0" style={{
             backgroundImage: `radial-gradient(circle at 2px 2px, rgb(59 130 246) 1px, transparent 0)`,
@@ -546,7 +546,7 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
           }}></div>
         </div>
         
-        <div className="relative z-10 space-y-3 md:space-y-5 lg:space-y-6 max-w-5xl mx-auto">
+        <div className="relative z-10 space-y-3 md:space-y-4 lg:space-y-5 max-w-5xl mx-auto w-full px-2 sm:px-0">
           {messages.map((message, index) => (
             <div key={index}>
               {message.role === 'assistant' && message.thinkingContent && message.isThinking && (

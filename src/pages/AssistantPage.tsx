@@ -319,17 +319,22 @@ const AssistantPage: React.FC = () => {
 
         {/* Chat Interface Container with Max Width */}
         <div className={cn(
-          "transition-all duration-300",
+          "transition-all duration-300 w-full",
           isMobile ? "mt-16" : ""
         )}>
-          <ChatInterface 
-            isFullscreen={true}
-            messages={activeSession.messages}
-            onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
-            onClose={!isMobile ? handleClose : undefined}
-            showHeader={!isMobile}
-            className={cn(isMobile ? "h-[calc(100vh-4rem)]" : "min-h-screen")}
-          />
+          <div className={cn(
+            "mx-auto w-full",
+            !isMobile && "max-w-[1400px] px-4 sm:px-6 lg:px-8"
+          )}>
+            <ChatInterface 
+              isFullscreen={true}
+              messages={activeSession.messages}
+              onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
+              onClose={!isMobile ? handleClose : undefined}
+              showHeader={!isMobile}
+              className={cn(isMobile ? "h-[calc(100vh-4rem)]" : "min-h-screen")}
+            />
+          </div>
         </div>
       </div>
     </>
