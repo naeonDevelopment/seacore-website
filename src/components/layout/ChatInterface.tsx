@@ -125,10 +125,8 @@ This is **specialized maritime search** – not general web search. Get precise,
   const lastStreamUpdateRef = useRef<number>(0);
   // Track verified sources (accepted ones)
   const [verifiedSources, setVerifiedSources] = useState<ResearchEvent[]>([]);
-  // Filter for showing/hiding rejected sources
-  const [showRejectedSources, setShowRejectedSources] = useState<boolean>(true);
-  // Track which sources to display with staggered animation
-  const [displayedSourceIndices, setDisplayedSourceIndices] = useState<Set<number>>(new Set());
+  // Filter for source display: 'all', 'accepted', 'rejected'
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'accepted' | 'rejected'>('accepted');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -276,31 +274,6 @@ This is **specialized maritime search** – not general web search. Get precise,
       setCurrentThinkingStep(0);
     }
   }, [messages]);
-
-  // Stagger source appearance animation - show sources one by one
-  useEffect(() => {
-    const sources = researchEvents.filter(e => e.type === 'source');
-    if (sources.length === 0) {
-      setDisplayedSourceIndices(new Set());
-      return;
-    }
-
-    // Add sources one by one with 200ms delay
-    const totalSources = sources.length;
-    const currentDisplayed = displayedSourceIndices.size;
-    
-    if (currentDisplayed < totalSources) {
-      const timer = setTimeout(() => {
-        setDisplayedSourceIndices(prev => {
-          const newSet = new Set(prev);
-          newSet.add(currentDisplayed);
-          return newSet;
-        });
-      }, 200);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [researchEvents, displayedSourceIndices]);
 
   useEffect(() => {
     if (messages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
@@ -777,8 +750,8 @@ This is **specialized maritime search** – not general web search. Get precise,
               {/* Hide animated thinking bubble; we use only the Research steps panel */}
               {false && useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking}
               
-              {/* Dynamic Research Panel - positioned before assistant response, on the left */}
-              {useBrowsing && researchEvents.length > 0 && message.role === 'assistant' && index === lastUserIndex + 1 && (
+              {/* Dynamic Research Panel - show during research OR if we have events for this assistant response */}
+              {useBrowsing && (researchEvents.length > 0 || (message.role === 'assistant' && message.isStreaming)) && message.role === 'assistant' && index === lastUserIndex + 1 && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -926,181 +899,138 @@ This is **specialized maritime search** – not general web search. Get precise,
                           <div className="mb-3">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <Globe className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 animate-pulse" />
+                                <Globe className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                                 <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                                   Source Evaluation {verifiedSources.length > 0 && `(${verifiedSources.length} Verified)`}
                                 </h4>
-                      </div>
-                              <div className="flex items-center gap-2 text-xs">
+                              </div>
+                              <div className="flex items-center gap-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
                                 <button
-                                  onClick={() => setShowRejectedSources(!showRejectedSources)}
+                                  onClick={() => setSourceFilter('accepted')}
                                   className={cn(
-                                    "flex items-center gap-1 px-2 py-1 rounded-md transition-all hover:bg-slate-200 dark:hover:bg-slate-700",
-                                    !showRejectedSources && "opacity-50"
+                                    "flex items-center gap-1 px-2 py-1 rounded-md transition-all",
+                                    sourceFilter === 'accepted' 
+                                      ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" 
+                                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                                   )}
-                                  title={showRejectedSources ? "Hide rejected sources" : "Show rejected sources"}
                                 >
-                                  <motion.div 
-                                    className="w-2 h-2 rounded-full bg-rose-500"
-                                    animate={{ scale: showRejectedSources ? [1, 1.3, 1] : 1 }}
-                                    transition={{ duration: 0.5, repeat: showRejectedSources ? Infinity : 0, repeatDelay: 1 }}
-                                  />
-                                  <span className="text-slate-600 dark:text-slate-400">Rejected</span>
+                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  <span className="font-medium">Accepted</span>
                                 </button>
-                                <div className="flex items-center gap-1">
-                                  <motion.div 
-                                    className="w-2 h-2 rounded-full bg-emerald-500"
-                                    animate={{ scale: [1, 1.2, 1] }}
-                                    transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.5 }}
-                                  />
-                                  <span className="text-slate-600 dark:text-slate-400">Accepted</span>
-                    </div>
+                                <button
+                                  onClick={() => setSourceFilter('rejected')}
+                                  className={cn(
+                                    "flex items-center gap-1 px-2 py-1 rounded-md transition-all",
+                                    sourceFilter === 'rejected' 
+                                      ? "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300" 
+                                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                  )}
+                                >
+                                  <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                  <span className="font-medium">Rejected</span>
+                                </button>
                               </div>
                             </div>
 
-                            {/* Animated Source Badges - Clickable when accepted */}
-                            <div className="relative min-h-[140px] p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 overflow-hidden">
-                              {/* Subtle background animation */}
-                              <motion.div
-                                className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/5 to-transparent"
-                                animate={{ x: ["-100%", "100%"] }}
-                                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                              />
-                              
-                              <div className="relative z-10">
-                                <AnimatePresence mode="popLayout">
-                                  {(() => {
-                                    // Show all sources but with staggered display
-                                    const allSources = researchEvents.filter(e => e.type === 'source');
-                                    const recentSources = allSources.slice(-20);
+                            {/* Animated Source Badges - Simple Fade In/Out */}
+                            <div className="relative min-h-[140px] p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700">
+                              <AnimatePresence mode="popLayout">
+                                {(() => {
+                                  // Get all sources
+                                  const allSources = researchEvents.filter(e => e.type === 'source');
+                                  const recentSources = allSources.slice(-20);
+                                  
+                                  // Filter based on selected filter
+                                  const filteredSources = recentSources.filter(source => {
+                                    const isAccepted = source.action === 'selected';
+                                    if (sourceFilter === 'accepted') return isAccepted;
+                                    if (sourceFilter === 'rejected') return !isAccepted;
+                                    return true; // 'all'
+                                  });
+                                  
+                                  if (filteredSources.length === 0 && allSources.length === 0) {
+                                    return (
+                                      <motion.div 
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="flex items-center justify-center h-[100px] text-xs text-slate-500 dark:text-slate-400"
+                                      >
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        <span>Evaluating sources...</span>
+                                      </motion.div>
+                                    );
+                                  }
+                                  
+                                  if (filteredSources.length === 0) {
+                                    return (
+                                      <motion.div 
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="flex items-center justify-center h-[100px] text-xs text-slate-500 dark:text-slate-400"
+                                      >
+                                        <span>No {sourceFilter} sources</span>
+                                      </motion.div>
+                                    );
+                                  }
+                                  
+                                  return filteredSources.map((source, idx) => {
+                                    const isAccepted = source.action === 'selected';
+                                    const url = String(source.url || '');
+                                    const domain = url.replace(/^https?:\/\//, '').split('/')[0];
+                                    const path = url.replace(/^https?:\/\/[^/]+/, '').slice(0, 50);
                                     
-                                    return recentSources.map((source, idx) => {
-                                      // Only show if this index has been "displayed" by the stagger effect
-                                      if (!displayedSourceIndices.has(idx)) return null;
-                                      
-                                      const isAccepted = source.action === 'selected';
-                                      const url = String(source.url || '');
-                                      const domain = url.replace(/^https?:\/\//, '').split('/')[0];
-                                      const path = url.replace(/^https?:\/\/[^/]+/, '').slice(0, 50);
-                                      
-                                      // Rejected sources - animate in, turn red, shake, then disappear
-                                      if (!isAccepted) {
-                                        // Hide if filter is off
-                                        if (!showRejectedSources) return null;
-                                        
-                                        return (
-                                          <motion.div
-                                            key={`${source.url}-${idx}-reject`}
-                                            layout
-                                            initial={{ opacity: 0, scale: 0.8, y: -20, backgroundColor: "rgba(203, 213, 225, 0.5)" }}
-                                            animate={{ 
-                                              opacity: [0, 1, 1, 0.7, 0],
-                                              scale: [0.8, 1, 1.05, 0.9, 0.3],
-                                              y: [0, 0, 0, 5, 50],
-                                              x: [0, 0, 0, 0, idx % 2 ? 100 : -100],
-                                              rotate: [0, 0, -5, 5, idx % 2 ? 45 : -45],
-                                              backgroundColor: [
-                                                "rgba(203, 213, 225, 0.5)",
-                                                "rgba(254, 226, 226, 1)",
-                                                "rgba(254, 202, 202, 1)",
-                                                "rgba(252, 165, 165, 1)"
-                                              ]
-                                            }}
-                                            transition={{ 
-                                              duration: 2.5,
-                                              times: [0, 0.3, 0.5, 0.7, 1],
-                                              ease: "easeInOut"
-                                            }}
-                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium m-1 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200"
-                                          >
-                                            <motion.div
-                                              animate={{ rotate: [0, -10, 10, -10, 0] }}
-                                              transition={{ duration: 0.5, delay: 0.8 }}
-                                            >
-                                              <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                                            </motion.div>
-                                            <span className="truncate max-w-[150px]">{domain}</span>
-                                          </motion.div>
-                                        );
-                                      }
-                                    
-                                      // Accepted sources - clickable links with staggered entry animation
+                                    // Rejected sources - not clickable, just display
+                                    if (!isAccepted) {
                                       return (
-                                        <motion.a
-                                          key={`${source.url}-${idx}-accept`}
-                                          href={url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
+                                        <motion.div
+                                          key={`${source.url}-${idx}-reject`}
                                           layout
-                                          initial={{ opacity: 0, scale: 0.8, y: -20, rotate: -10 }}
-                                          animate={{ 
-                                            opacity: 1, 
-                                            scale: 1, 
-                                            y: 0,
-                                            rotate: 0
-                                          }}
-                                          exit={{ 
-                                            opacity: 0, 
-                                            scale: 0.8,
-                                            y: -10
-                                          }}
-                                          transition={{ 
-                                            duration: 0.5,
-                                            type: "spring",
-                                            stiffness: 250,
-                                            damping: 25,
-                                            delay: idx * 0.05
-                                          }}
-                                          whileHover={{ 
-                                            scale: 1.08,
-                                            y: -3,
-                                            boxShadow: "0 10px 25px rgba(16, 185, 129, 0.2)",
-                                            transition: { duration: 0.2 }
-                                          }}
-                                          whileTap={{ scale: 0.95 }}
-                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium m-1 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-lg transition-all cursor-pointer group"
-                                          title={url}
+                                          initial={{ opacity: 0 }}
+                                          animate={{ opacity: 1 }}
+                                          exit={{ opacity: 0 }}
+                                          transition={{ duration: 0.3 }}
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium m-1 bg-rose-100 dark:bg-rose-900/30 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200"
                                         >
-                                          <motion.div
-                                            animate={{ rotate: [0, 360] }}
-                                            transition={{ duration: 0.6, delay: idx * 0.05 }}
-                                          >
-                                            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                                          </motion.div>
-                                          <div className="flex flex-col items-start min-w-0">
-                                            <span className="truncate max-w-[150px] font-semibold">{domain}</span>
-                                            {path && (
-                                              <span className="truncate max-w-[150px] text-[10px] opacity-70">
-                                                {path}
-                                              </span>
-                                            )}
-                                          </div>
-                                          <svg className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                          </svg>
-                                        </motion.a>
+                                          <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                          <span className="truncate max-w-[150px]">{domain}</span>
+                                        </motion.div>
                                       );
-                                    });
-                                  })()}
-                                </AnimatePresence>
-                                
-                                {/* Empty state during initial loading */}
-                                {researchEvents.filter(e => e.type === 'source').length === 0 && (
-                                  <motion.div 
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="flex items-center justify-center h-[100px] text-xs text-slate-500 dark:text-slate-400"
-                                  >
-                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                    <motion.span
-                                      animate={{ opacity: [0.5, 1, 0.5] }}
-                                      transition={{ duration: 2, repeat: Infinity }}
-                                    >
-                                      Evaluating sources...
-                                    </motion.span>
-                                  </motion.div>
-                                )}
-                              </div>
+                                    }
+                                    
+                                    // Accepted sources - clickable links
+                                    return (
+                                      <motion.a
+                                        key={`${source.url}-${idx}-accept`}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        layout
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium m-1 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer group"
+                                        title={url}
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                                        <div className="flex flex-col items-start min-w-0">
+                                          <span className="truncate max-w-[150px] font-semibold">{domain}</span>
+                                          {path && (
+                                            <span className="truncate max-w-[150px] text-[10px] opacity-70">
+                                              {path}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <svg className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                      </motion.a>
+                                    );
+                                  });
+                                })()}
+                              </AnimatePresence>
                             </div>
                           </div>
                         </div>
