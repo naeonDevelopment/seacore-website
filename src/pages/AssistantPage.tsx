@@ -294,11 +294,14 @@ const AssistantPage: React.FC = () => {
                 <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
               </button>
               
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
                 <FleetCoreLogo 
                   variant={isDarkMode ? 'dark' : 'light'}
-                  className="!max-w-[120px] !h-auto scale-110 transition-all duration-300"
+                  className="!max-w-[80px] !h-auto transition-all duration-300"
                 />
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                  AI Maritime Expert
+                </span>
               </div>
               
               <button

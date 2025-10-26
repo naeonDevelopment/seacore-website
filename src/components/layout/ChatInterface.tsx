@@ -459,14 +459,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {showHeader && (
         <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full">
           <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 py-3 md:py-4 lg:py-6 flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="flex items-center justify-center">
                 <svg 
                   viewBox="170 450 690 130"
                   xmlns="http://www.w3.org/2000/svg"
                   preserveAspectRatio="xMinYMid meet"
-                  className="h-5 md:h-6 lg:h-7 w-auto"
-                  style={{ minWidth: '80px' }}
+                  className="h-4 md:h-5 lg:h-6 w-auto"
+                  style={{ minWidth: '70px' }}
                 >
                   <defs>
                     <linearGradient id="logo-white-1" x1="222.64" y1="574.43" x2="297.1" y2="481.15" gradientUnits="userSpaceOnUse">
@@ -499,11 +499,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </g>
                 </svg>
               </div>
+              <h1 className="text-sm md:text-base lg:text-lg font-bold text-white enterprise-heading whitespace-nowrap">
+                AI Maritime Expert
+              </h1>
             </div>
-            <div className="flex-1 flex items-center justify-center">
-              <h1 className="text-base md:text-lg lg:text-xl font-bold text-white enterprise-heading">Maritime Maintenance Expert</h1>
-            </div>
-            <div className="w-[100px] md:w-[140px] lg:w-[180px] flex items-center justify-end">
+            <div className="flex-1"></div>
+            <div className="flex items-center justify-end">
               {onClose && (
                 <button
                   onClick={onClose}
