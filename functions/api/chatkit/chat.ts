@@ -948,6 +948,7 @@ You are operating in EXPERT MODE. This means:
     let browsingContext = '';
     let researchPerformed = false;
     const currentQuery = messages[messages.length - 1]?.content || ''; // Declare once at top level
+    let actualSourcesUsed: any[] = []; // Track actual sources sent to LLM for citation
     
     // SIMPLIFIED FOLLOW-UP QUESTION DETECTION
     // Reduce complexity - check for clear follow-up indicators only
@@ -1561,6 +1562,13 @@ You are operating in EXPERT MODE. This means:
         
         // Process top-ranked results FIRST to set researchPerformed flag
         if (topResults.length > 0) {
+          // Save actual sources for stream emission
+          actualSourcesUsed = topResults.map(r => ({
+            url: r.url,
+            title: r.title,
+            score: r.score
+          }));
+          
           // Format with markdown-friendly links and citations
           // Prioritize raw_content (full page) > content > snippet
           browsingContext = topResults.map((r, i) => {
@@ -2192,130 +2200,36 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
         let lastStreamedIndex = 0; // Track what we've already streamed
         
         console.log('🔄 Stream started: Accumulator reset for new message');
-        // Emit structured research steps before answer streaming (summary of Phase 2)
+        // CRITICAL FIX: Emit the ACTUAL sources used in browsingContext, not planner sources
         try {
-          if (enableBrowsing && researchPerformed) {
+          if (enableBrowsing && researchPerformed && actualSourcesUsed.length > 0) {
+            // Emit research steps
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'plan', status: 'end', title: 'Understand query' })}\n\n`));
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'search', status: 'end', title: 'Web searches completed' })}\n\n`));
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'rank', status: 'end', title: 'Ranked sources' })}\n\n`));
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'verify', status: 'end', title: 'Verified/Extracted key data' })}\n\n`));
+            
+            // Emit the ACTUAL sources that will be cited in the answer
+            console.log(`📤 Emitting ${actualSourcesUsed.length} actual sources used in answer`);
+            for (let i = 0; i < actualSourcesUsed.length; i++) {
+              const result = actualSourcesUsed[i];
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                type: 'source', 
+                action: 'selected', 
+                url: result.url,
+                title: result.title,
+                reason: `Score: ${result.score?.toFixed(1) || 'N/A'}`,
+                citation: i + 1
+              })}\n\n`));
+            }
+            
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'synthesize', status: 'start', title: 'Synthesize answer with citations' })}\n\n`));
           }
         } catch (e) {
           console.warn('⚠️ Research step emission skipped:', (e as any)?.message);
         }
-        // Run a lightweight planner loop inside the stream to emit real research steps
-        try {
-          if (enableBrowsing && typeof TAVILY_API_KEY === 'string' && TAVILY_API_KEY.length > 0) {
-            const lastUserMessage = Array.isArray(messages)
-              ? [...messages].reverse().find((m: any) => m?.role === 'user')?.content || ''
-              : '';
-            const seedQuery = String(lastUserMessage).trim().slice(0, 300);
-            // Use verification classifier to shape strategy
-            const cls = classifyQuery(seedQuery || '');
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'plan', status: 'start', title: 'Plan research', detail: cls })}\n\n`));
-
-            // Domain authority tiers (compact subset for inline use)
-            const tier1 = ['imo.org','dnv.com','abs-group.com','classnk.or.jp','lr.org','veristar.com'];
-            const tier2 = ['wartsila.com','man-es.com','cat.com','caterpillar.com','rolls-royce.com','ge.com'];
-            const tier3 = ['marineinsight.com','ship-technology.com','maritime-executive.com'];
-
-            // Build query set
-            const plannerQueries: string[] = [];
-            if (seedQuery) plannerQueries.push(seedQuery);
-            if (cls.domain === 'vessel' || cls.domain === 'company') {
-              plannerQueries.push(`${seedQuery} site:${tier1.join(' OR site:')}`);
-            } else if (cls.domain === 'equipment') {
-              plannerQueries.push(`${seedQuery} site:${tier2.join(' OR site:')} specifications`);
-            } else if (cls.domain === 'legislation') {
-              plannerQueries.push(`${seedQuery} site:imo.org regulation chapter official`);
-            }
-            const uniqueQueries = Array.from(new Set(plannerQueries)).slice(0, 3);
-
-            // Multi-iteration planner (up to 3 iterations)
-            let accumulatedSelected: string[] = [];
-            const MAX_ITERS = 3;
-            const MIN_HIGH_QUALITY_SOURCES = 3; // Target: at least 3 tier1/tier2 sources
-            
-            for (let iter = 0; iter < MAX_ITERS; iter++) {
-              // Check if we have enough quality sources to stop early
-              const totalAccumulatedTier1 = accumulatedSelected.filter(url => 
-                tier1.some(d => url.toLowerCase().includes(d))
-              ).length;
-              const totalAccumulatedTier2 = accumulatedSelected.filter(url => 
-                tier2.some(d => url.toLowerCase().includes(d))
-              ).length;
-              
-              if (totalAccumulatedTier1 >= 2 || (totalAccumulatedTier1 + totalAccumulatedTier2) >= MIN_HIGH_QUALITY_SOURCES) {
-                console.log(`✅ Early stop: sufficient quality sources (tier1: ${totalAccumulatedTier1}, tier2: ${totalAccumulatedTier2})`);
-                break;
-              }
-              
-              // Stop if no more queries to execute
-              if (iter >= uniqueQueries.length) break;
-              
-              const q = uniqueQueries[iter];
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q })}\n\n`));
-              try {
-                const tavRes = await fetch('https://api.tavily.com/search', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${TAVILY_API_KEY}`,
-                    'x-api-key': TAVILY_API_KEY,
-                  },
-                  body: JSON.stringify({ query: q, max_results: 8, search_depth: 'advanced' })
-                });
-                const tavJson: any = await tavRes.json().catch(() => ({}));
-                const results: any[] = Array.isArray(tavJson?.results) ? tavJson.results : [];
-                // Simple authority ranking
-                const scored = results.map(r => {
-                  const url = String(r.url || '').toLowerCase();
-                  let score = 0;
-                  if (tier1.some(d => url.includes(d))) score += 100;
-                  if (tier2.some(d => url.includes(d))) score += 60;
-                  if (tier3.some(d => url.includes(d))) score += 20;
-                  return { ...r, __score: score };
-                }).sort((a,b) => b.__score - a.__score);
-                const sample = scored.slice(0, 3).map(r => r.url).filter(Boolean);
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q, results: results.length, sampleUrls: sample })}\n\n`));
-                // Emit selected/rejected by authority
-                for (const r of scored) {
-                  const action = r.__score >= 60 ? 'selected' : 'rejected';
-                  const reason = r.__score >= 100 ? 'tier1 official' : r.__score >= 60 ? 'manufacturer' : 'low-authority';
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'source', action, url: r.url, reason })}\n\n`));
-                }
-                accumulatedSelected.push(...scored.filter(r => r.__score >= 60).map(r => r.url));
-
-                // Only add refined queries if we don't have enough quality sources AND haven't hit max queries
-                const tier1Count = scored.filter(r => r.__score >= 100).length;
-                const tier2Count = scored.filter(r => r.__score >= 60 && r.__score < 100).length;
-                
-                if (uniqueQueries.length < MAX_ITERS && iter < MAX_ITERS - 1) {
-                  if (tier1Count === 0 && totalAccumulatedTier1 === 0) {
-                    // Only add refined query if we truly have NO tier1 sources yet
-                    const refined = `${seedQuery} site:${tier1.join(' OR site:')} official registry`;
-                    if (!uniqueQueries.includes(refined)) {
-                      uniqueQueries.push(refined);
-                    }
-                  } else if (tier1Count + tier2Count < 2 && (totalAccumulatedTier1 + totalAccumulatedTier2) < MIN_HIGH_QUALITY_SOURCES) {
-                    // Only refine if we're genuinely low on tier2 sources
-                    const refined = `${seedQuery} site:${tier2.join(' OR site:')} datasheet specifications`;
-                    if (!uniqueQueries.includes(refined)) {
-                      uniqueQueries.push(refined);
-                    }
-                  }
-                }
-              } catch (e) {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q, error: 'search_failed' })}\n\n`));
-              }
-            }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'verify', status: 'end', title: 'Verified/Extracted key data' })}\n\n`));
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'synthesize', status: 'start', title: 'Synthesize answer with citations' })}\n\n`));
-          }
-        } catch (e) {
-          console.warn('⚠️ Planner loop skipped:', (e as any)?.message);
-        }
+        // REMOVED: Planner loop that emitted misleading sources
+        // The actual sources are now emitted above from topResults
 
         const rb = response.body;
         if (!rb) {
