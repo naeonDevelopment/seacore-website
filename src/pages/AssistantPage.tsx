@@ -19,6 +19,7 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [originalTheme, setOriginalTheme] = useState<boolean | null>(null);
   
   const {
     sessions,
@@ -39,6 +40,16 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
   });
 
   const handleClose = () => {
+    // Restore original theme on mobile before navigating away
+    if (isMobile && originalTheme !== null) {
+      if (originalTheme) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    }
     navigate('/'); // Go to home page
   };
 
@@ -48,9 +59,17 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
       const mobile = window.innerWidth < 1024;
       setIsMobile(mobile);
       
-      // Force dark mode on mobile
-      if (mobile && !darkMode) {
-        document.documentElement.classList.add('dark');
+      // Save original theme and force dark mode on mobile
+      if (mobile) {
+        // Save the current theme before forcing dark mode
+        if (originalTheme === null) {
+          const currentDarkMode = document.documentElement.classList.contains('dark');
+          setOriginalTheme(currentDarkMode);
+        }
+        // Force dark mode
+        if (!document.documentElement.classList.contains('dark')) {
+          document.documentElement.classList.add('dark');
+        }
       }
     };
     
@@ -63,7 +82,29 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
     
     window.addEventListener('resize', checkMobile);
     
-    // Watch for theme changes
+    // Cleanup: restore theme when component unmounts
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      
+      // Restore original theme on unmount (when user navigates away)
+      if (isMobile && originalTheme !== null) {
+        if (originalTheme) {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('theme', 'dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('theme', 'light');
+        }
+      }
+    };
+  }, [isMobile, originalTheme]);
+  
+  // Watch for theme changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
@@ -71,7 +112,6 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
     });
     
     return () => {
-      window.removeEventListener('resize', checkMobile);
       observer.disconnect();
     };
   }, []);

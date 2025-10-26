@@ -466,13 +466,14 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
   return (
     <div 
       className={cn(
-        "flex flex-col",
+        "flex flex-col overflow-hidden",
         isFullscreen ? "h-screen" : "",
         className
       )}
-      style={isFullscreen && typeof window !== 'undefined' && window.innerWidth < 640 && viewportHeight < window.innerHeight ? {
+      style={isFullscreen && typeof window !== 'undefined' && window.innerWidth < 1024 && viewportHeight > 0 ? {
         height: `${viewportHeight}px`,
-        maxHeight: `${viewportHeight}px`
+        maxHeight: `${viewportHeight}px`,
+        position: 'relative'
       } : undefined}
     >
       {/* Header - Full Width Background - Match website header h-16 */}
@@ -555,7 +556,7 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-4 lg:p-6 space-y-3 md:space-y-4 lg:space-y-5 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-4 lg:p-6 space-y-3 md:space-y-4 lg:space-y-5 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
           <div className="absolute inset-0" style={{
             backgroundImage: `radial-gradient(circle at 2px 2px, rgb(59 130 246) 1px, transparent 0)`,
@@ -833,7 +834,8 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
             className="flex-1 px-3 md:px-5 lg:px-6 py-2.5 md:py-3 lg:py-4 rounded-xl lg:rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
             style={{ 
               fontSize: '16px',
-              touchAction: 'manipulation'
+              WebkitAppearance: 'none',
+              WebkitTapHighlightColor: 'transparent'
             }}
           />
           <button
