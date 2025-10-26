@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Brain, Globe, RotateCcw } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Brain, Globe, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -42,6 +42,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   
   // Progressive thinking display state
   const [currentThinkingStep, setCurrentThinkingStep] = useState<number>(0);
+  
+  // Track expanded sources per message
+  const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   
   // Track viewport dimensions for mobile keyboard handling
   const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
@@ -277,6 +280,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
         let streamedContent = '';
         let streamedThinking = '';
         let hasReceivedContent = false;
+        let thinkingComplete = false;
         // Add empty streaming message with thinking indicator
         streamingIndexRef.current = null;
         
@@ -317,12 +321,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   streamedThinking += parsed.content;
                   console.log('🧠 Received thinking:', parsed.content.substring(0, 50));
                 } else if (parsed.type === 'content') {
-                  streamedContent += parsed.content;
-                  
-                  // On first content, hide thinking indicator
-                  if (!hasReceivedContent && streamedContent.length > 0) {
+                  // First content received = thinking is complete
+                  if (!hasReceivedContent) {
                     hasReceivedContent = true;
+                    thinkingComplete = true;
+                    console.log('✅ Thinking complete, starting answer stream');
                   }
+                  streamedContent += parsed.content;
                 }
 
                 setMessages((prev) => {
@@ -334,7 +339,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     thinkingContent: streamedThinking,
                     timestamp: new Date(),
                     isStreaming: true,
-                    isThinking: !hasReceivedContent, // Hide thinking once content starts
+                    isThinking: !thinkingComplete, // Only hide thinking when it's complete
                   };
                   return updated;
                 });
@@ -591,7 +596,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         )}
                       
                       {/* Message content - SEPARATE rendering for user vs assistant */}
-                      {message.content && (
+                      {/* Only show content when thinking is complete OR if it's a user message */}
+                      {message.content && (message.role === 'user' || !message.isThinking) && (
                         <>
                           {message.role === 'assistant' ? (
                             // Assistant messages: Use prose styles for markdown rendering
@@ -613,6 +619,59 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                       </svg>
                                     </a>
                                   ),
+                                  // Enhanced blockquote for Sources section - make it collapsible
+                                  blockquote: ({ node, children, ...props }) => {
+                                    const content = String(children);
+                                    const isSources = content.toLowerCase().includes('sources:') || 
+                                                     content.toLowerCase().includes('[1]') ||
+                                                     content.toLowerCase().includes('[2]');
+                                    
+                                    if (isSources) {
+                                      const isExpanded = expandedSources.has(index);
+                                      return (
+                                        <div className="my-4">
+                                          <button
+                                            onClick={() => {
+                                              const newExpanded = new Set(expandedSources);
+                                              if (isExpanded) {
+                                                newExpanded.delete(index);
+                                              } else {
+                                                newExpanded.add(index);
+                                              }
+                                              setExpandedSources(newExpanded);
+                                            }}
+                                            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-maritime-50/50 dark:bg-maritime-900/20 border border-maritime-200/50 dark:border-maritime-800/40 hover:bg-maritime-100/50 dark:hover:bg-maritime-900/30 transition-colors"
+                                          >
+                                            {isExpanded ? (
+                                              <ChevronUp className="w-4 h-4 text-maritime-600 dark:text-maritime-400" />
+                                            ) : (
+                                              <ChevronDown className="w-4 h-4 text-maritime-600 dark:text-maritime-400" />
+                                            )}
+                                            <span className="text-sm font-semibold text-maritime-700 dark:text-maritime-300">
+                                              Sources {isExpanded ? '(click to hide)' : '(click to show)'}
+                                            </span>
+                                          </button>
+                                          {isExpanded && (
+                                            <motion.div
+                                              initial={{ opacity: 0, height: 0 }}
+                                              animate={{ opacity: 1, height: 'auto' }}
+                                              exit={{ opacity: 0, height: 0 }}
+                                              transition={{ duration: 0.2 }}
+                                              className="mt-2 border-l-4 border-maritime-400 pl-4 bg-maritime-50/30 dark:bg-maritime-900/20 py-2 rounded-r text-xs"
+                                            >
+                                              {children}
+                                            </motion.div>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    return (
+                                      <blockquote {...props} className="border-l-4 border-maritime-400 pl-4 my-3 bg-maritime-50/30 dark:bg-maritime-900/20 py-2 rounded-r">
+                                        {children}
+                                      </blockquote>
+                                    );
+                                  },
                                   // Style strong/bold (including **fleetcore**)
                                   strong: ({ node, ...props }) => (
                                     <strong {...props} className="font-bold text-maritime-700 dark:text-maritime-300" />
@@ -647,10 +706,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                   ),
                                   h3: ({ node, ...props }) => (
                                     <h3 {...props} className="text-base font-bold mt-2 mb-1 text-maritime-800 dark:text-maritime-200" />
-                                  ),
-                                  // Enhanced blockquote for Sources section
-                                  blockquote: ({ node, ...props }) => (
-                                    <blockquote {...props} className="border-l-4 border-maritime-400 pl-4 my-3 bg-maritime-50/30 dark:bg-maritime-900/20 py-2 rounded-r" />
                                   ),
                                 }}
                               >
