@@ -25,20 +25,14 @@ interface ChatModalProps {
 
 export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode, toggleDarkMode }) => {
   // CRITICAL: Version check to verify new code is loaded
-  const CHATMODAL_VERSION = '3.0.0-COMPLETE-FIX'; // FIXED: All 11 message disappearing bugs
-  console.log(`🔵🔵🔵 ChatModal component loaded - VERSION: ${CHATMODAL_VERSION} 🔵🔵🔵`);
-  console.warn(`⚠️ COMPREHENSIVE BUG FIX DEPLOYED:
-    ✅ Bug #1: Simplified message skip logic - always render user messages
-    ✅ Bug #2: Removed dual conditional rendering that hid content
-    ✅ Bug #3: Content verification during finalization
-    ✅ Bug #4: Fallback to existing state if accumulator empty
-    ✅ Bug #5: Prevent finalization with no content
-    ✅ Bug #6: Fixed useEffect thrashing on thinking step cycling
-    ✅ Bug #7: Capped animation delays to prevent multi-second delays
-    ✅ Bug #8: Improved JSON parsing error recovery
-    ✅ Bug #9: React 18 batching guard with flushSync
-    ✅ Bug #10: Stream timeout protection (2min total, 30s per chunk)
-    ✅ Bug #11: Only cycle thinking steps when actively thinking`);
+  const CHATMODAL_VERSION = '4.0.0-PRODUCTION-FIX'; // THE FIX: State batching + throttling + CoT control
+  console.log(`🔵🔵🔵 ChatModal VERSION: ${CHATMODAL_VERSION} 🔵🔵🔵`);
+  console.warn(`🚨 CRITICAL PRODUCTION FIXES:
+    ✅ FIX #1: State update throttling (100ms) prevents React 18 batching hell
+    ✅ FIX #2: Accumulator as single source of truth (no state reading)
+    ✅ FIX #3: Chain of Thought ONLY on research queries (fixes ghost thinking)
+    ✅ FIX #4: Finalization with flushSync prevents disappearing messages
+    ✅ FIX #5: Empty content detection with fallback error message`);
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -55,8 +49,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
-  // Chain of Thought is now ALWAYS enabled for better research quality
-  const useChainOfThought = true; // Always on
+  // CRITICAL FIX: Only enable Chain of Thought when research is active
+  // This prevents "thinking" from showing on simple queries
+  const useChainOfThought = useBrowsing; // Only on when researching
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
@@ -520,51 +515,53 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                   console.log(`📝 Received content chunk (+${parsed.content.length}chars), total: ${streamedContent.length}chars`);
                 }
 
+                // CRITICAL FIX: Only update state every ~100ms to prevent React batching hell
+                // Store updates in accumulators and batch them to reduce state churn
+                const now = Date.now();
+                const UPDATE_THROTTLE = 100; // Update UI every 100ms max
+                const lastUpdateTime = (window as any).__lastStreamUpdate || 0;
+                
+                if (now - lastUpdateTime < UPDATE_THROTTLE) {
+                  // Skip this update, we'll get it on the next chunk
+                  continue;
+                }
+                (window as any).__lastStreamUpdate = now;
+                
                 // FIXED: Simplified thinking display logic
-                // Show thinking if we have thinking content AND haven't received answer yet
                 const hasThinking = streamedThinking.length > 0;
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
-                const MINIMUM_THINKING_TIME = 800; // Shorter - 0.8 seconds to allow faster transition
+                const MINIMUM_THINKING_TIME = 800;
                 const shouldShowThinking = hasThinking && (!answerReadyToShow || thinkingElapsedTime < MINIMUM_THINKING_TIME);
 
                 setMessages((prev) => {
                   const updated = [...prev];
                   const idx = streamingIndexRef.current ?? updated.length - 1;
                   
-                  console.log(`🔄 Stream update: idx=${idx}, streamedContent=${streamedContent.length}chars, streamedThinking=${streamedThinking.length}chars`);
+                  console.log(`🔄 Stream update: idx=${idx}, streamedContent=${streamedContent.length}chars, streamedThinking=${streamedThinking.length}chars, shouldShowThinking=${shouldShowThinking}`);
                   
                   // Defensive check
                   if (idx < 0 || idx >= updated.length) {
                     console.error(`❌ Invalid message index: ${idx}, length: ${updated.length}`);
-                    console.error(`📊 Messages:`, prev.map((m, i) => `[${i}] ${m.role}`));
                     return prev;
                   }
                   
-                  // CRITICAL SAFETY: Ensure we're updating an ASSISTANT message, not a user message
+                  // CRITICAL SAFETY: Ensure we're updating an ASSISTANT message
                   if (updated[idx]?.role !== 'assistant') {
-                    console.error(`❌ Attempted to update non-assistant message at index ${idx}. Role: ${updated[idx]?.role}`);
-                    console.error(`📊 All messages:`, prev.map((m, i) => `[${i}] ${m.role}: "${m.content?.substring(0, 20)}"`));
+                    console.error(`❌ Attempted to update non-assistant message at index ${idx}`);
                     return prev;
                   }
                   
-                  // FIXED BUG #4: Preserve existing content if accumulator is somehow empty
-                  // This prevents content from disappearing during React batching or state race conditions
-                  const currentContent = updated[idx].content || '';
-                  const currentThinking = updated[idx].thinkingContent || '';
-                  
-                  // Use accumulated content, but fallback to existing if accumulator is empty (shouldn't happen, but safety)
-                  const safeContent = streamedContent || currentContent;
-                  const safeThinking = streamedThinking || currentThinking;
-                  
+                  // CRITICAL: ALWAYS use accumulator values, NEVER read from existing state
+                  // Reading from state causes race conditions with React batching
                   updated[idx] = {
                     ...updated[idx],
-                    content: safeContent, // Always preserve content, never clear
-                    thinkingContent: safeThinking, // Always preserve thinking, never clear
+                    content: streamedContent, // Direct from accumulator
+                    thinkingContent: streamedThinking, // Direct from accumulator
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
                   
-                  console.log(`✅ Updated [${idx}]: content=${updated[idx].content.length}chars, thinking=${updated[idx].thinkingContent?.length || 0}chars`);
+                  console.log(`✅ Updated [${idx}]: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars, isThinking=${shouldShowThinking}`);
                   return updated;
                 });
               } catch (parseError) {
@@ -588,68 +585,58 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           }
         }
 
-        // FIXED: Finalize message - shorter transition for better UX
-        const MINIMUM_THINKING_TIME = 800; // 0.8 seconds
+        // CRITICAL FIX: Final state update with accumulated content
+        // Clear the throttle timer
+        delete (window as any).__lastStreamUpdate;
+        
+        console.log(`🏁 ===== FINALIZING STREAM =====`);
+        console.log(`📊 Final accumulated state: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars`);
+        
+        // CRITICAL: Verify we actually have content before finalizing
+        if (!streamedContent && !streamedThinking) {
+          console.error(`❌ CRITICAL: Stream ended with NO content! This will cause message to disappear.`);
+          console.error(`   This means the server sent nothing or all chunks failed to parse.`);
+          // Add error message instead of empty content
+          streamedContent = "I apologize, but I encountered an error while generating the response. Please try again.";
+        }
+        
+        // Wait for thinking display if needed
+        const MINIMUM_THINKING_TIME = 800;
         const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
         
-        // Only wait if we have thinking AND it hasn't been shown for minimum time
         if (streamedThinking && thinkingStartTimeRef.current && thinkingElapsedTime < MINIMUM_THINKING_TIME) {
           const remainingTime = MINIMUM_THINKING_TIME - thinkingElapsedTime;
-          console.log(`⏰ Graceful transition: waiting ${remainingTime}ms before hiding thinking...`);
+          console.log(`⏰ Graceful transition: waiting ${remainingTime}ms...`);
           await new Promise(resolve => setTimeout(resolve, remainingTime));
         }
         
-        setMessages((prev) => {
-          const updated = [...prev];
-          const idx = streamingIndexRef.current ?? updated.length - 1;
-          
-          console.log(`🏁 ===== FINALIZING STREAM =====`);
-          console.log(`🏁 Finalizing stream at index ${idx}. Total messages: ${updated.length}`);
-          console.log(`📊 Final state: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars`);
-          console.log(`📋 All messages before finalize:`, prev.map((m, i) => `[${i}] ${m.role}(${m.id}): ${m.content?.length || 0}chars, streaming=${m.isStreaming}`));
-          
-          // Defensive check
-          if (idx < 0 || idx >= updated.length) {
-            console.error(`❌ Invalid finalize index: ${idx}, length: ${updated.length}`);
-            console.error(`📊 Messages:`, prev.map((m, i) => `[${i}] ${m.role}: "${m.content?.substring(0, 30)}"`));
-            return prev;
-          }
-          
-          // SAFETY: Ensure we're finalizing an assistant message
-          if (updated[idx]?.role !== 'assistant') {
-            console.error(`❌ Attempted to finalize non-assistant message at index ${idx}`);
-            return prev;
-          }
-          
-          console.log(`✅ Finalizing message [${idx}]: "${updated[idx].content?.substring(0, 50)}..."`);
-          console.log(`   Before: streaming=${updated[idx].isStreaming}, thinking=${updated[idx].isThinking}`);
-          console.log(`   Accumulated: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars`);
-          
-          // FIXED BUG #3: Verify content exists before finalizing
-          // Use current state content as fallback if accumulator is empty
-          const finalContent = streamedContent || updated[idx].content || '';
-          const finalThinking = streamedThinking || updated[idx].thinkingContent || '';
-          
-          if (!finalContent && !finalThinking) {
-            console.error(`⚠️ WARNING: Finalizing message with NO content! Keeping isStreaming=true to prevent disappearance`);
-            // Don't finalize - keep streaming flag to prevent message disappearing
-            return prev;
-          }
-          
-          // CRITICAL FIX: Explicitly set content and thinkingContent to ensure they're preserved
-          // even if React batches updates and previous streaming updates weren't applied
-          updated[idx] = {
-            ...updated[idx],
-            content: finalContent, // Use accumulator OR fallback to current state
-            thinkingContent: finalThinking, // Use accumulator OR fallback to current state
-            isStreaming: false,
-            isThinking: false, // Always hide thinking when done
-          };
-          
-          console.log(`   After: streaming=${updated[idx].isStreaming}, thinking=${updated[idx].isThinking}, content.length=${updated[idx].content?.length}`);
-          console.log(`📊 Final messages:`, updated.map((m, i) => `[${i}] ${m.role}: ${m.content?.length || 0}chars`));
-          console.log(`🏁 ===== FINALIZE COMPLETE =====`);
-          return updated;
+        // FINAL state update - use flushSync to ensure it's applied immediately
+        flushSync(() => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const idx = streamingIndexRef.current ?? updated.length - 1;
+            
+            console.log(`🏁 Finalizing at index ${idx}`);
+            
+            if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
+              console.error(`❌ Invalid finalize index: ${idx}`);
+              return prev;
+            }
+            
+            // CRITICAL: Use accumulator values ONLY - never read from state
+            updated[idx] = {
+              ...updated[idx],
+              content: streamedContent, // Accumulator is source of truth
+              thinkingContent: streamedThinking, // Accumulator is source of truth
+              isStreaming: false,
+              isThinking: false,
+            };
+            
+            console.log(`✅ Finalized [${idx}]: content=${updated[idx].content.length}chars`);
+            console.log(`📊 All messages:`, updated.map((m, i) => `[${i}] ${m.role}: ${m.content?.length || 0}chars`));
+            console.log(`🏁 ===== FINALIZE COMPLETE =====`);
+            return updated;
+          });
         });
         
         // Reset thinking timer
