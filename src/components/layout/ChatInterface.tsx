@@ -750,12 +750,13 @@ This is **specialized maritime search** – not general web search. Get precise,
               {/* Hide animated thinking bubble; we use only the Research steps panel */}
               {false && useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking}
               
-              {/* Dynamic Research Panel - show during research OR if we have events for this assistant response */}
-              {useBrowsing && (researchEvents.length > 0 || (message.role === 'assistant' && message.isStreaming)) && message.role === 'assistant' && index === lastUserIndex + 1 && (
+              {/* Dynamic Research Panel - show immediately after user message when research is active */}
+              {useBrowsing && researchStartedRef.current && message.role === 'user' && index === lastUserIndex && (
                 <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 ml-14 mr-auto max-w-[85%]"
+                  transition={{ duration: 0.2 }}
+                  className="mt-4 ml-14 mr-auto max-w-[85%]"
                 >
                   {/* Panel Header */}
                   <div className="flex items-center justify-between mb-3">

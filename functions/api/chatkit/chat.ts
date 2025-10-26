@@ -2187,7 +2187,25 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
             // Multi-iteration planner (up to 3 iterations)
             let accumulatedSelected: string[] = [];
             const MAX_ITERS = 3;
-            for (let iter = 0; iter < Math.min(MAX_ITERS, uniqueQueries.length); iter++) {
+            const MIN_HIGH_QUALITY_SOURCES = 3; // Target: at least 3 tier1/tier2 sources
+            
+            for (let iter = 0; iter < MAX_ITERS; iter++) {
+              // Check if we have enough quality sources to stop early
+              const totalAccumulatedTier1 = accumulatedSelected.filter(url => 
+                tier1.some(d => url.toLowerCase().includes(d))
+              ).length;
+              const totalAccumulatedTier2 = accumulatedSelected.filter(url => 
+                tier2.some(d => url.toLowerCase().includes(d))
+              ).length;
+              
+              if (totalAccumulatedTier1 >= 2 || (totalAccumulatedTier1 + totalAccumulatedTier2) >= MIN_HIGH_QUALITY_SOURCES) {
+                console.log(`✅ Early stop: sufficient quality sources (tier1: ${totalAccumulatedTier1}, tier2: ${totalAccumulatedTier2})`);
+                break;
+              }
+              
+              // Stop if no more queries to execute
+              if (iter >= uniqueQueries.length) break;
+              
               const q = uniqueQueries[iter];
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q })}\n\n`));
               try {
@@ -2221,15 +2239,24 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                 }
                 accumulatedSelected.push(...scored.filter(r => r.__score >= 60).map(r => r.url));
 
-                // If authority coverage is low, generate a refined query
+                // Only add refined queries if we don't have enough quality sources AND haven't hit max queries
                 const tier1Count = scored.filter(r => r.__score >= 100).length;
                 const tier2Count = scored.filter(r => r.__score >= 60 && r.__score < 100).length;
-                if (tier1Count === 0 && iter < MAX_ITERS - 1) {
-                  const refined = `${seedQuery} site:${tier1.join(' OR site:')} official registry`;
-                  uniqueQueries.push(refined);
-                } else if (tier1Count + tier2Count < 3 && iter < MAX_ITERS - 1) {
-                  const refined = `${seedQuery} site:${tier2.join(' OR site:')} datasheet specifications`;
-                  uniqueQueries.push(refined);
+                
+                if (uniqueQueries.length < MAX_ITERS && iter < MAX_ITERS - 1) {
+                  if (tier1Count === 0 && totalAccumulatedTier1 === 0) {
+                    // Only add refined query if we truly have NO tier1 sources yet
+                    const refined = `${seedQuery} site:${tier1.join(' OR site:')} official registry`;
+                    if (!uniqueQueries.includes(refined)) {
+                      uniqueQueries.push(refined);
+                    }
+                  } else if (tier1Count + tier2Count < 2 && (totalAccumulatedTier1 + totalAccumulatedTier2) < MIN_HIGH_QUALITY_SOURCES) {
+                    // Only refine if we're genuinely low on tier2 sources
+                    const refined = `${seedQuery} site:${tier2.join(' OR site:')} datasheet specifications`;
+                    if (!uniqueQueries.includes(refined)) {
+                      uniqueQueries.push(refined);
+                    }
+                  }
                 }
               } catch (e) {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q, error: 'search_failed' })}\n\n`));
