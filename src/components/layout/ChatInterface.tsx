@@ -127,7 +127,8 @@ This is **specialized maritime search** – not general web search. Get precise,
   // Throttle streaming UI updates
   const lastStreamUpdateRef = useRef<number>(0);
   // Filter for source display: 'all', 'accepted', 'rejected'
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'accepted' | 'rejected'>('accepted');
+  // DEFAULT TO 'all' TO SEE ALL SOURCES INITIALLY
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'accepted' | 'rejected'>('all');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -424,6 +425,14 @@ This is **specialized maritime search** – not general web search. Get precise,
       
       // Get session ID from parent or generate default
       const sessionId = (window as any).__activeSessionId || 'default-session';
+      
+      // Log what we're sending to backend
+      console.log('📤 [Sending to Backend]', {
+        enableBrowsing: useBrowsing,
+        enableChainOfThought: useChainOfThought,
+        messageCount: messages.length + 1,
+        query: userMessage.content.substring(0, 100)
+      });
       
       const response = await fetch('/api/chatkit/chat', {
         method: 'POST',
@@ -1105,19 +1114,29 @@ This is **specialized maritime search** – not general web search. Get precise,
                                   const allSources = researchSession.events.filter(e => e.type === 'source');
                                   const recentSources = allSources.slice(-20);
                                   
-                                  // Log filtering
+                                  // Log filtering with full source details
                                   console.log('🎯 [Source Display]', {
                                     totalSources: allSources.length,
                                     recentSources: recentSources.length,
                                     currentFilter: sourceFilter,
-                                    sampleActions: recentSources.slice(0, 3).map(s => s.action)
+                                    allActions: [...new Set(recentSources.map(s => s.action))],
+                                    sampleSources: recentSources.slice(0, 2).map(s => ({
+                                      action: s.action,
+                                      url: s.url?.substring(0, 30),
+                                      title: s.title?.substring(0, 30)
+                                    }))
                                   });
                                   
                                   // Filter based on selected filter
                                   const filteredSources = recentSources.filter(source => {
-                                    const isAccepted = source.action === 'selected';
+                                    // CRITICAL FIX: Check multiple possible action values
+                                    // Backend might emit 'selected', 'accepted', or other variants
+                                    const action = String(source.action || '').toLowerCase();
+                                    const isAccepted = action === 'selected' || action === 'accepted' || action === 'verified';
+                                    const isRejected = action === 'rejected' || action === 'discarded' || action === 'filtered';
+                                    
                                     if (sourceFilter === 'accepted') return isAccepted;
-                                    if (sourceFilter === 'rejected') return !isAccepted;
+                                    if (sourceFilter === 'rejected') return isRejected;
                                     return true; // 'all'
                                   });
                                   
@@ -1164,7 +1183,9 @@ This is **specialized maritime search** – not general web search. Get precise,
                                   }
                                   
                                   return filteredSources.map((source, idx) => {
-                                    const isAccepted = source.action === 'selected';
+                                    // CRITICAL FIX: Check multiple possible action values
+                                    const action = String(source.action || '').toLowerCase();
+                                    const isAccepted = action === 'selected' || action === 'accepted' || action === 'verified';
                                     const url = String(source.url || '');
                                     const domain = url.replace(/^https?:\/\//, '').split('/')[0];
                                     const path = url.replace(/^https?:\/\/[^/]+/, '').slice(0, 50);
