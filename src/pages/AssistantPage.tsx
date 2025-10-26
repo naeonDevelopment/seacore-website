@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { ChatInterface } from '@/components/layout/ChatInterface';
 import { SessionSidebar } from '@/components/layout/SessionSidebar';
+import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo';
 import { useSessions } from '@/hooks/useSessions';
 import { generatePageSEO } from '@/utils/seoGenerator';
 import { cn } from '@/utils/cn';
@@ -12,6 +13,7 @@ const AssistantPage: React.FC = () => {
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   
   const {
     sessions,
@@ -35,16 +37,32 @@ const AssistantPage: React.FC = () => {
     navigate('/'); // Go to home page
   };
 
-  // Detect mobile
+  // Detect mobile and dark mode
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
     };
     
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    
     checkMobile();
+    checkDarkMode();
+    
     window.addEventListener('resize', checkMobile);
     
-    return () => window.removeEventListener('resize', checkMobile);
+    // Watch for theme changes
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      observer.disconnect();
+    };
   }, []);
 
   return (
@@ -277,11 +295,9 @@ const AssistantPage: React.FC = () => {
               </button>
               
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                <img
-                  src="/Light.svg"
-                  alt="fleetcore"
-                  className="h-10 w-auto"
-                  loading="lazy"
+                <FleetCoreLogo 
+                  variant={isDarkMode ? 'dark' : 'light'}
+                  className="!max-w-[140px] !h-auto scale-125 transition-all duration-300"
                 />
               </div>
               
