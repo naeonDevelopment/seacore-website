@@ -380,12 +380,15 @@ This is **specialized maritime search** – not general web search. Get precise,
               buffer = buffer.slice(newlineIndex + 1);
               newlineIndex = buffer.indexOf('\n');
 
-              if (!line.startsWith('data: ')) continue;
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
+              // Be tolerant of CRLF and missing space after colon
+              const cleanLine = line.replace(/\r$/, '');
+              if (!cleanLine.startsWith('data:')) continue;
+              const data = cleanLine.slice(5).trimStart();
+              const jsonStr = data.trim();
+              if (jsonStr === '[DONE]') continue;
 
               try {
-                const parsed = JSON.parse(data);
+                const parsed = JSON.parse(jsonStr);
                 if (parsed.type === 'thinking') {
                   // Only accumulate thinking when online research is enabled
                   if (useBrowsing) {
@@ -438,9 +441,9 @@ This is **specialized maritime search** – not general web search. Get precise,
                   }
                   return updated;
                 });
-              } catch (_) {
-                buffer = line + '\n' + buffer;
-                break;
+              } catch (e) {
+                // Skip malformed/incomplete chunk; next read will bring more data
+                continue;
               }
             }
           }
