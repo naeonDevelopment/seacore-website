@@ -222,7 +222,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 20, opacity: 0 }}
         transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="fixed left-2 xl:left-6 top-24 w-56 xl:w-64 max-h-[500px] z-[100] hidden lg:block"
+        className="fixed left-2 xl:left-6 top-32 w-56 xl:w-64 max-h-[500px] z-[100] hidden lg:block"
       >
         {sidebarContent}
       </motion.div>

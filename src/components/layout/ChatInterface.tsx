@@ -481,8 +481,8 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
                   viewBox="170 450 690 130"
                   xmlns="http://www.w3.org/2000/svg"
                   preserveAspectRatio="xMinYMid meet"
-                  className="h-5 md:h-6 lg:h-7 w-auto"
-                  style={{ minWidth: '80px' }}
+                  className="h-4 md:h-4 lg:h-5 w-auto"
+                  style={{ minWidth: '60px' }}
                 >
                   <defs>
                     <linearGradient id="logo-white-1" x1="222.64" y1="574.43" x2="297.1" y2="481.15" gradientUnits="userSpaceOnUse">
