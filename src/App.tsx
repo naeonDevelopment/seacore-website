@@ -8,6 +8,7 @@ import SolutionsPage from '@/pages/SolutionsPage'
 import PlatformPage from '@/pages/PlatformPage'
 import AboutPage from '@/pages/AboutPage'
 import ContactPage from '@/pages/ContactPage'
+import AssistantPage from '@/pages/AssistantPage'
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage'
 import '@/styles/globals.css'
 import { Helmet } from 'react-helmet-async'
@@ -107,6 +108,9 @@ function App() {
             
             {/* Contact Route */}
             <Route path="/contact" element={<ContactPage />} />
+            
+            {/* AI Assistant Route */}
+            <Route path="/assistant" element={<AssistantPage />} />
             
             {/* Privacy Policy Route */}
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

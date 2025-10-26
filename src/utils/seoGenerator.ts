@@ -48,6 +48,7 @@ export function generateMetaDescription(
     solutions: (kw, vp) => `Maritime solutions: ${kw.slice(0, 3).join(', ')}. ${vp}`,
     about: (kw, vp) => `${vp} Leading ${kw[0]} provider. Dubai-based innovation team.`,
     contact: (kw, vp) => `Get started with ${kw[0]}. ${vp} Schedule demo today.`,
+    assistant: (kw, vp) => `${vp}. Chat with AI: ${kw.slice(0, 3).join(', ')}. Free to use.`,
   };
 
   const generator = templates[pageType] || templates.home;
@@ -105,6 +106,12 @@ export function generateInternalLinks(
   const linkMap: Record<string, InternalLink[]> = {
     '/': [
       {
+        text: 'Chat with AI Assistant',
+        url: '/assistant',
+        context: 'Ask questions about maritime maintenance and regulations',
+        relevanceScore: 0.97
+      },
+      {
         text: 'Explore Platform Architecture',
         url: '/platform',
         context: 'Learn about our enterprise-grade technology stack',
@@ -124,6 +131,12 @@ export function generateInternalLinks(
       }
     ],
     '/platform': [
+      {
+        text: 'Try AI Assistant',
+        url: '/assistant',
+        context: 'Ask questions about platform features and capabilities',
+        relevanceScore: 0.94
+      },
       {
         text: 'Return to Home',
         url: '/',
@@ -179,6 +192,12 @@ export function generateInternalLinks(
     ],
     '/contact': [
       {
+        text: 'Try AI Assistant First',
+        url: '/assistant',
+        context: 'Get instant answers before scheduling a call',
+        relevanceScore: 0.89
+      },
+      {
         text: 'Learn More',
         url: '/platform',
         context: 'Understand our technology before demo',
@@ -189,6 +208,32 @@ export function generateInternalLinks(
         url: '/solutions',
         context: 'Explore industry-specific offerings',
         relevanceScore: 0.84
+      }
+    ],
+    '/assistant': [
+      {
+        text: 'Platform Details',
+        url: '/platform',
+        context: 'Deep dive into technical capabilities',
+        relevanceScore: 0.96
+      },
+      {
+        text: 'Schedule Demo',
+        url: '/contact',
+        context: 'Get personalized guidance from our team',
+        relevanceScore: 0.93
+      },
+      {
+        text: 'View Solutions',
+        url: '/solutions',
+        context: 'Explore sector-specific applications',
+        relevanceScore: 0.88
+      },
+      {
+        text: 'Home',
+        url: '/',
+        context: 'Return to main overview',
+        relevanceScore: 0.75
       }
     ]
   };
@@ -272,6 +317,7 @@ export function generateBreadcrumbs(pathname: string): Breadcrumb[] {
     '/solutions': 'Solutions',
     '/about': 'About',
     '/contact': 'Contact',
+    '/assistant': 'AI Assistant',
     '/privacy-policy': 'Privacy Policy'
   };
 
@@ -326,6 +372,7 @@ function generatePageTitle(pageType: string, mainKeyword: string): string {
     solutions: `Solutions - ${mainKeyword} | fleetcore`,
     about: `About fleetcore - Maritime Intelligence Leadership`,
     contact: `Contact - Get Started with ${mainKeyword}`,
+    assistant: `AI Assistant - ${mainKeyword} | fleetcore`,
   };
 
   return titleMap[pageType] || `fleetcore - ${mainKeyword}`;

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
   Sun,
@@ -8,7 +8,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo'
-import { ChatModal } from '@/components/layout/ChatModal'
 import { cn } from '@/utils/cn'
 import { useScrollDirection } from '@/hooks/useScrollDirection'
 
@@ -19,8 +18,8 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { scrollDirection } = useScrollDirection({ threshold: 20 })
-  const [isChatOpen, setIsChatOpen] = React.useState(false)
 
   const navigationItems = [
     {
@@ -110,7 +109,7 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
               <Button 
                 variant="gradient" 
                 size="sm"
-                onClick={() => setIsChatOpen(true)}
+                onClick={() => navigate('/assistant')}
                 className="inline-flex items-center justify-center gap-2"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -162,7 +161,7 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
               <Button 
                 variant="gradient" 
                 size="icon"
-                onClick={() => setIsChatOpen(true)}
+                onClick={() => navigate('/assistant')}
                 className="w-10 h-10"
                 aria-label="Ask AI"
               >
@@ -221,9 +220,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
           </div>
         </div>
       </motion.div>
-
-      {/* Chat Modal */}
-      <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>
   )
 }
