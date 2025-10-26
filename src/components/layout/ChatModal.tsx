@@ -375,6 +375,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
             isThinking: true, // Show thinking animation initially
           }];
         });
+        
+        // Hide loading indicator immediately after streaming starts
+        setIsLoading(false);
 
         if (reader) {
           let buffer = '';
@@ -410,8 +413,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                   streamedContent += parsed.content;
                 }
 
-                // Calculate if minimum thinking time has elapsed (9 seconds for 6 steps)
-                const MINIMUM_THINKING_TIME = 9000; // 9 seconds
+                // Calculate if minimum thinking time has elapsed
+                const MINIMUM_THINKING_TIME = 2000; // 2 seconds
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
                 const shouldHideThinking = answerReadyToShow && (thinkingElapsedTime >= MINIMUM_THINKING_TIME || !streamedThinking);
 
@@ -438,7 +441,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         }
 
         // Finalize message - ensure thinking displays for minimum time
-        const MINIMUM_THINKING_TIME = 9000;
+        const MINIMUM_THINKING_TIME = 2000; // 2 seconds
         const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : MINIMUM_THINKING_TIME;
         const remainingThinkingTime = Math.max(0, MINIMUM_THINKING_TIME - thinkingElapsedTime);
         
@@ -475,6 +478,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+        setIsLoading(false);
         
         // Log helpful debug info if model failed
         if (data.attempted_model) {
@@ -490,7 +494,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-    } finally {
       setIsLoading(false);
     }
   };
