@@ -124,11 +124,13 @@ You are serving maritime technicians, engineers, and technical superintendents w
 - Safety precautions and lockout procedures
 
 **Response Format for Technical Queries:**
-1. **Overview** (1 sentence): System purpose and criticality
-2. **Technical Specifications** (detailed list with units and sources)
-3. **OEM Maintenance Requirements** (if requested - intervals, procedures, parts)
-4. **Compliance/Standards** (SOLAS, MARPOL, class society requirements if applicable)
-5. **Sources** (cite manufacturer docs, technical manuals, official specs)
+1. **Main Propulsion** (engines, model numbers, power, RPM, fuel type) [if vessel]
+2. **Auxiliary Systems** (generators with specs, emergency power, capacities)
+3. **Equipment Details** (pumps, compressors, treatment systems with models/capacities)
+4. **Additional Systems** (HVAC, navigation, safety equipment if available)
+5. **OEM Maintenance Requirements** (if requested - intervals, procedures, parts)
+6. **Compliance/Standards** (SOLAS, MARPOL, class society requirements if applicable)
+7. **Sources** (cite ALL sources used - minimum 5-10 citations for comprehensive answers)
 
 CRITICAL: STRUCTURED DATA PRIORITY (Phase 2 & 3 Enhancement)
 - If you see "=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===" this data has been:
@@ -1047,8 +1049,8 @@ export async function onRequestPost(context) {
             // Target technical specification sheets and equipment lists
             complementaryQuery = `"${specificEntity}" technical specifications machinery datasheet equipment particulars PDF`;
           } else if (isVesselQuery) {
-            // Target vessel specification documents
-            complementaryQuery = `"${specificEntity}" vessel particulars general arrangement technical specifications`;
+            // Target vessel specification documents - ENHANCED with multiple angles
+            complementaryQuery = `"${specificEntity}" vessel specifications general arrangement machinery equipment list`;
           } else if (isEquipmentQuery) {
             // Target equipment manufacturer documentation
             complementaryQuery = `"${specificEntity}" technical datasheet specifications operation manual`;
@@ -1058,6 +1060,13 @@ export async function onRequestPost(context) {
           
           queries.push({ query: complementaryQuery, maxResults: sourceStrategy.secondaryResults, label: 'Technical' });
           console.log(`🎯 Adding complementary query: "${complementaryQuery}"`);
+          
+          // ENHANCED: Add third query for vessels to capture propulsion and complete equipment details
+          if (isVesselQuery && sourceStrategy.maxQueries >= 2) {
+            const propulsionQuery = `"${specificEntity}" main engines propulsion system generators equipment specifications`;
+            queries.push({ query: propulsionQuery, maxResults: 8, label: 'Equipment' });
+            console.log(`🎯 Adding equipment query: "${propulsionQuery}"`);
+          }
         }
         
         console.log(`🔍 Performing ${queries.length} research queries for up to 28 sources`);
@@ -1778,6 +1787,13 @@ Web research has been performed and results are provided below. You MUST follow 
 - ✅ ONLY provide SPECIFIC information directly from the search results with citations
 - ✅ If search results lack specific details, explicitly state: "The search results don't contain specific technical details about [entity]. Based on the available information: [cite what you found]"
 
+**RULE #2.5: MAXIMIZE SOURCE UTILIZATION**
+- **MANDATORY**: Cross-reference information across ALL provided sources
+- If 15 sources provided → Use AT LEAST 5-10 sources with citations
+- Different sources often have different details (one has generators, another has main engines, another has propulsion)
+- **Your job**: Aggregate ALL technical information from ALL sources into ONE comprehensive answer
+- Example good behavior: Source [1] has generators, [2] has main engines, [3] has propulsion → Include ALL with proper citations
+
 **RULE #3: SEARCH RESULT VERIFICATION**
 1. Check if results mention the EXACT entity the user asked about
 2. If results are about a different or generic entity, acknowledge this
@@ -1925,6 +1941,9 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
 
     // Stream the response back to client
     const encoder = new TextEncoder();
+    // Track thinking mode state across chunks
+    let isInThinkingMode = false;
+    
     const stream = new ReadableStream({
       async start(controller) {
         const rb = response.body;
@@ -1977,24 +1996,30 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                 // Stream content tokens
                 if (content) {
                   // PHASE 4: Parse synthetic CoT for non-reasoning models
-                  // If CoT enabled and not using o1/o3, detect **THINKING:** sections
+                  // Improved stateful parsing for THINKING/ANSWER sections
                   if (needsSyntheticCoT && !hasNativeCoT) {
-                    // Simple parsing: detect sections
-                    if (content.includes('**THINKING:**') || content.includes('---')) {
-                      // Mark as thinking token
+                    // Check for section markers
+                    if (content.includes('**THINKING:**')) {
+                      isInThinkingMode = true;
+                      // Send as thinking
                       controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content })}\n\n`)
+                        encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: content.replace('**THINKING:**', '').trim() })}\n\n`)
                       );
                     } else if (content.includes('**ANSWER:**')) {
-                      // Switch to content mode
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
-                      );
+                      isInThinkingMode = false;
+                      // Skip the ANSWER marker itself, start streaming content
+                      const answerContent = content.replace('**ANSWER:**', '').trim();
+                      if (answerContent) {
+                        controller.enqueue(
+                          encoder.encode(`data: ${JSON.stringify({ type: 'content', content: answerContent })}\n\n`)
+                        );
+                      }
                     } else {
-                      // Default to content
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
-                  );
+                      // Stream to appropriate channel based on mode
+                      const type = isInThinkingMode ? 'thinking' : 'content';
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ type, content })}\n\n`)
+                      );
                     }
                   } else {
                     // Standard content streaming
