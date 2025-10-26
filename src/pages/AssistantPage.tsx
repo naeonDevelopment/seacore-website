@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { ChatInterface } from '@/components/layout/ChatInterface';
 import { SessionSidebar } from '@/components/layout/SessionSidebar';
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo';
 import { useSessions } from '@/hooks/useSessions';
-import { generatePageSEO } from '@/utils/seoGenerator';
 import { cn } from '@/utils/cn';
 
 interface AssistantPageProps {
@@ -18,8 +17,10 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [originalTheme, setOriginalTheme] = useState<boolean | null>(null);
+  
+  // Track viewport dimensions for mobile keyboard handling
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
+  const [viewportTop, setViewportTop] = useState(0);
   
   const {
     sessions,
@@ -31,90 +32,87 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
     updateSessionMessages,
     renameSession,
   } = useSessions();
-  
-  const seo = generatePageSEO('assistant', '/assistant', {
-    mainKeywords: ['maritime AI assistant', 'fleet maintenance chatbot', 'SOLAS compliance assistant'],
-    features: ['AI-powered answers', 'maritime regulations', 'predictive maintenance', 'online research'],
-    industries: ['commercial shipping', 'offshore energy', 'cruise operations', 'naval defense'],
-    valueProposition: 'Get instant answers about maritime maintenance, regulations, and fleetcore features'
-  });
 
   const handleClose = () => {
-    // Restore original theme on mobile before navigating away
-    if (isMobile && originalTheme !== null) {
-      if (originalTheme) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      }
-    }
-    navigate('/'); // Go to home page
+    navigate('/');
   };
 
-  // Detect mobile and force dark mode on mobile
+  // Detect mobile
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      
-      // Save original theme and force dark mode on mobile
-      if (mobile) {
-        // Save the current theme before forcing dark mode
-        if (originalTheme === null) {
-          const currentDarkMode = document.documentElement.classList.contains('dark');
-          setOriginalTheme(currentDarkMode);
-        }
-        // Force dark mode
-        if (!document.documentElement.classList.contains('dark')) {
-          document.documentElement.classList.add('dark');
-        }
-      }
-    };
-    
-    const checkDarkMode = () => {
-      setIsDarkMode(document.documentElement.classList.contains('dark'));
+      setIsMobile(window.innerWidth < 1024);
     };
     
     checkMobile();
-    checkDarkMode();
-    
     window.addEventListener('resize', checkMobile);
     
-    // Cleanup: restore theme when component unmounts
     return () => {
       window.removeEventListener('resize', checkMobile);
-      
-      // Restore original theme on unmount (when user navigates away)
-      if (isMobile && originalTheme !== null) {
-        if (originalTheme) {
-          document.documentElement.classList.add('dark');
-          localStorage.setItem('theme', 'dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-          localStorage.setItem('theme', 'light');
-        }
-      }
-    };
-  }, [isMobile, originalTheme]);
-  
-  // Watch for theme changes
-  useEffect(() => {
-    const checkDarkMode = () => {
-      setIsDarkMode(document.documentElement.classList.contains('dark'));
-    };
-    
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-    
-    return () => {
-      observer.disconnect();
     };
   }, []);
+
+  // Mobile: Lock body scroll and track Visual Viewport for keyboard handling
+  useEffect(() => {
+    if (!isMobile) return;
+
+    // Lock body scroll on mobile to prevent background scrolling
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalTop = document.body.style.top;
+    const scrollY = window.scrollY;
+    
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.overflow = 'hidden';
+
+    // Track Visual Viewport dimensions for keyboard handling
+    const updateViewportDimensions = () => {
+      if (typeof window === 'undefined') return;
+      
+      const visualViewport = window.visualViewport;
+      if (visualViewport) {
+        // Use Visual Viewport API for accurate dimensions when keyboard appears
+        setViewportHeight(visualViewport.height);
+        setViewportTop(visualViewport.offsetTop);
+      } else {
+        // Fallback for browsers without Visual Viewport API
+        setViewportHeight(window.innerHeight);
+        setViewportTop(0);
+      }
+    };
+
+    // Initial update
+    updateViewportDimensions();
+
+    // Add event listeners
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateViewportDimensions);
+      window.visualViewport.addEventListener('scroll', updateViewportDimensions);
+    } else {
+      window.addEventListener('resize', updateViewportDimensions);
+    }
+
+    // Cleanup
+    return () => {
+      // Restore original body styles
+      document.body.style.position = originalPosition;
+      document.body.style.top = originalTop;
+      document.body.style.overflow = originalOverflow;
+      
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
+
+      // Remove event listeners
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateViewportDimensions);
+        window.visualViewport.removeEventListener('scroll', updateViewportDimensions);
+      } else {
+        window.removeEventListener('resize', updateViewportDimensions);
+      }
+    };
+  }, [isMobile]);
 
   return (
     <>
@@ -304,8 +302,21 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
         </script>
       </Helmet>
 
-      {/* Main Layout */}
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
+      {/* Main Layout - Use Visual Viewport dimensions on mobile */}
+      <div 
+        className="bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative"
+        style={isMobile && viewportHeight > 0 ? {
+          position: 'fixed',
+          top: `${viewportTop}px`,
+          left: 0,
+          right: 0,
+          height: `${viewportHeight}px`,
+          maxHeight: `${viewportHeight}px`,
+          overflow: 'hidden'
+        } : {
+          minHeight: '100vh'
+        }}
+      >
         {/* Desktop: Session Sidebar (Fixed Left) */}
         {!isMobile && (
           <SessionSidebar
@@ -335,8 +346,11 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
 
         {/* Mobile: Top Action Bar with Logo */}
         {isMobile && (
-          <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between px-4 py-4">
+          <div 
+            className="absolute left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700 h-16"
+            style={{ top: 0 }}
+          >
+            <div className="flex items-center justify-between px-4 h-full">
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
                 className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
@@ -347,7 +361,7 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
               
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
                 <FleetCoreLogo 
-                  variant={isDarkMode ? 'dark' : 'light'}
+                  variant={darkMode ? 'dark' : 'light'}
                   className="!max-w-[60px] !h-auto transition-all duration-300"
                 />
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap mt-1">
@@ -369,10 +383,17 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
         )}
 
         {/* Chat Interface Container - Full Width */}
-        <div className={cn(
-          "transition-all duration-300 w-full",
-          isMobile ? "mt-16" : ""
-        )}>
+        <div 
+          className={cn(
+            "transition-all duration-300 w-full",
+            isMobile ? "absolute left-0 right-0 overflow-hidden" : ""
+          )}
+          style={isMobile ? {
+            top: '4rem', // 64px for mobile header
+            bottom: 0,
+            height: 'calc(100% - 4rem)'
+          } : undefined}
+        >
             <ChatInterface 
               isFullscreen={true}
               messages={activeSession.messages}
@@ -381,7 +402,7 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
               showHeader={!isMobile}
               darkMode={darkMode}
               toggleDarkMode={toggleDarkMode}
-              className={cn(isMobile ? "h-[calc(100vh-4rem)]" : "min-h-screen")}
+              className={cn(isMobile ? "h-full" : "min-h-screen")}
             />
         </div>
       </div>

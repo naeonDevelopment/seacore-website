@@ -11,7 +11,7 @@ export const FleetCoreLogo: React.FC<FleetCoreLogoProps> = ({
   variant = 'light'
 }) => {
   // Color based on variant - no destructive filters
-  const textColor = variant === 'dark' ? '#f1f5f9' : '#334155'; // slate-100 : slate-700
+  const textColor = variant === 'dark' ? '#ffffff' : '#334155'; // pure white : slate-700
   const iconGradientId = `logo-gradient-${variant}-${Math.random().toString(36).substr(2, 9)}`;
   
   return (

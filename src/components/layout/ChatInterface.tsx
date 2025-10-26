@@ -4,6 +4,7 @@ import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, 
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -210,6 +211,9 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
   }, [messages.length]);
 
   useEffect(() => {
+    // Skip body scroll lock if showHeader is false (means parent page is handling it)
+    if (!showHeader) return;
+    
     if (typeof window !== 'undefined' && window.innerWidth < 640 && isFullscreen) {
       const originalOverflow = document.body.style.overflow;
       const originalPosition = document.body.style.position;
@@ -231,10 +235,11 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
     } else if (isFullscreen) {
       inputRef.current?.focus();
     }
-  }, [isFullscreen]);
+  }, [isFullscreen, showHeader]);
 
   useEffect(() => {
-    if (!isFullscreen) return;
+    // Skip viewport tracking if showHeader is false (means parent page is handling it)
+    if (!isFullscreen || !showHeader) return;
 
     const updateViewportDimensions = () => {
       if (typeof window === 'undefined') return;
@@ -283,7 +288,7 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
         inputElement.removeEventListener('focus', handleFocus);
       }
     };
-  }, [isFullscreen]);
+  }, [isFullscreen, showHeader]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -467,88 +472,56 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
     <div 
       className={cn(
         "flex flex-col overflow-hidden",
-        isFullscreen ? "h-screen" : "",
+        isFullscreen ? "h-full" : "",
         className
       )}
-      style={isFullscreen && typeof window !== 'undefined' && window.innerWidth < 1024 && viewportHeight > 0 ? {
-        height: `${viewportHeight}px`,
-        maxHeight: `${viewportHeight}px`,
-        position: 'relative'
-      } : undefined}
+      style={undefined}
     >
       {/* Header - Full Width Background - Match website header h-16 */}
       {showHeader && (
         <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full flex-shrink-0 h-16">
-          <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 h-full flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center">
-                <svg 
-                  viewBox="170 450 690 130"
-                  xmlns="http://www.w3.org/2000/svg"
-                  preserveAspectRatio="xMinYMid meet"
-                  className="h-4 md:h-4 lg:h-5 w-auto"
-                  style={{ minWidth: '60px' }}
-                >
-                  <defs>
-                    <linearGradient id="logo-white-1" x1="222.64" y1="574.43" x2="297.1" y2="481.15" gradientUnits="userSpaceOnUse">
-                      <stop offset="0" stopColor="#ffffff"/>
-                      <stop offset="1" stopColor="#e0f2fe"/>
-                    </linearGradient>
-                    <linearGradient id="logo-white-2" x1="237.37" y1="586.18" x2="311.82" y2="492.9">
-                      <stop offset="0" stopColor="#ffffff"/>
-                      <stop offset="1" stopColor="#e0f2fe"/>
-                    </linearGradient>
-                    <linearGradient id="logo-white-3" x1="209.31" y1="563.78" x2="283.77" y2="470.51">
-                      <stop offset="0" stopColor="#ffffff"/>
-                      <stop offset="1" stopColor="#e0f2fe"/>
-                    </linearGradient>
-                  </defs>
-                  <g fill="#ffffff">
-                    <path d="M408.27,462.94c-8.82,0-15.71,2.19-21.09,6.72-6.01,5.34-9.31,13.42-9.31,22.77v1.43h-8.87v11.36h8.87v54.41h13.97v-54.41h14.74v-11.36h-14.74v-1.82c0-8.03,2.53-17.61,14.61-17.61,3.46,0,6.18.41,8.08,1.21v83.99h13.97v-91.98l-.67-.37c-4.96-2.76-12.09-4.34-19.55-4.34Z"/>
-                    <path d="M471.29,492.42c-18.21,0-30.93,14.54-30.93,35.36s12.7,33.15,32.36,33.15c10.43,0,17.47-2.19,21.55-4.03l.99-.45-2.57-10.78-1.43.61c-3.87,1.64-8.6,3.16-16.97,3.16-5.87,0-19.36-1.91-20.3-19.3h44.18l.19-1.7c.14-1.21.34-2.87.34-4.96,0-3.48-.54-12.38-5.53-19.95-4.79-7.27-12.35-11.11-21.87-11.11ZM454.28,519.3c1.18-6.56,5.61-16.04,16.1-16.04,4.18,0,7.55,1.27,10.01,3.78,3.72,3.79,4.46,9.38,4.58,12.26h-30.69Z"/>
-                    <path d="M536.66,492.42c-18.21,0-30.93,14.54-30.93,35.36s12.7,33.15,32.36,33.15c10.43,0,17.47-2.19,21.55-4.03l.99-.45-2.57-10.78-1.43.61c-3.87,1.64-8.6,3.16-16.97,3.16-5.87,0-19.36-1.91-20.3-19.3h44.18l.19-1.7c.14-1.21.34-2.87.34-4.96,0-3.48-.54-12.38-5.53-19.95-4.79-7.27-12.35-11.11-21.87-11.11ZM519.65,519.3c1.18-6.56,5.61-16.04,16.1-16.04,4.18,0,7.55,1.27,10.01,3.78,3.72,3.79,4.46,9.38,4.58,12.26h-30.69Z"/>
-                    <path d="M592.12,475.33l-13.84,3.7v14.83h-9.79v11.36h9.79v33.13c0,8.43,1.53,13.94,4.76,17.3,3.02,3.45,7.65,5.28,13.38,5.28,4.28,0,8.07-.59,10.68-1.66l.87-.36-.68-11.15-1.55.42c-1.23.34-3.33.74-6.31.74-5.19,0-7.3-3.17-7.3-10.95v-32.74h16.44v-11.36h-16.44v-18.53Z"/>
-                    <path d="M648.74,504.31c6.37,0,10.4,1.54,12.66,2.83l1.44.82,3.39-11.51-.98-.49c-3.14-1.57-9.34-3.4-16.5-3.4-20.75,0-35.23,14.33-35.23,34.84s13.16,33.54,32.75,33.54c8.45,0,15.38-2.05,18.74-3.8l.9-.47-2.53-11.14-1.45.64c-3.32,1.46-7.38,3.02-13.56,3.02-12.33,0-20.61-8.96-20.61-22.31s8.24-22.57,21-22.57Z"/>
-                    <path d="M703.8,492.42c-9.08,0-17.3,3.28-23.15,9.23-6.2,6.31-9.48,15.16-9.48,25.61,0,19.9,12.99,33.8,31.58,33.8,16.3,0,32.75-10.77,32.75-34.84,0-20.22-12.74-33.8-31.71-33.8ZM721.15,526.61c0,13.45-7.52,23.22-17.87,23.22s-17.87-9.66-17.87-22.96c0-11.56,5.61-23.22,18.13-23.22s17.61,11.9,17.61,22.96Z"/>
-                    <path d="M776.61,492.42c-6.94,0-13.19,4-16.84,10.48l-.29-9.05h-12.72l.09,1.4c.36,5.38.52,11.43.52,19.61v44.76h13.97v-34.97c0-1.86.26-3.64.5-5.12,1.53-8.43,6.94-13.67,14.11-13.67,1.41,0,2.49.11,3.63.36l1.59.35v-13.49l-.99-.25c-1.22-.31-2.26-.43-3.58-.43Z"/>
-                    <path d="M815.1,492.42c-18.21,0-30.93,14.54-30.93,35.36s12.7,33.15,32.36,33.15c10.43,0,17.47-2.19,21.55-4.03l.99-.45-2.57-10.78-1.43.61c-3.87,1.64-8.6,3.16-16.97,3.16-5.87,0-19.36-1.91-20.3-19.3h44.18l.19-1.69c.14-1.21.34-2.87.34-4.96,0-3.48-.54-12.38-5.53-19.95-4.79-7.27-12.35-11.11-21.87-11.11ZM798.09,519.3c1.18-6.56,5.61-16.04,16.1-16.04,4.18,0,7.55,1.27,10.01,3.78,3.72,3.79,4.46,9.38,4.58,12.26h-30.69Z"/>
-                  </g>
-                  <g>
-                    <path fill="url(#logo-white-1)" d="M185.18,535.72s17.18,7.77,36.41-.41,39.27-25.37,62.59-23.73c23.32,1.64,41.32,19.64,41.32,19.64,0,0-17.59-10.64-38.46-5.32-20.86,5.32-31.71,25.09-55.64,30.27-33.96,7.36-46.23-20.46-46.23-20.46Z"/>
-                    <path fill="url(#logo-white-2)" d="M200.32,564.76s15.96,9.41,41.32-.82c25.37-10.23,29.05-23.32,51.96-27.41,22.91-4.09,32.32,6.55,32.32,6.55,0,0-15.96-.41-27.41,8.18-11.46,8.59-20.81,26.43-39.27,31.91-37.23,11.05-58.91-18.41-58.91-18.41Z"/>
-                    <path fill="url(#logo-white-3)" d="M333.69,504.38v15.48c-5.04-.32-9.92-1.26-14.55-2.74-6.16-1.95-11.89-4.84-17.04-8.51-3.3-2.35-5.84-5.61-7.38-9.35l-.02-.05.19-.22-.29-.02c-2.92-6.98-7.75-12.95-13.85-17.26-2.38-1.69-4.96-3.13-7.68-4.26l-.02-.29-.22.19c-2.8-1.15-5.76-1.99-8.83-2.49-2.08-.33-4.22-.51-6.39-.51-5.39,0-10.53,1.06-15.22,3l-.22-.19-.02.29c-9.7,4.05-17.47,11.82-21.53,21.53l-.29.02.2.22c-1.93,4.69-3,9.84-3,15.23,0,3.49.45,6.88,1.29,10.1-4.98,1.31-10.22,2-15.61,2-2.04,0-4.07-.1-6.06-.29-5.2-.51-10.21-1.66-14.96-3.39-.4-.15-.67-.53-.67-.96v-17.52c0-1.48,1.14-2.7,2.62-2.81l13.43-.96c1.55-6.78,4.22-13.13,7.82-18.85l-8.82-10.18c-.97-1.12-.91-2.79.14-3.83l14.23-14.23c1.05-1.04,2.72-1.1,3.83-.14l10.18,8.83c5.72-3.59,12.07-6.26,18.85-7.82l.96-13.43c.1-1.47,1.33-2.62,2.81-2.62h20.12c1.48,0,2.7,1.14,2.81,2.62l.96,13.43c1.63.37,3.23.82,4.81,1.31,4.98,1.58,9.69,3.78,14.03,6.5l10.18-8.83c1.12-.97,2.79-.91,3.83.14l14.23,14.23c1.04,1.04,1.1,2.72.14,3.83l-8.83,10.18c3.59,5.72,6.26,12.07,7.82,18.85l13.43.96c1.47.11,2.62,1.33,2.62,2.81Z"/>
-                  </g>
-                </svg>
+          <div className="container mx-auto px-4 h-full">
+            <div className="flex items-center justify-between h-full">
+              {/* Logo */}
+              <div className="flex items-center space-x-3">
+                <FleetCoreLogo 
+                  variant="dark"
+                  className="transition-all duration-300"
+                />
               </div>
-            </div>
-            <div className="flex-1 flex items-center justify-center">
-              <h1 className="text-base md:text-lg lg:text-xl font-bold text-white enterprise-heading whitespace-nowrap">
-                AI Maritime Expert
-              </h1>
-            </div>
-            <div className="w-[100px] md:w-[120px] flex items-center justify-end gap-2">
-              {toggleDarkMode && (
-                <button
-                  onClick={toggleDarkMode}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group flex-shrink-0"
-                  aria-label="Toggle theme"
-                >
-                  {darkMode ? (
-                    <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                  ) : (
-                    <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                  )}
-                </button>
-              )}
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group flex-shrink-0"
-                  aria-label="Close chat"
-                >
-                  <X className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
-                </button>
-              )}
+
+              {/* Center Title */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <h1 className="text-lg lg:text-xl font-bold text-white enterprise-heading whitespace-nowrap">
+                  AI Maritime Expert
+                </h1>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center space-x-4">
+                {toggleDarkMode && (
+                  <button
+                    onClick={toggleDarkMode}
+                    className="w-10 h-10 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                    aria-label="Toggle theme"
+                  >
+                    {darkMode ? (
+                      <Sun className="w-5 h-5 text-white" />
+                    ) : (
+                      <Moon className="w-5 h-5 text-white" />
+                    )}
+                  </button>
+                )}
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="w-10 h-10 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group"
+                    aria-label="Close chat"
+                  >
+                    <X className="w-5 h-5 text-white group-hover:rotate-90 transition-transform duration-300" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
@@ -850,32 +823,49 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
             )}
           </button>
         </div>
-        <div className="flex items-center mt-2 md:mt-3 lg:mt-4 gap-2 md:gap-3 max-w-5xl mx-auto">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={useBrowsing}
-            onClick={() => setUseBrowsing((v) => !v)}
-            className={cn(
-              'group inline-flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl border transition-all flex-shrink-0',
-              useBrowsing
-                ? 'bg-maritime-50 border-maritime-200 text-maritime-700'
-                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-            )}
-          >
-            <span className={cn(
-              'relative inline-flex h-6 w-11 md:h-7 md:w-12 items-center rounded-full transition-colors',
-              useBrowsing ? 'bg-maritime-600' : 'bg-slate-300 dark:bg-slate-700'
-            )}>
-              <span
-                className={cn(
-                  'inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
-                  useBrowsing ? 'translate-x-5 md:translate-x-5' : 'translate-x-0.5 md:translate-x-0.5'
+        <div className="flex items-center justify-between mt-2 md:mt-3 lg:mt-4 gap-2 md:gap-3 max-w-5xl mx-auto">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={useBrowsing}
+              onClick={() => setUseBrowsing((v) => !v)}
+              className={cn(
+                'group inline-flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl border transition-all flex-shrink-0',
+                useBrowsing
+                  ? 'bg-maritime-50 border-maritime-200 text-maritime-700'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+              )}
+            >
+              <span className={cn(
+                'relative inline-flex h-6 w-11 md:h-7 md:w-12 items-center rounded-full transition-colors',
+                useBrowsing ? 'bg-maritime-600' : 'bg-slate-300 dark:bg-slate-700'
+              )}>
+                <span
+                  className={cn(
+                    'inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
+                    useBrowsing ? 'translate-x-5 md:translate-x-5' : 'translate-x-0.5 md:translate-x-0.5'
+                  )}
+                />
+              </span>
+              <span className="text-xs md:text-sm font-semibold whitespace-nowrap">Online research</span>
+            </button>
+            
+            {toggleDarkMode && (
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
+                aria-label="Toggle theme"
+              >
+                {darkMode ? (
+                  <Sun className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                ) : (
+                  <Moon className="w-5 h-5 text-slate-700 dark:text-slate-300" />
                 )}
-              />
-            </span>
-            <span className="text-xs md:text-sm font-semibold whitespace-nowrap">Online research</span>
-          </button>
+              </button>
+            )}
+          </div>
           
           <button
             type="button"
@@ -890,7 +880,7 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
             aria-label="Reset chat"
           >
             <RotateCcw className="w-5 h-5 md:w-5 md:h-5 group-hover:rotate-180 transition-transform duration-500" />
-            <span className="text-xs md:text-sm font-semibold whitespace-nowrap">Reset</span>
+            <span className="text-xs md:text-sm font-semibold whitespace-nowrap">Reset Chat</span>
           </button>
         </div>
       </div>

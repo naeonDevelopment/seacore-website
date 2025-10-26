@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -17,9 +17,11 @@ interface Message {
 interface ChatModalProps {
   isOpen: boolean;
   onClose: () => void;
+  darkMode?: boolean;
+  toggleDarkMode?: () => void;
 }
 
-export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
+export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode, toggleDarkMode }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -899,32 +901,49 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   )}
                 </button>
               </div>
-              <div className="flex items-center mt-3 sm:mt-4 gap-2">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={useBrowsing}
-                  onClick={() => setUseBrowsing((v) => !v)}
-                  className={cn(
-                    'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
-                    useBrowsing
-                      ? 'bg-maritime-50 border-maritime-200 text-maritime-700'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  )}
-                >
-                  <span className={cn(
-                    'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
-                    useBrowsing ? 'bg-maritime-600' : 'bg-slate-300 dark:bg-slate-700'
-                  )}>
-                    <span
-                      className={cn(
-                        'inline-block h-5 w-5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
-                        useBrowsing ? 'translate-x-6' : 'translate-x-1'
+              <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={useBrowsing}
+                    onClick={() => setUseBrowsing((v) => !v)}
+                    className={cn(
+                      'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
+                      useBrowsing
+                        ? 'bg-maritime-50 border-maritime-200 text-maritime-700'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    )}
+                  >
+                    <span className={cn(
+                      'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
+                      useBrowsing ? 'bg-maritime-600' : 'bg-slate-300 dark:bg-slate-700'
+                    )}>
+                      <span
+                        className={cn(
+                          'inline-block h-5 w-5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
+                          useBrowsing ? 'translate-x-6' : 'translate-x-1'
+                        )}
+                      />
+                    </span>
+                    <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
+                  </button>
+                  
+                  {toggleDarkMode && (
+                    <button
+                      type="button"
+                      onClick={toggleDarkMode}
+                      className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
+                      aria-label="Toggle theme"
+                    >
+                      {darkMode ? (
+                        <Sun className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                      ) : (
+                        <Moon className="w-5 h-5 text-slate-700 dark:text-slate-300" />
                       )}
-                    />
-                  </span>
-                  <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
-                </button>
+                    </button>
+                  )}
+                </div>
                 
                 <button
                   type="button"
