@@ -205,6 +205,43 @@ This is **specialized maritime search** – not general web search. Get precise,
     return steps;
   };
 
+  // Remove any inline CoT markers from assistant message content so thoughts
+  // are only shown in the dedicated animated CoT UI, never inside the answer.
+  const sanitizeAssistantContent = (raw: string | undefined): string => {
+    if (!raw) return '';
+    let s = String(raw);
+    // Remove any THINKING → ANSWER preface blocks if present
+    const removeCotBlock = (text: string): string => {
+      const lower = text.toLowerCase();
+      const thinkingMarkers = ['**thinking:**', 'thinking:'];
+      const answerMarkers = ['**answer:**', 'answer:'];
+      let start = -1;
+      for (const m of thinkingMarkers) {
+        const idx = lower.indexOf(m);
+        if (idx !== -1 && (start === -1 || idx < start)) start = idx;
+      }
+      if (start !== -1) {
+        let end = -1;
+        for (const m of answerMarkers) {
+          const idx = lower.indexOf(m, start + 1);
+          if (idx !== -1 && (end === -1 || idx < end)) end = idx;
+        }
+        if (end !== -1) {
+          // Drop content from THINKING start up to ANSWER marker
+          text = text.slice(0, start) + text.slice(end);
+        } else {
+          // No ANSWER marker; drop the THINKING label line(s)
+          text = text.replace(/\*\*THINKING:\*\*[\s\S]*/i, '').replace(/THINKING:[\s\S]*/i, '');
+        }
+      }
+      return text;
+    };
+    s = removeCotBlock(s);
+    // Strip residual ANSWER labels if any
+    s = s.replace(/\*\*ANSWER:\*\*\s*/i, '').replace(/^ANSWER:\s*/i, '');
+    return s.trim();
+  };
+
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     
@@ -899,7 +936,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                               ),
                             }}
                           >
-                            {message.content}
+                            {sanitizeAssistantContent(message.content)}
                           </ReactMarkdown>
                           {message.isStreaming && (
                             <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse align-baseline" />
