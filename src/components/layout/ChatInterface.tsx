@@ -180,8 +180,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages]);
 
   useEffect(() => {
-    if (messages.length > lastMessageCountRef.current) {
+    if (messages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
       scrollToBottom();
+      lastMessageCountRef.current = messages.length;
+    } else if (lastMessageCountRef.current === 0) {
+      // Initialize without scrolling on mount
       lastMessageCountRef.current = messages.length;
     }
   }, [messages.length]);
