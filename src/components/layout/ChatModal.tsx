@@ -11,6 +11,7 @@ interface Message {
   timestamp: Date;
   isStreaming?: boolean; // Currently being streamed
   isThinking?: boolean; // Showing thinking animation
+  thinkingContent?: string; // Chain-of-thought reasoning
 }
 
 interface ChatModalProps {
@@ -30,6 +31,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
+  const [useChainOfThought, setUseChainOfThought] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
@@ -199,6 +201,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
             content: m.content,
           })),
           enableBrowsing: useBrowsing,
+          enableChainOfThought: useChainOfThought,
+          researchComplexity: 'simple', // Default to Perplexity-style
         }),
       });
 
@@ -215,6 +219,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
         const decoder = new TextDecoder();
         
         let streamedContent = '';
+        let streamedThinking = '';
         let hasReceivedContent = false;
         // Add empty streaming message with thinking indicator
         streamingIndexRef.current = null;
@@ -225,6 +230,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
           return [...prev, {
             role: 'assistant',
             content: '',
+            thinkingContent: '',
             timestamp: new Date(),
             isStreaming: true,
             isThinking: true, // Show thinking animation initially
@@ -251,7 +257,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
 
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.type === 'content') {
+                if (parsed.type === 'thinking') {
+                  streamedThinking += parsed.content;
+                } else if (parsed.type === 'content') {
                   streamedContent += parsed.content;
                   
                   // On first content, hide thinking indicator
@@ -266,6 +274,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   updated[idx] = {
                     role: 'assistant',
                     content: streamedContent,
+                    thinkingContent: streamedThinking,
                     timestamp: new Date(),
                     isStreaming: true,
                     isThinking: !hasReceivedContent, // Hide thinking once content starts
@@ -473,6 +482,24 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         </motion.div>
                       )}
                       
+                      {/* Chain of Thought - collapsible section */}
+                      {message.role === 'assistant' && message.thinkingContent && (
+                        <details className="mb-4 group">
+                          <summary className="flex items-center gap-2 cursor-pointer select-none text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors">
+                            <Brain className="w-4 h-4" />
+                            <span className="text-sm font-semibold">View reasoning process</span>
+                            <svg className="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </summary>
+                          <div className="mt-3 p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                            <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
+                              {message.thinkingContent}
+                            </div>
+                          </div>
+                        </details>
+                      )}
+                      
                       {/* Message content - SEPARATE rendering for user vs assistant */}
                       {message.content && (
                         <>
@@ -646,6 +673,32 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     />
                   </span>
                   <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
+                </button>
+                
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={useChainOfThought}
+                  onClick={() => setUseChainOfThought((v) => !v)}
+                  className={cn(
+                    'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
+                    useChainOfThought
+                      ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  )}
+                >
+                  <span className={cn(
+                    'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
+                    useChainOfThought ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700'
+                  )}>
+                    <span
+                      className={cn(
+                        'inline-block h-5 w-5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
+                        useChainOfThought ? 'translate-x-6' : 'translate-x-1'
+                      )}
+                    />
+                  </span>
+                  <span className="text-[11px] sm:text-xs font-semibold">Chain of thought</span>
                 </button>
                 
                 <button
