@@ -458,15 +458,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Header - Full Width Background */}
       {showHeader && (
         <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between">
+          <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 py-3 md:py-4 lg:py-6 flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="flex items-center justify-center">
                 <svg 
                   viewBox="170 450 690 130"
                   xmlns="http://www.w3.org/2000/svg"
                   preserveAspectRatio="xMinYMid meet"
-                  className="h-6 sm:h-7 w-auto"
-                  style={{ minWidth: '100px' }}
+                  className="h-5 md:h-6 lg:h-7 w-auto"
+                  style={{ minWidth: '80px' }}
                 >
                   <defs>
                     <linearGradient id="logo-white-1" x1="222.64" y1="574.43" x2="297.1" y2="481.15" gradientUnits="userSpaceOnUse">
@@ -501,9 +501,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </div>
             <div className="flex-1 flex items-center justify-center">
-              <h1 className="text-lg sm:text-xl font-bold text-white enterprise-heading">Maritime Maintenance Expert</h1>
+              <h1 className="text-base md:text-lg lg:text-xl font-bold text-white enterprise-heading">Maritime Maintenance Expert</h1>
             </div>
-            <div className="w-[140px] sm:w-[180px] flex items-center justify-end">
+            <div className="w-[100px] md:w-[140px] lg:w-[180px] flex items-center justify-end">
               {onClose && (
                 <button
                   onClick={onClose}
@@ -520,7 +520,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 space-y-4 sm:space-y-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-6 lg:p-8 space-y-3 md:space-y-5 lg:space-y-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 relative">
         <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
           <div className="absolute inset-0" style={{
             backgroundImage: `radial-gradient(circle at 2px 2px, rgb(59 130 246) 1px, transparent 0)`,
@@ -528,7 +528,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           }}></div>
         </div>
         
-        <div className="relative z-10 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+        <div className="relative z-10 space-y-3 md:space-y-5 lg:space-y-6 max-w-5xl mx-auto">
           {messages.map((message, index) => (
             <div key={index}>
               {message.role === 'assistant' && message.thinkingContent && message.isThinking && (
@@ -779,9 +779,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Input Area */}
       <div 
         ref={inputAreaRef}
-        className="p-4 sm:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80"
+        className="p-3 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80"
       >
-        <div className="flex gap-2 sm:gap-3 max-w-5xl mx-auto">
+        <div className="flex gap-2 md:gap-3 max-w-5xl mx-auto">
           <input
             ref={inputRef}
             type="text"
@@ -795,7 +795,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             }}
             placeholder="Ask about maritime maintenance, SOLAS..."
             disabled={isLoading}
-            className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
+            className="flex-1 px-3 md:px-5 lg:px-6 py-2.5 md:py-3 lg:py-4 rounded-xl lg:rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-medium transition-all shadow-sm hover:shadow-md enterprise-body"
             style={{ 
               fontSize: '16px',
               touchAction: 'manipulation'
@@ -804,7 +804,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <button
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
-            className="px-4 sm:px-7 py-3 sm:py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl sm:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[60px] sm:min-w-[70px] group"
+            className="px-3 md:px-5 lg:px-7 py-2.5 md:py-3 lg:py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl lg:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[50px] md:min-w-[60px] lg:min-w-[70px] group"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
