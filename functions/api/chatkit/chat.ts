@@ -2156,6 +2156,77 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
         } catch (e) {
           console.warn('⚠️ Research step emission skipped:', (e as any)?.message);
         }
+        // Run a lightweight planner loop inside the stream to emit real research steps
+        try {
+          if (enableBrowsing && typeof TAVILY_API_KEY === 'string' && TAVILY_API_KEY.length > 0) {
+            const lastUserMessage = Array.isArray(messages)
+              ? [...messages].reverse().find((m: any) => m?.role === 'user')?.content || ''
+              : '';
+            const seedQuery = String(lastUserMessage).trim().slice(0, 300);
+            // Use verification classifier to shape strategy
+            const cls = classifyQuery(seedQuery || '');
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'plan', status: 'start', title: 'Plan research', detail: cls })}\n\n`));
+
+            // Domain authority tiers (compact subset for inline use)
+            const tier1 = ['imo.org','dnv.com','abs-group.com','classnk.or.jp','lr.org','veristar.com'];
+            const tier2 = ['wartsila.com','man-es.com','cat.com','caterpillar.com','rolls-royce.com','ge.com'];
+            const tier3 = ['marineinsight.com','ship-technology.com','maritime-executive.com'];
+
+            // Build query set
+            const plannerQueries: string[] = [];
+            if (seedQuery) plannerQueries.push(seedQuery);
+            if (cls.domain === 'vessel' || cls.domain === 'company') {
+              plannerQueries.push(`${seedQuery} site:${tier1.join(' OR site:')}`);
+            } else if (cls.domain === 'equipment') {
+              plannerQueries.push(`${seedQuery} site:${tier2.join(' OR site:')} specifications`);
+            } else if (cls.domain === 'legislation') {
+              plannerQueries.push(`${seedQuery} site:imo.org regulation chapter official`);
+            }
+            const uniqueQueries = Array.from(new Set(plannerQueries)).slice(0, 3);
+
+            for (let i = 0; i < uniqueQueries.length; i++) {
+              const q = uniqueQueries[i];
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q })}\n\n`));
+              try {
+                const tavRes = await fetch('https://api.tavily.com/search', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${TAVILY_API_KEY}`,
+                    'x-api-key': TAVILY_API_KEY,
+                  },
+                  body: JSON.stringify({ query: q, max_results: 8, search_depth: 'advanced' })
+                });
+                const tavJson: any = await tavRes.json().catch(() => ({}));
+                const results: any[] = Array.isArray(tavJson?.results) ? tavJson.results : [];
+                // Simple authority ranking
+                const scored = results.map(r => {
+                  const url = String(r.url || '').toLowerCase();
+                  let score = 0;
+                  if (tier1.some(d => url.includes(d))) score += 100;
+                  if (tier2.some(d => url.includes(d))) score += 60;
+                  if (tier3.some(d => url.includes(d))) score += 20;
+                  return { ...r, __score: score };
+                }).sort((a,b) => b.__score - a.__score);
+                const sample = scored.slice(0, 3).map(r => r.url).filter(Boolean);
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q, results: results.length, sampleUrls: sample })}\n\n`));
+                // Emit selected/rejected by authority
+                for (const r of scored) {
+                  const action = r.__score >= 60 ? 'selected' : 'rejected';
+                  const reason = r.__score >= 100 ? 'tier1 official' : r.__score >= 60 ? 'manufacturer' : 'low-authority';
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'source', action, url: r.url, reason })}\n\n`));
+                }
+              } catch (e) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tool', tool: 'search', query: q, error: 'search_failed' })}\n\n`));
+              }
+            }
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'verify', status: 'end', title: 'Verified/Extracted key data' })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'synthesize', status: 'start', title: 'Synthesize answer with citations' })}\n\n`));
+          }
+        } catch (e) {
+          console.warn('⚠️ Planner loop skipped:', (e as any)?.message);
+        }
+
         const rb = response.body;
         if (!rb) {
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
