@@ -363,6 +363,8 @@ This is **specialized maritime search** – not general web search. Get precise,
             isThinking: false, // don't show thinking until we actually have some and only if browsing
           }];
         });
+        // Hide loading spinner once streaming has started
+        setIsLoading(false);
 
         if (reader) {
           let buffer = '';
@@ -408,8 +410,18 @@ This is **specialized maritime search** – not general web search. Get precise,
 
                 setMessages((prev) => {
                   const updated = [...prev];
-                  const idx = streamingIndexRef.current ?? updated.length - 1;
-                  if (idx < 0 || idx >= updated.length) return prev;
+                  let idx = streamingIndexRef.current ?? updated.length - 1;
+                  if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
+                    // Try to find the currently streaming assistant message
+                    const found = [...updated].reverse().findIndex((m) => m.role === 'assistant' && m.isStreaming);
+                    if (found !== -1) {
+                      idx = updated.length - 1 - found;
+                      streamingIndexRef.current = idx;
+                    } else {
+                      // No valid target, skip this incremental update
+                      return prev;
+                    }
+                  }
                   // Show streaming content even while thinking
                   updated[idx] = {
                     role: 'assistant',
@@ -444,8 +456,16 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         setMessages((prev) => {
           const updated = [...prev];
-          const idx = streamingIndexRef.current ?? updated.length - 1;
-          // If index invalid, append fallback to avoid losing content
+          let idx = streamingIndexRef.current ?? updated.length - 1;
+          if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
+            // Try to find the streaming assistant to finalize
+            const found = [...updated].reverse().findIndex((m) => m.role === 'assistant' && m.isStreaming);
+            if (found !== -1) {
+              idx = updated.length - 1 - found;
+              streamingIndexRef.current = idx;
+            }
+          }
+          // If still invalid, append fallback to avoid losing content
           if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
             console.warn('⚠️ [ChatInterface] Invalid finalize index, appending fallback');
             return [...prev, {
