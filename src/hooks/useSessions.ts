@@ -19,12 +19,34 @@ export interface Session {
 
 const INITIAL_MESSAGE: Message = {
   role: 'assistant',
-  content: "Hi! I'm your maritime maintenance expert. I can help you understand fleetcore's features, maritime regulations, and answer questions about maintenance management. What would you like to know?",
+  content: `# Welcome to Fleetcore's Intelligence Hub
+
+I'm your **AI Maritime Maintenance Expert**, designed to provide comprehensive support for all your maritime operations needs.
+
+## How I Can Help You:
+
+### 💡 Fleetcore System Expertise
+- Navigate platform features and capabilities
+- Understand system workflows and integrations
+- Get technical guidance and best practices
+
+### 📚 Maritime Knowledge Base
+- SOLAS regulations and compliance requirements
+- International maritime standards (ISM, MLC, MARPOL)
+- Maintenance management procedures
+- Safety protocols and certifications
+
+### 🌐 Online Research Mode
+Enable **Online Research** below to access real-time information from maritime industry sources, regulatory updates, and technical documentation.
+
+---
+
+**What would you like to explore today?**`,
   timestamp: new Date(),
 };
 
 const STORAGE_KEY = 'fleetcore_chat_sessions';
-const CACHE_VERSION = '1.0';
+const CACHE_VERSION = '2.0'; // Bumped to clear old sessions with old welcome message
 const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // Load sessions from cache
