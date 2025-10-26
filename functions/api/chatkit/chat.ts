@@ -794,9 +794,22 @@ function getResearchConfig(
 }
 
 export async function onRequestPost(context) {
+  // ===== CRITICAL: Entry point logging =====
+  console.log('🚀🚀🚀 ===== CHAT ENDPOINT CALLED ===== 🚀🚀🚀');
+  console.log('📍 Timestamp:', new Date().toISOString());
+  console.log('📍 Request URL:', context.request.url);
+  console.log('📍 Request Method:', context.request.method);
+  
   const { OPENAI_API_KEY, OPENAI_MODEL, TAVILY_API_KEY } = context.env;
 
+  console.log('🔑 Environment check:', {
+    hasOpenAI: !!OPENAI_API_KEY,
+    modelConfig: OPENAI_MODEL || 'not set',
+    hasTavily: !!TAVILY_API_KEY
+  });
+
   if (!OPENAI_API_KEY) {
+    console.error('❌ CRITICAL: OpenAI API key not configured!');
     return new Response(
       JSON.stringify({ error: 'OpenAI API key not configured' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -804,8 +817,19 @@ export async function onRequestPost(context) {
   }
 
   try {
+    console.log('📥 Parsing request body...');
     const body = await context.request.json();
+    console.log('✅ Body parsed successfully');
+    
     const { messages, enableBrowsing, researchComplexity, enableChainOfThought } = body;
+    
+    console.log('📊 Request parameters:', {
+      messageCount: messages?.length || 0,
+      lastMessage: messages?.[messages.length - 1]?.content?.substring(0, 100),
+      enableBrowsing,
+      researchComplexity,
+      enableChainOfThought
+    });
     
     // DEFAULT: Simple mode (Perplexity-style, 2 calls)
     // User can override with researchComplexity parameter
@@ -2001,6 +2025,14 @@ ${previousResearchContext}
       ),
     };
     
+    console.log('🤖 ===== CALLING OPENAI API =====');
+    console.log('📤 Model:', usedModel);
+    console.log('📤 Message count:', requestBody.messages.length);
+    console.log('📤 Stream:', requestBody.stream);
+    console.log('📤 Temperature:', (requestBody as any).temperature || 'N/A (reasoning model)');
+    console.log('📤 Research context:', browsingContext ? `${browsingContext.length} chars` : 'None');
+    console.log('=================================');
+    
     let response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -2009,6 +2041,8 @@ ${previousResearchContext}
       },
       body: JSON.stringify(requestBody),
     });
+    
+    console.log('📥 OpenAI response status:', response.status, response.statusText);
 
     // PHASE 1: INTELLIGENT FALLBACK MECHANISM
     // Try fallback chain if primary model fails (any 4xx error)
@@ -2296,9 +2330,19 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
     
     return new Response(stream, { headers });
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error('❌❌❌ ===== CRITICAL CHAT ERROR ===== ❌❌❌');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    console.error('==========================================');
+    
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        message: error?.message || 'Unknown error',
+        timestamp: new Date().toISOString()
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
