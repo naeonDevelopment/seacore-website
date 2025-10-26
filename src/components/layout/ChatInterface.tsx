@@ -1121,7 +1121,9 @@ This is **specialized maritime search** – not general web search. Get precise,
                                 {(() => {
                                   // Get all sources from this research session
                                   const allSources = researchSession.events.filter(e => e.type === 'source');
-                                  const recentSources = allSources.slice(-20);
+                                  // CRITICAL FIX: Show ALL sources, not just last 20
+                                  // Selected sources come FIRST, so slice(-20) was hiding them!
+                                  const recentSources = allSources; // Show all sources
                                   
                                   // Log filtering with full source details
                                   console.log('🎯 [Source Display]', {
@@ -1129,6 +1131,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                                     recentSources: recentSources.length,
                                     currentFilter: sourceFilter,
                                     allActions: [...new Set(recentSources.map(s => s.action))],
+                                    selectedCount: recentSources.filter(s => s.action === 'selected').length,
+                                    rejectedCount: recentSources.filter(s => s.action === 'rejected').length,
                                     sampleSources: recentSources.slice(0, 2).map(s => ({
                                       action: s.action,
                                       url: s.url?.substring(0, 30),
