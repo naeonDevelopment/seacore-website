@@ -384,10 +384,35 @@ This is **specialized maritime search** – not general web search. Get precise,
     setInput('');
     setIsLoading(true);
     
-    // Prepare for new research session if browsing enabled
+    // CRITICAL FIX: Create research session IMMEDIATELY if browsing enabled
+    // This ensures events arriving before assistant message are captured
     if (useBrowsing) {
-      console.log('🌐 Online research enabled - will create research session for upcoming assistant response');
-      // Research session will be created when assistant message is created
+      // Clean up any previous pending sessions
+      if (activeResearchIdRef.current && activeResearchIdRef.current.startsWith('pending-')) {
+        setResearchSessions((prev) => {
+          const updated = new Map(prev);
+          updated.delete(activeResearchIdRef.current!);
+          return updated;
+        });
+      }
+      
+      const pendingResearchId = `pending-${Date.now()}`;
+      activeResearchIdRef.current = pendingResearchId;
+      console.log('🌐 Online research enabled - creating pending research session:', pendingResearchId);
+      
+      setResearchSessions((prev) => {
+        const updated = new Map(prev);
+        updated.set(pendingResearchId, {
+          messageId: pendingResearchId, // Will be updated when assistant message created
+          userMessageId: userMessageId,
+          events: [],
+          verifiedSources: [],
+          transientAnalysis: '',
+          isActive: true,
+          timestamp: Date.now(),
+        });
+        return updated;
+      });
     }
 
     try {
@@ -583,23 +608,33 @@ This is **specialized maritime search** – not general web search. Get precise,
                     };
                     updated.push(assistantMessage);
                     
-                    // Create research session for this assistant message
-                    if (useBrowsing) {
+                    // Link existing research session to this assistant message
+                    if (useBrowsing && activeResearchIdRef.current) {
                       const assistantMessageId = assistantMessage.timestamp.getTime().toString();
-                      activeResearchIdRef.current = assistantMessageId;
+                      const pendingId = activeResearchIdRef.current;
+                      
+                      console.log('🔗 Linking research session:', pendingId, '→', assistantMessageId);
+                      
                       setResearchSessions((prev) => {
                         const updated = new Map(prev);
-                        updated.set(assistantMessageId, {
-                          messageId: assistantMessageId,
-                          userMessageId: userMessageId, // Link to user question
-                          events: [],
-                          verifiedSources: [],
-                          transientAnalysis: '',
-                          isActive: true,
-                          timestamp: Date.now(),
-                        });
+                        const pendingSession = updated.get(pendingId);
+                        
+                        if (pendingSession) {
+                          // Transfer pending session to assistant message ID
+                          updated.delete(pendingId);
+                          updated.set(assistantMessageId, {
+                            ...pendingSession,
+                            messageId: assistantMessageId,
+                          });
+                          console.log('✅ Research session transferred, events:', pendingSession.events.length);
+                        }
+                        
                         return updated;
                       });
+                      
+                      // Update active ref to new ID
+                      activeResearchIdRef.current = assistantMessageId;
+                      
                       // Auto-expand this research panel
                       setExpandedSources((prev) => {
                         const ns = new Set(prev);
@@ -691,29 +726,41 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         // Mark active research session as complete
         if (activeResearchIdRef.current) {
+          const completedResearchId = activeResearchIdRef.current;
+          const completedIdx = streamingIndexRef.current;
+          
           setResearchSessions((prev) => {
             const updated = new Map(prev);
-            const session = updated.get(activeResearchIdRef.current!);
+            const session = updated.get(completedResearchId);
             if (session) {
               session.isActive = false;
-              updated.set(activeResearchIdRef.current!, session);
+              updated.set(completedResearchId, session);
+              console.log('✅ Research complete:', completedResearchId, 'Sources:', session.verifiedSources.length);
             }
             return updated;
           });
           
-          // Auto-collapse research panel after a delay
-          const completedIdx = streamingIndexRef.current;
+          // IMPROVED: Auto-collapse only if sources loaded OR 10s elapsed
           if (completedIdx !== null) {
+            // Wait longer to ensure sources are visible
             setTimeout(() => {
-              setExpandedSources((prev) => {
-                const ns = new Set(prev);
-                ns.delete(completedIdx);
-                return ns;
+              setResearchSessions((prev) => {
+                const session = prev.get(completedResearchId);
+                // Only collapse if we have sources OR it's been long enough
+                if (session && (session.verifiedSources.length > 0 || !session.isActive)) {
+                  setExpandedSources((prev) => {
+                    const ns = new Set(prev);
+                    ns.delete(completedIdx);
+                    return ns;
+                  });
+                }
+                return prev;
               });
-            }, 5000); // Collapse after 5 seconds
+            }, 10000); // Increased to 10 seconds for better UX
           }
           
-          activeResearchIdRef.current = null;
+          // DON'T reset activeResearchIdRef yet - keep for potential follow-ups
+          // It will be reset on next sendMessage
         }
       } else {
         const data = await response.json();
