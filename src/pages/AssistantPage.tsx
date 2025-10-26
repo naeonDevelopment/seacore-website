@@ -294,9 +294,9 @@ const AssistantPage: React.FC = () => {
         {/* Chat Interface Container with Max Width */}
         <div className={cn(
           "transition-all duration-300",
-          isMobile ? "pt-14" : "lg:ml-80"
+          isMobile ? "pt-14" : "lg:ml-[21rem]"
         )}>
-          <div className="mx-auto" style={{ maxWidth: '1400px' }}>
+          <div className="mx-auto px-4" style={{ maxWidth: '1400px' }}>
             <ChatInterface 
               isFullscreen={true}
               messages={activeSession.messages}
