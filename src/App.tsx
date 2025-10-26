@@ -110,7 +110,7 @@ function App() {
             <Route path="/contact" element={<ContactPage />} />
             
             {/* AI Assistant Route */}
-            <Route path="/assistant" element={<AssistantPage />} />
+            <Route path="/assistant" element={<AssistantPage darkMode={darkMode} toggleDarkMode={toggleDarkMode} />} />
             
             {/* Privacy Policy Route */}
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

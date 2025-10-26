@@ -9,7 +9,12 @@ import { useSessions } from '@/hooks/useSessions';
 import { generatePageSEO } from '@/utils/seoGenerator';
 import { cn } from '@/utils/cn';
 
-const AssistantPage: React.FC = () => {
+interface AssistantPageProps {
+  darkMode: boolean;
+  toggleDarkMode: () => void;
+}
+
+const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -37,10 +42,16 @@ const AssistantPage: React.FC = () => {
     navigate('/'); // Go to home page
   };
 
-  // Detect mobile and dark mode
+  // Detect mobile and force dark mode on mobile
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      
+      // Force dark mode on mobile
+      if (mobile && !darkMode) {
+        document.documentElement.classList.add('dark');
+      }
     };
     
     const checkDarkMode = () => {
@@ -322,14 +333,16 @@ const AssistantPage: React.FC = () => {
           "transition-all duration-300 w-full",
           isMobile ? "mt-16" : ""
         )}>
-          <ChatInterface 
-            isFullscreen={true}
-            messages={activeSession.messages}
-            onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
-            onClose={!isMobile ? handleClose : undefined}
-            showHeader={!isMobile}
-            className={cn(isMobile ? "h-[calc(100vh-4rem)]" : "min-h-screen")}
-          />
+            <ChatInterface 
+              isFullscreen={true}
+              messages={activeSession.messages}
+              onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
+              onClose={!isMobile ? handleClose : undefined}
+              showHeader={!isMobile}
+              darkMode={darkMode}
+              toggleDarkMode={toggleDarkMode}
+              className={cn(isMobile ? "h-[calc(100vh-4rem)]" : "min-h-screen")}
+            />
         </div>
       </div>
     </>

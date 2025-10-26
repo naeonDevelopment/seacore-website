@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -21,6 +21,8 @@ interface ChatInterfaceProps {
   showHeader?: boolean;
   messages?: Message[];
   onMessagesChange?: (messages: Message[]) => void;
+  darkMode?: boolean;
+  toggleDarkMode?: () => void;
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -29,7 +31,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   className,
   showHeader = true,
   messages: externalMessages,
-  onMessagesChange
+  onMessagesChange,
+  darkMode,
+  toggleDarkMode
 }) => {
   const [internalMessages, setInternalMessages] = useState<Message[]>([
     {
@@ -521,7 +525,20 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
                 AI Maritime Expert
               </h1>
             </div>
-            <div className="w-[100px] md:w-[120px] flex items-center justify-end">
+            <div className="w-[100px] md:w-[120px] flex items-center justify-end gap-2">
+              {toggleDarkMode && (
+                <button
+                  onClick={toggleDarkMode}
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group flex-shrink-0"
+                  aria-label="Toggle theme"
+                >
+                  {darkMode ? (
+                    <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  ) : (
+                    <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  )}
+                </button>
+              )}
               {onClose && (
                 <button
                   onClick={onClose}
