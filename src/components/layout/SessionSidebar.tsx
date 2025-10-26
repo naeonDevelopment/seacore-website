@@ -202,9 +202,14 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 
       {/* Footer Info */}
       <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700">
-        <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-          {sessions.length} session{sessions.length !== 1 ? 's' : ''}
-        </p>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-500 dark:text-slate-400">
+            {sessions.length} session{sessions.length !== 1 ? 's' : ''}
+          </span>
+          <span className="text-maritime-600 dark:text-maritime-400 font-semibold">
+            fleetcore AI
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -217,7 +222,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 20, opacity: 0 }}
         transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="fixed left-6 top-20 w-80 h-[calc(100vh-6rem)] z-[100]"
+        className="fixed left-6 top-20 w-64 h-[calc(100vh-6rem)] z-[100]"
       >
         {sidebarContent}
       </motion.div>
@@ -240,11 +245,11 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 
           {/* Drawer */}
           <motion.div
-            initial={{ x: -320 }}
+            initial={{ x: -280 }}
             animate={{ x: 0 }}
-            exit={{ x: -320 }}
+            exit={{ x: -280 }}
             transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed left-0 top-0 bottom-0 w-80 z-[100] lg:hidden"
+            className="fixed left-0 top-0 bottom-0 w-72 z-[100] lg:hidden"
           >
             {sidebarContent}
           </motion.div>
