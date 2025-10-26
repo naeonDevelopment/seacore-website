@@ -297,7 +297,7 @@ const AssistantPage: React.FC = () => {
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
                 <FleetCoreLogo 
                   variant={isDarkMode ? 'dark' : 'light'}
-                  className="!max-w-[80px] !h-auto transition-all duration-300"
+                  className="!max-w-[60px] !h-auto transition-all duration-300"
                 />
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                   AI Maritime Expert
