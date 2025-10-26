@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Brain, Globe, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -85,38 +85,71 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   };
 
   // Extract clean thinking steps WITHOUT labels (Understanding:, Analysis:, etc.)
+  // Cursor-style: Extract individual thoughts for sequential display
   const extractThinkingSteps = (thinking: string): string[] => {
     if (!thinking) return [];
     
-    // Remove markers and split into sentences
+    console.log('🔍 Extracting thinking steps from:', thinking.substring(0, 200));
+    
+    // Remove markers
     const cleaned = thinking
-      .replace(/\*\*THINKING:\*\*/g, '')
-      .replace(/\*\*ANSWER:\*\*/g, '')
-      .replace(/THINKING:/g, '')
-      .replace(/ANSWER:/g, '')
+      .replace(/\*\*THINKING:\*\*/gi, '')
+      .replace(/\*\*ANSWER:\*\*/gi, '')
       .trim();
     
-    // Split by the standard thinking step labels
+    // Try to split by the standard thinking step labels (Cursor-style structured reasoning)
     const stepLabels = ['Understanding:', 'Analysis:', 'Source Review:', 'Cross-Reference:', 'Synthesis:', 'Conclusion:'];
     const steps: string[] = [];
     
-    stepLabels.forEach(label => {
-      const regex = new RegExp(label + '\\s*(.+?)(?=' + stepLabels.filter(l => l !== label).join('|') + '|$)', 's');
-      const match = cleaned.match(regex);
-      if (match && match[1]) {
-        const cleanStep = match[1].trim();
-        if (cleanStep.length > 10) {
-          steps.push(cleanStep);
+    // Build a comprehensive regex to capture all steps at once
+    // Split the text by any of the labels
+    let remainingText = cleaned;
+    
+    for (let i = 0; i < stepLabels.length; i++) {
+      const currentLabel = stepLabels[i];
+      const labelIndex = remainingText.indexOf(currentLabel);
+      
+      if (labelIndex !== -1) {
+        // Find the next label or end of text
+        let nextLabelIndex = remainingText.length;
+        for (let j = i + 1; j < stepLabels.length; j++) {
+          const nextIndex = remainingText.indexOf(stepLabels[j], labelIndex + currentLabel.length);
+          if (nextIndex !== -1 && nextIndex < nextLabelIndex) {
+            nextLabelIndex = nextIndex;
+          }
+        }
+        
+        // Extract the content between this label and the next
+        const stepContent = remainingText.substring(labelIndex + currentLabel.length, nextLabelIndex).trim();
+        
+        if (stepContent.length > 10) {
+          steps.push(stepContent);
+          console.log(`   ✓ Found ${currentLabel} "${stepContent.substring(0, 50)}..."`);
         }
       }
-    });
-    
-    // Fallback: if no structured steps found, split by sentences
-    if (steps.length === 0 && cleaned.length > 0) {
-      const sentences = cleaned.split(/\.\s+/).filter(s => s.trim().length > 10);
-      return sentences.slice(0, 6); // Max 6 thoughts
     }
     
+    // Fallback: if no structured steps found, split by newlines or sentences
+    if (steps.length === 0 && cleaned.length > 0) {
+      console.log('   ⚠️ No structured steps found, using fallback parsing');
+      // Try splitting by double newlines first (paragraph breaks)
+      let fallbackSteps = cleaned.split(/\n\n+/).filter(s => s.trim().length > 20);
+      
+      // If that doesn't work, try single newlines
+      if (fallbackSteps.length < 2) {
+        fallbackSteps = cleaned.split(/\n+/).filter(s => s.trim().length > 20);
+      }
+      
+      // If still nothing, split by sentences
+      if (fallbackSteps.length < 2) {
+        fallbackSteps = cleaned.split(/\.\s+/).filter(s => s.trim().length > 15);
+      }
+      
+      console.log(`   → Extracted ${fallbackSteps.length} fallback steps`);
+      return fallbackSteps.slice(0, 6); // Max 6 thoughts
+    }
+    
+    console.log(`   ✅ Extracted ${steps.length} structured thinking steps`);
     return steps;
   };
 
@@ -544,37 +577,45 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         {/* Spacer to align with assistant avatar */}
                         <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
                         
-                        {/* Thinking Display - Minimalist Cursor/o1 Style */}
-                        <div className="max-w-[85%] sm:max-w-[80%] px-4 py-2 rounded-xl backdrop-blur-md bg-purple-50/60 dark:bg-purple-900/20 border border-purple-200/60 dark:border-purple-800/40">
-                          <div className="flex items-center gap-2">
-                            <motion.div
-                              animate={{ rotate: 360 }}
-                              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                            >
-                              <Brain className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
-                            </motion.div>
-                            <AnimatePresence mode="wait">
-                              {(() => {
-                                const steps = extractThinkingSteps(message.thinkingContent);
-                                if (steps.length > 0) {
-                                  const currentStep = steps[currentThinkingStep % steps.length];
-                                  return (
-                                    <motion.div
-                                      key={currentThinkingStep}
-                                      initial={{ opacity: 0, x: 10 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      exit={{ opacity: 0, x: -10 }}
-                                      transition={{ duration: 0.4, ease: "easeOut" }}
-                                      className="text-xs text-purple-700 dark:text-purple-300 font-medium leading-relaxed"
-                                    >
+                        {/* Thinking Display - Cursor-style Pill/Tag Format (NO ICON) */}
+                        <div className="max-w-[85%] sm:max-w-[80%]">
+                          <AnimatePresence mode="wait">
+                            {(() => {
+                              const steps = extractThinkingSteps(message.thinkingContent);
+                              if (steps.length > 0) {
+                                const currentStep = steps[currentThinkingStep % steps.length];
+                                return (
+                                  <motion.div
+                                    key={currentThinkingStep}
+                                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                                    transition={{ duration: 0.35, ease: "easeOut" }}
+                                    className="px-4 py-2 rounded-full backdrop-blur-md bg-purple-50/70 dark:bg-purple-900/30 border border-purple-200/70 dark:border-purple-700/50 shadow-sm"
+                                  >
+                                    <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-200 font-medium leading-relaxed">
                                       {currentStep}
-                                    </motion.div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </AnimatePresence>
-                          </div>
+                                    </p>
+                                  </motion.div>
+                                );
+                              }
+                              // Fallback: show generic thinking indicator if no steps parsed yet
+                              return (
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="px-4 py-2 rounded-full backdrop-blur-md bg-purple-50/70 dark:bg-purple-900/30 border border-purple-200/70 dark:border-purple-700/50"
+                                >
+                                  <p className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">
+                                    Thinking<motion.span
+                                      animate={{ opacity: [0.3, 1, 0.3] }}
+                                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                    >...</motion.span>
+                                  </p>
+                                </motion.div>
+                              );
+                            })()}
+                          </AnimatePresence>
                         </div>
                       </motion.div>
                     )}
@@ -615,12 +656,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                             animate={{ opacity: 1 }}
                             className="flex items-center gap-2"
                           >
-                            <motion.div
-                              animate={{ scale: [1, 1.2, 1] }}
-                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                            >
-                              <Brain className="w-5 h-5 text-maritime-600 dark:text-maritime-400" />
-                            </motion.div>
                             <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
                               Thinking<motion.span
                                 animate={{ opacity: [0, 1, 0] }}
