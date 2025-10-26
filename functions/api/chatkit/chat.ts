@@ -2122,48 +2122,42 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                 // Stream content tokens
                 if (content) {
                   // PHASE 4: Parse synthetic CoT for non-reasoning models
-                  // COMPLETELY REWRITTEN: Accumulate all content, detect sections, stream appropriately
+                  // CRITICAL FIX: Wait for BOTH markers before streaming thinking
                   if (needsSyntheticCoT && !hasNativeCoT) {
                     // Accumulate ALL tokens
                     fullContentAccumulator += content;
                     
-                    // Try to parse sections from accumulated content
-                    const thinkingMatch = fullContentAccumulator.match(/\*\*THINKING:\*\*\s*([\s\S]*?)(?=\*\*ANSWER:\*\*|$)/);
+                    // Try to parse BOTH sections from accumulated content
+                    const thinkingMatch = fullContentAccumulator.match(/\*\*THINKING:\*\*\s*([\s\S]*?)(?=\*\*ANSWER:\*\*)/);
                     const answerMatch = fullContentAccumulator.match(/\*\*ANSWER:\*\*\s*([\s\S]*)/);
                     
-                    // If we found THINKING section and haven't streamed it yet
-                    if (thinkingMatch && !isInThinkingMode) {
+                    // CRITICAL: Only stream thinking when BOTH markers are found (thinking is complete)
+                    if (thinkingMatch && answerMatch && !isInThinkingMode) {
                       isInThinkingMode = true;
-                      const thinkingContent = thinkingMatch[1];
-                      console.log('🧠 CoT: Found THINKING section, length:', thinkingContent.length);
+                      const thinkingContent = thinkingMatch[1].trim();
+                      console.log('🧠 CoT: Found COMPLETE thinking section, streaming at once. Length:', thinkingContent.length);
                       
-                      // Stream all thinking content at once
+                      // Stream COMPLETE thinking content as ONE event
                       controller.enqueue(
                         encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: thinkingContent })}\n\n`)
                       );
-                      lastStreamedIndex = fullContentAccumulator.indexOf('**ANSWER:**');
-                    }
-                    
-                    // If we found ANSWER section and we were in thinking mode
-                    if (answerMatch && isInThinkingMode) {
-                      isInThinkingMode = false;
-                      console.log('🧠 CoT: Switching to ANSWER mode');
                       
-                      // Stream new answer content (only what we haven't streamed yet)
+                      // Now stream the initial answer content we have so far
                       const answerStartIndex = fullContentAccumulator.indexOf('**ANSWER:**') + '**ANSWER:**'.length;
-                      const newAnswerContent = fullContentAccumulator.substring(Math.max(lastStreamedIndex, answerStartIndex));
+                      const initialAnswerContent = fullContentAccumulator.substring(answerStartIndex).trim();
                       
-                      if (newAnswerContent.trim()) {
+                      if (initialAnswerContent) {
+                        console.log('🧠 CoT: Switching to ANSWER mode, streaming initial content. Length:', initialAnswerContent.length);
                         controller.enqueue(
-                          encoder.encode(`data: ${JSON.stringify({ type: 'content', content: newAnswerContent })}\n\n`)
+                          encoder.encode(`data: ${JSON.stringify({ type: 'content', content: initialAnswerContent })}\n\n`)
                         );
-                        lastStreamedIndex = fullContentAccumulator.length;
                       }
-                    } else if (!isInThinkingMode && answerMatch) {
-                      // Continue streaming answer content incrementally
+                      
+                      lastStreamedIndex = fullContentAccumulator.length;
+                    } else if (isInThinkingMode && answerMatch) {
+                      // Continue streaming NEW answer tokens incrementally
                       const answerStartIndex = fullContentAccumulator.indexOf('**ANSWER:**') + '**ANSWER:**'.length;
-                      const totalAnswerSoFar = fullContentAccumulator.substring(answerStartIndex);
-                      const newContent = totalAnswerSoFar.substring(lastStreamedIndex - answerStartIndex);
+                      const newContent = fullContentAccumulator.substring(lastStreamedIndex);
                       
                       if (newContent) {
                         controller.enqueue(
@@ -2172,7 +2166,7 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                         lastStreamedIndex = fullContentAccumulator.length;
                       }
                     }
-                    // If no sections detected yet, hold tokens in accumulator (waiting for markers)
+                    // If markers not detected yet, keep accumulating (hold all tokens)
                   } else {
                     // Standard content streaming (CoT disabled or native reasoning model)
                     controller.enqueue(

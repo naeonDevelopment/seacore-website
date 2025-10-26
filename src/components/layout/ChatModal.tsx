@@ -46,6 +46,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   // Track expanded sources per message
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   
+  // Track when thinking started to enforce minimum display time
+  const thinkingStartTimeRef = useRef<number | null>(null);
+  
   // Track viewport dimensions for mobile keyboard handling
   const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [viewportTop, setViewportTop] = useState(0);
@@ -77,6 +80,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     streamingIndexRef.current = null;
     lastMessageCountRef.current = 1;
     setCurrentThinkingStep(0);
+    thinkingStartTimeRef.current = null;
+    setExpandedSources(new Set());
   };
 
   // Extract clean thinking steps WITHOUT labels (Understanding:, Analysis:, etc.)
@@ -290,9 +295,12 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
         let streamedContent = '';
         let streamedThinking = '';
         let hasReceivedContent = false;
-        let thinkingComplete = false;
+        let answerReadyToShow = false;
         // Add empty streaming message with thinking indicator
         streamingIndexRef.current = null;
+        
+        // Start thinking timer
+        thinkingStartTimeRef.current = Date.now();
         
         setMessages((prev) => {
           const index = prev.length;
@@ -329,16 +337,21 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'thinking') {
                   streamedThinking += parsed.content;
-                  console.log('🧠 Received thinking:', parsed.content.substring(0, 50));
+                  console.log('🧠 Received thinking section, length:', parsed.content.length);
                 } else if (parsed.type === 'content') {
-                  // First content received = thinking is complete
+                  // First content received = answer is ready
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
-                    thinkingComplete = true;
-                    console.log('✅ Thinking complete, starting answer stream');
+                    answerReadyToShow = true;
+                    console.log('✅ Answer content received, enforcing minimum thinking display time...');
                   }
                   streamedContent += parsed.content;
                 }
+
+                // Calculate if minimum thinking time has elapsed (9 seconds for 6 steps)
+                const MINIMUM_THINKING_TIME = 9000; // 9 seconds
+                const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
+                const shouldHideThinking = answerReadyToShow && (thinkingElapsedTime >= MINIMUM_THINKING_TIME || !streamedThinking);
 
                 setMessages((prev) => {
                   const updated = [...prev];
@@ -349,7 +362,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                     thinkingContent: streamedThinking,
                     timestamp: new Date(),
                     isStreaming: true,
-                    isThinking: !thinkingComplete, // Only hide thinking when it's complete
+                    isThinking: !shouldHideThinking, // Only hide thinking after minimum time
                   };
                   return updated;
                 });
@@ -362,17 +375,29 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
           }
         }
 
-        // Finalize message
+        // Finalize message - ensure thinking displays for minimum time
+        const MINIMUM_THINKING_TIME = 9000;
+        const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : MINIMUM_THINKING_TIME;
+        const remainingThinkingTime = Math.max(0, MINIMUM_THINKING_TIME - thinkingElapsedTime);
+        
+        if (remainingThinkingTime > 0 && streamedThinking) {
+          console.log(`⏰ Waiting ${remainingThinkingTime}ms for thinking to complete display cycle...`);
+          await new Promise(resolve => setTimeout(resolve, remainingThinkingTime));
+        }
+        
         setMessages((prev) => {
           const updated = [...prev];
           const idx = streamingIndexRef.current ?? updated.length - 1;
           updated[idx] = {
             ...updated[idx],
             isStreaming: false,
-            isThinking: false, // Remove thinking indicator
+            isThinking: false, // Remove thinking indicator after minimum time
           };
           return updated;
         });
+        
+        // Reset thinking timer
+        thinkingStartTimeRef.current = null;
       } else {
         // Fallback to non-streaming or error response
         const data = await response.json();
@@ -622,7 +647,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                     if (content.trim().match(/^\*\*Sources:\*\*$/i) || content.trim().match(/^Sources:$/i)) {
                                       const isExpanded = expandedSources.has(index);
                                       return (
-                                        <div className="my-4">
+                                        <>
                                           <button
                                             onClick={() => {
                                               const newExpanded = new Set(expandedSources);
@@ -633,7 +658,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                               }
                                               setExpandedSources(newExpanded);
                                             }}
-                                            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-maritime-50/50 dark:bg-maritime-900/20 border border-maritime-200/50 dark:border-maritime-800/40 hover:bg-maritime-100/50 dark:hover:bg-maritime-900/30 transition-colors text-left"
+                                            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-maritime-50/50 dark:bg-maritime-900/20 border border-maritime-200/50 dark:border-maritime-800/40 hover:bg-maritime-100/50 dark:hover:bg-maritime-900/30 transition-colors text-left my-4"
                                           >
                                             {isExpanded ? (
                                               <ChevronUp className="w-4 h-4 text-maritime-600 dark:text-maritime-400 flex-shrink-0" />
@@ -641,20 +666,31 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                               <ChevronDown className="w-4 h-4 text-maritime-600 dark:text-maritime-400 flex-shrink-0" />
                                             )}
                                             <span className="text-sm font-semibold text-maritime-700 dark:text-maritime-300">
-                                              Sources {isExpanded ? '(click to hide)' : '(click to show)'}
+                                              Sources {isExpanded ? '(hide)' : '(show)'}
                                             </span>
                                           </button>
-                                          {!isExpanded && <div className="h-0 overflow-hidden" />}
-                                        </div>
+                                          {/* When collapsed, return marker div that children can check */}
+                                          {!isExpanded && <div data-sources-collapsed="true" className="hidden" />}
+                                        </>
                                       );
                                     }
                                     
                                     // Check if we're inside a collapsed sources section
-                                    const isInsideSources = !expandedSources.has(index) && 
-                                      message.content.toLowerCase().includes('**sources:**') &&
-                                      message.content.indexOf(content) > message.content.toLowerCase().indexOf('sources:');
+                                    // Look for the Sources heading in the message and check if we're after it
+                                    const lowerContent = message.content.toLowerCase();
+                                    const sourcesIndex = lowerContent.indexOf('**sources:**');
+                                    if (sourcesIndex === -1) {
+                                      return <p {...props} className="my-2 leading-relaxed">{children}</p>;
+                                    }
                                     
-                                    if (isInsideSources) {
+                                    // Find where this paragraph appears in the full content
+                                    const contentAfterSources = message.content.substring(sourcesIndex);
+                                    
+                                    // Check if current content is in the "after sources" section
+                                    const isAfterSources = contentAfterSources.includes(content.substring(0, Math.min(50, content.length)));
+                                    const isCollapsed = !expandedSources.has(index);
+                                    
+                                    if (isAfterSources && isCollapsed && !content.trim().match(/^\*\*Sources:\*\*$/i)) {
                                       return null; // Hide content when sources is collapsed
                                     }
                                     
