@@ -2065,8 +2065,9 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
 
     // Stream the response back to client
     const encoder = new TextEncoder();
-    // Track thinking mode state across chunks
+    // Track thinking mode state and accumulate content for proper marker detection
     let isInThinkingMode = false;
+    let contentBuffer = ''; // Accumulate tokens to detect split markers
     
     const stream = new ReadableStream({
       async start(controller) {
@@ -2078,7 +2079,7 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
         }
         const reader = rb.getReader();
         const decoder = new TextDecoder();
-        let buffer = ''; // Proper buffer to handle incomplete chunks
+        let buffer = ''; // SSE line buffer
 
         try {
           while (true) {
@@ -2120,44 +2121,64 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                 // Stream content tokens
                 if (content) {
                   // PHASE 4: Parse synthetic CoT for non-reasoning models
-                  // Improved stateful parsing for THINKING/ANSWER sections
+                  // FIXED: Accumulate tokens in buffer to detect markers that are split across chunks
                   if (needsSyntheticCoT && !hasNativeCoT) {
-                    // Check for section markers (with or without bold formatting)
-                    const hasThinkingMarker = content.includes('**THINKING:**') || content.includes('THINKING:');
-                    const hasAnswerMarker = content.includes('**ANSWER:**') || content.includes('ANSWER:');
+                    // Accumulate token in buffer
+                    contentBuffer += content;
                     
-                    if (hasThinkingMarker) {
+                    // Check accumulated buffer for section markers
+                    const hasThinkingMarker = contentBuffer.includes('**THINKING:**') || contentBuffer.includes('THINKING:');
+                    const hasAnswerMarker = contentBuffer.includes('**ANSWER:**') || contentBuffer.includes('ANSWER:');
+                    
+                    if (hasThinkingMarker && !isInThinkingMode) {
                       isInThinkingMode = true;
-                      console.log('🧠 CoT: Detected THINKING section marker');
-                      // Remove marker and send as thinking
-                      const thinkingContent = content
-                        .replace('**THINKING:**', '')
-                        .replace('THINKING:', '')
-                        .trim();
+                      console.log('🧠 CoT: Detected THINKING section marker in buffer');
+                      
+                      // Extract everything after the marker
+                      let thinkingContent = contentBuffer.split(/\*\*THINKING:\*\*|THINKING:/)[1] || '';
+                      thinkingContent = thinkingContent.trim();
+                      
+                      // Clear buffer and start fresh thinking content
+                      contentBuffer = '';
+                      
                       if (thinkingContent) {
                         controller.enqueue(
                           encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: thinkingContent })}\n\n`)
                         );
                       }
-                    } else if (hasAnswerMarker) {
+                    } else if (hasAnswerMarker && isInThinkingMode) {
                       isInThinkingMode = false;
                       console.log('🧠 CoT: Detected ANSWER section marker - switching to content');
-                      // Skip the ANSWER marker itself, start streaming content
-                      const answerContent = content
-                        .replace('**ANSWER:**', '')
-                        .replace('ANSWER:', '')
-                        .trim();
+                      
+                      // Extract everything after the marker
+                      let answerContent = contentBuffer.split(/\*\*ANSWER:\*\*|ANSWER:/)[1] || '';
+                      answerContent = answerContent.trim();
+                      
+                      // Clear buffer and start streaming answer
+                      contentBuffer = '';
+                      
                       if (answerContent) {
                         controller.enqueue(
                           encoder.encode(`data: ${JSON.stringify({ type: 'content', content: answerContent })}\n\n`)
                         );
                       }
                     } else {
-                      // Stream to appropriate channel based on mode
-                      const type = isInThinkingMode ? 'thinking' : 'content';
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type, content })}\n\n`)
-                      );
+                      // Stream current token to appropriate channel
+                      // Only stream if we're NOT in the middle of a potential marker
+                      const endsWithPotentialMarker = contentBuffer.match(/\*{0,2}[A-Z]{0,8}:{0,2}$/);
+                      
+                      if (!endsWithPotentialMarker) {
+                        // Safe to stream - not building up a marker
+                        const type = isInThinkingMode ? 'thinking' : 'content';
+                        controller.enqueue(
+                          encoder.encode(`data: ${JSON.stringify({ type, content })}\n\n`)
+                        );
+                        // Keep only last few chars in buffer to detect next marker
+                        if (contentBuffer.length > 20) {
+                          contentBuffer = contentBuffer.slice(-20);
+                        }
+                      }
+                      // If potentially building marker, hold token in buffer
                     }
                   } else {
                     // Standard content streaming (CoT disabled or native reasoning model)
