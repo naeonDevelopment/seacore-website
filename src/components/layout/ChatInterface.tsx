@@ -557,7 +557,6 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         thinkingStartTimeRef.current = null;
         firstContentTimeRef.current = null;
-        setResearchEvents([]);
         researchStartedRef.current = false;
       } else {
         const data = await response.json();
@@ -670,7 +669,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         <div className="relative z-10 space-y-3 md:space-y-4 lg:space-y-5 max-w-5xl mx-auto w-full px-2 sm:px-0">
           {messages.map((message, index) => (
             <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
-              {false && message.role === 'assistant' && message.thinkingContent && message.isThinking && (
+              {useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
