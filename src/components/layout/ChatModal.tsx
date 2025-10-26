@@ -482,22 +482,27 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         </motion.div>
                       )}
                       
-                      {/* Chain of Thought - collapsible section */}
+                      {/* Chain of Thought - Embedded inline display like ChatGPT/Cursor */}
                       {message.role === 'assistant' && message.thinkingContent && (
-                        <details className="mb-4 group">
-                          <summary className="flex items-center gap-2 cursor-pointer select-none text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors">
-                            <Brain className="w-4 h-4" />
-                            <span className="text-sm font-semibold">View reasoning process</span>
-                            <svg className="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </summary>
-                          <div className="mt-3 p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-                            <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
-                              {message.thinkingContent}
+                        <div className="mb-3 p-3 rounded-lg bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                          <div className="flex items-start gap-2">
+                            <Brain className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-1">
+                                {message.thinkingContent.split('\n').map((line, idx) => {
+                                  const trimmed = line.trim();
+                                  if (!trimmed) return null;
+                                  return (
+                                    <div key={idx} className="flex items-start gap-1.5">
+                                      <span className="text-slate-400 dark:text-slate-500 select-none">→</span>
+                                      <span className="flex-1">{trimmed}</span>
+                                    </div>
+                                  );
+                                }).filter(Boolean)}
+                              </div>
                             </div>
                           </div>
-                        </details>
+                        </div>
                       )}
                       
                       {/* Message content - SEPARATE rendering for user vs assistant */}

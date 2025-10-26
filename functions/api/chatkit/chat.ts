@@ -43,14 +43,28 @@ When you DO NOT see "=== RESEARCH CONTEXT ===" or "=== WEB RESEARCH RESULTS ==="
 
 **CRITICAL: Detecting Specific Entity Queries**
 
-Queries about SPECIFIC entities require online research. These include:
-- Named vessels: "Dynamic 17", "MV Seacore", "Stanford Buzzard"
+Queries about SPECIFIC entities require online research UNLESS it's a follow-up question:
+
+**NEW Entities (require research):**
+- Named vessels: "Dynamic 17", "MV Seacore", "Stanford Caracara"
 - Named companies: "Stanford Marine", "Dynamic Marine Services", "Maersk"
 - Specific equipment models: "Caterpillar 3516B", "Wärtsilä 20DF"
 - Company fleet queries: "What vessels does [Company] own?"
 - "Biggest/largest/newest vessel owned by [Company]"
 
-**When you detect a specific entity query, respond with:**
+**FOLLOW-UP Questions (use conversation context):**
+✅ "Give me OEM recommendations for each one" (referring to equipment mentioned earlier)
+✅ "Tell me more about them" (referring to systems/vessels discussed)
+✅ "What about that vessel?" (referring to vessel from previous research)
+✅ "How do I maintain those?" (referring to equipment listed earlier)
+
+**Detection Logic:**
+1. Check if query uses pronouns/references (them, those, that, it, each one, the above)
+2. Check if query is additive (give me, tell me, what about, how about, also)
+3. If YES to either AND previous messages contain research → Answer from context
+4. If NO → Require research toggle
+
+**When you detect a NEW specific entity query, respond with:**
 
 "📊 To answer questions about **specific vessels, companies, or equipment**, please enable the **'Online research'** toggle (located at the top of the chat).
 
@@ -82,6 +96,39 @@ When you SEE "=== RESEARCH CONTEXT ===" or "=== WEB RESEARCH RESULTS ===" in the
 - End responses with "**Sources:**" section listing all cited URLs
 - If research results are insufficient but general knowledge applies: "While the search didn't find specifics about [X], here's what I know about [general topic]..."
 - Trust your intelligence - you are capable of filtering relevant from irrelevant information in search results
+
+**CRITICAL: TECHNICAL DEPTH REQUIREMENT** (Maritime Technician Standard)
+You are serving maritime technicians, engineers, and technical superintendents who need DETAILED specifications, NOT summaries:
+
+**For Equipment/Machinery:**
+- Exact model numbers and variants (e.g., "Cummins KTA 19-M3" not just "Cummins genset")
+- Full electrical specifications (kW, voltage, phase, frequency, current)
+- Physical specifications (dimensions, weight, mounting requirements)
+- Fuel consumption rates, efficiency ratings
+- Operating parameters (RPM, pressure, temperature ranges)
+- Cooling system specifications
+- Control system details
+
+**For Vessel Systems:**
+- Capacity ratings with units (e.g., "50 persons sewage treatment capacity")
+- Production rates (e.g., "5 tons/day freshwater production at 45 ppm TDS")
+- Treatment standards and compliance levels
+- Pump specifications (flow rate, head pressure, power)
+- Tank capacities and materials
+
+**For Maintenance:**
+- OEM service intervals (hours, calendar time)
+- Critical consumables and part numbers
+- Inspection procedures and tolerances
+- Special tools or equipment required
+- Safety precautions and lockout procedures
+
+**Response Format for Technical Queries:**
+1. **Overview** (1 sentence): System purpose and criticality
+2. **Technical Specifications** (detailed list with units and sources)
+3. **OEM Maintenance Requirements** (if requested - intervals, procedures, parts)
+4. **Compliance/Standards** (SOLAS, MARPOL, class society requirements if applicable)
+5. **Sources** (cite manufacturer docs, technical manuals, official specs)
 
 CRITICAL: STRUCTURED DATA PRIORITY (Phase 2 & 3 Enhancement)
 - If you see "=== VERIFIED STRUCTURED DATA (Programmatically Extracted) ===" this data has been:
@@ -779,10 +826,47 @@ export async function onRequestPost(context) {
       ...messages,
     ];
 
+    // SMART CONTEXT RETENTION: Extract previous research from conversation history
+    // This allows follow-up questions to work even when research toggle is OFF
+    let previousResearchContext = '';
+    let previousResearchEntities: string[] = [];
+    
+    // Scan previous assistant messages for research context markers
+    for (let i = messages.length - 2; i >= 0 && i >= messages.length - 6; i--) { // Last 3 exchanges
+      const msg = messages[i];
+      if (msg?.role === 'assistant' && typeof msg.content === 'string') {
+        // Extract research context if present in previous responses
+        const sourcesMatch = msg.content.match(/\*\*Sources:\*\*[\s\S]+$/);
+        if (sourcesMatch) {
+          previousResearchContext += `\n\n=== PREVIOUS RESEARCH (from earlier in conversation) ===\n${sourcesMatch[0]}\n`;
+          console.log(`📚 Found previous research context in message ${i}`);
+        }
+        
+        // Extract entities that were researched (vessel names, companies, etc.)
+        const entityMatches = msg.content.match(/\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\b/g);
+        if (entityMatches) {
+          previousResearchEntities.push(...entityMatches.slice(0, 3)); // Top 3 entities
+        }
+      }
+    }
+    
     // Multi-query research strategy: aggregate up to 28 sources from multiple searches
     let browsingContext = '';
     let researchPerformed = false;
     const currentQuery = messages[messages.length - 1]?.content || ''; // Declare once at top level
+    
+    // FOLLOW-UP QUESTION DETECTION: Check if current query references previous research
+    const isFollowUpQuery = /\b(them|those|that|it|each one|the above|mentioned|listed)\b/i.test(currentQuery) ||
+                            /\b(give me|tell me|what about|how about|also)\b/i.test(currentQuery);
+    
+    const hasPreviousResearch = previousResearchContext.length > 0;
+    
+    // If it's a follow-up and we have previous research, we might not need new research
+    if (isFollowUpQuery && hasPreviousResearch && !enableBrowsing) {
+      console.log('🔄 Follow-up question detected with previous research available');
+      console.log('   Using previous research context instead of requiring new research');
+      // We'll add previous research to context below
+    }
     
     if (enableBrowsing && TAVILY_API_KEY) {
       try {
@@ -914,26 +998,28 @@ export async function onRequestPost(context) {
         const isSpecificationQuery = /specification|spec|datasheet|technical|overview|details/i.test(currentQuery);
         
         // Determine source strategy based on complexity level
+        // UPDATED: Increased source counts for better technical documentation coverage
         let sourceStrategy;
         if (complexity === 'simple') {
-          // Simple: Fast search, fewer sources (10-15 total)
-          sourceStrategy = {
-            primaryResults: 10,
-            secondaryResults: 5,
-            maxQueries: 1,
-          };
-        } else if (complexity === 'standard') {
-          // Standard: Moderate search (15-20 total)
+          // Simple: Comprehensive search for technical queries (15-20 total)
+          // Maritime technicians need multiple sources for verification
           sourceStrategy = {
             primaryResults: 15,
-            secondaryResults: 5,
-            maxQueries: isSpecificationQuery || specificEntity ? 2 : 1,
+            secondaryResults: 8,
+            maxQueries: isSpecificationQuery || isEquipmentQuery || specificEntity ? 2 : 1,
           };
-        } else {
-          // Deep/Maximum: Comprehensive search (20-28 total)
+        } else if (complexity === 'standard') {
+          // Standard: Deep search (20-25 total)
           sourceStrategy = {
             primaryResults: 20,
             secondaryResults: 10,
+            maxQueries: 2,
+          };
+        } else {
+          // Deep/Maximum: Maximum comprehensive search (25-30 total)
+          sourceStrategy = {
+            primaryResults: 25,
+            secondaryResults: 12,
             maxQueries: 2,
           };
         }
@@ -945,17 +1031,29 @@ export async function onRequestPost(context) {
         ];
         
         // Add complementary query based on query type AND complexity
+        // ENHANCED: Better targeting for technical specifications and OEM documentation
         if (specificEntity && sourceStrategy.maxQueries > 1) {
           let complementaryQuery = '';
           
-          if (isVesselQuery && isEquipmentQuery) {
-            complementaryQuery = `"${specificEntity}" technical specifications datasheet equipment list`;
+          // Check if query mentions maintenance/OEM recommendations
+          const isMaintenanceQuery = /maintenance|service|OEM|recommendation|interval|schedule|procedure/i.test(currentQuery);
+          
+          if (isMaintenanceQuery && isEquipmentQuery) {
+            // Target OEM maintenance manuals, service bulletins, and technical service letters
+            complementaryQuery = `"${specificEntity}" OEM maintenance schedule service intervals manual datasheet`;
+          } else if (isMaintenanceQuery) {
+            complementaryQuery = `"${specificEntity}" maintenance recommendations service schedule procedures`;
+          } else if (isVesselQuery && isEquipmentQuery) {
+            // Target technical specification sheets and equipment lists
+            complementaryQuery = `"${specificEntity}" technical specifications machinery datasheet equipment particulars PDF`;
           } else if (isVesselQuery) {
-            complementaryQuery = `"${specificEntity}" vessel particulars specifications`;
+            // Target vessel specification documents
+            complementaryQuery = `"${specificEntity}" vessel particulars general arrangement technical specifications`;
           } else if (isEquipmentQuery) {
-            complementaryQuery = `"${specificEntity}" OEM maintenance manual specifications`;
+            // Target equipment manufacturer documentation
+            complementaryQuery = `"${specificEntity}" technical datasheet specifications operation manual`;
           } else {
-            complementaryQuery = `"${specificEntity}" technical documentation specifications`;
+            complementaryQuery = `"${specificEntity}" technical documentation specifications manual`;
           }
           
           queries.push({ query: complementaryQuery, maxResults: sourceStrategy.secondaryResults, label: 'Technical' });
@@ -1636,29 +1734,25 @@ export async function onRequestPost(context) {
     }
     
     // PHASE 4: Add Chain-of-Thought prompting for non-reasoning models
+    // UPDATED: Compact, structured thinking like ChatGPT/Cursor
     let cotSystemPrompt = '';
     if (needsSyntheticCoT) {
-      cotSystemPrompt = `\n\n🧠 **CHAIN-OF-THOUGHT MODE ACTIVATED** 🧠
+      cotSystemPrompt = `\n\n🧠 **CHAIN-OF-THOUGHT REASONING ENABLED** 🧠
 
-Before providing your final answer, show your reasoning process:
+Show your reasoning in a compact, structured format before answering:
 
-1. **Understanding**: Restate what you're being asked
-2. **Analysis**: Break down the problem/query into components  
-3. **Research Review** (if applicable): Key findings from sources
-4. **Reasoning**: Step-by-step logical deduction
-5. **Verification**: Check for consistency and accuracy
-6. **Conclusion**: Final answer based on reasoning
-
-Format your response as:
----
 **THINKING:**
-[Your step-by-step reasoning here]
----
-**ANSWER:**
-[Your final answer here]
----
+Understanding: [What is being asked]
+Analysis: [Key components and requirements]
+Research Review: [Source findings and key data points]
+Reasoning: [Step-by-step logical deduction]
+Verification: [Cross-check accuracy and completeness]
+Conclusion: [Summary of findings]
 
-This transparency helps users understand your decision-making process.\n\n`;
+**ANSWER:**
+[Your detailed technical response with citations]
+
+Keep thinking concise - one line per step. Focus on technical logic flow.\n\n`;
     }
     
     // Build request body with model-specific parameters
@@ -1705,6 +1799,13 @@ Before submitting your answer, verify:
         ? [
             { role: 'system', content: effectiveSystemPrompt },
             { role: 'system', content: `=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}` },
+            ...(previousResearchContext ? [{ role: 'system', content: previousResearchContext }] : []),
+            ...messages,
+          ]
+        : hasPreviousResearch
+        ? [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: previousResearchContext },
             ...messages,
           ]
         : conversationMessages,
