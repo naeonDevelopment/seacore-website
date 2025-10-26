@@ -119,6 +119,9 @@ This is **specialized maritime search** – not general web search. Get precise,
   const researchStartedRef = useRef<boolean>(false);
   // Transient analysis line shown briefly, then auto-hidden
   const [transientAnalysis, setTransientAnalysis] = useState<string>('');
+  // Animated batch cycling for sources
+  const [batchCycle, setBatchCycle] = useState<number>(0);
+  const MAX_BATCH_CYCLES = 4;
   const [, setViewportHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [, setViewportTop] = useState<number>(0);
   // Throttle streaming UI updates
@@ -468,6 +471,10 @@ This is **specialized maritime search** – not general web search. Get precise,
                     } else {
                       setResearchEvents((prev) => [...prev, parsed]);
                     }
+                    // Kick a batch cycle when sources accumulate
+                    if (parsed.type === 'source') {
+                      setBatchCycle((c) => (c + 1) % MAX_BATCH_CYCLES);
+                    }
                   }
                   // Do not treat as content/thinking; continue
                   continue;
@@ -739,43 +746,80 @@ This is **specialized maritime search** – not general web search. Get precise,
               
               {/* Research timeline (structured events) - anchored under the last user message */}
               {useBrowsing && researchEvents.length > 0 && message.role === 'user' && index === lastUserIndex && (
-                <div className="mb-2 flex justify-end">
-                  <button
-                    className="text-xs font-semibold text-maritime-700 dark:text-maritime-300 hover:underline"
-                    onClick={() => {
-                      const newSet = new Set(expandedSources);
-                      if (newSet.has(-1)) newSet.delete(-1); else newSet.add(-1);
-                      setExpandedSources(newSet);
-                    }}
-                  >
-                    Research steps {expandedSources.has(-1) ? '(hide)' : '(show)'}
-                  </button>
+                <div className="mb-2">
+                  <div className="flex items-center gap-2 ml-2">
+                    <button
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-maritime-700 dark:text-maritime-300"
+                      onClick={() => {
+                        const newSet = new Set(expandedSources);
+                        if (newSet.has(-1)) newSet.delete(-1); else newSet.add(-1);
+                        setExpandedSources(newSet);
+                      }}
+                    >
+                      {expandedSources.has(-1) ? (
+                        <>
+                          <ChevronUp className="w-3.5 h-3.5" />
+                          Research steps (hide)
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5" />
+                          Research steps (show)
+                        </>
+                      )}
+                    </button>
+                  </div>
                   {expandedSources.has(-1) && (
-                    <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300 max-w-[80%] ml-auto">
+                    <div className="mt-2 ml-8 text-xs text-slate-700 dark:text-slate-300 max-w-[85%]">
                       {transientAnalysis && (
-                        <div className="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/50 text-blue-900 dark:text-blue-100">
+                        <div className="px-3 py-2 mb-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/50 text-blue-900 dark:text-blue-100">
                           {transientAnalysis}
                         </div>
                       )}
-                      {researchEvents.slice(-8).map((ev, i) => (
-                        <div key={i} className="flex items-start gap-2">
-                          <div className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 flex-shrink-0" />
-                          <div>
-                            {ev.type === 'step' && (
-                              <div className="font-semibold">{ev.title} {ev.status === 'start' ? '(start)' : ev.status === 'end' ? '(done)' : ''}</div>
-                            )}
-                            {ev.type === 'tool' && ev.tool === 'search' && (
-                              <div>Search: "{ev.query}" → {ev.results} results</div>
-                            )}
-                            {ev.type === 'source' && (
-                              <div>{ev.action === 'selected' ? 'Keep' : 'Reject'}: {String(ev.url || '').replace(/^https?:\/\//, '').slice(0, 60)}</div>
-                            )}
-                            {ev.detail && Array.isArray(ev.detail) && ev.detail.length > 0 && (
-                              <div className="opacity-80">{ev.detail.slice(0, 3).map((u: string) => String(u).replace(/^https?:\/\//, '')).join(', ')}</div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                      {/* Animated batch list */}
+                      <div className="relative overflow-hidden">
+                        <motion.ul
+                          key={batchCycle}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.25 }}
+                          className="space-y-1"
+                        >
+                          {(() => {
+                            const recent = researchEvents.slice(-20);
+                            const sources = recent.filter(e => e.type === 'source');
+                            const searches = recent.filter(e => e.type === 'tool' && e.tool === 'search');
+                            const steps = recent.filter(e => e.type === 'step');
+                            const batch: any[] = [];
+                            if (steps.length) batch.push({ kind: 'step', value: steps[steps.length - 1] });
+                            if (searches.length) batch.push({ kind: 'search', value: searches[searches.length - 1] });
+                            batch.push(...sources.slice(-6).map(v => ({ kind: 'source', value: v })));
+                            return batch.map((item, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <div className={cn(
+                                  'mt-1 w-2 h-2 rounded-full flex-shrink-0',
+                                  item.kind === 'search' ? 'bg-violet-500' : item.kind === 'source' ? (item.value.action === 'selected' ? 'bg-emerald-500' : 'bg-rose-500') : 'bg-blue-500'
+                                )} />
+                                <div>
+                                  {item.kind === 'step' && (
+                                    <div className="font-semibold">{item.value.title} {item.value.status === 'start' ? '(start)' : item.value.status === 'end' ? '(done)' : ''}</div>
+                                  )}
+                                  {item.kind === 'search' && (
+                                    <div>Search: "{item.value.query}" → {item.value.results} results</div>
+                                  )}
+                                  {item.kind === 'source' && (
+                                    <div>{item.value.action === 'selected' ? 'Keep' : 'Reject'}: {String(item.value.url || '').replace(/^https?:\/\//, '').slice(0, 80)}</div>
+                                  )}
+                                  {item.value.detail && Array.isArray(item.value.detail) && item.value.detail.length > 0 && (
+                                    <div className="opacity-80">{item.value.detail.slice(0, 3).map((u: string) => String(u).replace(/^https?:\/\//, '')).join(', ')}</div>
+                                  )}
+                                </div>
+                              </li>
+                            ));
+                          })()}
+                        </motion.ul>
+                      </div>
                     </div>
                   )}
                 </div>
