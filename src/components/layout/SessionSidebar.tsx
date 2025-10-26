@@ -209,7 +209,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     </div>
   );
 
-  // Desktop: Floating sidebar centered vertically with auto height
+  // Desktop: Floating sidebar positioned at top
   if (!isMobile) {
     return (
       <motion.div
@@ -217,7 +217,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 20, opacity: 0 }}
         transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="fixed left-6 top-1/2 -translate-y-1/2 w-80 max-h-[90vh] z-[100]"
+        className="fixed left-6 top-20 w-80 h-[calc(100vh-6rem)] z-[100]"
       >
         {sidebarContent}
       </motion.div>
