@@ -24,8 +24,9 @@ interface ChatModalProps {
 
 export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode, toggleDarkMode }) => {
   // CRITICAL: Version check to verify new code is loaded
-  const CHATMODAL_VERSION = '2.0.1-debug'; // Update this with each deploy
-  console.log(`🔵 ChatModal component loaded - VERSION: ${CHATMODAL_VERSION}`);
+  const CHATMODAL_VERSION = '2.0.2-FORCE-UPDATE'; // Update this with each deploy
+  console.log(`🔵🔵🔵 ChatModal component loaded - VERSION: ${CHATMODAL_VERSION} 🔵🔵🔵`);
+  console.warn('⚠️ NEW CODE LOADED - CHECK THIS MESSAGE');
   
   const [messages, setMessages] = useState<Message[]>([
     {
