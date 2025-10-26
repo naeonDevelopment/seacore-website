@@ -23,6 +23,10 @@ interface ChatModalProps {
 }
 
 export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode, toggleDarkMode }) => {
+  // CRITICAL: Version check to verify new code is loaded
+  const CHATMODAL_VERSION = '2.0.1-debug'; // Update this with each deploy
+  console.log(`🔵 ChatModal component loaded - VERSION: ${CHATMODAL_VERSION}`);
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome-' + Date.now(),
@@ -31,6 +35,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
       timestamp: new Date(),
     },
   ]);
+  
+  // Log messages state whenever it changes
+  console.log(`📊 Current messages state: ${messages.length} messages`, messages.map(m => `${m.role}: ${m.content?.substring(0, 20)}...`));
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
@@ -330,26 +337,48 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
     setIsLoading(true);
 
     try {
+      console.log('🌐 Starting API request...');
+      
       // Show visual feedback for online research
       if (useBrowsing) {
         console.log('🌐 Online research enabled - fetching fresh data...');
       }
       
+      const requestBody = {
+        messages: [...messages, userMessage].map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        enableBrowsing: useBrowsing,
+        enableChainOfThought: useChainOfThought,
+        researchComplexity: 'simple', // Default to Perplexity-style
+      };
+      
+      console.log('📤 Request body:', {
+        messageCount: requestBody.messages.length,
+        browsing: requestBody.enableBrowsing,
+        chainOfThought: requestBody.enableChainOfThought
+      });
+      
       const response = await fetch('/api/chatkit/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          enableBrowsing: useBrowsing,
-          enableChainOfThought: useChainOfThought,
-          researchComplexity: 'simple', // Default to Perplexity-style
-        }),
+        body: JSON.stringify(requestBody),
+      }).catch(err => {
+        console.error('🔴 Fetch error:', err);
+        throw err;
       });
 
-      if (!response.ok) throw new Error('Failed to send message');
+      console.log('📥 Response received:', {
+        ok: response.ok,
+        status: response.status,
+        contentType: response.headers.get('content-type')
+      });
+      
+      if (!response.ok) {
+        console.error('❌ Response not OK:', response.status, response.statusText);
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
 
       // Check if streaming response
       const contentType = response.headers.get('content-type');
@@ -381,6 +410,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           console.log(`🔄 Stream starting: assistant message will be at index ${assistantMessageIndex}`);
           console.log(`📊 Current messages before adding assistant:`, prev.map((m, i) => `[${i}] ${m.role}(id:${m.id}): "${m.content?.substring(0, 30)}..."`));
           
+          // CRITICAL CHECK: Verify user message is in the array
+          const lastMessage = prev[prev.length - 1];
+          if (!lastMessage || lastMessage.role !== 'user') {
+            console.error(`❌ CRITICAL ERROR: Last message should be user but is:`, lastMessage);
+            console.error(`📊 Full prev array:`, prev);
+          }
+          
           const newMessage = {
             id: 'assistant-' + Date.now(),
             role: 'assistant' as const,
@@ -394,7 +430,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           console.log(`➕ Adding new assistant message:`, newMessage);
           console.log(`📍 streamingIndexRef.current set to:`, assistantMessageIndex);
           
-          return [...prev, newMessage];
+          const newArray = [...prev, newMessage];
+          console.log(`📊 New array length: ${newArray.length}, contents:`, newArray.map((m, i) => `[${i}] ${m.role}`));
+          return newArray;
         });
         
         // Hide loading indicator immediately after streaming starts
@@ -572,15 +610,28 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         }
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('❌ ===== CHAT ERROR =====');
+      console.error('Error type:', error instanceof Error ? error.name : typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
+      console.error('Full error object:', error);
+      
       const errorMessage: Message = {
         id: 'error-' + Date.now(),
         role: 'assistant',
         content: "I'm sorry, I'm having trouble connecting right now. Please try again in a moment or contact us directly.",
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      
+      console.log('Adding error message to state...');
+      setMessages((prev) => {
+        console.log('Error handler: prev.length =', prev.length);
+        const newArray = [...prev, errorMessage];
+        console.log('Error handler: new.length =', newArray.length);
+        return newArray;
+      });
       setIsLoading(false);
+      console.log('Error handling complete');
     }
   };
 
