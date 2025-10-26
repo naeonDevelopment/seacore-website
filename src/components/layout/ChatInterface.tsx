@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
@@ -100,7 +100,7 @@ This is **specialized maritime search** – not general web search. Get precise,
   const inputAreaRef = useRef<HTMLDivElement>(null);
   const streamingIndexRef = useRef<number | null>(null);
   const lastMessageCountRef = useRef<number>(0);
-  const [currentThinkingStep, setCurrentThinkingStep] = useState<number>(0);
+  const [, setCurrentThinkingStep] = useState<number>(0); // kept for future CoT animations
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const thinkingStartTimeRef = useRef<number | null>(null);
   const firstContentTimeRef = useRef<number | null>(null);
@@ -108,6 +108,8 @@ This is **specialized maritime search** – not general web search. Get precise,
   type ResearchEvent = { type: 'step' | 'tool' | 'source'; [key: string]: any };
   const [researchEvents, setResearchEvents] = useState<ResearchEvent[]>([]);
   const researchStartedRef = useRef<boolean>(false);
+  // Transient analysis line shown briefly, then auto-hidden
+  const [transientAnalysis, setTransientAnalysis] = useState<string>('');
   const [, setViewportHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [, setViewportTop] = useState<number>(0);
   // Throttle streaming UI updates
@@ -468,12 +470,23 @@ This is **specialized maritime search** – not general web search. Get precise,
                     if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
                       thinkingStartTimeRef.current = Date.now();
                     }
+                    // Show one short analysis sentence then let it disappear later
+                    if (!transientAnalysis) {
+                      const snippet = String(parsed.content || '')
+                        .replace(/\*\*THINKING:\*\*/i, '')
+                        .split(/\n|\.\s/)[0]
+                        .trim()
+                        .slice(0, 240);
+                      if (snippet) setTransientAnalysis(snippet);
+                    }
                   }
                 } else if (parsed.type === 'content') {
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     answerReadyToShow = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
+                    // Hide transient analysis shortly after content begins
+                    setTimeout(() => setTransientAnalysis(''), 1200);
                   }
                   streamedContent += parsed.content;
                 }
@@ -595,6 +608,12 @@ This is **specialized maritime search** – not general web search. Get precise,
         thinkingStartTimeRef.current = null;
         firstContentTimeRef.current = null;
         researchStartedRef.current = false;
+        // Auto-collapse research steps after finalize
+        setExpandedSources((prev) => {
+          const ns = new Set(prev);
+          ns.delete(-1);
+          return ns;
+        });
       } else {
         const data = await response.json();
         
@@ -706,59 +725,12 @@ This is **specialized maritime search** – not general web search. Get precise,
         <div className="relative z-10 space-y-3 md:space-y-4 lg:space-y-5 max-w-5xl mx-auto w-full px-2 sm:px-0">
           {messages.map((message, index) => (
             <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
-              {useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className={cn('flex gap-2 sm:gap-4 mb-2', 'justify-start')}
-                >
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
-                  <div className="max-w-[85%] sm:max-w-[80%]">
-                    <AnimatePresence mode="wait">
-                      {(() => {
-                        const steps = extractThinkingSteps(message.thinkingContent || '');
-                        if (steps.length > 0) {
-                          const currentStep = String(steps[currentThinkingStep % steps.length] || '');
-                          return (
-                            <motion.div
-                              key={currentThinkingStep}
-                              initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                              transition={{ duration: 0.35, ease: "easeOut" }}
-                              className="px-4 py-2 rounded-full backdrop-blur-md bg-purple-50/70 dark:bg-purple-900/30 border border-purple-200/70 dark:border-purple-700/50 shadow-sm"
-                            >
-                              <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-200 font-medium leading-relaxed">
-                                {currentStep}
-                              </p>
-                            </motion.div>
-                          );
-                        }
-                        return (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="px-4 py-2 rounded-full backdrop-blur-md bg-purple-50/70 dark:bg-purple-900/30 border border-purple-200/70 dark:border-purple-700/50"
-                          >
-                            <p className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">
-                              Thinking<motion.span
-                                animate={{ opacity: [0.3, 1, 0.3] }}
-                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                              >...</motion.span>
-                            </p>
-                          </motion.div>
-                        );
-                      })()}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              )}
+              {/* Hide animated thinking bubble; we use only the Research steps panel */}
+              {false && useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking}
               
               {/* Research timeline (structured events), only when browsing */}
               {useBrowsing && researchEvents.length > 0 && message.role === 'assistant' && index === messages.length - 1 && (
-                <div className="mb-2">
+                <div className="mb-2 flex justify-end">
                   <button
                     className="text-xs font-semibold text-maritime-700 dark:text-maritime-300 hover:underline"
                     onClick={() => {
@@ -770,7 +742,12 @@ This is **specialized maritime search** – not general web search. Get precise,
                     Research steps {expandedSources.has(-1) ? '(hide)' : '(show)'}
                   </button>
                   {expandedSources.has(-1) && (
-                    <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300 max-w-[80%] ml-auto">
+                      {transientAnalysis && (
+                        <div className="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/50 text-blue-900 dark:text-blue-100">
+                          {transientAnalysis}
+                        </div>
+                      )}
                       {researchEvents.slice(-8).map((ev, i) => (
                         <div key={i} className="flex items-start gap-2">
                           <div className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 flex-shrink-0" />
