@@ -359,7 +359,17 @@ This architecture delivers measurable operational impact: our clients report 60-
 Remember: Your goal is to provide technically accurate, maritime-specific guidance that demonstrates **fleetcore**'s revolutionary capabilities while maintaining strict accuracy standards for all equipment, compliance, and operational information.`;
 
 export async function onRequestPost(context) {
-  const { OPENAI_API_KEY, OPENAI_MODEL, TAVILY_API_KEY } = context.env;
+  // CRITICAL FIX: Cloudflare Pages Functions use different env access than Workers
+  const env = context.env || {};
+  const { OPENAI_API_KEY, OPENAI_MODEL, TAVILY_API_KEY } = env;
+  
+  console.log('🔧 ENV DEBUG:', {
+    hasEnv: !!context.env,
+    envKeys: context.env ? Object.keys(context.env) : [],
+    hasOpenAI: !!OPENAI_API_KEY,
+    hasTavily: !!TAVILY_API_KEY,
+    hasModel: !!OPENAI_MODEL
+  });
 
   if (!OPENAI_API_KEY) {
     return new Response(
@@ -371,6 +381,21 @@ export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
     const { messages, enableBrowsing } = body;
+    
+    console.log('🔧 DEBUG: Received request body:', JSON.stringify({ 
+      messageCount: messages?.length, 
+      enableBrowsing,
+      bodyKeys: Object.keys(body)
+    }));
+    
+    // CRITICAL DEBUG: Check if enableBrowsing is being passed correctly
+    const debugInfo = {
+      enableBrowsingReceived: enableBrowsing,
+      enableBrowsingType: typeof enableBrowsing,
+      tavilyKeySet: !!TAVILY_API_KEY,
+      willResearch: !!(enableBrowsing && TAVILY_API_KEY)
+    };
+    console.log('🔧 CRITICAL DEBUG:', JSON.stringify(debugInfo));
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -388,6 +413,9 @@ export async function onRequestPost(context) {
     // Multi-query research strategy: aggregate up to 28 sources from multiple searches
     let browsingContext = '';
     let researchPerformed = false;
+    
+    console.log('🔧 DEBUG: enableBrowsing =', enableBrowsing, 'TAVILY_API_KEY =', TAVILY_API_KEY ? 'SET' : 'MISSING');
+    
     if (enableBrowsing && TAVILY_API_KEY) {
       try {
         // MARITIME-AWARE ENTITY EXTRACTION
@@ -1137,6 +1165,9 @@ Before submitting your answer, verify:
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'x-model': usedModel,
+        'x-debug-browsing': String(enableBrowsing),
+        'x-debug-tavily': TAVILY_API_KEY ? 'SET' : 'MISSING',
+        'x-debug-research': researchPerformed ? 'TRUE' : 'FALSE',
       },
     });
   } catch (error) {

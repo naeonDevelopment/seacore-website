@@ -6,3 +6,8 @@ pages_build_output_dir = "dist"
 # Ensure middleware runs for ALL requests (including 404s)
 [observability]
 enabled = true
+
+# Note: For Cloudflare Pages, secrets are automatically bound to Functions
+# when created via: npx wrangler pages secret put <KEY_NAME>
+# No additional configuration needed in wrangler.toml
+# Secrets are accessed via context.env.<KEY_NAME>
