@@ -814,6 +814,7 @@ export async function onRequestPost(context) {
     // PHASE 4: Chain-of-Thought (opt-in)
     // Only enabled when user explicitly requests it
     const useChainOfThought = enableChainOfThought === true;
+    console.log(`🧠 Chain-of-Thought requested: ${useChainOfThought}`);
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -834,14 +835,18 @@ export async function onRequestPost(context) {
     let previousResearchEntities: string[] = [];
     
     // Scan previous assistant messages for research context markers
+    // ENHANCED: Extract full technical content, not just sources
     for (let i = messages.length - 2; i >= 0 && i >= messages.length - 6; i--) { // Last 3 exchanges
       const msg = messages[i];
       if (msg?.role === 'assistant' && typeof msg.content === 'string') {
-        // Extract research context if present in previous responses
-        const sourcesMatch = msg.content.match(/\*\*Sources:\*\*[\s\S]+$/);
-        if (sourcesMatch) {
-          previousResearchContext += `\n\n=== PREVIOUS RESEARCH (from earlier in conversation) ===\n${sourcesMatch[0]}\n`;
-          console.log(`📚 Found previous research context in message ${i}`);
+        // Check if this message contains research-based content (has citations [1], [2], etc.)
+        const hasCitations = /\[[\d+]\]/g.test(msg.content);
+        
+        if (hasCitations) {
+          // Extract the FULL message content including technical specs
+          previousResearchContext += `\n\n=== PREVIOUS RESEARCH (from earlier in conversation) ===\n`;
+          previousResearchContext += `${msg.content}\n`;
+          console.log(`📚 Found previous research-based answer in message ${i} (${msg.content.length} chars)`);
         }
         
         // Extract entities that were researched (vessel names, companies, etc.)
@@ -850,6 +855,10 @@ export async function onRequestPost(context) {
           previousResearchEntities.push(...entityMatches.slice(0, 3)); // Top 3 entities
         }
       }
+    }
+    
+    if (previousResearchContext.length > 0) {
+      console.log(`📚 Accumulated ${previousResearchContext.length} chars of previous research context`);
     }
     
     // Multi-query research strategy: aggregate up to 28 sources from multiple searches
@@ -1108,6 +1117,14 @@ export async function onRequestPost(context) {
         searchResults.forEach(({ results, answer, label }) => {
           console.log(`  ✅ ${label} query returned ${results.length} results`);
           
+          // DEBUG: Log first 3 URLs from each query
+          if (results.length > 0) {
+            console.log(`     First 3 URLs from ${label}:`);
+            results.slice(0, 3).forEach((r, idx) => {
+              console.log(`        [${idx+1}] ${r.url}`);
+            });
+          }
+          
           if (label === 'Primary' && answer) {
             tavilySummary = answer;
           }
@@ -1122,6 +1139,11 @@ export async function onRequestPost(context) {
         });
         
         console.log(`📊 Total unique sources: ${allResults.length} from ${queries.length} queries`);
+        
+        // DEBUG: Check for technical documentation sites in results
+        const techDocSites = ['epcatalogs.com', 'scribd.com', 'slideshare.net', 'manualslib.com', 'catpublications.com', 'marinedieselbasics.com'];
+        const foundTechDocs = allResults.filter(r => techDocSites.some(site => r.url.includes(site)));
+        console.log(`📚 Technical documentation sites found: ${foundTechDocs.length}/${allResults.length}`);
         
         // SIMPLIFIED: Get research configuration based on complexity level
         const researchConfig = getResearchConfig(complexity, currentQuery);
@@ -1458,6 +1480,29 @@ export async function onRequestPost(context) {
           
           researchPerformed = true;
           console.log(`✅ Compiled TOP ${topResults.length} research results from ${allResults.length} total (${browsingContext.length} chars) with citations`);
+          
+          // DEBUG SUMMARY: What sources did we actually send to the LLM?
+          console.log(`\n📊 === RESEARCH SUMMARY ===`);
+          console.log(`   Queries executed: ${queries.length}`);
+          console.log(`   Total sources found: ${allResults.length}`);
+          console.log(`   Top sources sent to LLM: ${topResults.length}`);
+          console.log(`   Sources by domain:`);
+          
+          const domainCounts: Record<string, number> = {};
+          topResults.forEach(r => {
+            const domain = new URL(r.url).hostname.replace('www.', '');
+            domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+          });
+          
+          Object.entries(domainCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10)
+            .forEach(([domain, count]) => {
+              console.log(`      - ${domain}: ${count} source(s)`);
+            });
+          
+          console.log(`   Research context size: ${browsingContext.length} chars`);
+          console.log(`=========================\n`);
         } else {
           console.log('⚠️ No research results returned from any query');
         }
@@ -1699,6 +1744,7 @@ export async function onRequestPost(context) {
     console.log(`   Tier: ${modelCapabilities.tier.toUpperCase()}`);
     console.log(`   Context: ${modelCapabilities.contextWindow.toLocaleString()} tokens`);
     console.log(`   Chain-of-Thought: ${useChainOfThought ? (hasNativeCoT ? 'Native (o1/o3)' : 'Synthetic') : 'Disabled'}`);
+    console.log(`   needsSyntheticCoT: ${needsSyntheticCoT}, hasNativeCoT: ${hasNativeCoT}`);
 
     // PHASE 1: INTELLIGENT TEMPERATURE SELECTION
     const isFactualQuery = /\b(what is|find|tell me|how many|when|where|which|largest|biggest|smallest|newest|oldest|first|last|list|show me|give me|get me)\b/i.test(currentQuery);
@@ -2001,12 +2047,14 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                     // Check for section markers
                     if (content.includes('**THINKING:**')) {
                       isInThinkingMode = true;
+                      console.log('🧠 CoT: Detected THINKING section marker');
                       // Send as thinking
                       controller.enqueue(
                         encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: content.replace('**THINKING:**', '').trim() })}\n\n`)
                       );
                     } else if (content.includes('**ANSWER:**')) {
                       isInThinkingMode = false;
+                      console.log('🧠 CoT: Detected ANSWER section marker');
                       // Skip the ANSWER marker itself, start streaming content
                       const answerContent = content.replace('**ANSWER:**', '').trim();
                       if (answerContent) {
@@ -2022,7 +2070,7 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                       );
                     }
                   } else {
-                    // Standard content streaming
+                    // Standard content streaming (CoT disabled or native reasoning model)
                     controller.enqueue(
                       encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
                     );
