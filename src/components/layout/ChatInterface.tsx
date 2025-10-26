@@ -86,7 +86,8 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
-  const useChainOfThought = true;
+  // Gate chain-of-thought behind Online research
+  const useChainOfThought = useBrowsing;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
@@ -346,18 +347,20 @@ This is **specialized maritime search** – not general web search. Get precise,
         let answerReadyToShow = false;
         
         streamingIndexRef.current = null;
-        thinkingStartTimeRef.current = Date.now();
+        // Start thinking timer only when we actually receive thinking content
+        thinkingStartTimeRef.current = null;
         
         setMessages((prev) => {
           const index = prev.length;
           streamingIndexRef.current = index;
+          console.log('🚀 [ChatInterface] STREAM START at index', index);
           return [...prev, {
             role: 'assistant',
             content: '',
             thinkingContent: '',
             timestamp: new Date(),
             isStreaming: true,
-            isThinking: true,
+            isThinking: false, // don't show thinking until we actually have some and only if browsing
           }];
         });
 
@@ -382,7 +385,13 @@ This is **specialized maritime search** – not general web search. Get precise,
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'thinking') {
-                  streamedThinking += parsed.content;
+                  // Only accumulate thinking when online research is enabled
+                  if (useBrowsing) {
+                    streamedThinking += parsed.content;
+                    if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
+                      thinkingStartTimeRef.current = Date.now();
+                    }
+                  }
                 } else if (parsed.type === 'content') {
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
@@ -391,21 +400,30 @@ This is **specialized maritime search** – not general web search. Get precise,
                   streamedContent += parsed.content;
                 }
 
-                const MINIMUM_THINKING_TIME = 9000;
+                // Display rules match ChatModal: brief thinking then switch to answer
+                const MINIMUM_THINKING_TIME = 800;
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
-                const shouldHideThinking = answerReadyToShow && (thinkingElapsedTime >= MINIMUM_THINKING_TIME || !streamedThinking);
+                const hasThinking = streamedThinking.length > 0;
+                const shouldShowThinking = useBrowsing && hasThinking && (!answerReadyToShow || thinkingElapsedTime < MINIMUM_THINKING_TIME);
 
                 setMessages((prev) => {
                   const updated = [...prev];
                   const idx = streamingIndexRef.current ?? updated.length - 1;
+                  if (idx < 0 || idx >= updated.length) return prev;
+                  // Show streaming content even while thinking
                   updated[idx] = {
                     role: 'assistant',
                     content: streamedContent,
-                    thinkingContent: streamedThinking,
+                    thinkingContent: useBrowsing ? streamedThinking : '',
                     timestamp: new Date(),
                     isStreaming: true,
-                    isThinking: !shouldHideThinking,
+                    isThinking: shouldShowThinking,
                   };
+                  // Minimal live log for debugging
+                  if ((window as any).__ci_log_once !== true) {
+                    console.log('🔄 [ChatInterface] stream update', { idx, contentLen: streamedContent.length, thinkingLen: streamedThinking.length, shouldShowThinking });
+                    (window as any).__ci_log_once = true;
+                  }
                   return updated;
                 });
               } catch (_) {
@@ -416,22 +434,37 @@ This is **specialized maritime search** – not general web search. Get precise,
           }
         }
 
-        const MINIMUM_THINKING_TIME = 9000;
+        // Graceful transition: if thinking showed, ensure it stayed briefly
+        const MINIMUM_THINKING_TIME = 800;
         const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : MINIMUM_THINKING_TIME;
         const remainingThinkingTime = Math.max(0, MINIMUM_THINKING_TIME - thinkingElapsedTime);
-        
-        if (remainingThinkingTime > 0 && streamedThinking) {
+        if (remainingThinkingTime > 0 && streamedThinking && useBrowsing) {
           await new Promise(resolve => setTimeout(resolve, remainingThinkingTime));
         }
         
         setMessages((prev) => {
           const updated = [...prev];
           const idx = streamingIndexRef.current ?? updated.length - 1;
+          // If index invalid, append fallback to avoid losing content
+          if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
+            console.warn('⚠️ [ChatInterface] Invalid finalize index, appending fallback');
+            return [...prev, {
+              role: 'assistant',
+              content: streamedContent || "I couldn't display the response correctly. Please try again.",
+              thinkingContent: useBrowsing ? streamedThinking : '',
+              timestamp: new Date(),
+              isStreaming: false,
+              isThinking: false,
+            }];
+          }
           updated[idx] = {
             ...updated[idx],
+            content: streamedContent,
+            thinkingContent: useBrowsing ? streamedThinking : '',
             isStreaming: false,
             isThinking: false,
           };
+          console.log('🏁 [ChatInterface] finalize', { idx, contentLen: streamedContent.length, thinkingLen: streamedThinking.length });
           return updated;
         });
         
@@ -641,7 +674,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                     </motion.div>
                   )}
                 
-                  {message.content && (message.role === 'user' || !message.isThinking) && (
+                  {message.content && (
                     <>
                       {message.role === 'assistant' ? (
                         <div className="text-sm sm:text-base leading-relaxed enterprise-body prose prose-slate dark:prose-invert max-w-none prose-a:text-maritime-600 prose-a:dark:text-maritime-400 prose-a:font-semibold prose-a:no-underline prose-a:hover:underline">
