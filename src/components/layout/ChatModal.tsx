@@ -31,7 +31,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [modelName, setModelName] = useState<string>('GPT');
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
-  const [useChainOfThought, setUseChainOfThought] = useState<boolean>(false);
+  // Chain of Thought is now ALWAYS enabled for better research quality
+  const useChainOfThought = true; // Always on
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
@@ -259,6 +260,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'thinking') {
                   streamedThinking += parsed.content;
+                  console.log('🧠 Received thinking:', parsed.content.substring(0, 50));
                 } else if (parsed.type === 'content') {
                   streamedContent += parsed.content;
                   
@@ -680,31 +682,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
                 </button>
                 
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={useChainOfThought}
-                  onClick={() => setUseChainOfThought((v) => !v)}
-                  className={cn(
-                    'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
-                    useChainOfThought
-                      ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  )}
-                >
-                  <span className={cn(
-                    'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
-                    useChainOfThought ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700'
-                  )}>
-                    <span
-                      className={cn(
-                        'inline-block h-5 w-5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
-                        useChainOfThought ? 'translate-x-6' : 'translate-x-1'
-                      )}
-                    />
-                  </span>
-                  <span className="text-[11px] sm:text-xs font-semibold">Chain of thought</span>
-                </button>
+                {/* Chain of Thought - Now always enabled, showing status only */}
+                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800">
+                  <Brain className="w-4 h-4" />
+                  <span className="text-[11px] sm:text-xs font-semibold">Reasoning enabled</span>
+                </div>
                 
                 <button
                   type="button"

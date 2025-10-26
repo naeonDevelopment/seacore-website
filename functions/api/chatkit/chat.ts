@@ -1789,25 +1789,29 @@ export async function onRequestPost(context) {
     }
     
     // PHASE 4: Add Chain-of-Thought prompting for non-reasoning models
-    // UPDATED: Compact, structured thinking like ChatGPT/Cursor
+    // UPDATED: MANDATORY CoT with strict format enforcement
     let cotSystemPrompt = '';
     if (needsSyntheticCoT) {
-      cotSystemPrompt = `\n\n🧠 **CHAIN-OF-THOUGHT REASONING ENABLED** 🧠
+      cotSystemPrompt = `\n\n🧠 **MANDATORY: CHAIN-OF-THOUGHT REASONING** 🧠
 
-Show your reasoning in a compact, structured format before answering:
+YOU MUST structure your response in TWO sections:
 
 **THINKING:**
-Understanding: [What is being asked]
-Analysis: [Key components and requirements]
-Research Review: [Source findings and key data points]
-Reasoning: [Step-by-step logical deduction]
-Verification: [Cross-check accuracy and completeness]
-Conclusion: [Summary of findings]
+Understanding: [Restate the user's question]
+Analysis: [Break down what information is needed]
+Research Review: [List key sources and their content]
+Reasoning: [Step-by-step logic for your answer]
+Verification: [Cross-check sources for consistency]
+Conclusion: [Summarize what you'll include in answer]
 
 **ANSWER:**
-[Your detailed technical response with citations]
+[Your complete technical response with multi-source citations]
 
-Keep thinking concise - one line per step. Focus on technical logic flow.\n\n`;
+**CRITICAL:**
+- Start EVERY response with **THINKING:** section
+- Follow with **ANSWER:** section
+- Keep thinking concise (1-2 sentences per point)
+- This format is REQUIRED, not optional\n\n`;
     }
     
     // Build request body with model-specific parameters
@@ -1819,13 +1823,18 @@ Keep thinking concise - one line per step. Focus on technical logic flow.\n\n`;
 
 Web research has been performed and results are provided below. You MUST follow these MANDATORY rules:
 
-**RULE #1: MANDATORY SOURCE CITATIONS**
-- CITE SOURCES [1][2][3] for EVERY factual statement
+**RULE #1: MANDATORY MULTI-SOURCE CITATIONS** 🚨
+- **MINIMUM 5-8 DIFFERENT SOURCES** must be cited in your answer
+- CITE SOURCES [1][2][3][4][5]... for EVERY factual statement
+- Different equipment/systems should reference DIFFERENT sources
 - End response with "**Sources:**" section listing ALL URLs with titles
 - Format: **Sources:**
            [1] Page Title - https://example.com/page1
            [2] Page Title - https://example.com/page2
-- **NO CITATIONS = FAILED RESPONSE**
+           [3] Page Title - https://example.com/page3
+           ... (list ALL cited sources)
+- **CITING ONLY 1-2 SOURCES = FAILED RESPONSE**
+- **Using less than 5 sources when 15+ provided = FAILED RESPONSE**
 
 **RULE #2: NO GENERIC ANSWERS ALLOWED**
 - ❌ NEVER use phrases like: "Typically equipped with...", "Usually features...", "Approximately...", "Generally includes..."
@@ -1867,7 +1876,18 @@ Before submitting your answer, verify:
         : hasPreviousResearch
         ? [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'system', content: previousResearchContext },
+            { role: 'system', content: `🔄 **USING PREVIOUS RESEARCH CONTEXT**
+
+The following information was researched earlier in this conversation. Use this context to answer follow-up questions:
+
+${previousResearchContext}
+
+**Instructions:**
+- Extract specific technical details from the above research
+- Cite the sources already provided
+- Do NOT use general knowledge - ONLY use information from the research above
+- If the research doesn't contain the specific information requested, state: "The previous research doesn't include [X]. To answer this, I would need to perform a new search."
+` },
             ...messages,
           ]
         : conversationMessages,
