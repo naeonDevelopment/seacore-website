@@ -83,49 +83,59 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const extractThinkingSteps = (thinking: string): string[] => {
     if (!thinking) return [];
     
-    // Split by newlines and filter empty lines
-    const lines = thinking.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    // Remove markers and split into sentences
+    const cleaned = thinking
+      .replace(/\*\*THINKING:\*\*/g, '')
+      .replace(/\*\*ANSWER:\*\*/g, '')
+      .replace(/THINKING:/g, '')
+      .replace(/ANSWER:/g, '')
+      .trim();
     
-    // Extract clean thoughts by removing labels
+    // Split by the standard thinking step labels
+    const stepLabels = ['Understanding:', 'Analysis:', 'Source Review:', 'Cross-Reference:', 'Synthesis:', 'Conclusion:'];
     const steps: string[] = [];
-    for (const line of lines) {
-      // Check if line starts with a label (word followed by colon)
-      if (/^[A-Z][a-z]+:\s*/.test(line)) {
-        // Remove the label and keep only the thought content
-        const cleanThought = line.replace(/^[A-Z][a-z]+:\s*/, '').trim();
-        if (cleanThought.length > 10) {
-          steps.push(cleanThought);
+    
+    stepLabels.forEach(label => {
+      const regex = new RegExp(label + '\\s*(.+?)(?=' + stepLabels.filter(l => l !== label).join('|') + '|$)', 's');
+      const match = cleaned.match(regex);
+      if (match && match[1]) {
+        const cleanStep = match[1].trim();
+        if (cleanStep.length > 10) {
+          steps.push(cleanStep);
         }
-      } else if (line.length > 10 && !line.includes('**THINKING:**') && !line.includes('**ANSWER:**')) {
-        // Include substantial lines that aren't section markers
-        steps.push(line);
       }
+    });
+    
+    // Fallback: if no structured steps found, split by sentences
+    if (steps.length === 0 && cleaned.length > 0) {
+      const sentences = cleaned.split(/\.\s+/).filter(s => s.trim().length > 10);
+      return sentences.slice(0, 6); // Max 6 thoughts
     }
     
-    return steps.length > 0 ? steps : [];
+    return steps;
   };
 
   // Progressive thinking step cycling - like o1/Perplexity/Cursor
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     
-    // Only cycle if: assistant message, has thinking, and is streaming
-    if (lastMessage?.role === 'assistant' && lastMessage?.thinkingContent && lastMessage?.isStreaming) {
+    // Only cycle if: assistant message, has thinking, is streaming, AND thinking not complete
+    if (lastMessage?.role === 'assistant' && lastMessage?.thinkingContent && lastMessage?.isThinking) {
       const steps = extractThinkingSteps(lastMessage.thinkingContent);
       
       if (steps.length > 1) {
-        // Cycle through steps every 1.2 seconds
+        // Cycle through steps every 1.5 seconds
         const interval = setInterval(() => {
           setCurrentThinkingStep((prev) => {
             const next = (prev + 1) % steps.length;
             return next;
           });
-        }, 1200); // Industry standard timing for progressive thinking
+        }, 1500); // Slightly slower for readability
         
         return () => clearInterval(interval);
       }
     } else {
-      // Reset step counter when not streaming
+      // Reset step counter when not thinking
       setCurrentThinkingStep(0);
     }
   }, [messages]);
@@ -494,8 +504,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
               <div className="relative z-10 space-y-4 sm:space-y-6">
                 {messages.map((message, index) => (
                   <div key={index}>
-                    {/* Separate Thinking Component - Appears ABOVE message */}
-                    {message.role === 'assistant' && message.thinkingContent && message.isStreaming && (
+                    {/* Separate Thinking Component - Appears ABOVE message ONLY while thinking */}
+                    {message.role === 'assistant' && message.thinkingContent && message.isThinking && (
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -605,6 +615,51 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
+                                  // Custom wrapper to detect and make Sources section collapsible
+                                  p: ({ node, children, ...props }) => {
+                                    const content = String(children);
+                                    // Check if this paragraph contains "Sources:" heading
+                                    if (content.trim().match(/^\*\*Sources:\*\*$/i) || content.trim().match(/^Sources:$/i)) {
+                                      const isExpanded = expandedSources.has(index);
+                                      return (
+                                        <div className="my-4">
+                                          <button
+                                            onClick={() => {
+                                              const newExpanded = new Set(expandedSources);
+                                              if (isExpanded) {
+                                                newExpanded.delete(index);
+                                              } else {
+                                                newExpanded.add(index);
+                                              }
+                                              setExpandedSources(newExpanded);
+                                            }}
+                                            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-maritime-50/50 dark:bg-maritime-900/20 border border-maritime-200/50 dark:border-maritime-800/40 hover:bg-maritime-100/50 dark:hover:bg-maritime-900/30 transition-colors text-left"
+                                          >
+                                            {isExpanded ? (
+                                              <ChevronUp className="w-4 h-4 text-maritime-600 dark:text-maritime-400 flex-shrink-0" />
+                                            ) : (
+                                              <ChevronDown className="w-4 h-4 text-maritime-600 dark:text-maritime-400 flex-shrink-0" />
+                                            )}
+                                            <span className="text-sm font-semibold text-maritime-700 dark:text-maritime-300">
+                                              Sources {isExpanded ? '(click to hide)' : '(click to show)'}
+                                            </span>
+                                          </button>
+                                          {!isExpanded && <div className="h-0 overflow-hidden" />}
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Check if we're inside a collapsed sources section
+                                    const isInsideSources = !expandedSources.has(index) && 
+                                      message.content.toLowerCase().includes('**sources:**') &&
+                                      message.content.indexOf(content) > message.content.toLowerCase().indexOf('sources:');
+                                    
+                                    if (isInsideSources) {
+                                      return null; // Hide content when sources is collapsed
+                                    }
+                                    
+                                    return <p {...props} className="my-2 leading-relaxed">{children}</p>;
+                                  },
                                   // Make links highly visible and clickable
                                   a: ({ node, ...props }) => (
                                     <a
@@ -619,59 +674,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                       </svg>
                                     </a>
                                   ),
-                                  // Enhanced blockquote for Sources section - make it collapsible
-                                  blockquote: ({ node, children, ...props }) => {
-                                    const content = String(children);
-                                    const isSources = content.toLowerCase().includes('sources:') || 
-                                                     content.toLowerCase().includes('[1]') ||
-                                                     content.toLowerCase().includes('[2]');
-                                    
-                                    if (isSources) {
-                                      const isExpanded = expandedSources.has(index);
-                                      return (
-                                        <div className="my-4">
-                                          <button
-                                            onClick={() => {
-                                              const newExpanded = new Set(expandedSources);
-                                              if (isExpanded) {
-                                                newExpanded.delete(index);
-                                              } else {
-                                                newExpanded.add(index);
-                                              }
-                                              setExpandedSources(newExpanded);
-                                            }}
-                                            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-maritime-50/50 dark:bg-maritime-900/20 border border-maritime-200/50 dark:border-maritime-800/40 hover:bg-maritime-100/50 dark:hover:bg-maritime-900/30 transition-colors"
-                                          >
-                                            {isExpanded ? (
-                                              <ChevronUp className="w-4 h-4 text-maritime-600 dark:text-maritime-400" />
-                                            ) : (
-                                              <ChevronDown className="w-4 h-4 text-maritime-600 dark:text-maritime-400" />
-                                            )}
-                                            <span className="text-sm font-semibold text-maritime-700 dark:text-maritime-300">
-                                              Sources {isExpanded ? '(click to hide)' : '(click to show)'}
-                                            </span>
-                                          </button>
-                                          {isExpanded && (
-                                            <motion.div
-                                              initial={{ opacity: 0, height: 0 }}
-                                              animate={{ opacity: 1, height: 'auto' }}
-                                              exit={{ opacity: 0, height: 0 }}
-                                              transition={{ duration: 0.2 }}
-                                              className="mt-2 border-l-4 border-maritime-400 pl-4 bg-maritime-50/30 dark:bg-maritime-900/20 py-2 rounded-r text-xs"
-                                            >
-                                              {children}
-                                            </motion.div>
-                                          )}
-                                        </div>
-                                      );
-                                    }
-                                    
-                                    return (
-                                      <blockquote {...props} className="border-l-4 border-maritime-400 pl-4 my-3 bg-maritime-50/30 dark:bg-maritime-900/20 py-2 rounded-r">
-                                        {children}
-                                      </blockquote>
-                                    );
-                                  },
                                   // Style strong/bold (including **fleetcore**)
                                   strong: ({ node, ...props }) => (
                                     <strong {...props} className="font-bold text-maritime-700 dark:text-maritime-300" />
@@ -692,10 +694,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                   ),
                                   li: ({ node, ...props }) => (
                                     <li {...props} className="leading-relaxed" />
-                                  ),
-                                  // Style paragraphs
-                                  p: ({ node, ...props }) => (
-                                    <p {...props} className="my-2 leading-relaxed" />
                                   ),
                                   // Style headings
                                   h1: ({ node, ...props }) => (
