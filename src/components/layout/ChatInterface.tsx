@@ -454,7 +454,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     >
       {/* Header - Full Width Background */}
       {showHeader && (
-        <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600">
+        <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full">
           <div className="max-w-[1400px] mx-auto px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="flex items-center justify-center">

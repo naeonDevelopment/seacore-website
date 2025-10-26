@@ -280,7 +280,7 @@ const AssistantPage: React.FC = () => {
                 <img
                   src="/Light.svg"
                   alt="fleetcore"
-                  className="h-8 w-auto"
+                  className="h-10 w-auto"
                   loading="lazy"
                 />
               </div>
@@ -301,18 +301,16 @@ const AssistantPage: React.FC = () => {
         {/* Chat Interface Container with Max Width */}
         <div className={cn(
           "transition-all duration-300",
-          isMobile ? "pt-14" : "lg:ml-[22rem]"
+          isMobile ? "pt-14" : ""
         )}>
-          <div className="mx-auto" style={{ maxWidth: '1400px' }}>
-            <ChatInterface 
-              isFullscreen={true}
-              messages={activeSession.messages}
-              onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
-              onClose={!isMobile ? handleClose : undefined}
-              showHeader={!isMobile}
-              className="min-h-screen"
-            />
-          </div>
+          <ChatInterface 
+            isFullscreen={true}
+            messages={activeSession.messages}
+            onMessagesChange={(messages) => updateSessionMessages(activeSessionId, messages)}
+            onClose={!isMobile ? handleClose : undefined}
+            showHeader={!isMobile}
+            className="min-h-screen"
+          />
         </div>
       </div>
     </>
