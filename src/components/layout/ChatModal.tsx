@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Brain, Globe, RotateCcw } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -40,6 +40,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
   const streamingIndexRef = useRef<number | null>(null);
   const lastMessageCountRef = useRef<number>(0);
   
+  // Progressive thinking display state
+  const [currentThinkingStep, setCurrentThinkingStep] = useState<number>(0);
+  
   // Track viewport dimensions for mobile keyboard handling
   const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
   const [viewportTop, setViewportTop] = useState(0);
@@ -70,7 +73,55 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     setInput('');
     streamingIndexRef.current = null;
     lastMessageCountRef.current = 1;
+    setCurrentThinkingStep(0);
   };
+
+  // Extract individual thinking steps from accumulated thinking content
+  const extractThinkingSteps = (thinking: string): string[] => {
+    if (!thinking) return [];
+    
+    // Split by newlines and filter empty lines
+    const lines = thinking.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
+    // Extract steps that start with keywords like "Understanding:", "Analysis:", etc.
+    const steps: string[] = [];
+    for (const line of lines) {
+      // Check if line starts with a step marker (word followed by colon)
+      if (/^[A-Z][a-z]+:/.test(line)) {
+        steps.push(line);
+      } else if (line.length > 10) {
+        // Include substantial non-marker lines as steps
+        steps.push(line);
+      }
+    }
+    
+    return steps.length > 0 ? steps : [thinking]; // Fallback to full content
+  };
+
+  // Progressive thinking step cycling - like o1/Perplexity/Cursor
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    
+    // Only cycle if: assistant message, has thinking, and is streaming
+    if (lastMessage?.role === 'assistant' && lastMessage?.thinkingContent && lastMessage?.isStreaming) {
+      const steps = extractThinkingSteps(lastMessage.thinkingContent);
+      
+      if (steps.length > 1) {
+        // Cycle through steps every 1.2 seconds
+        const interval = setInterval(() => {
+          setCurrentThinkingStep((prev) => {
+            const next = (prev + 1) % steps.length;
+            return next;
+          });
+        }, 1200); // Industry standard timing for progressive thinking
+        
+        return () => clearInterval(interval);
+      }
+    } else {
+      // Reset step counter when not streaming
+      setCurrentThinkingStep(0);
+    }
+  }, [messages]);
 
   // Only scroll when a NEW message is added, not during streaming updates
   useEffect(() => {
@@ -484,7 +535,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         </motion.div>
                       )}
                       
-                      {/* Chain of Thought - Progressive display like o1 (ONE step at a time) */}
+                      {/* Chain of Thought - Progressive display like o1/Perplexity/Cursor */}
                       {message.role === 'assistant' && message.thinkingContent && (
                         <div className="mb-3 p-3 rounded-lg bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-900/10 dark:to-blue-900/10 border border-purple-200/50 dark:border-purple-800/50">
                           <div className="flex items-start gap-2">
@@ -496,26 +547,36 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                             </motion.div>
                             <div className="flex-1 min-w-0">
                               {(() => {
-                                const lines = message.thinkingContent.split('\n').filter(l => l.trim());
-                                // While streaming: show ONLY the current (last) line
-                                if (message.isStreaming && lines.length > 0) {
-                                  const currentLine = lines[lines.length - 1].trim();
+                                const steps = extractThinkingSteps(message.thinkingContent);
+                                
+                                // While streaming: show ONLY the current step (cycles automatically)
+                                if (message.isStreaming && steps.length > 0) {
+                                  const currentStep = steps[currentThinkingStep % steps.length];
                                   return (
-                                    <motion.div
-                                      key={currentLine}
-                                      initial={{ opacity: 0, y: 5 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      transition={{ duration: 0.3 }}
-                                      className="text-xs text-purple-700 dark:text-purple-300 font-medium"
-                                    >
-                                      {currentLine}
-                                    </motion.div>
+                                    <div className="space-y-1">
+                                      <motion.div
+                                        key={currentThinkingStep}
+                                        initial={{ opacity: 0, y: 5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -5 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="text-xs text-purple-700 dark:text-purple-300 font-medium"
+                                      >
+                                        {currentStep}
+                                      </motion.div>
+                                      {steps.length > 1 && (
+                                        <div className="text-[10px] text-purple-500 dark:text-purple-400 opacity-60">
+                                          Step {(currentThinkingStep % steps.length) + 1} of {steps.length}
+                                        </div>
+                                      )}
+                                    </div>
                                   );
                                 }
-                                // When complete: show summary (just the last line or count)
+                                
+                                // When complete: show summary
                                 return (
                                   <div className="text-xs text-slate-600 dark:text-slate-400 italic">
-                                    Completed reasoning ({lines.length} steps)
+                                    Completed reasoning ({steps.length} {steps.length === 1 ? 'step' : 'steps'})
                                   </div>
                                 );
                               })()}
