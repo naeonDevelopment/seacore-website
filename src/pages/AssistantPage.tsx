@@ -297,7 +297,7 @@ const AssistantPage: React.FC = () => {
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 <FleetCoreLogo 
                   variant={isDarkMode ? 'dark' : 'light'}
-                  className="!max-w-[140px] !h-auto scale-125 transition-all duration-300"
+                  className="!max-w-[120px] !h-auto scale-110 transition-all duration-300"
                 />
               </div>
               

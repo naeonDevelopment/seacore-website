@@ -779,7 +779,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Input Area */}
       <div 
         ref={inputAreaRef}
-        className="p-3 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80"
+        className="px-3 pt-3 pb-2 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80"
       >
         <div className="flex gap-2 md:gap-3 max-w-5xl mx-auto">
           <input
@@ -813,31 +813,31 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             )}
           </button>
         </div>
-        <div className="flex items-center mt-3 sm:mt-4 gap-2 max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mt-2 md:mt-3 lg:mt-4 gap-2 max-w-5xl mx-auto">
           <button
             type="button"
             role="switch"
             aria-checked={useBrowsing}
             onClick={() => setUseBrowsing((v) => !v)}
             className={cn(
-              'group inline-flex items-center gap-3 px-3 py-2 rounded-xl border transition-all',
+              'group inline-flex items-center gap-1.5 md:gap-2.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg md:rounded-xl border transition-all flex-shrink-0',
               useBrowsing
                 ? 'bg-maritime-50 border-maritime-200 text-maritime-700'
                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
             )}
           >
             <span className={cn(
-              'relative inline-flex h-7 w-12 items-center rounded-full transition-colors',
+              'relative inline-flex h-5 w-9 md:h-6 md:w-11 items-center rounded-full transition-colors',
               useBrowsing ? 'bg-maritime-600' : 'bg-slate-300 dark:bg-slate-700'
             )}>
               <span
                 className={cn(
-                  'inline-block h-5 w-5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
-                  useBrowsing ? 'translate-x-6' : 'translate-x-1'
+                  'inline-block h-4 w-4 md:h-5 md:w-5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
+                  useBrowsing ? 'translate-x-4 md:translate-x-5' : 'translate-x-0.5 md:translate-x-1'
                 )}
               />
             </span>
-            <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
+            <span className="text-[10px] md:text-xs font-semibold whitespace-nowrap">Online</span>
           </button>
           
           <button
@@ -845,15 +845,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onClick={resetChat}
             disabled={isLoading}
             className={cn(
-              'group inline-flex items-center gap-2 px-2 py-2 rounded-xl transition-all',
+              'group inline-flex items-center gap-1 md:gap-2 px-2 py-1.5 md:py-2 rounded-lg md:rounded-xl transition-all flex-shrink-0',
               'text-slate-600 dark:text-slate-400',
               'hover:text-slate-900 dark:hover:text-slate-200',
               'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
             aria-label="Reset chat"
           >
-            <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-            <span className="text-xs sm:text-sm font-semibold">Reset Chat</span>
+            <RotateCcw className="w-4 h-4 md:w-5 md:h-5 group-hover:rotate-180 transition-transform duration-500" />
+            <span className="text-[10px] md:text-xs font-semibold whitespace-nowrap">Reset</span>
           </button>
         </div>
       </div>
