@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface Message {
+  id: string; // Unique ID for stable React keys
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
@@ -24,6 +25,7 @@ interface ChatModalProps {
 export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode, toggleDarkMode }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
+      id: 'welcome-' + Date.now(),
       role: 'assistant',
       content: "Hi! I'm your maritime maintenance expert. I can help you understand fleetcore's features, maritime regulations, and answer questions about maintenance management. What would you like to know?",
       timestamp: new Date(),
@@ -73,6 +75,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
   const resetChat = () => {
     setMessages([
       {
+        id: 'welcome-' + Date.now(),
         role: 'assistant',
         content: "Hi! I'm your maritime maintenance expert. I can help you understand fleetcore's features, maritime regulations, and answer questions about maintenance management. What would you like to know?",
         timestamp: new Date(),
@@ -89,13 +92,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
   // Extract clean thinking steps WITHOUT labels (Understanding:, Analysis:, etc.)
   // Cursor-style: Extract individual thoughts for sequential display
   const extractThinkingSteps = (thinking: string): string[] => {
-    if (!thinking) {
-      console.log('🔍 No thinking content to extract');
-      return [];
-    }
-    
-    console.log('🔍 Extracting thinking steps. Total length:', thinking.length);
-    console.log('🔍 First 300 chars:', thinking.substring(0, 300));
+    if (!thinking) return [];
     
     // Remove markers
     const cleaned = thinking
@@ -103,7 +100,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
       .replace(/\*\*ANSWER:\*\*/gi, '')
       .trim();
     
-    console.log('🔍 After cleaning, length:', cleaned.length);
+    if (cleaned.length === 0) return [];
     
     // Try to split by the standard thinking step labels (Cursor-style structured reasoning)
     const stepLabels = ['Understanding:', 'Analysis:', 'Source Review:', 'Cross-Reference:', 'Synthesis:', 'Conclusion:'];
@@ -111,7 +108,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
     
     // Check if ANY labels exist
     const hasLabels = stepLabels.some(label => cleaned.includes(label));
-    console.log('🔍 Has structured labels?', hasLabels);
     
     if (hasLabels) {
       // Parse by finding each label and extracting content until the next label
@@ -135,50 +131,51 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           
           if (stepContent.length > 5) {
             steps.push(stepContent);
-            console.log(`   ✓ Found ${currentLabel}: "${stepContent.substring(0, 60)}..."`);
           }
         }
       }
+      
+      if (steps.length > 0) return steps.slice(0, 6); // Max 6 thoughts
     }
     
-    // Fallback: if no structured steps found, try intelligent splitting
-    if (steps.length === 0 && cleaned.length > 0) {
-      console.log('   ⚠️ No structured steps found, trying intelligent fallbacks...');
+    // Fallback: Split by double newlines first (paragraph breaks)
+    let fallbackSteps = cleaned.split(/\n\n+/).map(s => s.trim()).filter(s => s.length > 15);
+    
+    // If that gives us good steps, use them
+    if (fallbackSteps.length >= 2) {
+      return fallbackSteps.slice(0, 6);
+    }
+    
+    // Otherwise split by single newlines
+    fallbackSteps = cleaned.split(/\n+/).map(s => s.trim()).filter(s => s.length > 15);
+    
+    if (fallbackSteps.length >= 2) {
+      return fallbackSteps.slice(0, 6);
+    }
+    
+    // If only 1 step, split by sentences
+    if (fallbackSteps.length < 2) {
+      fallbackSteps = cleaned.split(/\.\s+/).map(s => s.trim()).filter(s => s.length > 15);
+    }
+    
+    // If text is long but no breaks, create chunks
+    if (fallbackSteps.length < 2 && cleaned.length > 150) {
+      const words = cleaned.split(' ');
+      fallbackSteps = [];
+      let currentChunk = '';
       
-      // Try 1: Split by newline (common in AI responses)
-      let fallbackSteps = cleaned.split(/\n+/).map(s => s.trim()).filter(s => s.length > 20);
-      console.log(`   → Newline split: ${fallbackSteps.length} steps`);
-      
-      // Try 2: If only 1 step, split by sentences with period
-      if (fallbackSteps.length < 2) {
-        fallbackSteps = cleaned.split(/\.\s+/).map(s => s.trim()).filter(s => s.length > 20);
-        console.log(`   → Sentence split: ${fallbackSteps.length} steps`);
-      }
-      
-      // Try 3: If text is really long but no breaks, create artificial breaks
-      if (fallbackSteps.length < 2 && cleaned.length > 200) {
-        // Split into chunks of ~100 characters at word boundaries
-        const words = cleaned.split(' ');
-        fallbackSteps = [];
-        let currentChunk = '';
-        
-        for (const word of words) {
-          if (currentChunk.length + word.length > 100 && currentChunk.length > 0) {
-            fallbackSteps.push(currentChunk.trim());
-            currentChunk = word;
-          } else {
-            currentChunk += (currentChunk ? ' ' : '') + word;
-          }
+      for (const word of words) {
+        if (currentChunk.length + word.length > 80 && currentChunk.length > 0) {
+          fallbackSteps.push(currentChunk.trim());
+          currentChunk = word;
+        } else {
+          currentChunk += (currentChunk ? ' ' : '') + word;
         }
-        if (currentChunk) fallbackSteps.push(currentChunk.trim());
-        console.log(`   → Chunk split: ${fallbackSteps.length} steps`);
       }
-      
-      return fallbackSteps.slice(0, 6); // Max 6 thoughts
+      if (currentChunk) fallbackSteps.push(currentChunk.trim());
     }
     
-    console.log(`   ✅ Extracted ${steps.length} structured thinking steps`);
-    return steps;
+    return fallbackSteps.slice(0, 6); // Max 6 thoughts
   };
 
   // Progressive thinking step cycling - like o1/Perplexity/Cursor
@@ -312,6 +309,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
     if (!input.trim() || isLoading) return;
 
     const userMessage: Message = {
+      id: 'user-' + Date.now(),
       role: 'user',
       content: input.trim(),
       timestamp: new Date(),
@@ -358,24 +356,28 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         let hasReceivedContent = false;
         let answerReadyToShow = false;
         
-        // FIXED: Set streaming index BEFORE creating message to avoid race condition
-        // Calculate the index that the new message will have
-        const newMessageIndex = messages.length;
-        streamingIndexRef.current = newMessageIndex;
-        
-        console.log(`🔄 Stream starting: message index = ${newMessageIndex}`);
+        // CRITICAL FIX: Calculate index using callback to get CURRENT state
+        // This prevents overwriting user messages with assistant content
+        let assistantMessageIndex = -1;
         
         // Start thinking timer only when we actually receive thinking content
         thinkingStartTimeRef.current = null; // Don't start timer yet
         
         setMessages((prev) => {
+          // Calculate the index where the NEW assistant message will be
+          assistantMessageIndex = prev.length;
+          streamingIndexRef.current = assistantMessageIndex;
+          console.log(`🔄 Stream starting: assistant message will be at index ${assistantMessageIndex}`);
+          console.log(`📊 Current messages before adding assistant:`, prev.map((m, i) => `[${i}] ${m.role}: "${m.content?.substring(0, 30)}..."`));
+          
           return [...prev, {
+            id: 'assistant-' + Date.now(),
             role: 'assistant',
             content: '',
             thinkingContent: '',
             timestamp: new Date(),
             isStreaming: true,
-            isThinking: false, // FIXED: Don't show thinking until we have content
+            isThinking: false, // Don't show thinking until we have content
           }];
         });
         
@@ -424,10 +426,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
 
                 // FIXED: Simplified thinking display logic
                 // Show thinking if we have thinking content AND haven't received answer yet
-                // OR if answer is ready but we're still within minimum display time
                 const hasThinking = streamedThinking.length > 0;
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
-                const MINIMUM_THINKING_TIME = 1500; // Reduced to 1.5 seconds
+                const MINIMUM_THINKING_TIME = 800; // Shorter - 0.8 seconds to allow faster transition
                 const shouldShowThinking = hasThinking && (!answerReadyToShow || thinkingElapsedTime < MINIMUM_THINKING_TIME);
 
                 setMessages((prev) => {
@@ -437,14 +438,27 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                   // Defensive check
                   if (idx < 0 || idx >= updated.length) {
                     console.error(`❌ Invalid message index: ${idx}, length: ${updated.length}`);
+                    console.error(`📊 Messages:`, prev.map((m, i) => `[${i}] ${m.role}`));
                     return prev;
                   }
                   
+                  // CRITICAL SAFETY: Ensure we're updating an ASSISTANT message, not a user message
+                  if (updated[idx]?.role !== 'assistant') {
+                    console.error(`❌ Attempted to update non-assistant message at index ${idx}. Role: ${updated[idx]?.role}`);
+                    console.error(`📊 All messages:`, prev.map((m, i) => `[${i}] ${m.role}: "${m.content?.substring(0, 20)}"`));
+                    return prev;
+                  }
+                  
+                  // Log what we're updating
+                  if (streamedContent.length < 50 || streamedContent.length % 100 === 0) {
+                    console.log(`📝 Updating [${idx}]: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars, showThinking=${shouldShowThinking}`);
+                  }
+                  
+                  // CRITICAL: Spread existing message to preserve React keys and prevent flashing
                   updated[idx] = {
-                    role: 'assistant',
+                    ...updated[idx],
                     content: streamedContent,
                     thinkingContent: streamedThinking,
-                    timestamp: updated[idx]?.timestamp || new Date(),
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
@@ -459,8 +473,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           }
         }
 
-        // FIXED: Finalize message - only wait if thinking was shown and needs graceful transition
-        const MINIMUM_THINKING_TIME = 1500; // 1.5 seconds
+        // FIXED: Finalize message - shorter transition for better UX
+        const MINIMUM_THINKING_TIME = 800; // 0.8 seconds
         const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
         
         // Only wait if we have thinking AND it hasn't been shown for minimum time
@@ -474,17 +488,31 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           const updated = [...prev];
           const idx = streamingIndexRef.current ?? updated.length - 1;
           
+          console.log(`🏁 Finalizing stream at index ${idx}. Total messages: ${updated.length}`);
+          console.log(`📊 Final state: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars`);
+          
           // Defensive check
           if (idx < 0 || idx >= updated.length) {
             console.error(`❌ Invalid finalize index: ${idx}, length: ${updated.length}`);
+            console.error(`📊 Messages:`, prev.map((m, i) => `[${i}] ${m.role}: "${m.content?.substring(0, 30)}"`));
             return prev;
           }
+          
+          // SAFETY: Ensure we're finalizing an assistant message
+          if (updated[idx]?.role !== 'assistant') {
+            console.error(`❌ Attempted to finalize non-assistant message at index ${idx}`);
+            return prev;
+          }
+          
+          console.log(`✅ Finalizing message [${idx}]: "${updated[idx].content?.substring(0, 50)}..."`);
           
           updated[idx] = {
             ...updated[idx],
             isStreaming: false,
             isThinking: false, // Always hide thinking when done
           };
+          
+          console.log(`📊 Final messages:`, updated.map((m, i) => `[${i}] ${m.role}: ${m.content?.length || 0}chars`));
           return updated;
         });
         
@@ -501,6 +529,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         const content = data.message || data.error || 'An error occurred';
         
         const assistantMessage: Message = {
+          id: 'assistant-' + Date.now(),
           role: 'assistant',
           content: content,
           timestamp: new Date(),
@@ -518,6 +547,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
+        id: 'error-' + Date.now(),
         role: 'assistant',
         content: "I'm sorry, I'm having trouble connecting right now. Please try again in a moment or contact us directly.",
         timestamp: new Date(),
@@ -622,13 +652,21 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
               
               <div className="relative z-10 space-y-4 sm:space-y-6">
                 {messages.map((message, index) => {
-                  // Don't render empty assistant messages (no thinking content and no answer content yet)
-                  if (message.role === 'assistant' && !message.content && !message.thinkingContent) {
+                  // ALWAYS render user messages
+                  // Only skip empty assistant messages that aren't streaming
+                  if (message.role === 'assistant' && !message.content && !message.thinkingContent && !message.isStreaming) {
+                    console.log(`⏭️ Skipping empty assistant message [${index}]`);
                     return null;
                   }
                   
+                  // Log what we're rendering for debugging
+                  const debugInfo = `[${index}] ${message.role}: content=${message.content?.length || 0}chars, thinking=${message.thinkingContent?.length || 0}chars, streaming=${message.isStreaming}, showThinking=${message.isThinking}`;
+                  if (message.isStreaming || message.isThinking) {
+                    console.log(`🎨 Rendering ${debugInfo}`);
+                  }
+                  
                   return (
-                  <div key={index}>
+                  <div key={message.id}>
                     {/* Message Bubble */}
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -688,8 +726,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                           </div>
                         )}
                       
-                      {/* Message content */}
-                      {message.content && (
+                      {/* Message content - ALWAYS show for user, show for assistant if has content OR is streaming */}
+                      {(message.role === 'user' || message.content || message.isStreaming) && (
                         <>
                           {message.role === 'assistant' ? (
                             // Assistant messages: Use prose styles for markdown rendering

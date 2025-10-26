@@ -1775,7 +1775,7 @@ You are operating in EXPERT MODE. This means:
     const modelCapabilities = getModelCapabilities(selectedModel);
     const isO1O3Model = modelCapabilities.nativeReasoning;
     const hasNativeCoT = isO1O3Model;
-    const needsSyntheticCoT = useChainOfThought && !hasNativeCoT;
+    let needsSyntheticCoT = useChainOfThought && !hasNativeCoT; // Use 'let' to allow dynamic fallback
     
     console.log(`🤖 Model Selected: ${selectedModel}`);
     console.log(`   Tier: ${modelCapabilities.tier.toUpperCase()}`);
@@ -2169,10 +2169,14 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                     const hasThinkingMarker = fullContentAccumulator.includes('**THINKING:**');
                     const hasAnswerMarker = fullContentAccumulator.includes('**ANSWER:**');
                     
-                    // STATE 1: Before any markers - stream raw content as fallback
-                    if (!hasThinkingMarker && fullContentAccumulator.length > 100) {
-                      console.log('⚠️ CoT: No THINKING marker after 100 chars, streaming raw content');
-                      // No CoT format detected, stream everything as regular content
+                    // CRITICAL FIX: If we've accumulated 50+ chars and no THINKING marker, 
+                    // assume model isn't using CoT format and stream everything as content
+                    if (!hasThinkingMarker && fullContentAccumulator.length >= 50) {
+                      console.log('⚠️ CoT: No THINKING marker after 50 chars, falling back to standard streaming');
+                      // Switch to standard streaming mode for remainder of response
+                      needsSyntheticCoT = false; // Disable CoT parsing for this response
+                      
+                      // Stream ALL accumulated content as regular content
                       const newContent = fullContentAccumulator.substring(lastStreamedIndex);
                       if (newContent) {
                         controller.enqueue(
@@ -2243,9 +2247,9 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                         lastStreamedIndex = currentAnswerEnd;
                       }
                     }
-                    // STATE 4: Still waiting for markers, keep accumulating
+                    // STATE 4: Still waiting for markers within first 50 chars, keep accumulating
                     else {
-                      // Just accumulate, don't stream yet (waiting for THINKING marker)
+                      // Just accumulate, don't stream yet (waiting for THINKING marker or hitting 50 char limit)
                     }
                   } else {
                     // Standard content streaming (CoT disabled or native reasoning model)
