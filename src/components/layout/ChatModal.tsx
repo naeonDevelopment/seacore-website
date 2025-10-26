@@ -484,44 +484,41 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         </motion.div>
                       )}
                       
-                      {/* Chain of Thought - Progressive display like o1 (lines replace each other) */}
+                      {/* Chain of Thought - Progressive display like o1 (ONE step at a time) */}
                       {message.role === 'assistant' && message.thinkingContent && (
-                        <div className="mb-3 p-3 rounded-lg bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                        <div className="mb-3 p-3 rounded-lg bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-900/10 dark:to-blue-900/10 border border-purple-200/50 dark:border-purple-800/50">
                           <div className="flex items-start gap-2">
-                            <Brain className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                            <motion.div
+                              animate={{ rotate: message.isStreaming ? 360 : 0 }}
+                              transition={{ duration: 2, repeat: message.isStreaming ? Infinity : 0, ease: "linear" }}
+                            >
+                              <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                            </motion.div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                                {(() => {
-                                  const lines = message.thinkingContent.split('\n').filter(l => l.trim());
-                                  // Show only the last line if streaming, all lines if complete
-                                  if (message.isStreaming && lines.length > 0) {
-                                    const lastLine = lines[lines.length - 1].trim();
-                                    return (
-                                      <motion.div
-                                        key={lastLine}
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="flex items-start gap-1.5"
-                                      >
-                                        <span className="text-slate-400 dark:text-slate-500 select-none">→</span>
-                                        <span className="flex-1">{lastLine}</span>
-                                      </motion.div>
-                                    );
-                                  }
-                                  // Show all lines when complete
-                                  return lines.map((line, idx) => {
-                                    const trimmed = line.trim();
-                                    if (!trimmed) return null;
-                                    return (
-                                      <div key={idx} className="flex items-start gap-1.5 opacity-60">
-                                        <span className="text-slate-400 dark:text-slate-500 select-none">→</span>
-                                        <span className="flex-1">{trimmed}</span>
-                                      </div>
-                                    );
-                                  }).filter(Boolean);
-                                })()}
-                              </div>
+                              {(() => {
+                                const lines = message.thinkingContent.split('\n').filter(l => l.trim());
+                                // While streaming: show ONLY the current (last) line
+                                if (message.isStreaming && lines.length > 0) {
+                                  const currentLine = lines[lines.length - 1].trim();
+                                  return (
+                                    <motion.div
+                                      key={currentLine}
+                                      initial={{ opacity: 0, y: 5 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ duration: 0.3 }}
+                                      className="text-xs text-purple-700 dark:text-purple-300 font-medium"
+                                    >
+                                      {currentLine}
+                                    </motion.div>
+                                  );
+                                }
+                                // When complete: show summary (just the last line or count)
+                                return (
+                                  <div className="text-xs text-slate-600 dark:text-slate-400 italic">
+                                    Completed reasoning ({lines.length} steps)
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -532,18 +529,23 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                         <>
                           {message.role === 'assistant' ? (
                             // Assistant messages: Use prose styles for markdown rendering
-                            <div className="text-sm sm:text-base leading-relaxed font-medium enterprise-body prose prose-slate dark:prose-invert max-w-none">
+                            <div className="text-sm sm:text-base leading-relaxed enterprise-body prose prose-slate dark:prose-invert max-w-none prose-a:text-maritime-600 prose-a:dark:text-maritime-400 prose-a:font-semibold prose-a:no-underline prose-a:hover:underline">
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
-                                  // Make links clickable and styled
+                                  // Make links highly visible and clickable
                                   a: ({ node, ...props }) => (
                                     <a
                                       {...props}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 underline font-semibold break-words"
-                                    />
+                                      className="inline-flex items-baseline gap-1 text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 font-semibold border-b-2 border-maritime-300 dark:border-maritime-600 hover:border-maritime-600 dark:hover:border-maritime-400 transition-colors break-words"
+                                    >
+                                      {props.children}
+                                      <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                    </a>
                                   ),
                                   // Style strong/bold (including **fleetcore**)
                                   strong: ({ node, ...props }) => (
@@ -572,13 +574,17 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                                   ),
                                   // Style headings
                                   h1: ({ node, ...props }) => (
-                                    <h1 {...props} className="text-xl font-bold mt-4 mb-2" />
+                                    <h1 {...props} className="text-xl font-bold mt-4 mb-2 text-maritime-900 dark:text-maritime-100" />
                                   ),
                                   h2: ({ node, ...props }) => (
-                                    <h2 {...props} className="text-lg font-bold mt-3 mb-2" />
+                                    <h2 {...props} className="text-lg font-bold mt-3 mb-2 text-maritime-800 dark:text-maritime-200" />
                                   ),
                                   h3: ({ node, ...props }) => (
-                                    <h3 {...props} className="text-base font-bold mt-2 mb-1" />
+                                    <h3 {...props} className="text-base font-bold mt-2 mb-1 text-maritime-800 dark:text-maritime-200" />
+                                  ),
+                                  // Enhanced blockquote for Sources section
+                                  blockquote: ({ node, ...props }) => (
+                                    <blockquote {...props} className="border-l-4 border-maritime-400 pl-4 my-3 bg-maritime-50/30 dark:bg-maritime-900/20 py-2 rounded-r" />
                                   ),
                                 }}
                               >

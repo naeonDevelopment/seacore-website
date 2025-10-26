@@ -1818,21 +1818,25 @@ export async function onRequestPost(context) {
 YOU MUST structure your response in TWO sections:
 
 **THINKING:**
-Understanding: [Restate the user's question]
-Analysis: [Break down what information is needed]
-Research Review: [List key sources and their content]
-Reasoning: [Step-by-step logic for your answer]
-Verification: [Cross-check sources for consistency]
-Conclusion: [Summarize what you'll include in answer]
+Understanding: [ONE clear sentence stating what the user is asking]
+Analysis: [ONE sentence identifying what information you need to find]
+Source Review: [ONE sentence about which sources contain the relevant data]
+Cross-Reference: [ONE sentence comparing information across sources]
+Synthesis: [ONE sentence about how you'll combine findings]
+Conclusion: [ONE sentence summarizing your approach]
 
 **ANSWER:**
-[Your complete technical response with multi-source citations]
+[Your complete technical response with:
+- Professional markdown formatting (## headings, bullet points)
+- Multi-source citations [1][2][3] after EVERY fact
+- Properly formatted **Sources:** section using markdown links]
 
-**CRITICAL:**
-- Start EVERY response with **THINKING:** section
-- Follow with **ANSWER:** section
-- Keep thinking concise (1-2 sentences per point)
-- This format is REQUIRED, not optional\n\n`;
+**CRITICAL FORMAT RULES:**
+1. Start EVERY response with **THINKING:** section
+2. Each thinking step is ONE complete sentence on its own line
+3. Follow with **ANSWER:** section
+4. In Sources section, use markdown links: [Title](url)
+5. This format is REQUIRED, not optional\n\n`;
     }
     
     // Build request body with model-specific parameters
@@ -1848,12 +1852,17 @@ Web research has been performed and results are provided below. You MUST follow 
 - **MINIMUM 5-8 DIFFERENT SOURCES** must be cited in your answer
 - CITE SOURCES [1][2][3][4][5]... for EVERY factual statement
 - Different equipment/systems should reference DIFFERENT sources
-- End response with "**Sources:**" section listing ALL URLs with titles
-- Format: **Sources:**
-           [1] Page Title - https://example.com/page1
-           [2] Page Title - https://example.com/page2
-           [3] Page Title - https://example.com/page3
-           ... (list ALL cited sources)
+- End response with properly formatted **Sources:** section
+- **CRITICAL FORMAT:**
+
+**Sources:**
+[1] Page Title - [Link](https://example.com/page1)
+[2] Page Title - [Link](https://example.com/page2)
+[3] Page Title - [Link](https://example.com/page3)
+
+- Use markdown links [Link](url) to make URLs clickable
+- Include page title before the link
+- List ALL cited sources (not just the first 3)
 - **CITING ONLY 1-2 SOURCES = FAILED RESPONSE**
 - **Using less than 5 sources when 15+ provided = FAILED RESPONSE**
 
