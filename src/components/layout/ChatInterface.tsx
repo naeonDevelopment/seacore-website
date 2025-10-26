@@ -895,7 +895,7 @@ This is **specialized maritime search** – not general web search. Get precise,
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             onBlur={() => {
               if (typeof window !== 'undefined' && window.innerWidth < 640) {
                 window.scrollTo(0, 0);
