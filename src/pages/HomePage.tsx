@@ -321,7 +321,7 @@ const HomePage: React.FC = () => {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
         <meta name="twitter:title" content="fleetcore: Agentic Maintenance Operating System" />
-        <meta name="twitter:description" content="Global maritime maintenance intelligence: 100+ OEM manufacturers and realworld maintenance dataunified. Vendor-neutral optimization, predictive analytics, automated compliance. Transform fleet operations with proven 20-30% cost reduction." />
+        <meta name="twitter:description" content="Global maritime maintenance intelligence: 100+ OEM manufacturers and real-world maintenance data unified. Vendor-neutral optimization, predictive analytics, automated compliance. Transform fleet operations with proven 20-30% cost reduction." />
         <meta name="twitter:image" content="https://fleetcore.ai/og/home.png" />
         <script type="application/ld+json">
           {JSON.stringify({

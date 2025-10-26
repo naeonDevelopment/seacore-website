@@ -15,8 +15,8 @@ export function generateHomeContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore: Agentic Maintenance Operating System| Global Maritime Intelligence Platform</title>
-  <meta name="description" content="Transform fleet operations with centralized OEM intelligence from 100+ manufacturers and real-world global maintenace data. AI-powered maintenance OS delivers vendor-neutral optimization, predictive automation, and cross-fleet learning. Eliminate reactive maintenance, reduce costs 20-30%, ensure compliance.">
+  <title>fleetcore: Agentic Maintenance Operating System | Global Maritime Intelligence Platform</title>
+  <meta name="description" content="Transform fleet operations with centralized OEM intelligence and real-world global maintenance data. AI-powered maintenance OS delivers vendor-neutral optimization, predictive automation, and cross-fleet learning. Eliminate reactive maintenance, reduce costs by up to 40%, ensure compliance.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   
