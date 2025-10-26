@@ -447,17 +447,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div 
       className={cn(
         "flex flex-col",
-        isFullscreen ? "min-h-screen" : "",
+        isFullscreen ? "h-screen" : "",
         className
       )}
       style={isFullscreen && typeof window !== 'undefined' && window.innerWidth < 640 ? {
-        position: 'fixed',
-        top: `${viewportTop}px`,
-        left: 0,
-        right: 0,
         height: `${viewportHeight}px`,
-        maxHeight: `${viewportHeight}px`,
-        overflow: 'hidden'
+        maxHeight: `${viewportHeight}px`
       } : undefined}
     >
       {/* Header - Full Width Background */}
