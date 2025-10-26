@@ -315,7 +315,17 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    console.log(`💬 ===== SENDING NEW MESSAGE =====`);
+    console.log(`💬 User message:`, userMessage);
+    console.log(`💬 Current messages count:`, messages.length);
+    
+    setMessages((prev) => {
+      console.log(`💬 Adding user message to array. Prev length: ${prev.length}`);
+      const newArray = [...prev, userMessage];
+      console.log(`💬 New array length: ${newArray.length}`);
+      console.log(`💬 New array:`, newArray.map((m, i) => `[${i}] ${m.role}: "${m.content?.substring(0, 30)}"`));
+      return newArray;
+    });
     setInput('');
     setIsLoading(true);
 
@@ -419,7 +429,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                     console.log('🧠 Thinking started - timer started');
                   }
                   
-                  console.log('🧠 Received thinking chunk, total length:', streamedThinking.length);
+                  console.log(`🧠 Received thinking chunk (+${parsed.content.length}chars), total: ${streamedThinking.length}chars`);
                 } else if (parsed.type === 'content') {
                   // First content received = answer is ready
                   if (!hasReceivedContent) {
@@ -428,6 +438,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                     console.log('✅ Answer content received, switching to answer display...');
                   }
                   streamedContent += parsed.content;
+                  console.log(`📝 Received content chunk (+${parsed.content.length}chars), total: ${streamedContent.length}chars`);
                 }
 
                 // FIXED: Simplified thinking display logic
@@ -441,8 +452,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                   const updated = [...prev];
                   const idx = streamingIndexRef.current ?? updated.length - 1;
                   
-                  console.log(`🔄 Stream update attempt: idx=${idx}, arrayLength=${updated.length}, streamedContent=${streamedContent.length}chars`);
-                  console.log(`📋 Current messages:`, prev.map((m, i) => `[${i}] ${m.role}(${m.id}): ${m.content?.length || 0}chars`));
+                  console.log(`🔄 Stream update: idx=${idx}, streamedContent=${streamedContent.length}chars, streamedThinking=${streamedThinking.length}chars`);
                   
                   // Defensive check
                   if (idx < 0 || idx >= updated.length) {
@@ -458,18 +468,17 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                     return prev;
                   }
                   
-                  console.log(`✅ Updating assistant message [${idx}] with ${streamedContent.length} chars`);
-                  
-                  // CRITICAL: Spread existing message to preserve React keys and prevent flashing
+                  // CRITICAL FIX: Always use accumulated content, never clear it
+                  // This ensures content is preserved even if updates are batched
                   updated[idx] = {
                     ...updated[idx],
-                    content: streamedContent,
-                    thinkingContent: streamedThinking,
+                    content: streamedContent, // Always set from accumulator
+                    thinkingContent: streamedThinking, // Always set from accumulator
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
                   
-                  console.log(`✅ Update complete. Message now has ${updated[idx].content.length} chars`);
+                  console.log(`✅ Updated [${idx}]: content=${updated[idx].content.length}chars, thinking=${updated[idx].thinkingContent?.length || 0}chars`);
                   return updated;
                 });
               } catch (_) {
@@ -516,9 +525,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           
           console.log(`✅ Finalizing message [${idx}]: "${updated[idx].content?.substring(0, 50)}..."`);
           console.log(`   Before: streaming=${updated[idx].isStreaming}, thinking=${updated[idx].isThinking}`);
+          console.log(`   Accumulated: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars`);
           
+          // CRITICAL FIX: Explicitly set content and thinkingContent to ensure they're preserved
+          // even if React batches updates and previous streaming updates weren't applied
           updated[idx] = {
             ...updated[idx],
+            content: streamedContent, // Ensure final content is set
+            thinkingContent: streamedThinking, // Ensure final thinking is set
             isStreaming: false,
             isThinking: false, // Always hide thinking when done
           };
@@ -665,14 +679,25 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
               
               <div className="relative z-10 space-y-4 sm:space-y-6">
                 {messages.map((message, index) => {
-                  // DEBUG: Log ALL messages being mapped
-                  console.log(`🔍 Message [${index}]: role=${message.role}, id=${message.id}, content=${message.content?.length || 0}chars, streaming=${message.isStreaming}`);
+                  // Log render cycle info on first message
+                  if (index === 0) {
+                    console.log(`🎨 ===== RENDER CYCLE ===== Total messages: ${messages.length}`);
+                    console.log(`🎨 All messages:`, messages.map((m, i) => `[${i}] ${m.role}(${m.id}): ${m.content?.length || 0}chars`));
+                  }
                   
-                  // ALWAYS render user messages
-                  // Only skip empty assistant messages that aren't streaming
-                  if (message.role === 'assistant' && !message.content && !message.thinkingContent && !message.isStreaming) {
+                  // DEBUG: Log ALL messages being mapped
+                  console.log(`🔍 Message [${index}]: role=${message.role}, id=${message.id}, content=${message.content?.length || 0}chars, thinking=${message.thinkingContent?.length || 0}chars, streaming=${message.isStreaming}, isThinking=${message.isThinking}`);
+                  
+                  // ALWAYS render user messages (they should never be empty)
+                  // Only skip truly empty assistant messages that aren't streaming/thinking
+                  if (message.role === 'assistant' && !message.content && !message.thinkingContent && !message.isStreaming && !message.isThinking) {
                     console.log(`⏭️ Skipping empty assistant message [${index}]`);
                     return null;
+                  }
+                  
+                  // Safety check: Warn if user message has no content
+                  if (message.role === 'user' && !message.content) {
+                    console.error(`⚠️ User message [${index}] has no content! ID: ${message.id}`);
                   }
                   
                   // Log what we're rendering for debugging
@@ -743,7 +768,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                         )}
                       
                       {/* Message content - ALWAYS show for user, show for assistant if has content OR is streaming */}
-                      {(message.role === 'user' || message.content || message.isStreaming) && (
+                      {(() => {
+                        const shouldRender = message.role === 'user' || message.content || message.isStreaming;
+                        console.log(`🖼️ [${index}] Render content? ${shouldRender} | role=${message.role}, hasContent=${!!message.content}(${message.content?.length || 0}chars), isStreaming=${message.isStreaming}`);
+                        if (!shouldRender) {
+                          console.log(`❌ [${index}] Content hidden due to condition! Message:`, message);
+                        }
+                        return shouldRender;
+                      })() && (
                         <>
                           {message.role === 'assistant' ? (
                             // Assistant messages: Use prose styles for markdown rendering
