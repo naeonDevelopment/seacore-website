@@ -39,21 +39,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [internalMessages, setInternalMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `# Welcome to Fleetcore's Intelligence Hub
+      content: `# Welcome to Fleetcore's Maritime Intelligence Hub
 
-I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's system, maritime regulations, and maintenance management.
+I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime intelligence from **100+ OEM manufacturers** and real-world fleet data.
 
-## 💡 What I Can Help With:
+## 💡 What Makes This Different:
 
-**Fleetcore System** • Platform features, workflows, integrations, and best practices
+**Fleetcore Platform** • Agentic maintenance OS, vendor-neutral optimization, cross-fleet intelligence, and automation workflows
 
-**Maritime Regulations** • SOLAS, MARPOL, ISM Code, MLC, and compliance requirements
+**Maritime Compliance** • SOLAS, MARPOL, ISM Code, MLC compliance tracking, regulatory updates, and certification management
 
-**Maintenance Operations** • Procedures, safety protocols, equipment management, and certifications
+**Expert Maintenance Guidance** • OEM procedures, safety protocols, predictive maintenance insights, and equipment specifications
 
 ---
 
-💬 **Tip:** Enable **Online Research** below to access real-time industry data, technical specs, and regulatory updates.
+## 🌐 **Unlock Specialized Maritime Intelligence**
+
+Enable **Online Research** below to access:
+- **Real-time industry data** from maritime databases and technical repositories
+- **Manufacturer specifications** and OEM technical documentation  
+- **Regulatory updates** from IMO, classification societies, and flag states
+- **Global fleet insights** and maintenance best practices
+
+This is **specialized maritime search** – not general web search. Get precise, industry-specific answers backed by authoritative sources.
 
 **What would you like to know?**`,
       timestamp: new Date(),
@@ -548,7 +556,7 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
                   transition={{ duration: 0.3 }}
                   className={cn('flex gap-2 sm:gap-4 mb-2', 'justify-start')}
                 >
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
                   <div className="max-w-[85%] sm:max-w-[80%]">
                     <AnimatePresence mode="wait">
                       {(() => {
@@ -600,7 +608,7 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
                     <img
                       src="/assets/avatar/Generated Image October 24, 2025 - 8_11PM.png"
                       alt="AI"

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { 
   Sun,
   Moon,
-  MessageSquare
+  Bot
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo'
@@ -117,7 +117,7 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
                 onClick={() => navigate('/assistant')}
                 className="inline-flex items-center justify-center gap-2"
               >
-                <MessageSquare className="w-4 h-4" />
+                <Bot className="w-4 h-4" />
                 Ask AI
               </Button>
             </div>
@@ -170,7 +170,7 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
                 className="w-10 h-10"
                 aria-label="Ask AI"
               >
-                <MessageSquare className="w-5 h-5" />
+                <Bot className="w-5 h-5" />
               </Button>
             </div>
           </div>
