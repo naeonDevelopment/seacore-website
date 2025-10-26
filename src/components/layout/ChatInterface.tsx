@@ -753,7 +753,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                     'text-xs mt-2 font-semibold',
                     message.role === 'user' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
                   )}>
-                    {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    {message.timestamp?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) || 'Just now'}
                   </p>
                 </div>
 

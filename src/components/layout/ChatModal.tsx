@@ -357,22 +357,25 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
         let streamedThinking = '';
         let hasReceivedContent = false;
         let answerReadyToShow = false;
-        // Add empty streaming message with thinking indicator
-        streamingIndexRef.current = null;
         
-        // Start thinking timer
-        thinkingStartTimeRef.current = Date.now();
+        // FIXED: Set streaming index BEFORE creating message to avoid race condition
+        // Calculate the index that the new message will have
+        const newMessageIndex = messages.length;
+        streamingIndexRef.current = newMessageIndex;
+        
+        console.log(`🔄 Stream starting: message index = ${newMessageIndex}`);
+        
+        // Start thinking timer only when we actually receive thinking content
+        thinkingStartTimeRef.current = null; // Don't start timer yet
         
         setMessages((prev) => {
-          const index = prev.length;
-          streamingIndexRef.current = index;
           return [...prev, {
             role: 'assistant',
             content: '',
             thinkingContent: '',
             timestamp: new Date(),
             isStreaming: true,
-            isThinking: true, // Show thinking animation initially
+            isThinking: false, // FIXED: Don't show thinking until we have content
           }];
         });
         
@@ -401,33 +404,49 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'thinking') {
                   streamedThinking += parsed.content;
-                  console.log('🧠 Received thinking section, length:', parsed.content.length);
-                  console.log('🧠 Thinking content preview:', parsed.content.substring(0, 300));
+                  
+                  // FIXED: Start thinking timer when we FIRST receive thinking content
+                  if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
+                    thinkingStartTimeRef.current = Date.now();
+                    console.log('🧠 Thinking started - timer started');
+                  }
+                  
+                  console.log('🧠 Received thinking chunk, total length:', streamedThinking.length);
                 } else if (parsed.type === 'content') {
                   // First content received = answer is ready
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     answerReadyToShow = true;
-                    console.log('✅ Answer content received, enforcing minimum thinking display time...');
+                    console.log('✅ Answer content received, switching to answer display...');
                   }
                   streamedContent += parsed.content;
                 }
 
-                // Calculate if minimum thinking time has elapsed
-                const MINIMUM_THINKING_TIME = 2000; // 2 seconds
+                // FIXED: Simplified thinking display logic
+                // Show thinking if we have thinking content AND haven't received answer yet
+                // OR if answer is ready but we're still within minimum display time
+                const hasThinking = streamedThinking.length > 0;
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
-                const shouldHideThinking = answerReadyToShow && (thinkingElapsedTime >= MINIMUM_THINKING_TIME || !streamedThinking);
+                const MINIMUM_THINKING_TIME = 1500; // Reduced to 1.5 seconds
+                const shouldShowThinking = hasThinking && (!answerReadyToShow || thinkingElapsedTime < MINIMUM_THINKING_TIME);
 
                 setMessages((prev) => {
                   const updated = [...prev];
                   const idx = streamingIndexRef.current ?? updated.length - 1;
+                  
+                  // Defensive check
+                  if (idx < 0 || idx >= updated.length) {
+                    console.error(`❌ Invalid message index: ${idx}, length: ${updated.length}`);
+                    return prev;
+                  }
+                  
                   updated[idx] = {
                     role: 'assistant',
                     content: streamedContent,
                     thinkingContent: streamedThinking,
                     timestamp: updated[idx]?.timestamp || new Date(),
                     isStreaming: true,
-                    isThinking: !shouldHideThinking, // Only hide thinking after minimum time
+                    isThinking: shouldShowThinking,
                   };
                   return updated;
                 });
@@ -440,29 +459,39 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           }
         }
 
-        // Finalize message - ensure thinking displays for minimum time
-        const MINIMUM_THINKING_TIME = 2000; // 2 seconds
-        const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : MINIMUM_THINKING_TIME;
-        const remainingThinkingTime = Math.max(0, MINIMUM_THINKING_TIME - thinkingElapsedTime);
+        // FIXED: Finalize message - only wait if thinking was shown and needs graceful transition
+        const MINIMUM_THINKING_TIME = 1500; // 1.5 seconds
+        const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
         
-        if (remainingThinkingTime > 0 && streamedThinking) {
-          console.log(`⏰ Waiting ${remainingThinkingTime}ms for thinking to complete display cycle...`);
-          await new Promise(resolve => setTimeout(resolve, remainingThinkingTime));
+        // Only wait if we have thinking AND it hasn't been shown for minimum time
+        if (streamedThinking && thinkingStartTimeRef.current && thinkingElapsedTime < MINIMUM_THINKING_TIME) {
+          const remainingTime = MINIMUM_THINKING_TIME - thinkingElapsedTime;
+          console.log(`⏰ Graceful transition: waiting ${remainingTime}ms before hiding thinking...`);
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
         }
         
         setMessages((prev) => {
           const updated = [...prev];
           const idx = streamingIndexRef.current ?? updated.length - 1;
+          
+          // Defensive check
+          if (idx < 0 || idx >= updated.length) {
+            console.error(`❌ Invalid finalize index: ${idx}, length: ${updated.length}`);
+            return prev;
+          }
+          
           updated[idx] = {
             ...updated[idx],
             isStreaming: false,
-            isThinking: false, // Remove thinking indicator after minimum time
+            isThinking: false, // Always hide thinking when done
           };
           return updated;
         });
         
         // Reset thinking timer
         thinkingStartTimeRef.current = null;
+        
+        console.log(`✅ Stream complete: ${streamedContent.length} chars content, ${streamedThinking.length} chars thinking`);
       } else {
         // Fallback to non-streaming or error response
         const data = await response.json();

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, X, Menu, MoreVertical, Trash2, Edit2, Check } from 'lucide-react';
+import { Plus, MessageSquare, X, Menu, Trash2, Check } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Session } from '@/hooks/useSessions';
 
@@ -29,12 +29,11 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 }) => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
-  const handleStartEdit = (session: Session) => {
+  const handleStartEdit = (session: Session, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditingSessionId(session.id);
     setEditName(session.name);
-    setMenuOpenId(null);
   };
 
   const handleSaveEdit = (sessionId: string) => {
@@ -44,9 +43,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     setEditingSessionId(null);
   };
 
-  const handleDelete = (sessionId: string) => {
+  const handleDelete = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     onDeleteSession(sessionId);
-    setMenuOpenId(null);
   };
 
   const sidebarContent = (
@@ -84,7 +83,6 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         {sessions.map((session) => {
           const isActive = session.id === activeSessionId;
           const isEditing = editingSessionId === session.id;
-          const isMenuOpen = menuOpenId === session.id;
 
           return (
             <div key={session.id} className="relative">
@@ -121,7 +119,10 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                       autoFocus
                     />
                   ) : (
-                    <div className="flex-1 min-w-0">
+                    <div 
+                      className="flex-1 min-w-0 cursor-text"
+                      onClick={(e) => handleStartEdit(session, e)}
+                    >
                       <p
                         className={cn(
                           'text-sm font-semibold truncate',
@@ -150,50 +151,25 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                     </button>
                   ) : (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuOpenId(isMenuOpen ? null : session.id);
-                      }}
+                      onClick={(e) => handleDelete(session.id, e)}
+                      disabled={sessions.length === 1}
                       className={cn(
-                        'w-7 h-7 rounded-lg flex items-center justify-center transition-colors',
-                        isMenuOpen
-                          ? 'bg-slate-200 dark:bg-slate-700'
-                          : 'opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
+                        sessions.length === 1
+                          ? 'opacity-30 cursor-not-allowed'
+                          : 'opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/30'
                       )}
+                      title={sessions.length === 1 ? 'Cannot delete last session' : 'Delete session'}
                     >
-                      <MoreVertical className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                      <Trash2 className={cn(
+                        'w-4 h-4',
+                        sessions.length === 1 
+                          ? 'text-slate-400'
+                          : 'text-red-600 dark:text-red-400'
+                      )} />
                     </button>
                   )}
                 </div>
-
-                {/* Context Menu */}
-                <AnimatePresence>
-                  {isMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-50"
-                    >
-                      <button
-                        onClick={() => handleStartEdit(session)}
-                        className="w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                        <span>Rename</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(session.id)}
-                        disabled={sessions.length === 1}
-                        className="w-full px-3 py-2 text-sm text-left hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-600 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </motion.div>
             </div>
           );

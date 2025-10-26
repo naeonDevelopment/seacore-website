@@ -824,8 +824,19 @@ export async function onRequestPost(context) {
     }
 
     // Build conversation with system prompt
+    // Add explicit mode indicator to help AI understand its operating context
     const conversationMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: `🎯 **CURRENT MODE: EXPERT MODE (No Research Context)**
+
+You are operating in EXPERT MODE. This means:
+- ✅ Answer questions using your training knowledge about maritime industry
+- ✅ Provide general information about SOLAS, MARPOL, ISM Code, vessel types, maintenance concepts
+- ✅ Explain fleetcore system features and capabilities
+- ❌ DO NOT make up specific information about particular vessels, companies, or equipment you haven't been trained on
+- ❌ When asked about SPECIFIC entities (vessels, companies, equipment models), guide user to enable 'Online research' toggle
+
+**Remember:** You can provide general maritime expertise, but specific entity queries require research mode.` },
       ...messages,
     ];
 
@@ -866,27 +877,32 @@ export async function onRequestPost(context) {
     let researchPerformed = false;
     const currentQuery = messages[messages.length - 1]?.content || ''; // Declare once at top level
     
-    // FOLLOW-UP QUESTION DETECTION: Check if current query references previous research
-    // Enhanced detection with more patterns
+    // SIMPLIFIED FOLLOW-UP QUESTION DETECTION
+    // Reduce complexity - check for clear follow-up indicators only
     const hasReferentialPronouns = /\b(them|those|that|it|its|each one|the above|mentioned|listed|same|their)\b/i.test(currentQuery);
     const hasFollowUpPhrases = /\b(give me|tell me|what about|how about|also|additionally|furthermore)\b/i.test(currentQuery);
-    const hasRelatedPhrases = /\b(competitor|comparison|similar|related|alternative|equivalent)\b/i.test(currentQuery);
     
-    // If previous entities are mentioned in current query, it's likely a follow-up
+    // Direct entity match check - simpler and more reliable
     const mentionsPreviousEntity = previousResearchEntities.length > 0 && 
                                    previousResearchEntities.some(entity => 
                                      currentQuery.toLowerCase().includes(entity.toLowerCase())
                                    );
     
-    const isFollowUpQuery = hasReferentialPronouns || hasFollowUpPhrases || hasRelatedPhrases || mentionsPreviousEntity;
+    // SIMPLIFIED: Only two clear indicators - pronouns OR previous entity mention
+    const isFollowUpQuery = hasReferentialPronouns || mentionsPreviousEntity;
     const hasPreviousResearch = previousResearchContext.length > 0;
     
-    // If it's a follow-up and we have previous research, prioritize using context over blocking
-    if (isFollowUpQuery && hasPreviousResearch && !enableBrowsing) {
-      console.log('🔄 Follow-up/Related question detected with previous research available');
-      console.log(`   Triggers: pronouns=${hasReferentialPronouns}, phrases=${hasFollowUpPhrases}, related=${hasRelatedPhrases}, entityMatch=${mentionsPreviousEntity}`);
-      console.log('   Using previous research context instead of requiring new research');
-      // We'll add previous research to context below
+    // Log follow-up detection for debugging
+    if (isFollowUpQuery && hasPreviousResearch) {
+      console.log('🔄 === FOLLOW-UP QUESTION DETECTED ===');
+      console.log(`   Has pronouns: ${hasReferentialPronouns}`);
+      console.log(`   Mentions previous entity: ${mentionsPreviousEntity}`);
+      if (mentionsPreviousEntity) {
+        console.log(`   Previous entities: ${previousResearchEntities.join(', ')}`);
+      }
+      console.log(`   Browsing enabled: ${enableBrowsing ? 'YES' : 'NO'}`);
+      console.log(`   Decision: ${enableBrowsing ? 'NEW RESEARCH' : 'USE PREVIOUS CONTEXT'}`);
+      console.log('=====================================\n');
     }
     
     if (enableBrowsing && TAVILY_API_KEY) {
@@ -1846,6 +1862,21 @@ Conclusion: [Confirm your approach to deliver a detailed, properly cited answer]
     
     // Build request body with model-specific parameters
     // When research is enabled, OVERRIDE system prompt to emphasize RESEARCH MODE
+    
+    // ENHANCED LOGGING: Explicitly log mode detection
+    const isResearchMode = browsingContext && researchPerformed;
+    const hasFollowUpContext = !isResearchMode && hasPreviousResearch && isFollowUpQuery;
+    
+    console.log('\n🎯 === MODE DETECTION ===');
+    console.log(`   Research Mode: ${isResearchMode ? '✅ ENABLED' : '❌ DISABLED'}`);
+    console.log(`   Follow-up Context: ${hasFollowUpContext ? '✅ USING PREVIOUS RESEARCH' : '❌ NONE'}`);
+    console.log(`   Expert Mode: ${!isResearchMode && !hasFollowUpContext ? '✅ ACTIVE' : '❌ INACTIVE'}`);
+    console.log(`   Browsing Toggle: ${enableBrowsing ? 'ON' : 'OFF'}`);
+    console.log(`   Research Performed: ${researchPerformed ? 'YES' : 'NO'}`);
+    console.log(`   Previous Research Available: ${hasPreviousResearch ? 'YES' : 'NO'}`);
+    console.log(`   Is Follow-up Query: ${isFollowUpQuery ? 'YES' : 'NO'}`);
+    console.log('========================\n');
+    
     const effectiveSystemPrompt = browsingContext 
       ? `${SYSTEM_PROMPT}${cotSystemPrompt}
 
@@ -1917,16 +1948,20 @@ Before submitting your answer, verify:
       messages: browsingContext
         ? [
             { role: 'system', content: effectiveSystemPrompt },
-            { role: 'system', content: `=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===\n${browsingContext}` },
+            { role: 'system', content: `=== WEB RESEARCH RESULTS (USE THESE TO ANSWER) ===
+
+🎯 **CURRENT MODE: RESEARCH MODE WITH FRESH DATA**
+
+${browsingContext}` },
             ...(previousResearchContext ? [{ role: 'system', content: previousResearchContext }] : []),
             ...messages,
           ]
         : hasPreviousResearch
         ? [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'system', content: `🔄 **USING PREVIOUS RESEARCH CONTEXT**
+            { role: 'system', content: `🎯 **CURRENT MODE: FOLLOW-UP MODE (Using Previous Research Context)**
 
-The following information was researched earlier in this conversation:
+The following information was researched earlier in this conversation. You can reference it to answer follow-up questions.
 
 ${previousResearchContext}
 
@@ -1934,12 +1969,12 @@ ${previousResearchContext}
 1. **First**: Check if the above research contains information to answer the current question
 2. **If YES**: Answer using the research above with proper citations
 3. **If NO but question is related**: Use your general maritime knowledge to answer (without requiring research toggle)
-4. **If completely new topic**: Prompt user to enable research
+4. **If completely new topic requiring specific entity data**: Prompt user to enable research
 
 **Examples:**
-- "Tell me about competitors" when research was about Stanford Marine → Use general knowledge (competition in maritime industry)
-- "Give me OEM maintenance" when research lists equipment → Extract from research above
-- "Tell me about Maersk" when no context about Maersk → Prompt for research
+✅ "Tell me about competitors" when research was about Stanford Marine → Use general knowledge (competition in maritime industry)
+✅ "Give me OEM maintenance" when research lists equipment → Extract from research above
+❌ "Tell me about Maersk" when no context about Maersk → Prompt for research
 
 **Instructions:**
 - Prioritize using research context when available
@@ -2065,13 +2100,16 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
 
     // Stream the response back to client
     const encoder = new TextEncoder();
-    // Track thinking mode state and accumulate ALL content until we can parse sections
-    let isInThinkingMode = false;
-    let fullContentAccumulator = ''; // Accumulate ALL tokens to properly detect sections
-    let lastStreamedIndex = 0; // Track what we've already streamed
     
     const stream = new ReadableStream({
       async start(controller) {
+        // FIXED: Move accumulators INSIDE stream scope to reset per-message
+        // Track thinking mode state and accumulate ALL content until we can parse sections
+        let isInThinkingMode = false;
+        let fullContentAccumulator = ''; // Accumulate ALL tokens to properly detect sections
+        let lastStreamedIndex = 0; // Track what we've already streamed
+        
+        console.log('🔄 Stream started: Accumulator reset for new message');
         const rb = response.body;
         if (!rb) {
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
@@ -2122,43 +2160,20 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                 // Stream content tokens
                 if (content) {
                   // PHASE 4: Parse synthetic CoT for non-reasoning models
-                  // CRITICAL FIX: Wait for BOTH markers before streaming thinking
+                  // FIXED: Stream thinking IMMEDIATELY as it arrives, don't wait for ANSWER marker
                   if (needsSyntheticCoT && !hasNativeCoT) {
-                    // Accumulate ALL tokens
+                    // Accumulate ALL tokens for section detection
                     fullContentAccumulator += content;
                     
-                    // Try to parse BOTH sections from accumulated content
-                    const thinkingMatch = fullContentAccumulator.match(/\*\*THINKING:\*\*\s*([\s\S]*?)(?=\*\*ANSWER:\*\*)/);
-                    const answerMatch = fullContentAccumulator.match(/\*\*ANSWER:\*\*\s*([\s\S]*)/);
+                    // Detect markers in accumulated content
+                    const hasThinkingMarker = fullContentAccumulator.includes('**THINKING:**');
+                    const hasAnswerMarker = fullContentAccumulator.includes('**ANSWER:**');
                     
-                    // CRITICAL: Only stream thinking when BOTH markers are found (thinking is complete)
-                    if (thinkingMatch && answerMatch && !isInThinkingMode) {
-                      isInThinkingMode = true;
-                      const thinkingContent = thinkingMatch[1].trim();
-                      console.log('🧠 CoT: Found COMPLETE thinking section, streaming at once. Length:', thinkingContent.length);
-                      
-                      // Stream COMPLETE thinking content as ONE event
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: thinkingContent })}\n\n`)
-                      );
-                      
-                      // Now stream the initial answer content we have so far
-                      const answerStartIndex = fullContentAccumulator.indexOf('**ANSWER:**') + '**ANSWER:**'.length;
-                      const initialAnswerContent = fullContentAccumulator.substring(answerStartIndex).trim();
-                      
-                      if (initialAnswerContent) {
-                        console.log('🧠 CoT: Switching to ANSWER mode, streaming initial content. Length:', initialAnswerContent.length);
-                        controller.enqueue(
-                          encoder.encode(`data: ${JSON.stringify({ type: 'content', content: initialAnswerContent })}\n\n`)
-                        );
-                      }
-                      
-                      lastStreamedIndex = fullContentAccumulator.length;
-                    } else if (isInThinkingMode && answerMatch) {
-                      // Continue streaming NEW answer tokens incrementally
-                      const answerStartIndex = fullContentAccumulator.indexOf('**ANSWER:**') + '**ANSWER:**'.length;
+                    // STATE 1: Before any markers - stream raw content as fallback
+                    if (!hasThinkingMarker && fullContentAccumulator.length > 100) {
+                      console.log('⚠️ CoT: No THINKING marker after 100 chars, streaming raw content');
+                      // No CoT format detected, stream everything as regular content
                       const newContent = fullContentAccumulator.substring(lastStreamedIndex);
-                      
                       if (newContent) {
                         controller.enqueue(
                           encoder.encode(`data: ${JSON.stringify({ type: 'content', content: newContent })}\n\n`)
@@ -2166,7 +2181,72 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                         lastStreamedIndex = fullContentAccumulator.length;
                       }
                     }
-                    // If markers not detected yet, keep accumulating (hold all tokens)
+                    // STATE 2: THINKING marker found, but no ANSWER yet - stream thinking incrementally
+                    else if (hasThinkingMarker && !hasAnswerMarker && !isInThinkingMode) {
+                      // FIXED: Track what we've streamed for thinking section specifically
+                      const thinkingStartIndex = fullContentAccumulator.indexOf('**THINKING:**') + '**THINKING:**'.length;
+                      
+                      // Only stream NEW content since last time (relative to thinking start)
+                      const alreadyStreamedThinking = Math.max(0, lastStreamedIndex - thinkingStartIndex);
+                      const currentThinkingEnd = fullContentAccumulator.length;
+                      const newThinkingContent = fullContentAccumulator.substring(
+                        thinkingStartIndex + alreadyStreamedThinking,
+                        currentThinkingEnd
+                      ); // DON'T trim - preserves spaces between words
+                      
+                      if (newThinkingContent.length > 0) {
+                        console.log(`🧠 CoT: Streaming NEW thinking (${newThinkingContent.length} chars, total: ${currentThinkingEnd - thinkingStartIndex})`);
+                        controller.enqueue(
+                          encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: newThinkingContent })}\n\n`)
+                        );
+                        lastStreamedIndex = currentThinkingEnd;
+                      }
+                    }
+                    // STATE 3: ANSWER marker found - switch to answer mode
+                    else if (hasAnswerMarker) {
+                      if (!isInThinkingMode) {
+                        // First time seeing ANSWER marker - send any remaining thinking, then switch
+                        isInThinkingMode = true;
+                        
+                        const thinkingMatch = fullContentAccumulator.match(/\*\*THINKING:\*\*\s*([\s\S]*?)(?=\*\*ANSWER:\*\*)/);
+                        if (thinkingMatch) {
+                          const remainingThinking = thinkingMatch[1].trim();
+                          const alreadyStreamed = lastStreamedIndex - (fullContentAccumulator.indexOf('**THINKING:**') + '**THINKING:**'.length);
+                          const newThinking = remainingThinking.substring(Math.max(0, alreadyStreamed));
+                          
+                          if (newThinking) {
+                            console.log(`🧠 CoT: Streaming final thinking before switch (${newThinking.length} chars)`);
+                            controller.enqueue(
+                              encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: newThinking })}\n\n`)
+                            );
+                          }
+                        }
+                        
+                        console.log('🧠 CoT: Switching to ANSWER mode');
+                      }
+                      
+                      // FIXED: Stream answer content incrementally with correct offset
+                      const answerStartIndex = fullContentAccumulator.indexOf('**ANSWER:**') + '**ANSWER:**'.length;
+                      
+                      // Only stream NEW content since last time (relative to answer start)
+                      const alreadyStreamedAnswer = Math.max(0, lastStreamedIndex - answerStartIndex);
+                      const currentAnswerEnd = fullContentAccumulator.length;
+                      const newAnswerContent = fullContentAccumulator.substring(
+                        answerStartIndex + alreadyStreamedAnswer,
+                        currentAnswerEnd
+                      ); // DON'T trim - preserves spaces between words
+                      
+                      if (newAnswerContent.length > 0) {
+                        controller.enqueue(
+                          encoder.encode(`data: ${JSON.stringify({ type: 'content', content: newAnswerContent })}\n\n`)
+                        );
+                        lastStreamedIndex = currentAnswerEnd;
+                      }
+                    }
+                    // STATE 4: Still waiting for markers, keep accumulating
+                    else {
+                      // Just accumulate, don't stream yet (waiting for THINKING marker)
+                    }
                   } else {
                     // Standard content streaming (CoT disabled or native reasoning model)
                     controller.enqueue(
@@ -2219,4 +2299,5 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
     );
   }
 }
+
 
