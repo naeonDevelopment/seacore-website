@@ -555,8 +555,14 @@ This is **specialized maritime search** – not general web search. Get precise,
                 } else                 if (parsed.type === 'content') {
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
-                    answerReadyToShow = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
+                    
+                    // CRITICAL FIX: Delay showing answer to let sources display first
+                    // Give 1000ms for sources to render in the research panel before answer appears
+                    setTimeout(() => {
+                      answerReadyToShow = true;
+                    }, 1000);
+                    
                     // Keep transient analysis visible longer (3 seconds instead of 1.2)
                     if (activeResearchIdRef.current) {
                       setTimeout(() => {
@@ -749,7 +755,6 @@ This is **specialized maritime search** – not general web search. Get precise,
         // Mark active research session as complete
         if (activeResearchIdRef.current) {
           const completedResearchId = activeResearchIdRef.current;
-          const completedIdx = streamingIndexRef.current;
           
           setResearchSessions((prev) => {
             const updated = new Map(prev);
@@ -762,24 +767,9 @@ This is **specialized maritime search** – not general web search. Get precise,
             return updated;
           });
           
-          // IMPROVED: Auto-collapse only if sources loaded OR 10s elapsed
-          if (completedIdx !== null) {
-            // Wait longer to ensure sources are visible
-            setTimeout(() => {
-              setResearchSessions((prev) => {
-                const session = prev.get(completedResearchId);
-                // Only collapse if we have sources OR it's been long enough
-                if (session && (session.verifiedSources.length > 0 || !session.isActive)) {
-                  setExpandedSources((prev) => {
-                    const ns = new Set(prev);
-                    ns.delete(completedIdx);
-                    return ns;
-                  });
-                }
-                return prev;
-              });
-            }, 10000); // Increased to 10 seconds for better UX
-          }
+          // REMOVED AUTO-COLLAPSE: Keep research panel expanded so users can review sources
+          // Users can manually collapse the panel if they want using the chevron button
+          // This ensures sources are always visible after research completes
           
           // DON'T reset activeResearchIdRef yet - keep for potential follow-ups
           // It will be reset on next sendMessage
