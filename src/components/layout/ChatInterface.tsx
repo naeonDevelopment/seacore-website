@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -74,6 +74,15 @@ This is **specialized maritime search** – not general web search. Get precise,
   const latestMessagesRef = useRef<Message[]>(messages);
   useEffect(() => {
     latestMessagesRef.current = messages;
+  }, [messages]);
+
+  // Track the index of the last user message so we can attach the live
+  // Research steps panel directly under it during browsing.
+  const lastUserIndex = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.role === 'user') return i;
+    }
+    return -1;
   }, [messages]);
 
   const setMessages = (newMessages: Message[] | ((prev: Message[]) => Message[])) => {
@@ -728,8 +737,8 @@ This is **specialized maritime search** – not general web search. Get precise,
               {/* Hide animated thinking bubble; we use only the Research steps panel */}
               {false && useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking}
               
-              {/* Research timeline (structured events), only when browsing */}
-              {useBrowsing && researchEvents.length > 0 && message.role === 'assistant' && index === messages.length - 1 && (
+              {/* Research timeline (structured events) - anchored under the last user message */}
+              {useBrowsing && researchEvents.length > 0 && message.role === 'user' && index === lastUserIndex && (
                 <div className="mb-2 flex justify-end">
                   <button
                     className="text-xs font-semibold text-maritime-700 dark:text-maritime-300 hover:underline"
