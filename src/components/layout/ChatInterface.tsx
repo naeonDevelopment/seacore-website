@@ -471,18 +471,18 @@ I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's sy
         maxHeight: `${viewportHeight}px`
       } : undefined}
     >
-      {/* Header - Full Width Background */}
+      {/* Header - Full Width Background - Match website header h-16 */}
       {showHeader && (
-        <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full flex-shrink-0">
-          <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 flex items-center justify-between">
+        <div className="relative bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 w-full flex-shrink-0 h-16">
+          <div className="max-w-[1400px] mx-auto px-3 md:px-6 lg:px-8 h-full flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center">
                 <svg 
                   viewBox="170 450 690 130"
                   xmlns="http://www.w3.org/2000/svg"
                   preserveAspectRatio="xMinYMid meet"
-                  className="h-4 md:h-5 lg:h-6 w-auto"
-                  style={{ minWidth: '70px' }}
+                  className="h-5 md:h-6 lg:h-7 w-auto"
+                  style={{ minWidth: '80px' }}
                 >
                   <defs>
                     <linearGradient id="logo-white-1" x1="222.64" y1="574.43" x2="297.1" y2="481.15" gradientUnits="userSpaceOnUse">
