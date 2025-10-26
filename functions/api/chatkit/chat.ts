@@ -1822,21 +1822,25 @@ Understanding: [ONE clear sentence stating what the user is asking]
 Analysis: [ONE sentence identifying what information you need to find]
 Source Review: [ONE sentence about which sources contain the relevant data]
 Cross-Reference: [ONE sentence comparing information across sources]
-Synthesis: [ONE sentence about how you'll combine findings]
-Conclusion: [ONE sentence summarizing your approach]
+Synthesis: [ONE sentence about how you'll combine findings into comprehensive answer]
+Conclusion: [ONE sentence confirming you'll provide detailed, well-structured response]
 
 **ANSWER:**
-[Your complete technical response with:
-- Professional markdown formatting (## headings, bullet points)
-- Multi-source citations [1][2][3] after EVERY fact
-- Properly formatted **Sources:** section using markdown links]
+[Your complete, comprehensive technical response with:
+- **Professional markdown formatting**: Use ## headings, ### subheadings, bullet points
+- **Multi-source citations**: [1][2][3] after EVERY fact (minimum 5-8 different sources)
+- **Detailed content**: 200-400 words for company/product queries with ALL available information
+- **Clear structure**: Overview → Capabilities → Projects → Technical Excellence → Industry Standing
+- **Properly formatted Sources section**: Use markdown links [Title](url) for ALL cited sources]
 
 **CRITICAL FORMAT RULES:**
-1. Start EVERY response with **THINKING:** section
+1. Start EVERY response with **THINKING:** section (this will be shown progressively to user)
 2. Each thinking step is ONE complete sentence on its own line
-3. Follow with **ANSWER:** section
-4. In Sources section, use markdown links: [Title](url)
-5. This format is REQUIRED, not optional\n\n`;
+3. Follow with **ANSWER:** section (this is the main answer user sees)
+4. Answer must be detailed, well-structured, and comprehensive - NOT brief
+5. Use markdown: ## Main Headings, ### Subheadings, **bold**, bullet points
+6. In Sources section, use markdown links: [1] Title - [Link](url)
+7. This format is REQUIRED, not optional\n\n`;
     }
     
     // Build request body with model-specific parameters
@@ -1866,10 +1870,23 @@ Web research has been performed and results are provided below. You MUST follow 
 - **CITING ONLY 1-2 SOURCES = FAILED RESPONSE**
 - **Using less than 5 sources when 15+ provided = FAILED RESPONSE**
 
-**RULE #2: NO GENERIC ANSWERS ALLOWED**
+**RULE #2: COMPREHENSIVE, DETAILED, WELL-STRUCTURED ANSWERS REQUIRED** 📋
 - ❌ NEVER use phrases like: "Typically equipped with...", "Usually features...", "Approximately...", "Generally includes..."
 - ❌ NEVER provide generic equipment descriptions without specific model numbers/manufacturers from sources
+- ❌ NEVER give brief, single-paragraph answers - expand with ALL available details
 - ✅ ONLY provide SPECIFIC information directly from the search results with citations
+- ✅ Use clear markdown formatting:
+  * **## Main Headings** for major sections (e.g., "## Company Overview", "## Key Capabilities")
+  * **### Subheadings** for subsections (e.g., "### Specialized Products", "### Notable Projects")
+  * **Bullet points** for lists of features, capabilities, or specifications
+  * **Bold text** for emphasis on company names, model numbers, key facts
+- ✅ Structure your answer like a professional maritime industry report:
+  1. **Introduction/Overview**: Company name, location, primary focus [1][2]
+  2. **Core Capabilities**: What they specialize in (submarines, vessels, etc.) [3][4]
+  3. **Notable Projects/Achievements**: Specific ships, contracts, innovations [5][6]
+  4. **Technical Excellence**: Technology, quality standards, certifications [7]
+  5. **Industry Standing**: Market position, reputation, awards [8]
+- ✅ Provide comprehensive detail - aim for 200-400 words for company/product queries
 - ✅ If search results lack specific details, explicitly state: "The search results don't contain specific technical details about [entity]. Based on the available information: [cite what you found]"
 
 **RULE #2.5: MAXIMIZE SOURCE UTILIZATION**
@@ -2104,19 +2121,31 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                   // PHASE 4: Parse synthetic CoT for non-reasoning models
                   // Improved stateful parsing for THINKING/ANSWER sections
                   if (needsSyntheticCoT && !hasNativeCoT) {
-                    // Check for section markers
-                    if (content.includes('**THINKING:**')) {
+                    // Check for section markers (with or without bold formatting)
+                    const hasThinkingMarker = content.includes('**THINKING:**') || content.includes('THINKING:');
+                    const hasAnswerMarker = content.includes('**ANSWER:**') || content.includes('ANSWER:');
+                    
+                    if (hasThinkingMarker) {
                       isInThinkingMode = true;
                       console.log('🧠 CoT: Detected THINKING section marker');
-                      // Send as thinking
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: content.replace('**THINKING:**', '').trim() })}\n\n`)
-                      );
-                    } else if (content.includes('**ANSWER:**')) {
+                      // Remove marker and send as thinking
+                      const thinkingContent = content
+                        .replace('**THINKING:**', '')
+                        .replace('THINKING:', '')
+                        .trim();
+                      if (thinkingContent) {
+                        controller.enqueue(
+                          encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: thinkingContent })}\n\n`)
+                        );
+                      }
+                    } else if (hasAnswerMarker) {
                       isInThinkingMode = false;
-                      console.log('🧠 CoT: Detected ANSWER section marker');
+                      console.log('🧠 CoT: Detected ANSWER section marker - switching to content');
                       // Skip the ANSWER marker itself, start streaming content
-                      const answerContent = content.replace('**ANSWER:**', '').trim();
+                      const answerContent = content
+                        .replace('**ANSWER:**', '')
+                        .replace('ANSWER:', '')
+                        .trim();
                       if (answerContent) {
                         controller.enqueue(
                           encoder.encode(`data: ${JSON.stringify({ type: 'content', content: answerContent })}\n\n`)
