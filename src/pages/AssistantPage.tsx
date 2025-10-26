@@ -320,7 +320,7 @@ const AssistantPage: React.FC = () => {
         {/* Chat Interface Container with Max Width */}
         <div className={cn(
           "transition-all duration-300",
-          isMobile ? "pt-14" : ""
+          isMobile ? "pt-16" : ""
         )}>
           <ChatInterface 
             isFullscreen={true}
