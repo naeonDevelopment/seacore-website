@@ -21,32 +21,26 @@ const INITIAL_MESSAGE: Message = {
   role: 'assistant',
   content: `# Welcome to Fleetcore's Intelligence Hub
 
-I'm your **AI Maritime Maintenance Expert**, designed to provide comprehensive support for all your maritime operations needs.
+I'm your **AI Maritime Maintenance Expert** – here to help with fleetcore's system, maritime regulations, and maintenance management.
 
-## How I Can Help You:
+## 💡 What I Can Help With:
 
-### 💡 Fleetcore System Expertise
-- Navigate platform features and capabilities
-- Understand system workflows and integrations
-- Get technical guidance and best practices
+**Fleetcore System** • Platform features, workflows, integrations, and best practices
 
-### 📚 Maritime Knowledge Base
-- SOLAS regulations and compliance requirements
-- International maritime standards (ISM, MLC, MARPOL)
-- Maintenance management procedures
-- Safety protocols and certifications
+**Maritime Regulations** • SOLAS, MARPOL, ISM Code, MLC, and compliance requirements
 
-### 🌐 Online Research Mode
-Enable **Online Research** below to access real-time information from maritime industry sources, regulatory updates, and technical documentation.
+**Maintenance Operations** • Procedures, safety protocols, equipment management, and certifications
 
 ---
 
-**What would you like to explore today?**`,
+💬 **Tip:** Enable **Online Research** below to access real-time industry data, technical specs, and regulatory updates.
+
+**What would you like to know?**`,
   timestamp: new Date(),
 };
 
 const STORAGE_KEY = 'fleetcore_chat_sessions';
-const CACHE_VERSION = '2.0'; // Bumped to clear old sessions with old welcome message
+const CACHE_VERSION = '2.1'; // Bumped to clear old sessions with compact welcome message
 const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // Load sessions from cache
