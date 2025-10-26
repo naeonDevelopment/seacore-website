@@ -462,8 +462,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   viewBox="170 450 690 130"
                   xmlns="http://www.w3.org/2000/svg"
                   preserveAspectRatio="xMinYMid meet"
-                  className="h-10 sm:h-12 w-auto"
-                  style={{ minWidth: '140px' }}
+                  className="h-6 sm:h-7 w-auto"
+                  style={{ minWidth: '100px' }}
                 >
                   <defs>
                     <linearGradient id="logo-white-1" x1="222.64" y1="574.43" x2="297.1" y2="481.15" gradientUnits="userSpaceOnUse">
@@ -496,21 +496,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </g>
                 </svg>
               </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white enterprise-heading">AI Assistant</h2>
-                <p className="text-xs sm:text-sm text-white/95 font-semibold hidden sm:block">Maritime Maintenance Expert • {modelName} Powered</p>
-                <p className="text-xs text-white/95 font-semibold sm:hidden">Maritime Expert</p>
-              </div>
             </div>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group flex-shrink-0"
-                aria-label="Close chat"
-              >
-                <X className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
-              </button>
-            )}
+            <div className="flex-1 flex items-center justify-center">
+              <h1 className="text-lg sm:text-xl font-bold text-white enterprise-heading">Maritime Maintenance Expert</h1>
+            </div>
+            <div className="w-[140px] sm:w-[180px] flex items-center justify-end">
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group flex-shrink-0"
+                  aria-label="Close chat"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
         </div>

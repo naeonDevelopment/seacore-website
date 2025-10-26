@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowLeft } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { ChatInterface } from '@/components/layout/ChatInterface';
 import { SessionSidebar } from '@/components/layout/SessionSidebar';
 import { useSessions } from '@/hooks/useSessions';
@@ -280,7 +280,7 @@ const AssistantPage: React.FC = () => {
                 <img
                   src="/Light.svg"
                   alt="fleetcore"
-                  className="h-6 w-auto"
+                  className="h-8 w-auto"
                   loading="lazy"
                 />
               </div>
@@ -288,9 +288,11 @@ const AssistantPage: React.FC = () => {
               <button
                 onClick={handleClose}
                 className="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
-                aria-label="Go back"
+                aria-label="Go to home"
               >
-                <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
               </button>
             </div>
           </div>
@@ -299,7 +301,7 @@ const AssistantPage: React.FC = () => {
         {/* Chat Interface Container with Max Width */}
         <div className={cn(
           "transition-all duration-300",
-          isMobile ? "pt-14" : "lg:ml-80"
+          isMobile ? "pt-14" : "lg:ml-[22rem]"
         )}>
           <div className="mx-auto" style={{ maxWidth: '1400px' }}>
             <ChatInterface 
