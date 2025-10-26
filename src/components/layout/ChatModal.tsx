@@ -592,7 +592,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
               </div>
               
               <div className="relative z-10 space-y-4 sm:space-y-6">
-                {messages.map((message, index) => (
+                {messages.map((message, index) => {
+                  // Don't render empty assistant messages (no thinking content and no answer content yet)
+                  if (message.role === 'assistant' && !message.content && !message.thinkingContent) {
+                    return null;
+                  }
+                  
+                  return (
                   <div key={index}>
                     {/* Message Bubble */}
                     <motion.div
@@ -623,7 +629,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                             : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto'
                         )}
                       >
-                        {/* Thinking Display - INSIDE message bubble, shows sequential thoughts */}
+                        {/* Thinking Display - INSIDE message bubble, shows sequential thoughts ONLY */}
                         {message.role === 'assistant' && message.isThinking && message.thinkingContent && (
                           <div className="mb-3 pb-3 border-b border-slate-200 dark:border-slate-700">
                             <AnimatePresence mode="wait">
@@ -647,42 +653,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                                     </motion.div>
                                   );
                                 }
-                                // Fallback: show generic thinking indicator if no steps parsed yet
-                                return (
-                                  <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse" />
-                                    <p className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">
-                                      Thinking<motion.span
-                                        animate={{ opacity: [0.3, 1, 0.3] }}
-                                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                                      >...</motion.span>
-                                    </p>
-                                  </motion.div>
-                                );
+                                return null; // Don't show anything if no steps yet
                               })()}
                             </AnimatePresence>
                           </div>
-                        )}
-                        
-                        {/* Initial thinking animation - shows before ANY thinking content */}
-                        {message.role === 'assistant' && message.isThinking && !message.content && !message.thinkingContent && (
-                          <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex items-center gap-2"
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse" />
-                            <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                              Thinking<motion.span
-                                animate={{ opacity: [0, 1, 0] }}
-                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                              >...</motion.span>
-                            </span>
-                          </motion.div>
                         )}
                       
                       {/* Message content */}
@@ -824,7 +798,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                       )}
                     </motion.div>
                   </div>
-                ))}
+                  );
+                })}
                 
                 {isLoading && (
                   <motion.div
