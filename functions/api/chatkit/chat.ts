@@ -1088,6 +1088,15 @@ You are operating in EXPERT MODE. This means:
         
         // Early query type detection for iterative research decision
         const isComparisonQuery = /\b(largest|biggest|smallest|best|worst|most|least|highest|lowest)\b/i.test(currentQuery);
+        const isVesselSizeQuery = /\b(largest|biggest|biggest|giant|huge)\b.*\b(ship|vessel|boat|ferry|tanker|carrier|cruiser)\b/i.test(currentQuery);
+        
+        // VESSEL SPECIFICATION QUERY ENHANCEMENT
+        // For queries about vessel sizes/rankings, add technical specification terms
+        if (isVesselSizeQuery || /\b(biggest|largest)\s+\d+.*\b(ship|vessel)\b/i.test(currentQuery)) {
+          // Add specification keywords to get technical data pages
+          enhancedQuery = `${currentQuery} specifications tonnage length beam draft capacity`;
+          console.log(`📐 Enhanced vessel query with specifications: "${enhancedQuery}"`);
+        }
         
         // PATTERN 1: Vessel identification (IMO numbers, call signs, vessel names)
         const vesselPatterns = [
@@ -1706,9 +1715,11 @@ You are operating in EXPERT MODE. This means:
             const sourceLink = `[${r.url}](${r.url})`;
             const contentToUse = r.raw_content || r.content || r.snippet || '';
             
-            // For raw_content, take first 2000 chars to avoid overwhelming the AI
-            const truncatedContent = contentToUse.length > 2000 
-              ? contentToUse.substring(0, 2000) + '...[content truncated]'
+            // ENHANCED: For vessel specification queries, allow more content (3000 chars)
+            // Technical specs are often further down the page
+            const maxContentLength = isVesselSizeQuery ? 3000 : 2000;
+            const truncatedContent = contentToUse.length > maxContentLength 
+              ? contentToUse.substring(0, maxContentLength) + '...[content truncated]'
               : contentToUse;
             
             return `${citation} **${r.title}**\n${truncatedContent}\n📎 Source: ${sourceLink}`;
@@ -2135,6 +2146,21 @@ Web research has been performed and results are provided below. You MUST follow 
   4. **Technical Excellence**: Technology, quality standards, certifications [7]
   5. **Industry Standing**: Market position, reputation, awards [8]
 - ✅ Provide comprehensive detail - aim for 200-400 words for company/product queries
+
+**SPECIAL RULE FOR VESSEL QUERIES:**
+When answering about ships/vessels, you MUST extract and include:
+- **Exact Vessel Name** (e.g., "Stena Britannica", "M/V Ever Given")
+- **Type** (Container Ship, Tanker, Ferry, Cruise Ship, etc.)
+- **Tonnage** (Gross Tonnage - GT, Deadweight - DWT)
+- **Length Overall (LOA)** in meters
+- **Beam (Width)** in meters  
+- **Draft** in meters
+- **Built** (Year and shipyard if available)
+- **Owner/Operator** company name
+- **Flag** state
+Search through ALL sources thoroughly - technical specs may be in different sources (one has GT, another has LOA, etc.)
+If specific technical data is missing, state: "Technical specifications were not found in the available sources [1][2][3]."
+
 - ✅ If search results lack specific details, explicitly state: "The search results don't contain specific technical details about [entity]. Based on the available information: [cite what you found]"
 
 **RULE #2.5: MAXIMIZE SOURCE UTILIZATION**

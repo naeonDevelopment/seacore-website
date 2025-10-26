@@ -667,20 +667,28 @@ This is **specialized maritime search** – not general web search. Get precise,
                         const pendingSession = updated.get(pendingId);
                         
                         if (pendingSession) {
-                          // Transfer pending session to assistant message ID
-                          updated.delete(pendingId);
-                          updated.set(assistantMessageId, {
+                          // CRITICAL FIX: Create new session with same reference to events array
+                          // This way both IDs point to the SAME events array during transition
+                          const newSession = {
                             ...pendingSession,
                             messageId: assistantMessageId,
-                          });
-                          console.log('✅ Research session transferred, events:', pendingSession.events.length);
+                          };
+                          
+                          // Keep BOTH sessions during streaming so sources can update either one
+                          updated.set(assistantMessageId, newSession);
+                          // DON'T delete pending session yet - sources might still arrive
+                          
+                          console.log('✅ Research session linked, events:', pendingSession.events.length);
+                        } else {
+                          console.warn('⚠️ No pending session found:', pendingId);
                         }
                         
                         return updated;
                       });
                       
-                      // Update active ref to new ID
-                      activeResearchIdRef.current = assistantMessageId;
+                      // CRITICAL: Keep activeResearchIdRef as pending ID during streaming
+                      // It will be updated to assistant ID on finalize
+                      // This ensures all incoming sources go to the right session
                       
                       // Auto-expand this research panel
                       setExpandedSources((prev) => {
@@ -790,17 +798,46 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         // Mark active research session as complete
         if (activeResearchIdRef.current) {
-          const completedResearchId = activeResearchIdRef.current;
+          const pendingResearchId = activeResearchIdRef.current;
           const completedIdx: number | null = streamingIndexRef.current;
+          
+          // Get the assistant message ID for final session
+          const assistantMessageId = completedIdx !== null && messages[completedIdx] 
+            ? messages[completedIdx].timestamp?.getTime?.()?.toString()
+            : null;
           
           setResearchSessions((prev) => {
             const updated = new Map(prev);
-            const session = updated.get(completedResearchId);
-            if (session) {
-              session.isActive = false;
-              updated.set(completedResearchId, session);
-              console.log('✅ Research complete:', completedResearchId, 'Sources:', session.verifiedSources.length);
+            
+            // CRITICAL FIX: Finalize session under BOTH IDs (pending and assistant)
+            // Sources were received under pending ID during streaming
+            const pendingSession = updated.get(pendingResearchId);
+            
+            if (pendingSession && assistantMessageId) {
+              // Mark session as complete
+              pendingSession.isActive = false;
+              
+              // Ensure assistant message ID has the complete session
+              updated.set(assistantMessageId, {
+                ...pendingSession,
+                messageId: assistantMessageId,
+              });
+              
+              // Clean up pending session if it's different from assistant ID
+              if (pendingResearchId !== assistantMessageId) {
+                updated.delete(pendingResearchId);
+              }
+              
+              console.log('✅ Research complete:', assistantMessageId, 'Sources:', pendingSession.verifiedSources.length);
+            } else if (pendingSession) {
+              // Fallback: just mark pending as complete
+              pendingSession.isActive = false;
+              updated.set(pendingResearchId, pendingSession);
+              console.log('✅ Research complete (pending):', pendingResearchId, 'Sources:', pendingSession.verifiedSources.length);
+            } else {
+              console.warn('⚠️ No session found to finalize:', pendingResearchId);
             }
+            
             return updated;
           });
           
