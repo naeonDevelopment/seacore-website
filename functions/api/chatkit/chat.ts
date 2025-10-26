@@ -1810,7 +1810,7 @@ export async function onRequestPost(context) {
     }
     
     // PHASE 4: Add Chain-of-Thought prompting for non-reasoning models
-    // UPDATED: MANDATORY CoT with strict format enforcement
+    // UPDATED: Enhanced CoT with research-focused reasoning
     let cotSystemPrompt = '';
     if (needsSyntheticCoT) {
       cotSystemPrompt = `\n\n🧠 **MANDATORY: CHAIN-OF-THOUGHT REASONING** 🧠
@@ -1818,29 +1818,30 @@ export async function onRequestPost(context) {
 YOU MUST structure your response in TWO sections:
 
 **THINKING:**
-Understanding: [ONE clear sentence stating what the user is asking]
-Analysis: [ONE sentence identifying what information you need to find]
-Source Review: [ONE sentence about which sources contain the relevant data]
-Cross-Reference: [ONE sentence comparing information across sources]
-Synthesis: [ONE sentence about how you'll combine findings into comprehensive answer]
-Conclusion: [ONE sentence confirming you'll provide detailed, well-structured response]
+Understanding: [State what the user is asking for - be specific about entities, requirements, or information needed]
+Analysis: [Identify which sources or knowledge domains contain relevant information - prioritize authoritative sources]
+Source Review: [Explain how you'll evaluate and prioritize the sources - consider authority, recency, specificity]
+Cross-Reference: [Describe how you'll verify consistency across multiple sources and identify any conflicts]
+Synthesis: [Outline how you'll combine findings into a comprehensive, well-structured response]
+Conclusion: [Confirm your approach to deliver a detailed, properly cited answer]
 
 **ANSWER:**
 [Your complete, comprehensive technical response with:
 - **Professional markdown formatting**: Use ## headings, ### subheadings, bullet points
-- **Multi-source citations**: [1][2][3] after EVERY fact (minimum 5-8 different sources)
+- **Multi-source citations**: [1][2][3] after EVERY fact (minimum 5-8 different sources in research mode)
 - **Detailed content**: 200-400 words for company/product queries with ALL available information
 - **Clear structure**: Overview → Capabilities → Projects → Technical Excellence → Industry Standing
 - **Properly formatted Sources section**: Use markdown links [Title](url) for ALL cited sources]
 
 **CRITICAL FORMAT RULES:**
-1. Start EVERY response with **THINKING:** section (this will be shown progressively to user)
-2. Each thinking step is ONE complete sentence on its own line
-3. Follow with **ANSWER:** section (this is the main answer user sees)
-4. Answer must be detailed, well-structured, and comprehensive - NOT brief
-5. Use markdown: ## Main Headings, ### Subheadings, **bold**, bullet points
-6. In Sources section, use markdown links: [1] Title - [Link](url)
-7. This format is REQUIRED, not optional\n\n`;
+1. Start EVERY response with **THINKING:** section (shown progressively to user as separate indicator)
+2. Each thinking step is ONE complete, meaningful sentence on its own line (no generic statements)
+3. Thinking should explain your ACTUAL reasoning process - what you're looking for and why
+4. Follow with **ANSWER:** section (the main answer user sees in message bubble)
+5. Answer must be detailed, well-structured, and comprehensive - NOT brief
+6. Use markdown: ## Main Headings, ### Subheadings, **bold**, bullet points
+7. In Sources section, use markdown links: [1] Title - [Link](url)
+8. This format is REQUIRED, not optional\n\n`;
     }
     
     // Build request body with model-specific parameters

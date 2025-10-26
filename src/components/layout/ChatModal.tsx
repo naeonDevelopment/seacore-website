@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Brain, Globe, RotateCcw } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -76,26 +76,30 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     setCurrentThinkingStep(0);
   };
 
-  // Extract individual thinking steps from accumulated thinking content
+  // Extract clean thinking steps WITHOUT labels (Understanding:, Analysis:, etc.)
   const extractThinkingSteps = (thinking: string): string[] => {
     if (!thinking) return [];
     
     // Split by newlines and filter empty lines
     const lines = thinking.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
-    // Extract steps that start with keywords like "Understanding:", "Analysis:", etc.
+    // Extract clean thoughts by removing labels
     const steps: string[] = [];
     for (const line of lines) {
-      // Check if line starts with a step marker (word followed by colon)
-      if (/^[A-Z][a-z]+:/.test(line)) {
-        steps.push(line);
-      } else if (line.length > 10) {
-        // Include substantial non-marker lines as steps
+      // Check if line starts with a label (word followed by colon)
+      if (/^[A-Z][a-z]+:\s*/.test(line)) {
+        // Remove the label and keep only the thought content
+        const cleanThought = line.replace(/^[A-Z][a-z]+:\s*/, '').trim();
+        if (cleanThought.length > 10) {
+          steps.push(cleanThought);
+        }
+      } else if (line.length > 10 && !line.includes('**THINKING:**') && !line.includes('**ANSWER:**')) {
+        // Include substantial lines that aren't section markers
         steps.push(line);
       }
     }
     
-    return steps.length > 0 ? steps : [thinking]; // Fallback to full content
+    return steps.length > 0 ? steps : [];
   };
 
   // Progressive thinking step cycling - like o1/Perplexity/Cursor
@@ -484,106 +488,107 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
               
               <div className="relative z-10 space-y-4 sm:space-y-6">
                 {messages.map((message, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                    className={cn(
-                      'flex gap-2 sm:gap-4',
-                      message.role === 'user' ? 'justify-end' : 'justify-start'
-                    )}
-                  >
-                    {message.role === 'assistant' && (
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
-                        <img
-                          src="/assets/avatar/Generated Image October 24, 2025 - 8_11PM.png"
-                          alt="AI"
-                          className="w-full h-full object-cover object-center transform scale-125"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
-                    
-                    <div
-                      className={cn(
-                        'max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
-                        message.role === 'user'
-                          ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
-                          : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto'
-                      )}
-                    >
-                      {/* Thinking animation - shows before content starts */}
-                      {message.role === 'assistant' && message.isThinking && !message.content && (
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="flex items-center gap-2"
-                        >
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                          >
-                            <Brain className="w-5 h-5 text-maritime-600 dark:text-maritime-400" />
-                          </motion.div>
-                          <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                            Thinking<motion.span
-                              animate={{ opacity: [0, 1, 0] }}
-                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                            >...</motion.span>
-                          </span>
-                        </motion.div>
-                      )}
-                      
-                      {/* Chain of Thought - Progressive display like o1/Perplexity/Cursor */}
-                      {message.role === 'assistant' && message.thinkingContent && (
-                        <div className="mb-3 p-3 rounded-lg bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-900/10 dark:to-blue-900/10 border border-purple-200/50 dark:border-purple-800/50">
-                          <div className="flex items-start gap-2">
+                  <div key={index}>
+                    {/* Separate Thinking Component - Appears ABOVE message */}
+                    {message.role === 'assistant' && message.thinkingContent && message.isStreaming && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className={cn(
+                          'flex gap-2 sm:gap-4 mb-2',
+                          'justify-start'
+                        )}
+                      >
+                        {/* Spacer to align with assistant avatar */}
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
+                        
+                        {/* Thinking Display - Minimalist Cursor/o1 Style */}
+                        <div className="max-w-[85%] sm:max-w-[80%] px-4 py-2 rounded-xl backdrop-blur-md bg-purple-50/60 dark:bg-purple-900/20 border border-purple-200/60 dark:border-purple-800/40">
+                          <div className="flex items-center gap-2">
                             <motion.div
-                              animate={{ rotate: message.isStreaming ? 360 : 0 }}
-                              transition={{ duration: 2, repeat: message.isStreaming ? Infinity : 0, ease: "linear" }}
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                             >
-                              <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                              <Brain className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                             </motion.div>
-                            <div className="flex-1 min-w-0">
+                            <AnimatePresence mode="wait">
                               {(() => {
                                 const steps = extractThinkingSteps(message.thinkingContent);
-                                
-                                // While streaming: show ONLY the current step (cycles automatically)
-                                if (message.isStreaming && steps.length > 0) {
+                                if (steps.length > 0) {
                                   const currentStep = steps[currentThinkingStep % steps.length];
                                   return (
-                                    <div className="space-y-1">
-                                      <motion.div
-                                        key={currentThinkingStep}
-                                        initial={{ opacity: 0, y: 5 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -5 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="text-xs text-purple-700 dark:text-purple-300 font-medium"
-                                      >
-                                        {currentStep}
-                                      </motion.div>
-                                      {steps.length > 1 && (
-                                        <div className="text-[10px] text-purple-500 dark:text-purple-400 opacity-60">
-                                          Step {(currentThinkingStep % steps.length) + 1} of {steps.length}
-                                        </div>
-                                      )}
-                                    </div>
+                                    <motion.div
+                                      key={currentThinkingStep}
+                                      initial={{ opacity: 0, x: 10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      exit={{ opacity: 0, x: -10 }}
+                                      transition={{ duration: 0.4, ease: "easeOut" }}
+                                      className="text-xs text-purple-700 dark:text-purple-300 font-medium leading-relaxed"
+                                    >
+                                      {currentStep}
+                                    </motion.div>
                                   );
                                 }
-                                
-                                // When complete: show summary
-                                return (
-                                  <div className="text-xs text-slate-600 dark:text-slate-400 italic">
-                                    Completed reasoning ({steps.length} {steps.length === 1 ? 'step' : 'steps'})
-                                  </div>
-                                );
+                                return null;
                               })()}
-                            </div>
+                            </AnimatePresence>
                           </div>
                         </div>
+                      </motion.div>
+                    )}
+                    
+                    {/* Message Bubble */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className={cn(
+                        'flex gap-2 sm:gap-4',
+                        message.role === 'user' ? 'justify-end' : 'justify-start'
                       )}
+                    >
+                      {message.role === 'assistant' && (
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
+                          <img
+                            src="/assets/avatar/Generated Image October 24, 2025 - 8_11PM.png"
+                            alt="AI"
+                            className="w-full h-full object-cover object-center transform scale-125"
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
+                      
+                      <div
+                        className={cn(
+                          'max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300',
+                          message.role === 'user'
+                            ? 'bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 text-white border border-blue-500/20'
+                            : 'backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto'
+                        )}
+                      >
+                        {/* Initial thinking animation - shows before ANY content */}
+                        {message.role === 'assistant' && message.isThinking && !message.content && !message.thinkingContent && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex items-center gap-2"
+                          >
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                            >
+                              <Brain className="w-5 h-5 text-maritime-600 dark:text-maritime-400" />
+                            </motion.div>
+                            <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                              Thinking<motion.span
+                                animate={{ opacity: [0, 1, 0] }}
+                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                              >...</motion.span>
+                            </span>
+                          </motion.div>
+                        )}
                       
                       {/* Message content - SEPARATE rendering for user vs assistant */}
                       {message.content && (
@@ -660,21 +665,22 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                             </div>
                           )}
                         </>
-                      )}
-                      <p className={cn(
-                        'text-xs mt-2 font-semibold',
-                        message.role === 'user' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
-                      )}>
-                        {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-
-                    {message.role === 'user' && (
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        )}
+                        <p className={cn(
+                          'text-xs mt-2 font-semibold',
+                          message.role === 'user' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
+                        )}>
+                          {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
-                    )}
-                  </motion.div>
+
+                      {message.role === 'user' && (
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-lg">
+                          <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        </div>
+                      )}
+                    </motion.div>
+                  </div>
                 ))}
                 
                 {isLoading && (
