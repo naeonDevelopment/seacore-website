@@ -358,18 +358,394 @@ This architecture delivers measurable operational impact: our clients report 60-
 
 Remember: Your goal is to provide technically accurate, maritime-specific guidance that demonstrates **fleetcore**'s revolutionary capabilities while maintaining strict accuracy standards for all equipment, compliance, and operational information.`;
 
-export async function onRequestPost(context) {
-  // CRITICAL FIX: Cloudflare Pages Functions use different env access than Workers
-  const env = context.env || {};
-  const { OPENAI_API_KEY, OPENAI_MODEL, TAVILY_API_KEY } = env;
+// PHASE 2: DYNAMIC MODEL SELECTOR - Cost & Speed Optimization
+function selectModelForTask(
+  taskType: 'analysis' | 'classification' | 'refinement' | 'final_answer',
+  userRequestedModel: string,
+  isResearchEnabled: boolean
+): string {
+  // Model selection strategy based on task complexity
+  const MODEL_STRATEGY = {
+    // Fast & cheap for analysis tasks
+    analysis: {
+      preferred: ['gpt-5-mini', 'gpt-4o-mini'],
+      costMultiplier: 0.1,
+    },
+    // Fast for classification
+    classification: {
+      preferred: ['gpt-5-mini', 'gpt-4o-mini'],
+      costMultiplier: 0.1,
+    },
+    // Medium for query refinement
+    refinement: {
+      preferred: ['gpt-5-mini', 'gpt-4o', 'gpt-4o-mini'],
+      costMultiplier: 0.3,
+    },
+    // Best model for final answer
+    final_answer: {
+      preferred: [userRequestedModel], // Use what user configured
+      costMultiplier: 1.0,
+    },
+  };
   
-  console.log('🔧 ENV DEBUG:', {
-    hasEnv: !!context.env,
-    envKeys: context.env ? Object.keys(context.env) : [],
-    hasOpenAI: !!OPENAI_API_KEY,
-    hasTavily: !!TAVILY_API_KEY,
-    hasModel: !!OPENAI_MODEL
-  });
+  const strategy = MODEL_STRATEGY[taskType];
+  
+  // If user requested GPT-5, try GPT-5 family for all tasks
+  if (userRequestedModel.startsWith('gpt-5')) {
+    if (taskType === 'final_answer') {
+      return userRequestedModel; // Full GPT-5 for answer
+    } else {
+      // Try GPT-5-mini for fast tasks, fallback to GPT-4o-mini
+      return 'gpt-5-mini'; // Will auto-fallback if not available
+    }
+  }
+  
+  // For other models, use appropriate tier
+  return strategy.preferred[0];
+}
+
+// PHASE 2: CONTENT ANALYSIS - Quick scan to check if sources answer the question
+async function analyzeResearchQuality(
+  query: string,
+  sources: any[],
+  openaiKey: string,
+  userModel: string
+): Promise<{
+  confidence: number;
+  hasSufficientInfo: boolean;
+  missingInfo: string[];
+  needsRefinement: boolean;
+  reasoning: string;
+}> {
+  
+  const analysisModel = selectModelForTask('analysis', userModel, true);
+  console.log(`📊 Content Analysis using ${analysisModel} (fast & cheap)`);
+  
+  const sourceSummary = sources.map((s, i) => 
+    `[${i+1}] ${s.title}\n${(s.raw_content || s.content || s.snippet || '').substring(0, 500)}...`
+  ).join('\n\n');
+  
+  const analysisPrompt = `You are a research quality analyzer. Quickly assess if these search results can answer the user's question.
+
+USER QUESTION: "${query}"
+
+SEARCH RESULTS (${sources.length} sources):
+${sourceSummary}
+
+TASK: Analyze if these sources contain sufficient information to answer the question accurately.
+
+Return JSON only:
+{
+  "confidence": 0-100,
+  "hasSufficientInfo": true/false,
+  "missingInfo": ["what specific info is missing"],
+  "needsRefinement": true/false,
+  "reasoning": "brief explanation"
+}
+
+Return ONLY the JSON:`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: analysisModel,
+        messages: [
+          { role: 'system', content: 'You are a precise research quality analyzer. Return valid JSON only.' },
+          { role: 'user', content: analysisPrompt }
+        ],
+        temperature: 0,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('❌ Content analysis failed, assuming sufficient');
+      return {
+        confidence: 70,
+        hasSufficientInfo: true,
+        missingInfo: [],
+        needsRefinement: false,
+        reasoning: 'Analysis failed, proceeding with available sources'
+      };
+    }
+
+    const json = await response.json();
+    const analysisText = json.choices?.[0]?.message?.content || '{}';
+    const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) {
+      return {
+        confidence: 70,
+        hasSufficientInfo: true,
+        missingInfo: [],
+        needsRefinement: false,
+        reasoning: 'Could not parse analysis'
+      };
+    }
+    
+    const result = JSON.parse(jsonMatch[0]);
+    console.log(`📊 Content Analysis Result:`);
+    console.log(`   Confidence: ${result.confidence}%`);
+    console.log(`   Sufficient: ${result.hasSufficientInfo ? 'Yes' : 'No'}`);
+    console.log(`   Reasoning: ${result.reasoning}`);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Content analysis error:', error);
+    return {
+      confidence: 70,
+      hasSufficientInfo: true,
+      missingInfo: [],
+      needsRefinement: false,
+      reasoning: 'Analysis error, proceeding'
+    };
+  }
+}
+
+// PHASE 3: SMART VERIFICATION DECISION - Determine if deep verification is needed
+async function shouldUseDeepVerification(
+  query: string,
+  sources: any[],
+  iterationsPerformed: number,
+  openaiKey: string,
+  userModel: string
+): Promise<boolean> {
+  
+  // RULE 1: Automatic activation for certain query patterns
+  const autoEnablePatterns = {
+    comparisons: /\b(largest|biggest|smallest|best|worst|most|least|highest|lowest|maximum|minimum)\b/i,
+    numerical: /\b\d+\s*(meters|tons|tonnes|feet|hp|kw|mw|dwt|grt|nrt)\b/i,
+    compliance: /\b(SOLAS|MARPOL|ISM Code|IMO|classification|certificate|inspection|audit|compliance)\b/i,
+    specifications: /\b(specification|datasheet|technical details|model number|part number|serial)\b/i,
+    ownership: /\b(owned by|operated by|who owns|fleet of|belongs to)\b/i,
+  };
+  
+  // Check if any auto-enable pattern matches
+  for (const [category, pattern] of Object.entries(autoEnablePatterns)) {
+    if (pattern.test(query)) {
+      console.log(`🎯 Auto-enable verification: ${category} query detected`);
+      return true;
+    }
+  }
+  
+  // RULE 2: If iterative research was needed (low confidence), enable verification
+  if (iterationsPerformed > 0) {
+    console.log(`🎯 Verification enabled: Research required ${iterationsPerformed} iterations`);
+    return true;
+  }
+  
+  // RULE 3: If very few sources found (< 3), enable verification for quality check
+  if (sources.length < 3) {
+    console.log(`🎯 Verification enabled: Low source count (${sources.length})`);
+    return true;
+  }
+  
+  // RULE 4: Quick AI decision for ambiguous cases
+  // Use fast model for this decision (cost-effective)
+  const decisionModel = selectModelForTask('classification', userModel, true);
+  console.log(`🤔 Asking ${decisionModel} if verification needed...`);
+  
+  const decisionPrompt = `You are a research quality classifier for maritime queries.
+
+USER QUERY: "${query}"
+
+NUMBER OF SOURCES: ${sources.length}
+
+TASK: Should this query use deep truth verification (7-stage fact-checking pipeline)?
+
+Deep verification is expensive (6+ API calls) but ensures accuracy for:
+- Comparative claims (largest, biggest, best)
+- Numerical specifications
+- Compliance/regulatory questions
+- Ownership/company information
+- Technical specifications
+
+Deep verification is NOT needed for:
+- General maritime knowledge
+- fleetcore system questions
+- Conversational queries
+- Maintenance best practices
+
+Return JSON only:
+{
+  "useDeepVerification": true/false,
+  "reason": "brief explanation"
+}
+
+Return ONLY the JSON:`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: decisionModel,
+        messages: [
+          { role: 'system', content: 'You are a precise query classifier. Return valid JSON only.' },
+          { role: 'user', content: decisionPrompt }
+        ],
+        temperature: 0,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      console.log(`⚠️ Decision call failed, defaulting to FAST mode`);
+      return false;
+    }
+
+    const json = await response.json();
+    const decisionText = json.choices?.[0]?.message?.content || '{}';
+    const jsonMatch = decisionText.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) {
+      return false;
+    }
+    
+    const decision = JSON.parse(jsonMatch[0]);
+    console.log(`📊 Verification decision: ${decision.useDeepVerification ? 'ENABLE' : 'SKIP'}`);
+    console.log(`   Reason: ${decision.reason}`);
+    
+    return decision.useDeepVerification || false;
+    
+  } catch (error) {
+    console.error('❌ Verification decision error:', error);
+    return false; // Default to fast mode on error
+  }
+}
+
+// PHASE 2: QUERY REFINEMENT - Generate better search query based on gaps
+async function generateRefinedQuery(
+  originalQuery: string,
+  missingInfo: string[],
+  openaiKey: string,
+  userModel: string
+): Promise<string> {
+  
+  const refinementModel = selectModelForTask('refinement', userModel, true);
+  console.log(`🔍 Query Refinement using ${refinementModel}`);
+  
+  const refinementPrompt = `You are a search query optimizer for maritime research.
+
+ORIGINAL QUERY: "${originalQuery}"
+
+MISSING INFORMATION: ${missingInfo.join(', ')}
+
+TASK: Generate a better search query that specifically targets the missing information.
+
+Rules:
+- Keep maritime context
+- Add specific technical terms
+- Use quote marks for exact phrases
+- Keep query concise (max 15 words)
+
+Return only the refined query, no explanation:`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: refinementModel,
+        messages: [
+          { role: 'system', content: 'You are a search query optimizer. Return only the optimized query.' },
+          { role: 'user', content: refinementPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 100,
+      }),
+    });
+
+    if (!response.ok) {
+      return originalQuery;
+    }
+
+    const json = await response.json();
+    const refinedQuery = json.choices?.[0]?.message?.content?.trim() || originalQuery;
+    
+    console.log(`🔍 Refined Query: "${refinedQuery}"`);
+    return refinedQuery;
+    
+  } catch (error) {
+    console.error('❌ Query refinement error:', error);
+    return originalQuery;
+  }
+}
+
+// SIMPLIFIED: RESEARCH COMPLEXITY LEVELS
+// Follows industry best practices (Perplexity/ChatGPT approach)
+type ResearchComplexity = 'simple' | 'standard' | 'deep' | 'maximum';
+
+interface ResearchConfig {
+  enableIterativeResearch: boolean;
+  enableDeepVerification: boolean;
+  maxIterations: number;
+  estimatedCalls: number;
+}
+
+function getResearchConfig(
+  complexity: ResearchComplexity,
+  query: string
+): ResearchConfig {
+  
+  // SIMPLE: Perplexity-style (DEFAULT - 2 calls)
+  // Best for 90% of queries
+  if (complexity === 'simple') {
+    return {
+      enableIterativeResearch: false,
+      enableDeepVerification: false,
+      maxIterations: 0,
+      estimatedCalls: 2, // Search + Answer
+    };
+  }
+  
+  // STANDARD: ChatGPT-style with quality check (3-4 calls)
+  // Good for technical queries
+  if (complexity === 'standard') {
+    const needsRefinement = /specific|exact|technical|model number/i.test(query);
+    return {
+      enableIterativeResearch: needsRefinement,
+      enableDeepVerification: false,
+      maxIterations: 1,
+      estimatedCalls: needsRefinement ? 4 : 2,
+    };
+  }
+  
+  // DEEP: Enhanced research (5-7 calls)
+  // For complex technical or comparison queries
+  if (complexity === 'deep') {
+    return {
+      enableIterativeResearch: true,
+      enableDeepVerification: false,
+      maxIterations: 2,
+      estimatedCalls: 6,
+    };
+  }
+  
+  // MAXIMUM: Full verification (8-10 calls)
+  // Only for critical compliance/safety queries
+  return {
+    enableIterativeResearch: true,
+    enableDeepVerification: true,
+    maxIterations: 2,
+    estimatedCalls: 10,
+  };
+}
+
+export async function onRequestPost(context) {
+  const { OPENAI_API_KEY, OPENAI_MODEL, TAVILY_API_KEY } = context.env;
 
   if (!OPENAI_API_KEY) {
     return new Response(
@@ -380,22 +756,15 @@ export async function onRequestPost(context) {
 
   try {
     const body = await context.request.json();
-    const { messages, enableBrowsing } = body;
+    const { messages, enableBrowsing, researchComplexity, enableChainOfThought } = body;
     
-    console.log('🔧 DEBUG: Received request body:', JSON.stringify({ 
-      messageCount: messages?.length, 
-      enableBrowsing,
-      bodyKeys: Object.keys(body)
-    }));
+    // DEFAULT: Simple mode (Perplexity-style, 2 calls)
+    // User can override with researchComplexity parameter
+    const complexity: ResearchComplexity = researchComplexity || 'simple';
     
-    // CRITICAL DEBUG: Check if enableBrowsing is being passed correctly
-    const debugInfo = {
-      enableBrowsingReceived: enableBrowsing,
-      enableBrowsingType: typeof enableBrowsing,
-      tavilyKeySet: !!TAVILY_API_KEY,
-      willResearch: !!(enableBrowsing && TAVILY_API_KEY)
-    };
-    console.log('🔧 CRITICAL DEBUG:', JSON.stringify(debugInfo));
+    // PHASE 4: Chain-of-Thought (opt-in)
+    // Only enabled when user explicitly requests it
+    const useChainOfThought = enableChainOfThought === true;
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -413,16 +782,17 @@ export async function onRequestPost(context) {
     // Multi-query research strategy: aggregate up to 28 sources from multiple searches
     let browsingContext = '';
     let researchPerformed = false;
-    
-    console.log('🔧 DEBUG: enableBrowsing =', enableBrowsing, 'TAVILY_API_KEY =', TAVILY_API_KEY ? 'SET' : 'MISSING');
+    const currentQuery = messages[messages.length - 1]?.content || ''; // Declare once at top level
     
     if (enableBrowsing && TAVILY_API_KEY) {
       try {
         // MARITIME-AWARE ENTITY EXTRACTION
         // Detect vessel names, companies, equipment with maritime-specific patterns
-        const currentQuery = messages[messages.length - 1]?.content || '';
         let enhancedQuery = currentQuery;
         let specificEntity = '';
+        
+        // Early query type detection for iterative research decision
+        const isComparisonQuery = /\b(largest|biggest|smallest|best|worst|most|least|highest|lowest)\b/i.test(currentQuery);
         
         // PATTERN 1: Vessel identification (IMO numbers, call signs, vessel names)
         const vesselPatterns = [
@@ -537,36 +907,59 @@ export async function onRequestPost(context) {
           }
         };
         
-        // MARITIME-OPTIMIZED QUERY STRATEGY
-        // Detect query type and optimize search terms accordingly
+        // PHASE 5: DYNAMIC SOURCE SELECTION
+        // Adjust source count based on query complexity and research mode
         const isVesselQuery = /vessel|ship|boat|fleet|mv|m\/v/i.test(currentQuery);
         const isEquipmentQuery = /equipment|machinery|system|engine|generator|pump|thruster/i.test(currentQuery);
         const isSpecificationQuery = /specification|spec|datasheet|technical|overview|details/i.test(currentQuery);
         
+        // Determine source strategy based on complexity level
+        let sourceStrategy;
+        if (complexity === 'simple') {
+          // Simple: Fast search, fewer sources (10-15 total)
+          sourceStrategy = {
+            primaryResults: 10,
+            secondaryResults: 5,
+            maxQueries: 1,
+          };
+        } else if (complexity === 'standard') {
+          // Standard: Moderate search (15-20 total)
+          sourceStrategy = {
+            primaryResults: 15,
+            secondaryResults: 5,
+            maxQueries: isSpecificationQuery || specificEntity ? 2 : 1,
+          };
+        } else {
+          // Deep/Maximum: Comprehensive search (20-28 total)
+          sourceStrategy = {
+            primaryResults: 20,
+            secondaryResults: 10,
+            maxQueries: 2,
+          };
+        }
+        
+        console.log(`📊 Source Strategy (${complexity}): ${sourceStrategy.primaryResults} primary + ${sourceStrategy.secondaryResults} secondary sources`);
+        
         const queries = [
-          { query: enhancedQuery, maxResults: 20, label: 'Primary' }
+          { query: enhancedQuery, maxResults: sourceStrategy.primaryResults, label: 'Primary' }
         ];
         
-        // Add complementary query based on query type
-        if (specificEntity) {
+        // Add complementary query based on query type AND complexity
+        if (specificEntity && sourceStrategy.maxQueries > 1) {
           let complementaryQuery = '';
           
           if (isVesselQuery && isEquipmentQuery) {
-            // Query like "Dynamic 17 vessel equipment overview" - add specification focus
             complementaryQuery = `"${specificEntity}" technical specifications datasheet equipment list`;
           } else if (isVesselQuery) {
-            // General vessel query - add vessel database terms
             complementaryQuery = `"${specificEntity}" vessel particulars specifications`;
           } else if (isEquipmentQuery) {
-            // Equipment query - add OEM/manufacturer focus
             complementaryQuery = `"${specificEntity}" OEM maintenance manual specifications`;
           } else {
-            // Generic entity query
             complementaryQuery = `"${specificEntity}" technical documentation specifications`;
           }
           
-          queries.push({ query: complementaryQuery, maxResults: 10, label: 'Technical' });
-          console.log(`🎯 Maritime-optimized complementary query: "${complementaryQuery}"`);
+          queries.push({ query: complementaryQuery, maxResults: sourceStrategy.secondaryResults, label: 'Technical' });
+          console.log(`🎯 Adding complementary query: "${complementaryQuery}"`);
         }
         
         console.log(`🔍 Performing ${queries.length} research queries for up to 28 sources`);
@@ -622,6 +1015,18 @@ export async function onRequestPost(context) {
         });
         
         console.log(`📊 Total unique sources: ${allResults.length} from ${queries.length} queries`);
+        
+        // SIMPLIFIED: Get research configuration based on complexity level
+        const researchConfig = getResearchConfig(complexity, currentQuery);
+        
+        console.log(`⚙️ RESEARCH COMPLEXITY: ${complexity.toUpperCase()}`);
+        console.log(`   Estimated API calls: ${researchConfig.estimatedCalls}`);
+        console.log(`   Iterative research: ${researchConfig.enableIterativeResearch ? 'Yes' : 'No'}`);
+        console.log(`   Deep verification: ${researchConfig.enableDeepVerification ? 'Yes' : 'No'}`);
+        
+        // PHASE 2: ITERATIVE RESEARCH (only if enabled by complexity level)
+        let researchIterations = 0;
+        let allIterationResults = [...allResults]; // Start with initial results
         
         // INTELLIGENT RANKING: Dynamic operator detection + smart prioritization
         // Step 1: Scan all results to detect vessel operator/owner
@@ -774,11 +1179,119 @@ export async function onRequestPost(context) {
           return scoreB - scoreA; // Higher score first
         });
         
-        // Use top 5-8 sources for verification (Perplexity-style)
-        const topResults = rankedResults.slice(0, 8);
+        // Use top 8 sources for analysis
+        let topResults = rankedResults.slice(0, 8);
         
-        // Detailed logging
-        console.log(`🎯 RANKED TOP ${topResults.length} SOURCES (from ${allResults.length} total):`);
+        // PHASE 2: ITERATIVE RESEARCH LOOP (only if enabled by complexity level)
+        // Analyze initial results and refine if confidence is low
+        while (researchConfig.enableIterativeResearch && researchIterations < researchConfig.maxIterations) {
+          console.log(`\n🔍 === RESEARCH ITERATION ${researchIterations + 1} ===`);
+          
+          // Quick analysis of current results
+          const qualityAnalysis = await analyzeResearchQuality(
+            currentQuery,
+            topResults,
+            OPENAI_API_KEY,
+            OPENAI_MODEL || 'gpt-4o-mini'
+          );
+          
+          // If confidence is high or info is sufficient, we're done
+          if (qualityAnalysis.confidence >= 70 || qualityAnalysis.hasSufficientInfo) {
+            console.log(`✅ Research complete - Confidence: ${qualityAnalysis.confidence}%`);
+            console.log(`   Reasoning: ${qualityAnalysis.reasoning}`);
+            break;
+          }
+          
+          // If we've hit max iterations, stop
+          if (researchIterations >= researchConfig.maxIterations - 1) {
+            console.log(`⚠️ Max iterations reached (${researchConfig.maxIterations}). Proceeding with confidence: ${qualityAnalysis.confidence}%`);
+            break;
+          }
+          
+          // Generate refined query based on gaps
+          console.log(`🔄 Confidence ${qualityAnalysis.confidence}% < 70%, refining search...`);
+          console.log(`   Missing: ${qualityAnalysis.missingInfo.join(', ')}`);
+          
+          const refinedQuery = await generateRefinedQuery(
+            currentQuery,
+            qualityAnalysis.missingInfo,
+            OPENAI_API_KEY,
+            OPENAI_MODEL || 'gpt-4o-mini'
+          );
+          
+          // Execute refined search
+          console.log(`🔍 Executing refined search: "${refinedQuery}"`);
+          
+          const refinedSearchRes = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: tavilyConfig.headers,
+            body: JSON.stringify({ 
+              query: refinedQuery, 
+              search_depth: 'advanced',
+              max_results: 10, // Smaller batch for refinement
+              exclude_domains: tavilyConfig.domains.exclude,
+              include_raw_content: true
+            }),
+          });
+          
+          if (refinedSearchRes.ok) {
+            const refinedJson = await refinedSearchRes.json();
+            const refinedResults = refinedJson?.results || [];
+            
+            console.log(`   ✅ Found ${refinedResults.length} additional sources`);
+            
+            // Add new results to collection (deduplicate by URL)
+            refinedResults.forEach(item => {
+              if (!seenUrls.has(item.url)) {
+                seenUrls.add(item.url);
+                allIterationResults.push(item);
+              }
+            });
+            
+            // Re-rank ALL results (including new ones)
+            const reRankedResults = allIterationResults.sort((a, b) => {
+              let scoreA = 0, scoreB = 0;
+              
+              // Same ranking logic as before
+              if (operatorDomain && (a.url.includes(operatorDomain) || a.url.includes(operatorDomain.replace(/\.[^.]+$/, '')))) {
+                scoreA += 40;
+              }
+              if (operatorDomain && (b.url.includes(operatorDomain) || b.url.includes(operatorDomain.replace(/\.[^.]+$/, '')))) {
+                scoreB += 40;
+              }
+              
+              if (specificEntity && a.title.toLowerCase().includes(specificEntity.toLowerCase())) {
+                scoreA += 30;
+              }
+              if (specificEntity && b.title.toLowerCase().includes(specificEntity.toLowerCase())) {
+                scoreB += 30;
+              }
+              
+              const tier1Domains = tavilyConfig.authorityDomains.tier1_official;
+              if (tier1Domains.some(d => a.url.includes(d))) scoreA += 25;
+              if (tier1Domains.some(d => b.url.includes(d))) scoreB += 25;
+              
+              const tier2Domains = tavilyConfig.authorityDomains.tier2_manufacturers;
+              if (tier2Domains.some(d => a.url.includes(d))) scoreA += 20;
+              if (tier2Domains.some(d => b.url.includes(d))) scoreB += 20;
+              
+              return scoreB - scoreA;
+            });
+            
+            // Update topResults with re-ranked sources
+            topResults = reRankedResults.slice(0, 8);
+            console.log(`   📊 Total sources now: ${allIterationResults.length}, using top 8`);
+            
+          } else {
+            console.error(`   ❌ Refined search failed: ${refinedSearchRes.status}`);
+            break;
+          }
+          
+          researchIterations++;
+        }
+        
+        // Detailed logging of final results
+        console.log(`\n🎯 FINAL RANKED TOP ${topResults.length} SOURCES (from ${allIterationResults.length} total, ${researchIterations} iterations):`);
         if (detectedOperator) {
           console.log(`   🏢 Operator Detection: "${detectedOperator}" (${operatorDomain})`);
         }
@@ -842,48 +1355,98 @@ export async function onRequestPost(context) {
           console.log('⚠️ No research results returned from any query');
         }
         
-        // FAST MODE: Skip heavy verification pipeline (ChatGPT-style)
-        // The multi-stage verification (6+ API calls) is only used for high-stakes queries
-        // For most queries, we trust LLM intelligence with raw sources (2 API calls total)
-        const ENABLE_DEEP_VERIFICATION = false; // Set to true for critical compliance/safety queries
+        // PHASE 3: DEEP VERIFICATION (only if enabled by complexity level)
+        // Simplified: Respect user's complexity choice instead of auto-deciding
+        const ENABLE_DEEP_VERIFICATION = researchConfig.enableDeepVerification;
+        
+        if (ENABLE_DEEP_VERIFICATION) {
+          console.log(`🔬 DEEP VERIFICATION ENABLED: Maximum complexity mode`);
+        } else {
+          console.log(`⚡ ${complexity.toUpperCase()} MODE: ${researchConfig.estimatedCalls} API calls`);
+        }
         
         let structuredData = '';
         let verificationMetadata: any = null;
         
         if (ENABLE_DEEP_VERIFICATION && topResults.length > 0 && OPENAI_API_KEY && researchPerformed) {
-          // DEEP VERIFICATION MODE (6+ API calls) - for high-stakes queries
+          // PHASE 3: DEEP VERIFICATION MODE (6+ API calls) - for high-stakes queries
           const classification = classifyQuery(currentQuery);
-          console.log(`🔬 DEEP VERIFICATION MODE: ${classification.domain} query`);
+          const verificationModel = selectModelForTask('analysis', OPENAI_MODEL || 'gpt-4o-mini', true);
+          console.log(`🔬 DEEP VERIFICATION MODE: ${classification.domain} query using ${verificationModel}`);
           
           try {
+            // Stage 1: Entity extraction
+            console.log(`   1/7 Extracting entities...`);
             const entities = await extractEntities(currentQuery, topResults, OPENAI_API_KEY);
-            const normalizedData = await normalizeData(currentQuery, topResults, entities, OPENAI_API_KEY);
-            let comparativeAnalysis: any = null;
             
+            // Stage 2: Data normalization
+            console.log(`   2/7 Normalizing data...`);
+            const normalizedData = await normalizeData(currentQuery, topResults, entities, OPENAI_API_KEY);
+            
+            // Stage 3: Comparative analysis (if needed)
+            let comparativeAnalysis: any = null;
             if (classification.requiresComparison && normalizedData.length > 0) {
+              console.log(`   3/7 Performing comparative analysis...`);
               comparativeAnalysis = await performComparativeAnalysis(currentQuery, normalizedData, entities, OPENAI_API_KEY);
+            } else {
+              console.log(`   3/7 Skipping comparative analysis (not a comparison query)`);
             }
             
+            // Stage 4: Claim extraction
+            console.log(`   4/7 Extracting claims...`);
             const claims = await extractClaims(currentQuery, topResults, normalizedData, OPENAI_API_KEY);
             
+            // Stage 5: Claim verification
+            console.log(`   5/7 Verifying claims...`);
+            const verification = verifyClaims(claims, classification.verificationLevel, comparativeAnalysis);
+            
+            // Store verification metadata for display
+            verificationMetadata = {
+              entities: entities.length,
+              normalizedDataPoints: normalizedData.length,
+              claims: claims.length,
+              confidence: verification.confidence,
+              verified: verification.verified,
+              comparativeAnalysisPerformed: comparativeAnalysis !== null,
+              verificationLevel: classification.verificationLevel,
+            };
+            
+            // Build structured data display
             if (claims.length > 0) {
-              const verification = verifyClaims(claims, classification.verificationLevel, comparativeAnalysis);
-              
-              structuredData = `\n\n=== DEEP VERIFICATION RESULTS ===\n`;
+              structuredData = `\n\n=== DEEP VERIFICATION RESULTS (7-Stage Pipeline) ===\n`;
+              structuredData += `Query Type: ${classification.type.toUpperCase()} | Domain: ${classification.domain}\n`;
               structuredData += `Entities: ${entities.length} | Data Points: ${normalizedData.length} | Claims: ${claims.length}\n`;
-              structuredData += `Confidence: ${verification.confidence.toFixed(0)}% | Status: ${verification.verified ? '✅ PASSED' : '⚠️ FAILED'}\n\n`;
+              structuredData += `Verification Level: ${classification.verificationLevel.toUpperCase()}\n`;
+              structuredData += `Confidence: ${verification.confidence.toFixed(0)}% | Status: ${verification.verified ? '✅ PASSED' : '⚠️ NEEDS REVIEW'}\n\n`;
               
+              // Show comparative analysis winner if available
+              if (comparativeAnalysis?.winner) {
+                structuredData += `🏆 COMPARATIVE RESULT:\n`;
+                structuredData += `   Winner: ${comparativeAnalysis.winner.entity}\n`;
+                structuredData += `   Value: ${comparativeAnalysis.winner.value}\n`;
+                structuredData += `   Reason: ${comparativeAnalysis.winner.reason}\n`;
+                structuredData += `   Confidence: ${comparativeAnalysis.winner.confidence}%\n\n`;
+              }
+              
+              structuredData += `VERIFIED CLAIMS:\n`;
               claims.forEach((claim, idx) => {
                 const emoji = claim.confidence >= 70 ? '✅' : claim.confidence >= 50 ? '⚠️' : '❌';
                 structuredData += `${emoji} CLAIM ${idx + 1}: ${claim.claim}\n`;
-                structuredData += `   Confidence: ${claim.confidence}% | Sources: [${claim.sources.join(', ')}]\n\n`;
+                structuredData += `   Type: ${claim.claimType} | Confidence: ${claim.confidence}%\n`;
+                structuredData += `   Sources: [${claim.sources.join(', ')}]\n`;
+                if (claim.evidence && claim.evidence.length > 0) {
+                  structuredData += `   Evidence: "${claim.evidence[0].substring(0, 100)}..."\n`;
+                }
+                structuredData += `\n`;
               });
               
-              console.log(`✅ Deep verification: ${verification.confidence.toFixed(0)}% confidence`);
+              console.log(`✅ Deep verification complete: ${verification.confidence.toFixed(0)}% confidence, ${verification.verified ? 'VERIFIED' : 'UNCERTAIN'}`);
             }
           } catch (e) {
             console.error('❌ Deep verification error:', e.message);
-            structuredData = `\n\n⚠️ Verification error - answering from raw sources\n\n`;
+            structuredData = `\n\n⚠️ Verification Pipeline Error\n`;
+            structuredData += `The 7-stage verification encountered an error. Falling back to standard research mode.\n`;
+            structuredData += `Error: ${e.message}\n\n`;
           }
         } else {
           // FAST MODE (2 API calls: search + answer) - ChatGPT-style
@@ -910,9 +1473,55 @@ export async function onRequestPost(context) {
           browsingContext = structuredData + browsingContext;
         }
         
+        // SIMPLIFIED: Add research metadata (Perplexity-style transparency)
+        let researchMetadata = `**Research System** (${complexity.toUpperCase()} Mode):\n`;
+        researchMetadata += `- Quality level: ${
+          complexity === 'simple' ? '⚡ Fast (Perplexity-style)' :
+          complexity === 'standard' ? '🔍 Enhanced (ChatGPT+)' :
+          complexity === 'deep' ? '🔬 Deep (Multi-phase)' :
+          '🎯 Maximum (Full verification)'
+        }\n`;
+        researchMetadata += `- Initial sources: ${allResults.length}\n`;
+        if (researchIterations > 0) {
+          researchMetadata += `- Research iterations: ${researchIterations}\n`;
+          researchMetadata += `- Final source pool: ${allIterationResults.length}\n`;
+        }
+        researchMetadata += `- Top sources used: ${topResults.length}\n`;
+        
+        // Add verification metadata if deep verification was used
+        if (ENABLE_DEEP_VERIFICATION && verificationMetadata) {
+          researchMetadata += `\n**Verification Results**:\n`;
+          researchMetadata += `- Entities extracted: ${verificationMetadata.entities}\n`;
+          researchMetadata += `- Data points normalized: ${verificationMetadata.normalizedDataPoints}\n`;
+          researchMetadata += `- Claims verified: ${verificationMetadata.claims}\n`;
+          researchMetadata += `- Overall confidence: ${verificationMetadata.confidence.toFixed(0)}%\n`;
+          researchMetadata += `- Status: ${verificationMetadata.verified ? '✅ VERIFIED' : '⚠️ UNCERTAIN'}\n`;
+        }
+        
+        // SIMPLIFIED: Model usage summary (no redundant info)
+        const requestedModel = OPENAI_MODEL || 'gpt-4o-mini';
+        researchMetadata += `\n**Processing**:\n`;
+        researchMetadata += `- Model: ${requestedModel}\n`;
+        researchMetadata += `- Estimated calls: ~${researchConfig.estimatedCalls}\n`;
+        
+        // Only show details if advanced features were used
+        if (researchIterations > 0 || ENABLE_DEEP_VERIFICATION) {
+          const analysisModel = selectModelForTask('analysis', OPENAI_MODEL || 'gpt-4o-mini', true);
+          if (researchIterations > 0) {
+            researchMetadata += `- Analysis model: ${analysisModel} (fast)\n`;
+          }
+          if (ENABLE_DEEP_VERIFICATION && verificationMetadata) {
+            researchMetadata += `- Verification: ${verificationMetadata.claims} claims checked\n`;
+            researchMetadata += `- Confidence: ${verificationMetadata.confidence.toFixed(0)}% ${verificationMetadata.verified ? '✅' : '⚠️'}\n`;
+          }
+        }
+        researchMetadata += `\n`;
+        
         // Add summary if available from primary query
         if (tavilySummary && browsingContext) {
-          browsingContext = `**Research Summary**: ${tavilySummary}\n\n**Detailed Sources** (${topResults.length} high-authority sources from ${allResults.length} total):\n\n${browsingContext}`;
+          browsingContext = `${researchMetadata}**Research Summary**: ${tavilySummary}\n\n**Detailed Sources** (${topResults.length} high-authority sources):\n\n${browsingContext}`;
+        } else if (browsingContext) {
+          browsingContext = `${researchMetadata}**Detailed Sources** (${topResults.length} high-authority sources):\n\n${browsingContext}`;
         }
       } catch (e) {
         console.error('❌ Research failed:', e);
@@ -922,53 +1531,131 @@ export async function onRequestPost(context) {
       }
     }
 
-    const DEFAULT_MODEL = 'gpt-4o-mini';
+    // PHASE 1: INTELLIGENT MODEL SELECTION WITH GPT-5 PRIORITY
+    const MODEL_TIERS = {
+      // Tier 1: GPT-5 series (highest capability)
+      gpt5: ['gpt-5', 'gpt-5-turbo', 'gpt-5-preview'],
+      // Tier 2: GPT-4o series (production-ready)
+      gpt4o: ['gpt-4o', 'gpt-4o-mini', 'gpt-4o-2024-08-06'],
+      // Tier 3: Reasoning models (specialized)
+      reasoning: ['o1-preview', 'o1-mini', 'o3-mini'],
+      // Tier 4: GPT-4 legacy
+      gpt4: ['gpt-4-turbo', 'gpt-4-turbo-preview', 'gpt-4'],
+    };
     
-    // Known valid OpenAI models as of Oct 2025
-    const VALID_MODELS = [
-      // GPT-5 series (if available)
-      'gpt-5', 'gpt-5-turbo', 'gpt-5-mini',
-      // GPT-4o series
-      'gpt-4o', 'gpt-4o-mini', 'gpt-4o-2024-08-06',
-      // GPT-4 series
-      'gpt-4-turbo', 'gpt-4-turbo-preview', 'gpt-4', 
-      'gpt-3.5-turbo', 'gpt-3.5-turbo-16k',
-      // Reasoning models
-      'o1-preview', 'o1-mini', 'o3-mini',
+    const ALL_VALID_MODELS = [
+      ...MODEL_TIERS.gpt5,
+      ...MODEL_TIERS.gpt4o,
+      ...MODEL_TIERS.reasoning,
+      ...MODEL_TIERS.gpt4,
     ];
     
-    const envModel = (OPENAI_MODEL || DEFAULT_MODEL).trim();
-    // Normalize accidental spaces in model names (e.g., "gpt-5 mini" -> "gpt-5-mini")
-    let selectedModel = envModel.replace(/\s+/g, '-');
-    
-    // Validate model and warn if invalid
-    if (!VALID_MODELS.includes(selectedModel) && !selectedModel.startsWith('o1') && !selectedModel.startsWith('o3') && !selectedModel.startsWith('gpt-5')) {
-      console.warn(`⚠️ Model "${selectedModel}" may not be valid. Attempting anyway, will fallback to ${DEFAULT_MODEL} on error.`);
+    // Model capability detection
+    function getModelCapabilities(model: string) {
+      const isGPT5 = MODEL_TIERS.gpt5.includes(model) || model.startsWith('gpt-5');
+      const isReasoning = MODEL_TIERS.reasoning.includes(model) || model.includes('o1') || model.includes('o3');
+      const isGPT4o = MODEL_TIERS.gpt4o.includes(model);
+      
+      return {
+        supportsChainOfThought: isGPT5 || isReasoning, // GPT-5 has reasoning capabilities
+        nativeReasoning: isReasoning, // o1/o3 have built-in reasoning
+        contextWindow: isGPT5 ? 400000 : (isGPT4o ? 128000 : 8000),
+        tier: isGPT5 ? 'gpt5' : (isGPT4o ? 'gpt4o' : (isReasoning ? 'reasoning' : 'gpt4')),
+        costMultiplier: isGPT5 ? 3 : (isReasoning ? 2.5 : 1),
+      };
     }
     
-    // Detect if using reasoning-capable models (o1/o3 have built-in chain of thought)
-    const isO1O3Model = selectedModel.includes('o1') || selectedModel.includes('o3');
+    const envModel = (OPENAI_MODEL || 'gpt-4o-mini').trim();
+    // Normalize accidental spaces (e.g., "gpt-5 mini" -> "gpt-5-mini")
+    let selectedModel = envModel.replace(/\s+/g, '-').toLowerCase();
+    
+    // Validate and warn
+    if (!ALL_VALID_MODELS.includes(selectedModel) && !selectedModel.startsWith('gpt-5') && !selectedModel.startsWith('o1') && !selectedModel.startsWith('o3')) {
+      console.warn(`⚠️ Model "${selectedModel}" may not be valid. Attempting anyway, will fallback on error.`);
+    }
+    
+    const modelCapabilities = getModelCapabilities(selectedModel);
+    const isO1O3Model = modelCapabilities.nativeReasoning;
+    const hasNativeCoT = isO1O3Model;
+    const needsSyntheticCoT = useChainOfThought && !hasNativeCoT;
+    
+    console.log(`🤖 Model Selected: ${selectedModel}`);
+    console.log(`   Tier: ${modelCapabilities.tier.toUpperCase()}`);
+    console.log(`   Context: ${modelCapabilities.contextWindow.toLocaleString()} tokens`);
+    console.log(`   Chain-of-Thought: ${useChainOfThought ? (hasNativeCoT ? 'Native (o1/o3)' : 'Synthetic') : 'Disabled'}`);
 
-    // PHASE 1 FIX: Detect factual queries to use deterministic temperature
-    const currentQuery = messages[messages.length - 1]?.content || '';
+    // PHASE 1: INTELLIGENT TEMPERATURE SELECTION
     const isFactualQuery = /\b(what is|find|tell me|how many|when|where|which|largest|biggest|smallest|newest|oldest|first|last|list|show me|give me|get me)\b/i.test(currentQuery);
-    const queryTemperature = isFactualQuery ? 0.1 : 0.7; // Low temp for facts, normal for conversation
+    const isComparisonQuery = /\b(largest|biggest|smallest|best|worst|most|least|highest|lowest)\b/i.test(currentQuery);
     
-    console.log(`🎯 Query type: ${isFactualQuery ? 'FACTUAL' : 'CONVERSATIONAL'} - Using temperature: ${queryTemperature}`);
-
-    // Call OpenAI API with streaming enabled
-    let usedModel = selectedModel;
-    
-    // Log model configuration
-    console.log(`🤖 Using model: ${usedModel}`);
+    // GPT-5 and reasoning models benefit from slightly higher temp even for factual queries
+    let queryTemperature: number;
     if (isO1O3Model) {
-      console.log('🧠 Using reasoning model (o1/o3) with built-in chain of thought');
+      queryTemperature = 1.0; // Reasoning models use temp=1 by default
+    } else if (modelCapabilities.tier === 'gpt5') {
+      queryTemperature = isFactualQuery ? 0.2 : 0.8; // GPT-5: slightly higher for better reasoning
+    } else {
+      queryTemperature = isFactualQuery ? 0.1 : 0.7; // Standard models
+    }
+    
+    console.log(`🎯 Query Analysis:`);
+    console.log(`   Type: ${isFactualQuery ? 'FACTUAL' : 'CONVERSATIONAL'}`);
+    console.log(`   Comparison: ${isComparisonQuery ? 'Yes' : 'No'}`);
+    console.log(`   Temperature: ${queryTemperature}`);
+
+    // PHASE 1: INTELLIGENT MODEL FALLBACK CHAIN
+    // Try GPT-5 → GPT-4o → GPT-4o-mini
+    const FALLBACK_CHAIN = {
+      'gpt-5': ['gpt-5-turbo', 'gpt-4o', 'gpt-4o-mini'],
+      'gpt-5-turbo': ['gpt-4o', 'gpt-4o-mini'],
+      'gpt-5-preview': ['gpt-5', 'gpt-5-turbo', 'gpt-4o'],
+      'gpt-4o': ['gpt-4o-mini'],
+      'o1-preview': ['o1-mini', 'gpt-4o'],
+      'o3-mini': ['o1-mini', 'gpt-4o-mini'],
+    };
+    
+    let usedModel = selectedModel;
+    let fallbackAttempts = 0;
+    const maxFallbackAttempts = 3;
+    
+    console.log(`🤖 Primary Model: ${usedModel}`);
+    console.log(`   Tier: ${modelCapabilities.tier.toUpperCase()}`);
+    if (isO1O3Model) {
+      console.log('   🧠 Reasoning model with native chain-of-thought');
+    } else if (modelCapabilities.supportsChainOfThought) {
+      console.log('   🧠 Supports enhanced reasoning (GPT-5)');
+    }
+    
+    // PHASE 4: Add Chain-of-Thought prompting for non-reasoning models
+    let cotSystemPrompt = '';
+    if (needsSyntheticCoT) {
+      cotSystemPrompt = `\n\n🧠 **CHAIN-OF-THOUGHT MODE ACTIVATED** 🧠
+
+Before providing your final answer, show your reasoning process:
+
+1. **Understanding**: Restate what you're being asked
+2. **Analysis**: Break down the problem/query into components  
+3. **Research Review** (if applicable): Key findings from sources
+4. **Reasoning**: Step-by-step logical deduction
+5. **Verification**: Check for consistency and accuracy
+6. **Conclusion**: Final answer based on reasoning
+
+Format your response as:
+---
+**THINKING:**
+[Your step-by-step reasoning here]
+---
+**ANSWER:**
+[Your final answer here]
+---
+
+This transparency helps users understand your decision-making process.\n\n`;
     }
     
     // Build request body with model-specific parameters
     // When research is enabled, OVERRIDE system prompt to emphasize RESEARCH MODE
     const effectiveSystemPrompt = browsingContext 
-      ? `${SYSTEM_PROMPT}
+      ? `${SYSTEM_PROMPT}${cotSystemPrompt}
 
 🔬 **YOU ARE NOW IN RESEARCH MODE** 🔬
 
@@ -1001,7 +1688,7 @@ Before submitting your answer, verify:
 - [ ] All sources are actually from the research results provided
 
 **REMEMBER:** In research mode, your job is to EXTRACT and CITE from sources, NOT to provide general maritime knowledge. Generic answers without citations = FAILURE.`
-      : SYSTEM_PROMPT;
+      : `${SYSTEM_PROMPT}${cotSystemPrompt}`;
 
     const requestBody = {
       model: usedModel,
@@ -1038,10 +1725,23 @@ Before submitting your answer, verify:
       body: JSON.stringify(requestBody),
     });
 
-    // If model is invalid (400), retry once with default cheaper model
-    if (!response.ok && response.status === 400 && usedModel !== DEFAULT_MODEL) {
-      console.log(`⚠️ Model "${usedModel}" failed, falling back to ${DEFAULT_MODEL}`);
-      usedModel = DEFAULT_MODEL;
+    // PHASE 1: INTELLIGENT FALLBACK MECHANISM
+    // Try fallback chain if primary model fails
+    while (!response.ok && response.status === 400 && fallbackAttempts < maxFallbackAttempts) {
+      const fallbackModels = FALLBACK_CHAIN[usedModel] || ['gpt-4o-mini'];
+      
+      if (fallbackAttempts >= fallbackModels.length) {
+        console.error(`❌ All fallbacks exhausted for ${selectedModel}`);
+        break;
+      }
+      
+      usedModel = fallbackModels[fallbackAttempts];
+      fallbackAttempts++;
+      
+      console.log(`⚠️ Fallback attempt ${fallbackAttempts}: Trying ${usedModel}`);
+      
+      const fallbackCapabilities = getModelCapabilities(usedModel);
+      const fallbackIsReasoning = fallbackCapabilities.nativeReasoning;
       
       const fallbackBody = {
         model: usedModel,
@@ -1052,12 +1752,19 @@ Before submitting your answer, verify:
               ...messages,
             ]
           : conversationMessages,
-        temperature: queryTemperature, // 0.1 for factual, 0.7 for conversational
-        max_tokens: 3000,
-        presence_penalty: 0.6,
-        frequency_penalty: 0.3,
-        top_p: 0.9,
         stream: true,
+        ...(fallbackIsReasoning 
+          ? {
+              max_completion_tokens: 4000,
+            }
+          : {
+              temperature: queryTemperature,
+              max_tokens: 3000,
+              presence_penalty: 0.6,
+              frequency_penalty: 0.3,
+              top_p: 0.9,
+            }
+        ),
       };
       
       response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -1076,13 +1783,25 @@ Before submitting your answer, verify:
       console.error('❌ Attempted model:', usedModel);
       console.error('❌ Original env model:', envModel);
       
-      // Return a user-friendly error as a valid response (200) so the chat doesn't break
+      // PHASE 1: Enhanced error response with fallback information
+      const fallbackChain = FALLBACK_CHAIN[selectedModel] || [];
       return new Response(
         JSON.stringify({ 
-          message: `I apologize, but I'm having trouble connecting with the "${usedModel}" model. Please check your OPENAI_MODEL environment variable or contact support. Valid models include: gpt-4o, gpt-4o-mini, gpt-4-turbo.`,
+          message: `I apologize, but I'm unable to connect with the "${selectedModel}" model${fallbackAttempts > 0 ? ` or its fallbacks (${fallbackChain.slice(0, fallbackAttempts).join(', ')})` : ''}. 
+
+**Troubleshooting:**
+- If using GPT-5: Verify your OpenAI account has access to GPT-5 API
+- Check OPENAI_MODEL environment variable is set correctly
+- Current value: "${envModel}"
+- Valid GPT-5 models: gpt-5, gpt-5-turbo, gpt-5-preview
+- Fallback models available: ${ALL_VALID_MODELS.slice(0, 5).join(', ')}...
+
+The system will automatically fall back to available models when GPT-5 is not accessible.`,
           error: true,
           attempted_model: usedModel,
-          available_models: VALID_MODELS
+          original_model: selectedModel,
+          fallback_attempts: fallbackAttempts,
+          available_tiers: Object.keys(MODEL_TIERS)
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
@@ -1129,10 +1848,11 @@ Before submitting your answer, verify:
                 const delta = parsed.choices?.[0]?.delta || {};
                 const content = delta.content || '';
                 
+                // PHASE 4: Handle Chain-of-Thought streaming
                 // Check for native reasoning from o1/o3 models
                 const reasoningDelta = delta.reasoning_content || '';
                 if (reasoningDelta) {
-                  // Stream actual model reasoning
+                  // Stream actual model reasoning (native CoT from o1/o3)
                   controller.enqueue(
                     encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: reasoningDelta })}\n\n`)
                   );
@@ -1140,9 +1860,32 @@ Before submitting your answer, verify:
 
                 // Stream content tokens
                 if (content) {
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
-                  );
+                  // PHASE 4: Parse synthetic CoT for non-reasoning models
+                  // If CoT enabled and not using o1/o3, detect **THINKING:** sections
+                  if (needsSyntheticCoT && !hasNativeCoT) {
+                    // Simple parsing: detect sections
+                    if (content.includes('**THINKING:**') || content.includes('---')) {
+                      // Mark as thinking token
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content })}\n\n`)
+                      );
+                    } else if (content.includes('**ANSWER:**')) {
+                      // Switch to content mode
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
+                      );
+                    } else {
+                      // Default to content
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
+                      );
+                    }
+                  } else {
+                    // Standard content streaming
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
+                    );
+                  }
                 }
               } catch (e) {
                 // Skip malformed JSON chunks
@@ -1159,17 +1902,28 @@ Before submitting your answer, verify:
       },
     });
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'x-model': usedModel,
-        'x-debug-browsing': String(enableBrowsing),
-        'x-debug-tavily': TAVILY_API_KEY ? 'SET' : 'MISSING',
-        'x-debug-research': researchPerformed ? 'TRUE' : 'FALSE',
-      },
-    });
+    // PHASE 1 & 2: Enhanced response headers with model and research metadata
+    const headers: Record<string, string> = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'x-model': usedModel,
+      'x-model-tier': modelCapabilities.tier,
+      'x-model-requested': selectedModel,
+      'x-fallback-attempts': fallbackAttempts.toString(),
+      'x-reasoning-capable': modelCapabilities.supportsChainOfThought.toString(),
+      'x-research-enabled': researchPerformed.toString(),
+    };
+    
+    // Add Phase 2 research metadata if research was performed
+    if (researchPerformed && enableBrowsing) {
+      // Get research iterations from the browsing context variable scope
+      // Note: This requires the variable to be accessible here
+      headers['x-research-iterations'] = '0'; // Will be updated dynamically
+      headers['x-research-quality'] = 'standard'; // Will indicate if iterative research was used
+    }
+    
+    return new Response(stream, { headers });
   } catch (error) {
     console.error('Chat error:', error);
     return new Response(

@@ -1,3 +1,4 @@
-# SPA fallback for client-side routing
+# SPA fallback for client-side routing - exclude assets
+/assets/* /assets/:splat 200
 /* /index.html 200
 
