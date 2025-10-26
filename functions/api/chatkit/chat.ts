@@ -2114,6 +2114,14 @@ ${previousResearchContext}
     });
     
     console.log('📥 OpenAI response status:', response.status, response.statusText);
+    console.log('📥 OpenAI response has body:', !!response.body);
+    console.log('📥 OpenAI response body type:', response.body ? typeof response.body : 'null');
+    console.log('📥 OpenAI response bodyUsed:', response.bodyUsed);
+    
+    // CLOUDFLARE PAGES FIX: Check if body exists and hasn't been consumed
+    if (!response.body && response.ok) {
+      console.error('❌ CRITICAL: OpenAI returned OK status but no body - possible streaming issue');
+    }
 
     // PHASE 1: INTELLIGENT FALLBACK MECHANISM
     // Try fallback chain if primary model fails (any 4xx error)
@@ -2165,6 +2173,8 @@ ${previousResearchContext}
         },
         body: JSON.stringify(fallbackBody),
       });
+      
+      console.log(`📥 Fallback ${fallbackAttempts} response:`, response.status, !!response.body);
     }
 
     if (!response.ok) {
@@ -2248,6 +2258,17 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
 
         const rb = response.body;
         if (!rb) {
+          console.error('❌ CRITICAL: response.body is null!');
+          console.error('   Response status:', response.status);
+          console.error('   Response ok:', response.ok);
+          console.error('   Response type:', response.type);
+          console.error('   Response headers:', Object.fromEntries(response.headers.entries()));
+          
+          // Send error message to user
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+            type: 'content', 
+            content: '\n\n⚠️ **Streaming Error**: The AI response could not be streamed. The OpenAI API returned a success code but no response body. This may be a temporary API issue. Please try again.\n\nIf this persists, the issue may be with:\n- Cloudflare Pages streaming configuration\n- OpenAI API endpoint compatibility\n- Network/proxy interference\n' 
+          })}\n\n`));
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
           return;
