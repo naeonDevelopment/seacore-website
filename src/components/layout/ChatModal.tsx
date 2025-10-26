@@ -367,18 +367,24 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           // Calculate the index where the NEW assistant message will be
           assistantMessageIndex = prev.length;
           streamingIndexRef.current = assistantMessageIndex;
+          console.log(`🚀 ===== STREAM STARTING =====`);
           console.log(`🔄 Stream starting: assistant message will be at index ${assistantMessageIndex}`);
-          console.log(`📊 Current messages before adding assistant:`, prev.map((m, i) => `[${i}] ${m.role}: "${m.content?.substring(0, 30)}..."`));
+          console.log(`📊 Current messages before adding assistant:`, prev.map((m, i) => `[${i}] ${m.role}(id:${m.id}): "${m.content?.substring(0, 30)}..."`));
           
-          return [...prev, {
+          const newMessage = {
             id: 'assistant-' + Date.now(),
-            role: 'assistant',
+            role: 'assistant' as const,
             content: '',
             thinkingContent: '',
             timestamp: new Date(),
             isStreaming: true,
             isThinking: false, // Don't show thinking until we have content
-          }];
+          };
+          
+          console.log(`➕ Adding new assistant message:`, newMessage);
+          console.log(`📍 streamingIndexRef.current set to:`, assistantMessageIndex);
+          
+          return [...prev, newMessage];
         });
         
         // Hide loading indicator immediately after streaming starts
@@ -435,6 +441,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                   const updated = [...prev];
                   const idx = streamingIndexRef.current ?? updated.length - 1;
                   
+                  console.log(`🔄 Stream update attempt: idx=${idx}, arrayLength=${updated.length}, streamedContent=${streamedContent.length}chars`);
+                  console.log(`📋 Current messages:`, prev.map((m, i) => `[${i}] ${m.role}(${m.id}): ${m.content?.length || 0}chars`));
+                  
                   // Defensive check
                   if (idx < 0 || idx >= updated.length) {
                     console.error(`❌ Invalid message index: ${idx}, length: ${updated.length}`);
@@ -449,10 +458,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                     return prev;
                   }
                   
-                  // Log what we're updating
-                  if (streamedContent.length < 50 || streamedContent.length % 100 === 0) {
-                    console.log(`📝 Updating [${idx}]: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars, showThinking=${shouldShowThinking}`);
-                  }
+                  console.log(`✅ Updating assistant message [${idx}] with ${streamedContent.length} chars`);
                   
                   // CRITICAL: Spread existing message to preserve React keys and prevent flashing
                   updated[idx] = {
@@ -462,6 +468,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
+                  
+                  console.log(`✅ Update complete. Message now has ${updated[idx].content.length} chars`);
                   return updated;
                 });
               } catch (_) {
@@ -488,8 +496,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           const updated = [...prev];
           const idx = streamingIndexRef.current ?? updated.length - 1;
           
+          console.log(`🏁 ===== FINALIZING STREAM =====`);
           console.log(`🏁 Finalizing stream at index ${idx}. Total messages: ${updated.length}`);
           console.log(`📊 Final state: content=${streamedContent.length}chars, thinking=${streamedThinking.length}chars`);
+          console.log(`📋 All messages before finalize:`, prev.map((m, i) => `[${i}] ${m.role}(${m.id}): ${m.content?.length || 0}chars, streaming=${m.isStreaming}`));
           
           // Defensive check
           if (idx < 0 || idx >= updated.length) {
@@ -505,6 +515,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
           }
           
           console.log(`✅ Finalizing message [${idx}]: "${updated[idx].content?.substring(0, 50)}..."`);
+          console.log(`   Before: streaming=${updated[idx].isStreaming}, thinking=${updated[idx].isThinking}`);
           
           updated[idx] = {
             ...updated[idx],
@@ -512,7 +523,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
             isThinking: false, // Always hide thinking when done
           };
           
+          console.log(`   After: streaming=${updated[idx].isStreaming}, thinking=${updated[idx].isThinking}, content.length=${updated[idx].content?.length}`);
           console.log(`📊 Final messages:`, updated.map((m, i) => `[${i}] ${m.role}: ${m.content?.length || 0}chars`));
+          console.log(`🏁 ===== FINALIZE COMPLETE =====`);
           return updated;
         });
         
@@ -652,6 +665,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, darkMode,
               
               <div className="relative z-10 space-y-4 sm:space-y-6">
                 {messages.map((message, index) => {
+                  // DEBUG: Log ALL messages being mapped
+                  console.log(`🔍 Message [${index}]: role=${message.role}, id=${message.id}, content=${message.content?.length || 0}chars, streaming=${message.isStreaming}`);
+                  
                   // ALWAYS render user messages
                   // Only skip empty assistant messages that aren't streaming
                   if (message.role === 'assistant' && !message.content && !message.thinkingContent && !message.isStreaming) {
