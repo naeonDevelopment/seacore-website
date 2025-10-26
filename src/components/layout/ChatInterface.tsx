@@ -692,29 +692,46 @@ This is **specialized maritime search** – not general web search. Get precise,
           await new Promise(resolve => setTimeout(resolve, remainingThinkingTime));
         }
         
+        // CRITICAL FIX: Check if we actually received content before finalizing
+        if (!hasReceivedContent && !streamedContent) {
+          console.error('❌ [ChatInterface] Stream ended without receiving any content');
+          setMessages((prev) => [...prev, {
+            role: 'assistant',
+            content: "⚠️ **Streaming Error**\n\nI couldn't receive a response from the AI. This may be due to:\n- Network connectivity issues\n- Server streaming compatibility\n- API timeout or error\n\n**Please try again.** If the issue persists, check the browser console and server logs for details.",
+            timestamp: new Date(),
+            isStreaming: false,
+            isThinking: false,
+          }]);
+          return;
+        }
+        
         setMessages((prev) => {
           const updated = [...prev];
           let idx = streamingIndexRef.current ?? updated.length - 1;
+          
+          // Try to find the assistant message to finalize
           if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
-            // Try to find the streaming assistant to finalize
             const found = [...updated].reverse().findIndex((m) => m.role === 'assistant' && m.isStreaming);
             if (found !== -1) {
               idx = updated.length - 1 - found;
               streamingIndexRef.current = idx;
             }
           }
-          // If still invalid, append fallback to avoid losing content
+          
+          // If still invalid but we have content, create new message
           if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
-            console.warn('⚠️ [ChatInterface] Invalid finalize index, appending fallback');
+            console.warn('⚠️ [ChatInterface] No streaming message found, creating new assistant message');
             return [...prev, {
               role: 'assistant',
-              content: streamedContent || "I couldn't display the response correctly. Please try again.",
+              content: streamedContent || "I received a response but couldn't display it correctly. Please try again.",
               thinkingContent: useBrowsing ? streamedThinking : '',
               timestamp: new Date(),
               isStreaming: false,
               isThinking: false,
             }];
           }
+          
+          // Finalize the existing streaming message
           updated[idx] = {
             ...updated[idx],
             content: streamedContent,
