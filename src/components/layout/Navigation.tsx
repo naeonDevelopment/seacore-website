@@ -21,11 +21,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
   const navigate = useNavigate()
   const { scrollDirection } = useScrollDirection({ threshold: 20 })
 
-  // Hide navigation on assistant page for fullscreen experience
-  if (location.pathname === '/assistant') {
-    return null
-  }
-
   const navigationItems = [
     {
       id: 'solution',
@@ -66,6 +61,11 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
   React.useEffect(() => {
     console.log('Scroll Direction:', scrollDirection, '| Header:', showMobileHeader, '| Dock:', showDock)
   }, [scrollDirection, showMobileHeader, showDock])
+
+  // Hide navigation on assistant page for fullscreen experience
+  if (location.pathname === '/assistant') {
+    return null
+  }
 
   return (
     <>
