@@ -702,12 +702,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
                   <span className="text-[11px] sm:text-xs font-semibold">Online research</span>
                 </button>
                 
-                {/* Chain of Thought - Now always enabled, showing status only */}
-                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800">
-                  <Brain className="w-4 h-4" />
-                  <span className="text-[11px] sm:text-xs font-semibold">Reasoning enabled</span>
-                </div>
-                
                 <button
                   type="button"
                   onClick={resetChat}
