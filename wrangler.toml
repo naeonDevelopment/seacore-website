@@ -7,6 +7,14 @@ pages_build_output_dir = "dist"
 [observability]
 enabled = true
 
+# KV Namespace for Session Caching
+# Run: npx wrangler kv:namespace create CHAT_SESSIONS --preview false
+# Then replace 'YOUR_KV_NAMESPACE_ID' below with the generated ID
+[[kv_namespaces]]
+binding = "CHAT_SESSIONS"
+id = "YOUR_KV_NAMESPACE_ID"
+preview_id = "YOUR_KV_NAMESPACE_ID"
+
 # Note: For Cloudflare Pages, secrets are automatically bound to Functions
 # when created via: npx wrangler pages secret put <KEY_NAME>
 # No additional configuration needed in wrangler.toml

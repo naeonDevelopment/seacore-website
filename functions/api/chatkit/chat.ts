@@ -15,6 +15,16 @@ import {
   verifyAndAnswer
 } from './verification-system';
 
+import {
+  compressSession,
+  decompressSession,
+  generateContextWindow,
+  buildPromptContext,
+  calculateCacheSize,
+  type SessionCache,
+  type Message as CacheMessage,
+} from './cache-utils';
+
 const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital transformation specialist for **fleetcore**.ai - the world's most advanced Maritime Maintenance Operating System.
 
 # OPERATING MODES
@@ -847,10 +857,48 @@ export async function onRequestPost(context) {
       );
     }
 
+    // ===== SESSION CACHING LAYER =====
+    // Load session from KV cache if available
+    const sessionId = body.sessionId || 'default-session';
+    let sessionCache: SessionCache | null = null;
+    let cachedContext = '';
+    
+    if (context.env.CHAT_SESSIONS) {
+      try {
+        const cacheKey = `session:${sessionId}`;
+        const cachedData = await context.env.CHAT_SESSIONS.get(cacheKey);
+        
+        if (cachedData) {
+          sessionCache = decompressSession(cachedData);
+          
+          if (sessionCache) {
+            // Generate optimized context window from cached conversation
+            const contextWindow = generateContextWindow(sessionCache.messages);
+            cachedContext = buildPromptContext(contextWindow);
+            
+            console.log(`✅ Loaded session cache: ${sessionId}`, {
+              messageCount: sessionCache.messageCount,
+              cacheSize: calculateCacheSize(sessionCache),
+              entities: contextWindow.keyEntities.length,
+              researchUrls: contextWindow.researchUrls.length,
+            });
+          }
+        } else {
+          console.log(`📝 New session: ${sessionId} (no cache found)`);
+        }
+      } catch (error) {
+        console.error('⚠️ Cache load error:', error);
+        // Continue without cache - non-blocking
+      }
+    } else {
+      console.log('⚠️ KV namespace CHAT_SESSIONS not bound - session caching disabled');
+    }
+
     // Build conversation with system prompt
     // Add explicit mode indicator to help AI understand its operating context
     const conversationMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
+      ...(cachedContext ? [{ role: 'system', content: cachedContext }] : []),
       { role: 'system', content: `🎯 **CURRENT MODE: EXPERT MODE (No Research Context)**
 
 You are operating in EXPERT MODE. This means:
@@ -2428,6 +2476,42 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
           controller.error(error);
         } finally {
           controller.close();
+          
+          // ===== SAVE SESSION TO KV CACHE (Non-blocking) =====
+          if (context.env.CHAT_SESSIONS) {
+            const saveToCache = async () => {
+              try {
+                const updatedSession: SessionCache = {
+                  sessionId,
+                  messages: messages.map((m: any) => ({
+                    role: m.role,
+                    content: m.content,
+                    timestamp: new Date(m.timestamp || Date.now()),
+                  })),
+                  createdAt: sessionCache?.createdAt || Date.now(),
+                  lastAccess: Date.now(),
+                  messageCount: messages.length,
+                  metadata: {
+                    lastModel: usedModel,
+                  },
+                };
+                
+                const compressed = compressSession(updatedSession);
+                const cacheKey = `session:${sessionId}`;
+                const TTL_7_DAYS = 604800;
+                
+                await context.env.CHAT_SESSIONS.put(cacheKey, compressed, {
+                  expirationTtl: TTL_7_DAYS,
+                });
+                
+                console.log(`💾 Saved session to KV: ${sessionId}`);
+              } catch (error) {
+                console.error('⚠️ Cache save error:', error);
+              }
+            };
+            
+            saveToCache();
+          }
         }
       },
     });
@@ -2443,6 +2527,8 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
       'x-fallback-attempts': fallbackAttempts.toString(),
       'x-reasoning-capable': modelCapabilities.supportsChainOfThought.toString(),
       'x-research-enabled': researchPerformed.toString(),
+      'x-session-id': sessionId,
+      'x-cache-enabled': context.env.CHAT_SESSIONS ? 'true' : 'false',
     };
     
     // Add Phase 2 research metadata if research was performed

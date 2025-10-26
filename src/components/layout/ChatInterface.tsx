@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, FileText, Sparkles } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -76,14 +76,6 @@ This is **specialized maritime search** – not general web search. Get precise,
     latestMessagesRef.current = messages;
   }, [messages]);
 
-  // Track the index of the last user message so we can attach the live
-  // Research steps panel directly under it during browsing.
-  const lastUserIndex = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]?.role === 'user') return i;
-    }
-    return -1;
-  }, [messages]);
 
   const setMessages = (newMessages: Message[] | ((prev: Message[]) => Message[])) => {
     if (onMessagesChange) {
@@ -127,6 +119,8 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [verifiedSources, setVerifiedSources] = useState<ResearchEvent[]>([]);
   // Filter for source display: 'all', 'accepted', 'rejected'
   const [sourceFilter, setSourceFilter] = useState<'all' | 'accepted' | 'rejected'>('accepted');
+  // Track which message the current research belongs to (by timestamp)
+  const [currentResearchMessageId, setCurrentResearchMessageId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -373,20 +367,27 @@ This is **specialized maritime search** – not general web search. Get precise,
       content: input.trim(),
       timestamp: new Date(),
     };
+    
+    // Store the message ID for this research session
+    const messageId = userMessage.timestamp.getTime().toString();
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     
-    // Clear previous research events for this new query
+    // Clear previous research events and set new research ID
     if (useBrowsing) {
-      console.log('🌐 Online research enabled - fetching fresh data...');
+      console.log('🌐 Online research enabled - starting fresh research for message:', messageId);
+      setCurrentResearchMessageId(messageId);
       setResearchEvents([]);
       setVerifiedSources([]);
       researchStartedRef.current = false; // Reset so first event triggers expansion
     }
 
     try {
+      
+      // Get session ID from parent or generate default
+      const sessionId = (window as any).__activeSessionId || 'default-session';
       
       const response = await fetch('/api/chatkit/chat', {
         method: 'POST',
@@ -399,6 +400,7 @@ This is **specialized maritime search** – not general web search. Get precise,
           enableBrowsing: useBrowsing,
           enableChainOfThought: useChainOfThought,
           researchComplexity: 'simple',
+          sessionId, // Include session ID for cache management
         }),
       });
 
@@ -755,13 +757,15 @@ This is **specialized maritime search** – not general web search. Get precise,
               {/* Hide animated thinking bubble; we use only the Research steps panel */}
               {false && useBrowsing && message.role === 'assistant' && message.thinkingContent && message.isThinking}
               
-              {/* Dynamic Research Panel - show immediately after user message when research is active */}
-              {useBrowsing && researchStartedRef.current && message.role === 'user' && index === lastUserIndex && (
+              {/* Dynamic Research Panel - show after the specific user message that triggered research */}
+              {useBrowsing && researchStartedRef.current && message.role === 'user' && 
+               message.timestamp && currentResearchMessageId === message.timestamp.getTime().toString() && (
                 <motion.div 
+                  key={`research-${currentResearchMessageId}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="mt-4 ml-14 mr-auto max-w-[85%]"
+                  className="mt-4 mb-4 ml-14 mr-auto max-w-[85%]"
                 >
                   {/* Panel Header */}
                   <div className="flex items-center justify-between mb-3">

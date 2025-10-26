@@ -152,7 +152,20 @@ export function useSessions() {
     return newSession.id;
   }, [sessions.length]);
 
-  const deleteSession = useCallback((sessionId: string) => {
+  const deleteSession = useCallback(async (sessionId: string) => {
+    // Clean up server-side cache (non-blocking)
+    try {
+      await fetch(`/api/chatkit/session-delete?sessionId=${sessionId}`, {
+        method: 'DELETE',
+      }).catch(err => {
+        console.warn('Failed to clean up session cache:', err);
+        // Non-blocking - continue with local deletion
+      });
+    } catch (error) {
+      console.warn('Session cache cleanup error:', error);
+      // Non-blocking - continue with local deletion
+    }
+    
     setSessions(prev => {
       const filtered = prev.filter(s => s.id !== sessionId);
       

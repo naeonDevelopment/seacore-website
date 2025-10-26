@@ -36,6 +36,11 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
   const handleClose = () => {
     navigate('/');
   };
+  
+  // Expose activeSessionId to window for ChatInterface cache management
+  useEffect(() => {
+    (window as any).__activeSessionId = activeSessionId;
+  }, [activeSessionId]);
 
   // Detect mobile
   useEffect(() => {
