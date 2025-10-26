@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, Search, FileText, Sparkles } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, FileText, Sparkles } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -377,11 +377,16 @@ This is **specialized maritime search** – not general web search. Get precise,
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    
+    // Clear previous research events for this new query
+    if (useBrowsing) {
+      console.log('🌐 Online research enabled - fetching fresh data...');
+      setResearchEvents([]);
+      setVerifiedSources([]);
+      researchStartedRef.current = false; // Reset so first event triggers expansion
+    }
 
     try {
-      if (useBrowsing) {
-        console.log('🌐 Online research enabled - fetching fresh data...');
-      }
       
       const response = await fetch('/api/chatkit/chat', {
         method: 'POST',
@@ -629,7 +634,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         thinkingStartTimeRef.current = null;
         firstContentTimeRef.current = null;
-        researchStartedRef.current = false;
+        // DON'T reset researchStartedRef - let it persist for next query
         // Auto-collapse research steps after finalize
         setExpandedSources((prev) => {
           const ns = new Set(prev);
@@ -770,7 +775,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                     >
                       <Sparkles className="w-4 h-4 text-maritime-600 dark:text-maritime-400 animate-pulse" />
                       <span className="text-sm font-bold text-maritime-700 dark:text-maritime-300">
-                        AI Research in Progress
+                        AI Research
                       </span>
                       {expandedSources.has(-1) ? (
                         <ChevronUp className="w-4 h-4 text-maritime-600 dark:text-maritime-400 group-hover:-translate-y-0.5 transition-transform" />
@@ -825,7 +830,6 @@ This is **specialized maritime search** – not general web search. Get precise,
                           {(() => {
                             const recent = researchEvents.slice(-30);
                             const steps = recent.filter(e => e.type === 'step');
-                            const searches = recent.filter(e => e.type === 'tool' && e.tool === 'search');
                             
                             return (
                               <>
@@ -864,34 +868,6 @@ This is **specialized maritime search** – not general web search. Get precise,
                                   </div>
                                 )}
 
-                                {/* Search Queries */}
-                                {searches.length > 0 && (
-                                  <div className="mb-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Search className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Search Queries</h4>
-                                    </div>
-                                    <div className="space-y-1">
-                                      {searches.slice(-2).map((search, idx) => (
-                                        <motion.div
-                                          key={idx}
-                                          initial={{ opacity: 0, scale: 0.95 }}
-                                          animate={{ opacity: 1, scale: 1 }}
-                                          className="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800"
-                                        >
-                                          <div className="text-xs text-violet-900 dark:text-violet-100 font-medium">
-                                            "{search.query}"
-                                          </div>
-                                          {search.results && (
-                                            <div className="text-xs text-violet-600 dark:text-violet-400 mt-1">
-                                              → {search.results} results found
-                                            </div>
-                                          )}
-                                        </motion.div>
-                                      ))}
-                                </div>
-                                  </div>
-                                )}
                               </>
                             );
                           })()}
@@ -930,7 +906,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                                   <div className="w-2 h-2 rounded-full bg-rose-500" />
                                   <span className="font-medium">Rejected</span>
                                 </button>
-                              </div>
+                                </div>
                             </div>
 
                             {/* Animated Source Badges - Simple Fade In/Out */}
@@ -1030,11 +1006,11 @@ This is **specialized maritime search** – not general web search. Get precise,
                                       </motion.a>
                                     );
                                   });
-                                })()}
+                          })()}
                               </AnimatePresence>
-                            </div>
-                          </div>
-                        </div>
+                      </div>
+                    </div>
+                </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
