@@ -330,30 +330,43 @@ Contact us to discuss custom AI assistant deployment for your fleet.
 
   useCases: [
     {
-      title: "Fleet Manager",
+      title: "Fleet Manager - Operational Excellence",
+      description: "Get tailored guidance on optimizing fleet operations and reducing costs",
       questions: [
-        "How can I reduce maintenance costs?",
-        "What are the latest SOLAS amendments?",
-        "How does predictive maintenance work?",
-        "What's the ROI of implementing fleetcore?"
+        "Given my 12 container vessels, create a personalized predictive maintenance roadmap",
+        "How should I prioritize maintenance investments across my fleet?",
+        "What are the latest SOLAS amendments affecting my specific vessel class?",
+        "Design a cost reduction strategy targeting 25% savings in my operations"
       ]
     },
     {
-      title: "Technical Team",
+      title: "Technical Director - Engineering Intelligence",
+      description: "Access specialized technical expertise and integration strategies",
       questions: [
-        "How do I set up automated compliance tracking?",
-        "What maintenance intervals does SOLAS require?",
-        "How does the platform integrate with existing systems?",
-        "What data does the AI use for predictions?"
+        "Architect an automated compliance tracking system for our requirements",
+        "What sensor configurations optimize predictive analytics for our engines?",
+        "Design an integration strategy connecting fleetcore with our ERP/CMMS",
+        "Best practices for implementing condition-based maintenance on [equipment]"
       ]
     },
     {
-      title: "Executive",
+      title: "Compliance Officer - Regulatory Intelligence",
+      description: "Receive customized compliance guidance and audit preparation",
       questions: [
-        "What are the business benefits?",
-        "How long does implementation take?",
-        "What cost savings can we expect?",
-        "How does fleetcore compare to competitors?"
+        "Build a SOLAS compliance checklist customized for our vessel types",
+        "What regulatory changes will affect our next 12 months?",
+        "Create a personalized audit preparation plan for ISM recertification",
+        "How do new environmental regulations apply to our operational profile?"
+      ]
+    },
+    {
+      title: "C-Level Executive - Strategic Intelligence",
+      description: "Get executive-level decision support and business intelligence",
+      questions: [
+        "Business case and ROI timeline for fleetcore across our fleet",
+        "How does digital transformation impact our competitive position?",
+        "Strategic technology investments delivering measurable outcomes",
+        "Risk-adjusted cost-benefit analysis for predictive maintenance"
       ]
     }
   ],
