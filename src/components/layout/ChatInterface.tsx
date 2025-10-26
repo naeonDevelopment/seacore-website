@@ -502,6 +502,16 @@ This is **specialized maritime search** – not general web search. Get precise,
                 const parsed = JSON.parse(jsonStr);
                 // Capture structured research events (server emitted)
                 if (parsed?.type === 'step' || parsed?.type === 'tool' || parsed?.type === 'source') {
+                  // Log source events
+                  if (parsed?.type === 'source') {
+                    console.log('🔍 [Source Event Received]', {
+                      action: parsed.action,
+                      url: parsed.url,
+                      title: parsed.title?.substring(0, 50),
+                      hasActiveResearch: !!activeResearchIdRef.current
+                    });
+                  }
+                  
                   if (useBrowsing && activeResearchIdRef.current) {
                     // Update the active research session
                     setResearchSessions((prev) => {
@@ -518,9 +528,26 @@ This is **specialized maritime search** – not general web search. Get precise,
                           }
                         }
                         updated.set(activeResearchIdRef.current!, session);
+                        
+                        // DEBUG: Log session state after adding event
+                        if (parsed.type === 'source') {
+                          console.log('📊 [Session Updated]', {
+                            sessionId: activeResearchIdRef.current,
+                            totalEvents: session.events.length,
+                            totalSources: session.events.filter(e => e.type === 'source').length,
+                            verifiedSources: session.verifiedSources.length,
+                            lastAction: parsed.action
+                          });
+                        }
+                      } else {
+                        console.warn('⚠️ No active session found for:', activeResearchIdRef.current);
                       }
                       return updated;
                     });
+                  } else {
+                    if (parsed?.type === 'source') {
+                      console.warn('⚠️ Source received but no active research:', { useBrowsing, activeResearchIdRef: activeResearchIdRef.current });
+                    }
                   }
                   // Do not treat as content/thinking; continue
                   continue;
@@ -1078,6 +1105,14 @@ This is **specialized maritime search** – not general web search. Get precise,
                                   const allSources = researchSession.events.filter(e => e.type === 'source');
                                   const recentSources = allSources.slice(-20);
                                   
+                                  // Log filtering
+                                  console.log('🎯 [Source Display]', {
+                                    totalSources: allSources.length,
+                                    recentSources: recentSources.length,
+                                    currentFilter: sourceFilter,
+                                    sampleActions: recentSources.slice(0, 3).map(s => s.action)
+                                  });
+                                  
                                   // Filter based on selected filter
                                   const filteredSources = recentSources.filter(source => {
                                     const isAccepted = source.action === 'selected';
@@ -1102,14 +1137,28 @@ This is **specialized maritime search** – not general web search. Get precise,
                                   }
                                   
                                   if (filteredSources.length === 0) {
+                                    const message = sourceFilter === 'accepted' 
+                                      ? `No sources accepted (${allSources.length} total found)`
+                                      : sourceFilter === 'rejected'
+                                      ? `No sources rejected (${allSources.length} total found)`
+                                      : 'No sources found';
+                                    
                                     return (
                                       <motion.div 
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
-                                        className="flex items-center justify-center h-[100px] text-xs text-slate-500 dark:text-slate-400"
+                                        className="flex flex-col items-center justify-center h-[100px] text-xs text-slate-500 dark:text-slate-400 gap-2"
                                       >
-                                        <span>No {sourceFilter} sources</span>
+                                        <span>{message}</span>
+                                        {allSources.length > 0 && (
+                                          <button
+                                            onClick={() => setSourceFilter('all')}
+                                            className="text-blue-500 hover:text-blue-600 underline"
+                                          >
+                                            View all sources
+                                          </button>
+                                        )}
                                       </motion.div>
                                     );
                                   }
