@@ -11,6 +11,7 @@ import { tool } from "@langchain/core/tools";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
+import { analyzeContentIntelligence, batchAnalyzeContent, type ContentSource, type ContentIntelligence } from './content-intelligence';
 
 // =====================
 // TYPES & INTERFACES
@@ -21,6 +22,7 @@ interface Source {
   url: string;
   content: string;
   score?: number;
+  intelligence?: ContentIntelligence; // Multi-tiered analysis results
 }
 
 interface ResearchResult {
@@ -172,62 +174,77 @@ function detectQueryMode(query: string, enableBrowsing: boolean): 'verification'
 }
 
 /**
- * Select best sources based on quality scoring
- * Advanced logic transferred from chat.ts
+ * Select best sources with MULTI-TIERED CONTENT INTELLIGENCE
+ * Cursor-inspired: Hierarchical analysis with configurable depth
  */
-function selectBestSources(results: any[], maxSources: number = 15): { selected: Source[], rejected: Source[] } {
-  const scored = results.map(r => {
-    let score = r.score || 0.5;
-    
-    // PRIORITY 1: Official/OEM sources (highest authority)
-    if (/(\.gov|imo\.org|classification|dnv|abs|lloyd|bureau-veritas)/i.test(r.url)) score += 0.3;
-    if (/(wartsila|caterpillar|man-es|rolls-royce|kongsberg)/i.test(r.url)) score += 0.25;
-    
-    // PRIORITY 2: Technical documentation
-    if (/\.(pdf|doc)$/i.test(r.url)) score += 0.15;
-    if (/(manual|specification|datasheet|technical|whitepaper)/i.test(r.title)) score += 0.15;
-    if (/(manufacturer|oem|equipment)/i.test(r.url)) score += 0.1;
-    
-    // PRIORITY 3: Maritime authoritative sources (BOOSTED for better coverage)
-    if (/(maritime-executive|gcaptain|offshore|marinelink)/i.test(r.url)) score += 0.15; // Increased from 0.08
-    if (/(maritime|vessel|ship|marine)/i.test(r.url)) score += 0.1;
-    if (/(fleet|shipyard|naval|port)/i.test(r.url)) score += 0.08;
-    
-    // PRIORITY 4: Equipment/vessel databases
-    if (/(marinetraffic|vesseltracker|equasis|shipping)/i.test(r.url)) score += 0.12;
-    
-    // PENALTY: Low-quality sources
-    if (/(wikipedia|reddit|quora|forum)/i.test(r.url)) score -= 0.2;
-    if (/(social|facebook|twitter|instagram|linkedin|pinterest)/i.test(r.url)) score -= 0.3;
-    
-    // Boost if title matches query intent (more relevant)
-    const titleWords = r.title?.toLowerCase().split(/\s+/) || [];
-    if (titleWords.some(w => ['technical', 'specification', 'manual', 'guide'].includes(w))) {
-      score += 0.05;
-    }
-    
-    return { ...r, score: Math.max(0, Math.min(1, score)) }; // Clamp to [0,1]
-  });
+async function selectBestSources(
+  results: any[], 
+  maxSources: number = 15,
+  query: string = '',
+  analysisDepth: 'fast' | 'standard' | 'deep' = 'standard'
+): Promise<{ selected: Source[], rejected: Source[] }> {
   
-  // Sort by score descending
-  scored.sort((a, b) => b.score - a.score);
+  console.log(`\n🧠 CONTENT INTELLIGENCE ANALYSIS (${analysisDepth} mode)`);
+  console.log(`   Analyzing ${results.length} sources...`);
   
-  // SMART SELECTION: Take top sources but ensure quality gap
-  const qualityGap = 0.20; // Accept sources within 0.20 of best score (more inclusive)
-  const bestScore = scored[0]?.score || 0;
-  const minQualityThreshold = 0.4; // Absolute minimum quality score
+  // Convert to ContentSource format
+  const sources: ContentSource[] = results.map(r => ({
+    title: r.title || '',
+    url: r.url || '',
+    content: r.content || '',
+    score: r.score,
+    raw_content: r.raw_content,
+    published_date: r.published_date,
+  }));
   
-  const qualityFiltered = scored.filter(s => 
-    s.score >= bestScore - qualityGap && s.score >= minQualityThreshold
+  // Run multi-tiered intelligence analysis
+  const startTime = Date.now();
+  const analyzed = await batchAnalyzeContent(sources, query, analysisDepth);
+  const analysisTime = Date.now() - startTime;
+  
+  console.log(`   ✅ Intelligence analysis complete (${analysisTime}ms)`);
+  
+  // Sort by intelligence score
+  analyzed.sort((a, b) => b.intelligence.final_score - b.intelligence.final_score);
+  
+  // SMART SELECTION with adaptive thresholds
+  const bestScore = analyzed[0]?.intelligence.final_score || 0;
+  const bestConfidence = analyzed[0]?.intelligence.confidence || 0;
+  
+  // Adaptive quality gap based on top source confidence
+  const qualityGap = bestConfidence > 0.8 ? 0.15 : 0.20; // Stricter if high confidence
+  const minQualityThreshold = 0.45; // Absolute minimum
+  
+  const qualityFiltered = analyzed.filter(s => 
+    s.intelligence.final_score >= bestScore - qualityGap && 
+    s.intelligence.final_score >= minQualityThreshold &&
+    s.intelligence.confidence >= 0.5 // Confidence filter
   );
+  
   const selected = qualityFiltered.slice(0, maxSources);
-  const rejected = scored.filter(s => !selected.includes(s));
+  const rejected = analyzed.filter(s => !selected.includes(s));
   
-  console.log(`   Quality range: ${bestScore.toFixed(2)} - ${Math.max(bestScore - qualityGap, minQualityThreshold).toFixed(2)}`);
-  console.log(`   Selected ${selected.length}/${scored.length} (rejected ${rejected.length} low-quality)`);
-  console.log(`   Top 3 scores: ${scored.slice(0, 3).map(s => s.score.toFixed(2)).join(', ')}`);
+  // Enhanced logging
+  console.log(`   📊 Intelligence Metrics:`);
+  console.log(`      Best Score: ${(bestScore * 100).toFixed(1)}% (confidence: ${(bestConfidence * 100).toFixed(0)}%)`);
+  console.log(`      Quality Range: ${(bestScore * 100).toFixed(1)}% - ${(Math.max(bestScore - qualityGap, minQualityThreshold) * 100).toFixed(1)}%`);
+  console.log(`      Selected: ${selected.length}/${analyzed.length} sources`);
+  console.log(`      Rejected: ${rejected.length} low-quality sources`);
   
-  return { selected, rejected };
+  if (selected.length >= 3) {
+    console.log(`      Top 3 Intelligence Scores:`);
+    for (let i = 0; i < Math.min(3, selected.length); i++) {
+      const s = selected[i];
+      const intel = s.intelligence;
+      console.log(`        ${i + 1}. ${(intel.final_score * 100).toFixed(1)}% - Domain:${(intel.domain_authority * 100).toFixed(0)}% Relevance:${(intel.relevance_score * 100).toFixed(0)}% Maritime:${(intel.maritime_specificity * 100).toFixed(0)}%`);
+    }
+  }
+  
+  // Return with intelligence metadata attached
+  return { 
+    selected: selected.map(s => ({ ...s, score: s.intelligence.final_score })), 
+    rejected: rejected.map(s => ({ ...s, score: s.intelligence.final_score }))
+  };
 }
 
 /**
@@ -392,10 +409,13 @@ const deepResearchTool = tool(
         console.log(`   🔍 Multi-query used: ${queries.map(q => `"${q.substring(0, 50)}..."`).join(', ')}`);
       }
       
-      // Advanced source selection with quality scoring
-      const { selected, rejected } = selectBestSources(
+      // Advanced source selection with MULTI-TIERED INTELLIGENCE
+      const analysisDepth = search_depth === 'advanced' ? 'deep' : 'standard';
+      const { selected, rejected } = await selectBestSources(
         allResults,
-        search_depth === 'advanced' ? 15 : 10
+        search_depth === 'advanced' ? 15 : 10,
+        query,
+        analysisDepth
       );
       
       const confidence = calculateConfidence(selected);
