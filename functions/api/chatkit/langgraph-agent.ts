@@ -74,6 +74,11 @@ const MaritimeAgentState = Annotation.Root({
     reducer: (current, update) => [...new Set([...current, ...update])],
     default: () => [],
   }),
+  // NEW: Persistent entity memory across conversation
+  conversationEntities: Annotation<Record<string, string>>({
+    reducer: (current, update) => ({ ...current, ...update }),
+    default: () => ({}),
+  }),
   needsRefinement: Annotation<boolean>({
     reducer: (_, next) => next,
     default: () => false,
@@ -93,6 +98,7 @@ type AgentState = typeof MaritimeAgentState.State;
 
 /**
  * Extract maritime entities from query
+ * IMPROVED: Better vessel name extraction, including multi-word names
  */
 function extractMaritimeEntities(text: string): string[] {
   const entities: string[] = [];
@@ -101,9 +107,24 @@ function extractMaritimeEntities(text: string): string[] {
   const companyMatch = text.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Marine|Shipping|Lines|Group|Services))\b/g);
   if (companyMatch) entities.push(...companyMatch);
   
-  // Vessel patterns (MV, MS, MT prefixes or quoted names)
-  const vesselMatch = text.match(/\b(?:MV|MS|MT|vessel|ship)\s+([A-Z][a-zA-Z0-9\s-]+)/gi);
-  if (vesselMatch) entities.push(...vesselMatch);
+  // Vessel patterns - IMPROVED
+  // Pattern 1: MV/MS/MT prefix
+  const prefixVesselMatch = text.match(/\b(?:MV|MS|MT)\s+([A-Z][a-zA-Z0-9\s-]+?)(?:\s+(?:is|was|has|vessel|ship)|[,.]|$)/gi);
+  if (prefixVesselMatch) {
+    entities.push(...prefixVesselMatch.map(v => v.trim()));
+  }
+  
+  // Pattern 2: Multi-word capitalized names (like "MSC Michel Cappellini")
+  const multiWordMatch = text.match(/\b([A-Z]{2,}(?:\s+[A-Z][a-z]+){1,3})\b/g);
+  if (multiWordMatch) {
+    entities.push(...multiWordMatch);
+  }
+  
+  // Pattern 3: "vessel [Name]" or "ship [Name]"
+  const namedVesselMatch = text.match(/\b(?:vessel|ship)\s+([A-Z][a-zA-Z0-9\s-]+?)(?:\s+(?:is|was|has)|[,.]|$)/gi);
+  if (namedVesselMatch) {
+    entities.push(...namedVesselMatch.map(v => v.replace(/^(?:vessel|ship)\s+/i, '').trim()));
+  }
   
   // Equipment models (alphanumeric patterns)
   const equipmentMatch = text.match(/\b([A-Z][a-z]+\s+\d+[A-Z0-9-]+)\b/g);
@@ -113,18 +134,50 @@ function extractMaritimeEntities(text: string): string[] {
 }
 
 /**
- * Check if query is a follow-up question
+ * Check if query is a follow-up question with entity extraction
+ * IMPROVED: Extract entities from conversation history
  */
-function isFollowUpQuery(query: string, previousMessages: BaseMessage[]): boolean {
+function isFollowUpQuery(query: string, previousMessages: BaseMessage[], entities: string[]): boolean {
+  const queryLower = query.toLowerCase();
+  
+  // Pattern 1: Referential pronouns
   const hasReferentialPronouns = /\b(them|those|that|it|its|each one|the above|mentioned|listed|same|their|this|these)\b/i.test(query);
-  const hasFollowUpPhrases = /\b(give me|tell me|what about|how about|also|additionally|furthermore|more about|details of|specs of|tech details)\b/i.test(query);
   
-  // Check if previous messages contain research context
-  const hasPreviousResearch = previousMessages.some(msg => 
-    msg.content && typeof msg.content === 'string' && msg.content.includes('RESEARCH CONTEXT')
-  );
+  // Pattern 2: Follow-up phrases
+  const hasFollowUpPhrases = /\b(give me|tell me|what about|how about|also|additionally|furthermore|more about|details of|specs of|tech details|list|show me)\b/i.test(query);
   
-  return (hasReferentialPronouns || hasFollowUpPhrases) && hasPreviousResearch;
+  // Pattern 3: NEW - Entity continuity (mentions entity from previous messages)
+  const mentionsPreviousEntity = entities.length > 0 && entities.some(entity => {
+    // Check if any previous entity is mentioned in current query
+    const entityLower = entity.toLowerCase();
+    return queryLower.includes(entityLower);
+  });
+  
+  // Pattern 4: Specific request about previous subject
+  const hasSpecificRequest = /\b(engine|propulsion|specification|system|equipment|details|list)\b/i.test(query);
+  
+  // Check if previous messages contain research or specific entities
+  const hasPreviousContext = previousMessages.some(msg => {
+    if (!msg.content || typeof msg.content !== 'string') return false;
+    const content = msg.content.toLowerCase();
+    return content.includes('research') || 
+           content.includes('vessel') || 
+           content.includes('ship') ||
+           entities.some(e => content.includes(e.toLowerCase()));
+  });
+  
+  // Follow-up detected if:
+  // 1. Uses pronouns/follow-up phrases AND has context, OR
+  // 2. Mentions previous entity AND makes specific request
+  const isFollowUp = 
+    ((hasReferentialPronouns || hasFollowUpPhrases) && hasPreviousContext) ||
+    (mentionsPreviousEntity && hasSpecificRequest);
+  
+  if (isFollowUp) {
+    console.log(`   ✅ Follow-up detected: entity=${mentionsPreviousEntity}, specific=${hasSpecificRequest}`);
+  }
+  
+  return isFollowUp;
 }
 
 /**
@@ -319,7 +372,12 @@ function calculateConfidence(sources: Source[]): number {
  */
 const geminiGroundingTool = tool(
   async ({ query }: { query: string }, config) => {
+    console.log(`\n🔮 GEMINI GROUNDING TOOL CALLED`);
+    console.log(`   Query: "${query}"`);
+    
     const env = (config?.configurable as any)?.env;
+    console.log(`   Has GEMINI_API_KEY: ${!!env?.GEMINI_API_KEY}`);
+    
     if (!env?.GEMINI_API_KEY) {
       console.warn('⚠️ GEMINI_API_KEY not configured, falling back');
       return JSON.stringify({
@@ -332,7 +390,7 @@ const geminiGroundingTool = tool(
       });
     }
     
-    console.log(`🔮 Gemini Grounding: "${query}"`);
+    console.log(`🔮 Executing Gemini API call...`);
     
     try {
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
@@ -357,10 +415,17 @@ const geminiGroundingTool = tool(
       
       const data = await response.json();
       
+      console.log(`   ✅ Gemini API response received`);
+      
       // Extract answer and grounding metadata
       const candidate = data.candidates?.[0];
       const answer = candidate?.content?.parts?.[0]?.text || null;
       const groundingMetadata = candidate?.groundingMetadata;
+      
+      console.log(`   Has candidate: ${!!candidate}`);
+      console.log(`   Has answer: ${!!answer}`);
+      console.log(`   Answer length: ${answer?.length || 0} chars`);
+      console.log(`   Has grounding metadata: ${!!groundingMetadata}`);
       
       // Extract web results with citations
       const sources = (groundingMetadata?.webResults || []).map((result: any) => ({
@@ -372,6 +437,9 @@ const geminiGroundingTool = tool(
       
       console.log(`✅ Gemini grounding complete: ${sources.length} Google sources`);
       console.log(`   Answer generated: ${answer ? 'YES' : 'NO'}`);
+      if (answer) {
+        console.log(`   Answer preview: ${answer.substring(0, 200)}...`);
+      }
       
       const result = {
         sources,
@@ -381,6 +449,8 @@ const geminiGroundingTool = tool(
         confidence: sources.length >= 2 ? 0.95 : 0.8, // High confidence from Google
         mode: 'gemini_grounding'
       };
+      
+      console.log(`   📤 Returning JSON result with keys: ${Object.keys(result).join(', ')}`);
       
       // Return as JSON string for ToolMessage compatibility
       return JSON.stringify(result);
@@ -762,11 +832,14 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   
   console.log(`🎯 Router analyzing: "${userQuery.substring(0, 100)}..."`);
   
-  // Extract entities
+  // Extract entities from current query
   const entities = extractMaritimeEntities(userQuery);
   
-  // Check if follow-up
-  const isFollowUp = isFollowUpQuery(userQuery, state.messages);
+  // Get ALL entities from conversation history (persistent memory)
+  const allConversationEntities = [...entities, ...state.maritimeEntities];
+  
+  // Check if follow-up (now considers all conversation entities)
+  const isFollowUp = isFollowUpQuery(userQuery, state.messages, allConversationEntities);
   
   // Detect query mode: verification, research, or none
   const queryMode = detectQueryMode(userQuery, state.enableBrowsing);
@@ -776,13 +849,40 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   console.log(`   User enabled browsing: ${state.enableBrowsing}`);
   console.log(`   Detected mode: ${queryMode}`);
   
-  // If follow-up with existing research context, skip research
+  // NEW: Build entity context for follow-up queries
+  let entityContext = '';
+  if (isFollowUp && allConversationEntities.length > 0) {
+    console.log(`📋 Follow-up query detected. Previous entities: ${allConversationEntities.join(', ')}`);
+    
+    // Extract the main entity being discussed
+    const mainEntity = allConversationEntities[allConversationEntities.length - 1];
+    
+    // If user asks for specific details (engines, specs, etc.) without entity name, add it to query
+    const needsEntityAddition = 
+      /\b(engine|propulsion|specification|system|equipment|details|list)\b/i.test(userQuery) &&
+      !allConversationEntities.some(e => userQuery.toLowerCase().includes(e.toLowerCase()));
+    
+    if (needsEntityAddition) {
+      entityContext = `\n\n**CONTEXT**: User is asking about ${mainEntity} from previous discussion. Focus your search on ${mainEntity} specifically.`;
+      console.log(`   🎯 Enriching query with entity context: ${mainEntity}`);
+    }
+  }
+  
+  // If follow-up with existing research context but needs NEW specific info, DO research
+  // Example: Previous: "biggest vessel" → Now: "list engines" (needs technical deep dive)
   if (isFollowUp && state.researchContext) {
-    console.log(`✅ Using existing research context for follow-up`);
-    return {
-      maritimeEntities: entities,
-      researchMode: state.researchMode, // Keep existing mode
-    };
+    const needsNewResearch = /\b(engine|propulsion|specification|technical|system|equipment|maintenance|oem)\b/i.test(userQuery);
+    
+    if (!needsNewResearch) {
+      console.log(`✅ Using existing research context for follow-up`);
+      return {
+        maritimeEntities: entities,
+        researchMode: state.researchMode,
+      };
+    } else {
+      console.log(`🔄 Follow-up needs NEW technical research despite existing context`);
+      // Continue to research below
+    }
   }
   
   // Route based on detected mode
@@ -837,13 +937,36 @@ Call deep_research now with appropriate parameters.`
   
   console.log(`📋 Invoking ${queryMode} mode planner...`);
   
+  // FORCE tool usage based on mode
+  // LangChain uses 'tool_choice' parameter for OpenAI
+  const invokeOptions: any = { ...config };
+  
+  if (queryMode === 'verification') {
+    // Force gemini_grounding tool for verification mode
+    // LangChain format: specify the tool name directly
+    invokeOptions.tool_choice = {
+      type: 'function',
+      function: { name: 'gemini_grounding' }
+    };
+    console.log(`   🔒 FORCING tool: gemini_grounding`);
+  }
+  
   const response = await model.invoke([
     new SystemMessage(planningPrompt),
     new HumanMessage(userQuery)
-  ], config);
+  ], invokeOptions);
   
   const toolCallsCount = response.tool_calls?.length || 0;
   console.log(`📋 Planner decided: ${toolCallsCount} tool calls`);
+  
+  // CRITICAL: Verify tool was called (we're in verification or research mode at this point)
+  if (toolCallsCount === 0) {
+    console.warn(`⚠️ WARNING: ${queryMode} mode but no tools called! This should not happen.`);
+    console.warn(`   Query: "${userQuery}"`);
+    console.warn(`   Expected tool: ${queryMode === 'verification' ? 'gemini_grounding' : 'deep_research'}`);
+    console.warn(`   Response type: ${response.constructor.name}`);
+    console.warn(`   Response content: ${typeof response.content === 'string' ? response.content.substring(0, 200) : 'N/A'}`);
+  }
   
   if (toolCallsCount > 0) {
     const toolNames = response.tool_calls?.map(tc => tc.name).join(', ') || 'none';
@@ -856,10 +979,17 @@ Call deep_research now with appropriate parameters.`
     }`);
   }
   
+  // Store entities in persistent memory
+  const entityMemory: Record<string, string> = {};
+  entities.forEach(entity => {
+    entityMemory[entity.toLowerCase()] = entity;
+  });
+  
   return {
     messages: [response],
     maritimeEntities: entities,
     researchMode: queryMode,
+    conversationEntities: entityMemory,
   };
 }
 
@@ -870,12 +1000,24 @@ Call deep_research now with appropriate parameters.`
 async function processToolResults(state: AgentState): Promise<Partial<AgentState>> {
   const lastMessage = state.messages[state.messages.length - 1];
   
-  // Find tool messages
-  const toolMessages = state.messages
-    .filter(msg => (msg as any).tool_calls || msg.constructor.name === 'ToolMessage')
-    .slice(-5); // Last 5 tool interactions
+  console.log(`\n🔧 PROCESS TOOL RESULTS`);
+  console.log(`   Total messages in state: ${state.messages.length}`);
+  console.log(`   Research mode: ${state.researchMode}`);
+  
+  // DEBUG: Log all message types
+  state.messages.forEach((msg, i) => {
+    console.log(`   Msg ${i}: ${msg.constructor.name} | hasToolCalls: ${!!(msg as any).tool_calls?.length}`);
+  });
+  
+  // Find tool messages - look for ToolMessage class instances
+  const toolMessages = state.messages.filter(msg => 
+    msg.constructor.name === 'ToolMessage'
+  );
+  
+  console.log(`   Found ${toolMessages.length} ToolMessage instances`);
   
   if (toolMessages.length === 0) {
+    console.warn(`   ⚠️ NO TOOL MESSAGES FOUND - this means tools didn't execute or results weren't captured`);
     return {};
   }
   
@@ -889,10 +1031,16 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
   
   for (const msg of toolMessages) {
     const content = msg.content;
+    console.log(`   📦 ToolMessage content type: ${typeof content}`);
+    console.log(`   📦 Content preview: ${typeof content === 'string' ? content.substring(0, 200) : 'N/A'}`);
+    
     if (typeof content === 'string') {
       try {
         const parsed = JSON.parse(content);
+        console.log(`   ✅ Parsed JSON keys: ${Object.keys(parsed).join(', ')}`);
+        
         if (parsed.sources) {
+          console.log(`   📚 Found ${parsed.sources.length} sources`);
           allSources.push(...parsed.sources);
           confidenceScore = Math.max(confidenceScore, parsed.confidence || 0);
         }
@@ -902,11 +1050,11 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
         // VERIFICATION MODE: Capture AI answer (from Gemini or Tavily)
         if (parsed.answer || parsed.tavily_answer) {
           geminiAnswer = parsed.answer || parsed.tavily_answer;
-          console.log(`   📝 AI Answer available: ${geminiAnswer?.substring(0, 100)}...`);
+          console.log(`   📝 AI Answer captured: ${geminiAnswer?.substring(0, 100)}...`);
         }
       } catch (e) {
         // Not JSON, might be knowledge base result
-        console.log('   Non-JSON tool result (likely knowledge base)');
+        console.log(`   ⚠️ Non-JSON tool result: ${e}`);
       }
     }
   }
@@ -916,6 +1064,11 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
   
   if (state.researchMode === 'verification') {
     if (allSources.length > 0 || geminiAnswer) {
+      console.log(`\n✅ GEMINI RESULTS FOUND AND PROCESSING`);
+      console.log(`   Sources: ${allSources.length}`);
+      console.log(`   Has Answer: ${!!geminiAnswer}`);
+      console.log(`   Answer preview: ${geminiAnswer?.substring(0, 150)}...`);
+      
       // VERIFICATION MODE: Gemini-powered answer with Google sources
       researchContext = `=== GEMINI GROUNDING RESULTS ===
 
@@ -928,25 +1081,100 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${allSource
 - Use the Google-verified information above to answer the user's query
 - Cite sources with [1][2][3] if provided
 - This is accurate information from Google Search grounding
-- Add the disclaimer about deep research for comprehensive analysis`;
+- Add the disclaimer about deep research for comprehensive analysis
+
+**CRITICAL - Answer Focus:**
+- User query: "${typeof lastMessage.content === 'string' ? lastMessage.content : 'See query above'}"
+- Answer ONLY what the user asked for, don't provide generic overviews
+- If they ask for engines → ONLY engines
+- If they ask for specifications → ONLY specifications
+- Stay focused on the specific question`;
     } else {
       // No sources found - provide guidance to use training data
       console.warn(`⚠️ Verification mode but no sources found - falling back to training data`);
-      researchContext = `=== VERIFICATION ATTEMPT ===
-No specific sources found for this query.
-Please answer using your general maritime knowledge and add the disclaimer to enable deep research if needed.
-=== END VERIFICATION ===`;
+      console.warn(`   This means either:`);
+      console.warn(`   1. Gemini tool was not called`);
+      console.warn(`   2. Gemini tool was called but returned no results`);
+      console.warn(`   3. Tool messages were not captured in state`);
+      
+      researchContext = `=== NO GEMINI GROUNDING RESULTS ===
+
+**CRITICAL: Gemini grounding did NOT provide results for this query.**
+
+This should NOT happen for entity queries like vessels, companies, equipment.
+Possible causes:
+1. Tool was not called (check router logs)
+2. API error occurred
+3. No Google results found (unlikely)
+
+**DO NOT add the Gemini disclaimer to your answer.**
+**DO NOT claim this is Gemini-powered information.**
+
+Instead, answer from your general maritime knowledge and add:
+
+"I apologize, but I encountered an issue accessing real-time vessel information. Based on general maritime knowledge: [your answer].
+
+To get current, verified vessel data, please try enabling the 'Online research' toggle above or try your query again."
+
+=== END NO RESULTS ===`;
     }
   } else if (state.researchMode === 'research' && allSources.length > 0) {
     // RESEARCH MODE: Comprehensive context with full details
-    researchContext = `=== RESEARCH INTELLIGENCE ===
+    const lastMsg = state.messages[state.messages.length - 1];
+    const userQuery = typeof lastMsg?.content === 'string' ? lastMsg.content : '';
+    
+    // DETECT SPECIFIC REQUEST TYPE
+    const isEngineQuery = /\b(engine|propulsion|motor|machinery|main engine|auxiliary)\b/i.test(userQuery);
+    const isSpecQuery = /\b(specification|specs|technical details|dimensions|capacity)\b/i.test(userQuery);
+    const isEquipmentQuery = /\b(equipment|system|machinery|generator|pump|boiler)\b/i.test(userQuery);
+    const isMaintenanceQuery = /\b(maintenance|service|oem|inspection|interval)\b/i.test(userQuery);
+    
+    let focusInstructions = '';
+    if (isEngineQuery) {
+      focusInstructions = `
+**CRITICAL - FOCUSED ANSWER REQUIRED:**
+User asked specifically about ENGINES/PROPULSION. Your answer MUST focus ONLY on:
+1. Main engine(s): manufacturer, model, power (kW/HP), cylinders, RPM, fuel type
+2. Auxiliary engines/generators: models, power ratings, quantities
+3. Propulsion type: direct drive, diesel-electric, pod propulsion, etc.
+4. OEM maintenance recommendations if available in sources
 
-**CRITICAL INSTRUCTIONS:**
+DO NOT provide general vessel overview - ONLY engine/propulsion technical details.
+Cite sources [1][2][3] for every specification.`;
+    } else if (isSpecQuery) {
+      focusInstructions = `
+**CRITICAL - FOCUSED ANSWER REQUIRED:**
+User asked for SPECIFICATIONS. Focus on technical numbers with units:
+- Dimensions, capacities, performance metrics, equipment specs
+- Cite sources [1][2][3] for every number
+DO NOT provide general descriptions - ONLY hard specifications.`;
+    } else if (isEquipmentQuery) {
+      focusInstructions = `
+**CRITICAL - FOCUSED ANSWER REQUIRED:**
+User asked about specific EQUIPMENT/SYSTEMS. List each system with:
+- Manufacturer and model number
+- Capacity/rating with units
+- Quantity/configuration
+Cite sources [1][2][3] for every item.`;
+    } else if (isMaintenanceQuery) {
+      focusInstructions = `
+**CRITICAL - FOCUSED ANSWER REQUIRED:**
+User asked about MAINTENANCE. Focus on:
+- OEM service intervals
+- Critical maintenance procedures
+- Spare parts and consumables
+Cite sources [1][2][3] for every recommendation.`;
+    } else {
+      focusInstructions = `
+**STANDARD COMPREHENSIVE RESPONSE:**
 - You MUST write a COMPREHENSIVE, DETAILED response of AT LEAST 2000-3000 characters
-- Use ALL ${allSources.length} sources provided below - cite each source [1][2][3] throughout your response
-- Follow the structure: Overview → Technical Specifications → Operational Capabilities → Maritime Significance → Operational Impact
-- Include maritime context, strategic importance, and industry perspective for EVERY fact
-- Never give short, superficial answers - maritime professionals need depth and detail
+- Use ALL ${allSources.length} sources provided below - cite each source [1][2][3] throughout
+- Follow structure: Overview → Technical Specifications → Operational Capabilities → Maritime Significance → Operational Impact
+- Include maritime context, strategic importance, and industry perspective for EVERY fact`;
+    }
+    
+    researchContext = `=== RESEARCH INTELLIGENCE ===
+${focusInstructions}
 
 Found ${allSources.length} verified sources (rejected ${allRejected.length} low-quality):
 
@@ -962,7 +1190,7 @@ ${allSources.map((s, i) => `[${i + 1}] ${s.title}
 
 === END RESEARCH ===
 
-**REMINDER: Your response MUST be 2000-3000+ characters with comprehensive maritime detail, using ALL ${allSources.length} sources above.**`;
+**REMINDER: Answer EXACTLY what the user asked for. If they asked for engines, provide ONLY engine details with citations, not a general vessel overview.**`;
   }
   
   console.log(`✅ Processed: ${allSources.length} sources, confidence: ${confidenceScore.toFixed(2)}`);
@@ -1349,6 +1577,16 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
               // Don't emit individual source events for verification
               // Sources will be inline-cited in the answer like [1][2][3]
               console.log(`   ⚡ Verification mode: Sources will be inline-cited, no research panel`);
+              
+              // EMIT DEBUG EVENT so frontend knows Gemini was used
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ 
+                  type: 'debug',
+                  message: `Gemini grounding results: ${sources.length} sources found`,
+                  geminiUsed: true,
+                  sourceCount: sources.length
+                })}\n\n`
+              ));
             } else {
               // RESEARCH MODE: Full research panel with source selection
               console.log(`   🔬 Research mode: Emitting sources to research panel`);
