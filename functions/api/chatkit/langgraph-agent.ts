@@ -662,11 +662,14 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         //   `data: ${JSON.stringify({ type: 'content', content: 'TEST: Stream active. Processing query...\n\n' })}\n\n`
         // ));
         
-        // Send thinking immediately
-        console.log(`📡 SSE Stream: Sending initial thinking event`);
-        controller.enqueue(encoder.encode(
-          `data: ${JSON.stringify({ type: 'thinking', content: 'Initializing maritime intelligence agent...' })}\n\n`
-        ));
+        // Don't send thinking for expert mode - it's too fast and causes empty bubble
+        // Thinking will be sent if research is performed
+        if (enableBrowsing) {
+          console.log(`📡 SSE Stream: Sending initial thinking event`);
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ type: 'thinking', content: 'Analyzing query and searching maritime databases...' })}\n\n`
+          ));
+        }
         
         console.log(`📡 SSE Stream: Starting agent.stream()`);
         
@@ -689,6 +692,8 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         
         console.log(`📡 SSE Stream: Entering event loop`);
         
+        let hasStreamedContent = false;
+        
         for await (const [streamType, event] of stream) {
           eventCount++;
           console.log(`\n📤 EVENT #${eventCount}:`, streamType, Object.keys(event || {})[0]);
@@ -701,6 +706,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             for (const msg of messageArray) {
               if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
                 // This is a streaming token! Emit immediately
+                hasStreamedContent = true;
                 controller.enqueue(encoder.encode(
                   `data: ${JSON.stringify({ type: 'content', content: msg.content })}\n\n`
                 ));
@@ -771,53 +777,41 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             ));
           }
           
-          // Emit final answer - CRITICAL FIX: Access messages array correctly
+          // Emit final answer - Only if token streaming didn't work
           if (event.synthesizer) {
             console.log(`   Synthesizer event keys:`, Object.keys(event.synthesizer));
-            console.log(`   Synthesizer full value:`, JSON.stringify(event.synthesizer, null, 2).substring(0, 800));
             
-            // LangGraph "updates" stream mode returns state DELTAS (what changed)
-            // The messages field is the NEW messages added, which should be an array
-            const messagesUpdate = event.synthesizer.messages;
-            
-            if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
-              // Get the last message (the AI's answer)
-              const lastMessage = messagesUpdate[messagesUpdate.length - 1];
-              const content = typeof lastMessage.content === 'string' 
-                ? lastMessage.content 
-                : JSON.stringify(lastMessage.content);
+            // If we already streamed tokens, skip this to avoid duplicates
+            if (hasStreamedContent) {
+              console.log(`   ✅ Content already streamed token-by-token, skipping duplicate`);
+            } else {
+              console.log(`   ⚠️ No token streaming occurred, falling back to chunk streaming`);
+              console.log(`   Synthesizer full value:`, JSON.stringify(event.synthesizer, null, 2).substring(0, 800));
               
-              console.log(`   ✅ Answer found: ${content?.length || 0} chars`);
-              console.log(`   First 200 chars: ${content?.substring(0, 200)}`);
+              // Fallback: Emit in chunks (shouldn't happen if token streaming works)
+              const messagesUpdate = event.synthesizer.messages;
               
-              if (content && content.length > 0) {
-                console.log(`   📤 Emitting ${Math.ceil(content.length / 50)} content chunks`);
+              if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
+                const lastMessage = messagesUpdate[messagesUpdate.length - 1];
+                const content = typeof lastMessage.content === 'string' 
+                  ? lastMessage.content 
+                  : JSON.stringify(lastMessage.content);
                 
-                // Stream content in chunks with small delays for smooth UX
-                const chunkSize = 50;
-                let chunkCount = 0;
+                console.log(`   ✅ Answer found: ${content?.length || 0} chars`);
                 
-                // Emit chunks with tiny delays to ensure smooth streaming
-                for (let i = 0; i < content.length; i += chunkSize) {
-                  const chunk = content.slice(i, i + chunkSize);
-                  chunkCount++;
-                  
-                  controller.enqueue(encoder.encode(
-                    `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
-                  ));
-                  
-                  // Small delay every 5 chunks to allow frontend to render
-                  if (chunkCount % 5 === 0) {
-                    await new Promise(resolve => setTimeout(resolve, 10));
+                if (content && content.length > 0) {
+                  const chunkSize = 50;
+                  for (let i = 0; i < content.length; i += chunkSize) {
+                    const chunk = content.slice(i, i + chunkSize);
+                    controller.enqueue(encoder.encode(
+                      `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
+                    ));
+                    if ((i / chunkSize) % 5 === 0) {
+                      await new Promise(resolve => setTimeout(resolve, 10));
+                    }
                   }
                 }
-                
-                console.log(`   ✅ Emitted ${chunkCount} content chunks`);
-              } else {
-                console.error(`   ❌ Content is empty or undefined`);
               }
-            } else {
-              console.error(`   ❌ messages is not an array or is empty:`, typeof messagesUpdate, messagesUpdate);
             }
           }
         }
