@@ -504,6 +504,9 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
 
 function shouldContinue(state: AgentState): string {
   const lastMessage = state.messages[state.messages.length - 1];
+  const messageType = lastMessage.constructor.name;
+  
+  console.log(`   Last message type: ${messageType}`);
   
   // If last message has tool calls, execute them
   if ((lastMessage as AIMessage).tool_calls?.length) {
@@ -517,15 +520,22 @@ function shouldContinue(state: AgentState): string {
     return "router";
   }
   
-  // If we have research context but no answer yet, synthesize
-  if (state.researchContext && !lastMessage.content) {
-    console.log(`→ Routing to: synthesizer`);
+  // CRITICAL: If we have research context, we need to synthesize
+  // This happens after tools execute (lastMessage = ToolMessage)
+  if (state.researchContext) {
+    // If last message is already a final AIMessage answer, we're done
+    const isAIAnswer = messageType === 'AIMessage' && !(lastMessage as AIMessage).tool_calls?.length;
+    if (isAIAnswer) {
+      console.log(`→ Routing to: END (answer complete)`);
+      return END;
+    }
+    // Otherwise, go to synthesizer to create the answer
+    console.log(`→ Routing to: synthesizer (research complete, ${state.verifiedSources.length} sources)`);
     return "synthesizer";
   }
   
-  // CRITICAL: If no research was performed (browsing disabled), go to synthesizer
-  // Check if last message is from user (no assistant response yet)
-  if (lastMessage.constructor.name === 'HumanMessage') {
+  // If no research and last message is from user, go to synthesizer (expert mode)
+  if (messageType === 'HumanMessage') {
     console.log(`→ Routing to: synthesizer (expert mode - no research)`);
     return "synthesizer";
   }
