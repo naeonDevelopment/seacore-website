@@ -647,11 +647,11 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           `data: ${JSON.stringify({ type: 'debug', message: 'LangGraph stream started', sessionId, enableBrowsing })}\n\n`
         ));
         
-        // CRITICAL: Send visible content immediately to test frontend
-        console.log(`📡 SSE Stream: Sending test content`);
-        controller.enqueue(encoder.encode(
-          `data: ${JSON.stringify({ type: 'content', content: 'TEST: Stream active. Processing query...\n\n' })}\n\n`
-        ));
+        // Remove test content now that streaming is confirmed working
+        // console.log(`📡 SSE Stream: Sending test content`);
+        // controller.enqueue(encoder.encode(
+        //   `data: ${JSON.stringify({ type: 'content', content: 'TEST: Stream active. Processing query...\n\n' })}\n\n`
+        // ));
         
         // Send thinking immediately
         console.log(`📡 SSE Stream: Sending initial thinking event`);
@@ -765,16 +765,25 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
               if (content && content.length > 0) {
                 console.log(`   📤 Emitting ${Math.ceil(content.length / 50)} content chunks`);
                 
-                // Stream content in chunks for better UX
+                // Stream content in chunks with small delays for smooth UX
                 const chunkSize = 50;
                 let chunkCount = 0;
+                
+                // Emit chunks with tiny delays to ensure smooth streaming
                 for (let i = 0; i < content.length; i += chunkSize) {
                   const chunk = content.slice(i, i + chunkSize);
                   chunkCount++;
+                  
                   controller.enqueue(encoder.encode(
                     `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
                   ));
+                  
+                  // Small delay every 5 chunks to allow frontend to render
+                  if (chunkCount % 5 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                  }
                 }
+                
                 console.log(`   ✅ Emitted ${chunkCount} content chunks`);
               } else {
                 console.error(`   ❌ Content is empty or undefined`);
