@@ -456,10 +456,12 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
   console.log(`   Research context: ${state.researchContext ? 'YES' : 'NO'}`);
   console.log(`   Messages in state: ${state.messages.length}`);
   
+  // CRITICAL: Use streaming: true to get token-by-token output
   const model = new ChatOpenAI({
     modelName: "gpt-4o",
-    temperature: state.researchContext ? 0.4 : 0.3, // Higher temp for research mode
+    temperature: state.researchContext ? 0.4 : 0.3,
     apiKey: (config?.configurable as any)?.env?.OPENAI_API_KEY,
+    streaming: true, // Enable token streaming
   });
   
   // Build context-aware system prompt
@@ -492,13 +494,20 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
     );
   }
   
-  // Generate answer
-  const response = await model.invoke(synthesisMessages, config);
+  // CRITICAL: Stream the response token-by-token
+  // We'll collect it here but the actual streaming happens in handleChatWithLangGraph
+  let fullContent = '';
   
-  console.log(`✅ Synthesized ${response.content.toString().length} characters`);
+  const stream = await model.stream(synthesisMessages, config);
+  
+  for await (const chunk of stream) {
+    fullContent += chunk.content;
+  }
+  
+  console.log(`✅ Synthesized ${fullContent.length} characters`);
   
   return {
-    messages: [response],
+    messages: [new AIMessage(fullContent)],
   };
 }
 
@@ -662,6 +671,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         console.log(`📡 SSE Stream: Starting agent.stream()`);
         
         // Stream events from agent
+        // Use "messages" mode to get token-by-token streaming
         const stream = await agent.stream(
           {
             messages: baseMessages,
@@ -670,7 +680,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           },
           {
             ...config,
-            streamMode: "updates" as const,
+            streamMode: ["messages", "updates"] as const,
           }
         );
         
@@ -679,10 +689,28 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         
         console.log(`📡 SSE Stream: Entering event loop`);
         
-        for await (const event of stream) {
+        for await (const [streamType, event] of stream) {
           eventCount++;
-          const eventKey = Object.keys(event)[0];
-          console.log(`\n📤 EVENT #${eventCount}:`, eventKey);
+          console.log(`\n📤 EVENT #${eventCount}:`, streamType, Object.keys(event || {})[0]);
+          
+          // Handle token-level streaming from "messages" mode
+          if (streamType === 'messages') {
+            const messages = event as BaseMessage[] | BaseMessage;
+            const messageArray = Array.isArray(messages) ? messages : [messages];
+            
+            for (const msg of messageArray) {
+              if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
+                // This is a streaming token! Emit immediately
+                controller.enqueue(encoder.encode(
+                  `data: ${JSON.stringify({ type: 'content', content: msg.content })}\n\n`
+                ));
+              }
+            }
+            continue; // Skip to next event
+          }
+          
+          // Handle node-level updates from "updates" mode
+          const eventKey = Object.keys(event || {})[0];
           console.log(`   Event structure:`, JSON.stringify(event, null, 2).substring(0, 500));
           
           // Emit thinking process
