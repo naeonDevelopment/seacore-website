@@ -28,6 +28,9 @@ export async function routeChatRequest(
   const useLangGraph = USE_LANGGRAPH(env);
   
   console.log(`🔀 Agent Router: ${useLangGraph ? 'LangGraph' : 'Legacy'}`);
+  console.log(`   USE_LANGGRAPH env value: "${env.USE_LANGGRAPH}"`);
+  console.log(`   OPENAI_API_KEY present: ${!!env.OPENAI_API_KEY}`);
+  console.log(`   TAVILY_API_KEY present: ${!!env.TAVILY_API_KEY}`);
   
   if (useLangGraph) {
     // Use new LangGraph agent

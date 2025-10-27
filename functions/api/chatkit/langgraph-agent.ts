@@ -641,6 +641,11 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
       const encoder = new TextEncoder();
       
       try {
+        // IMMEDIATE DEBUG: Send first event to confirm stream started
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ type: 'debug', message: 'LangGraph stream started', sessionId, enableBrowsing })}\n\n`
+        ));
+        
         // Stream events from agent
         const stream = await agent.stream(
           {
