@@ -895,6 +895,72 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
     };
   }
   
+  // VERIFICATION MODE: Direct Gemini call (bypasses tool_choice issues)
+  if (queryMode === 'verification') {
+    console.log(`🔮 VERIFICATION MODE: Calling Gemini directly (bypass tool_choice)`);
+    
+    try {
+      // Call Gemini grounding tool directly
+      const geminiResult = await geminiGroundingTool.invoke(
+        { query: userQuery + entityContext },
+        config
+      );
+      
+      console.log(`   ✅ Gemini direct call complete`);
+      console.log(`   Result type: ${typeof geminiResult}`);
+      console.log(`   Result preview: ${typeof geminiResult === 'string' ? geminiResult.substring(0, 200) : 'N/A'}`);
+      
+      // Parse the result
+      const parsed = typeof geminiResult === 'string' ? JSON.parse(geminiResult) : geminiResult;
+      
+      console.log(`   Sources: ${parsed.sources?.length || 0}`);
+      console.log(`   Has answer: ${!!parsed.answer}`);
+      
+      // Process the sources directly and build research context
+      const sources = parsed.sources || [];
+      const geminiAnswer = parsed.answer || null;
+      
+      // Build research context for synthesis
+      let researchContext = '';
+      if (sources.length > 0 || geminiAnswer) {
+        researchContext = `=== GEMINI GROUNDING RESULTS (Direct Call) ===
+
+${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.length > 0 ? `Google Sources (${sources.length}):\n\n${sources.map((s: any, i: number) => `[${i + 1}] ${s.title} (${new URL(s.url).hostname})
+   ${s.content.substring(0, 300)}...`).join('\n\n')}` : 'Direct answer from Google\'s knowledge base'}
+
+=== END GEMINI GROUNDING ===
+
+**Instructions:**
+- Use the Google-verified information above to answer the user's query
+- Cite sources with [1][2][3] if provided
+- This is accurate information from Google Search grounding
+- Add the disclaimer about deep research for comprehensive analysis
+
+**CRITICAL - Answer Focus:**
+- User query: "${userQuery}"
+- Answer ONLY what the user asked for, don't provide generic overviews`;
+      }
+      
+      // Return state update to skip directly to synthesis
+      return {
+        maritimeEntities: entities,
+        researchMode: 'verification',
+        conversationEntities: entities.reduce((acc, e) => ({ ...acc, [e.toLowerCase()]: e }), {}),
+        researchContext,
+        verifiedSources: sources,
+        confidence: parsed.confidence || 0.9,
+      };
+    } catch (error: any) {
+      console.error(`❌ Direct Gemini call failed:`, error.message);
+      console.error(`   Stack: ${error.stack?.substring(0, 300)}`);
+      // Fall back to expert mode
+      return {
+        maritimeEntities: entities,
+        researchMode: 'none',
+      };
+    }
+  }
+  
   // Mode-specific planning prompts
   const planningPrompts = {
     verification: `You are a maritime intelligence assistant for quick fact-checking.
@@ -1438,12 +1504,20 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
   // Configure LangSmith tracing if API key is available
   if (env.LANGSMITH_API_KEY) {
     console.log(`🔬 LangSmith tracing enabled`);
+    console.log(`   Project: fleetcore-maritime-agent`);
+    console.log(`   Session: ${sessionId}`);
     // Set environment variables for LangSmith
     (globalThis as any).process = (globalThis as any).process || {};
     (globalThis as any).process.env = (globalThis as any).process.env || {};
     (globalThis as any).process.env.LANGCHAIN_TRACING_V2 = 'true';
     (globalThis as any).process.env.LANGCHAIN_API_KEY = env.LANGSMITH_API_KEY;
     (globalThis as any).process.env.LANGCHAIN_PROJECT = 'fleetcore-maritime-agent';
+    (globalThis as any).process.env.LANGCHAIN_ENDPOINT = 'https://api.smith.langchain.com';
+    
+    // Log trace URL format for debugging
+    console.log(`   View traces at: https://smith.langchain.com/o/YOUR-ORG/projects/p/fleetcore-maritime-agent`);
+  } else {
+    console.warn(`⚠️ LANGSMITH_API_KEY not set - tracing disabled`);
   }
   
   // Convert messages to BaseMessage format
@@ -1461,7 +1535,15 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
     configurable: {
       thread_id: sessionId,
       env,
-    }
+    },
+    // Add metadata for LangSmith tracing
+    metadata: {
+      session_id: sessionId,
+      enable_browsing: enableBrowsing,
+      user_query: messages[messages.length - 1]?.content?.substring(0, 100),
+    },
+    // Add tags for easier filtering in LangSmith
+    tags: ['maritime-agent', enableBrowsing ? 'research-mode' : 'verification-mode'],
   };
   
   // Create SSE stream
