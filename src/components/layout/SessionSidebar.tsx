@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, X, Menu, Trash2, Check } from 'lucide-react';
+import { Plus, MessageSquare, X, Menu, Trash2, Check, List } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Session } from '@/hooks/useSessions';
 
@@ -58,9 +58,10 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
           <MessageSquare className="w-4 h-4" />
           <span>Sessions</span>
         </h2>
-        {isMobile && onClose && (
+        {/* Close button for both mobile and desktop */}
+        {((isMobile && onClose) || (!isMobile && onToggle)) && (
           <button
-            onClick={onClose}
+            onClick={isMobile ? onClose : onToggle}
             className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
             aria-label="Close menu"
           >
@@ -196,34 +197,31 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   if (!isMobile) {
     return (
       <>
-        {/* Toggle Button - Always visible */}
-        <motion.button
-          initial={{ x: -60, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-          onClick={onToggle}
-          className={cn(
-            "fixed left-0 top-32 z-[101] hidden lg:flex items-center justify-center",
-            "w-10 h-14 rounded-r-xl",
-            "bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl",
-            "border border-l-0 border-slate-200/50 dark:border-slate-700/50",
-            "shadow-xl hover:shadow-2xl",
-            "transition-all duration-300",
-            "hover:w-12",
-            "group"
+        {/* Toggle Button - Only visible when sidebar is closed */}
+        <AnimatePresence>
+          {!isOpen && (
+            <motion.button
+              initial={{ x: -60, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -60, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              onClick={onToggle}
+              className={cn(
+                "fixed left-0 top-32 z-[101] hidden lg:flex items-center justify-center",
+                "w-10 h-14 rounded-r-xl",
+                "bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl",
+                "border border-l-0 border-slate-200/50 dark:border-slate-700/50",
+                "shadow-xl hover:shadow-2xl",
+                "transition-all duration-300",
+                "hover:w-12",
+                "group"
+              )}
+              aria-label="Open sessions"
+            >
+              <List className="w-5 h-5 text-slate-600 dark:text-slate-400 transition-colors group-hover:text-maritime-600 dark:group-hover:text-maritime-400" />
+            </motion.button>
           )}
-          aria-label={isOpen ? "Close sessions" : "Open sessions"}
-        >
-          <motion.div
-            animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Menu className={cn(
-              "w-5 h-5 transition-colors",
-              isOpen ? "text-maritime-600 dark:text-maritime-400" : "text-slate-600 dark:text-slate-400"
-            )} />
-          </motion.div>
-        </motion.button>
+        </AnimatePresence>
 
         {/* Sidebar - Conditionally visible */}
         <AnimatePresence>
