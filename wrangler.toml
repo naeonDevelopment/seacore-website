@@ -2,6 +2,7 @@
 name = "fleetcore-website"
 compatibility_date = "2025-10-16"
 pages_build_output_dir = "dist"
+compatibility_flags = ["nodejs_compat"]
 
 # Ensure middleware runs for ALL requests (including 404s)
 [observability]
