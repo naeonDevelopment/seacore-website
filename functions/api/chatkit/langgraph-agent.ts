@@ -47,6 +47,11 @@ const MaritimeAgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => false,
   }),
+  // NEW: Track which mode the agent is operating in
+  researchMode: Annotation<'verification' | 'research' | 'none'>({
+    reducer: (_, next) => next,
+    default: () => 'none',
+  }),
   researchContext: Annotation<string>({
     reducer: (_, next) => next || "",
     default: () => "",
@@ -121,34 +126,49 @@ function isFollowUpQuery(query: string, previousMessages: BaseMessage[]): boolea
 }
 
 /**
- * Auto-detect if query needs online research even if browsing is disabled
- * Specific topics REQUIRE current/accurate data from external sources
+ * Detect if query needs VERIFICATION (fast fact-check) vs RESEARCH (deep intelligence)
  */
-function needsResearch(query: string): boolean {
-  // Queries that REQUIRE research regardless of user setting
-  const researchKeywords = [
-    // Regulatory/Compliance (needs current regulations)
-    'compliance', 'regulations?', 'solas', 'marpol', 'ism code', 'port state',
-    'maritime law', 'classification', 'dnv', 'abs', 'lloyd', 'bureau veritas',
-    
-    // Specific entities (needs current data)
-    'MV ', 'MS ', 'MT ', 'vessel ', 'ship ', 
-    'largest', 'biggest', 'newest', 'latest',
-    
-    // Technical specs (needs accurate manufacturer data)
-    'specifications?', 'technical details', 'datasheet', 'manual',
-    'propulsion system', 'engine specs', 'equipment',
-    
-    // Current events
-    'current', 'recent', '2024', '2025', 'today', 'now',
-    'latest news', 'recent developments'
+function detectQueryMode(query: string, enableBrowsing: boolean): 'verification' | 'research' | 'none' {
+  const queryLower = query.toLowerCase();
+  
+  // VERIFICATION MODE: Quick fact-checking for regulations/compliance
+  // These need authoritative sources but not deep research
+  const verificationKeywords = [
+    'solas', 'marpol', 'ism code', 'stcw', 'colreg',
+    'compliance', 'regulation', 'requirement',
+    'maritime law', 'international convention',
+    'classification society', 'flag state', 'port state',
+    'what is', 'define', 'explain'
   ];
   
-  const queryLower = query.toLowerCase();
-  return researchKeywords.some(keyword => {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-    return regex.test(queryLower);
-  });
+  const needsVerification = verificationKeywords.some(keyword => 
+    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
+  );
+  
+  // RESEARCH MODE: Deep maritime intelligence
+  // Specific entities, technical specs, comparative analysis
+  const researchIndicators = [
+    'MV ', 'MS ', 'MT ', 'vessel ', 'ship ',
+    'largest', 'biggest', 'best', 'compare',
+    'specifications', 'technical details', 'datasheet',
+    'propulsion system', 'engine specs', 'manufacturer',
+    'fleet', 'shipyard', 'maritime company'
+  ];
+  
+  const needsResearch = researchIndicators.some(keyword =>
+    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
+  );
+  
+  // Decision logic:
+  // 1. User enabled browsing → Research mode (even for simple queries)
+  // 2. Verification keywords → Verification mode (fast, targeted)
+  // 3. Research indicators → Auto-enable verification (regulatory accuracy)
+  // 4. Nothing detected → Expert mode (no external queries)
+  
+  if (enableBrowsing && needsResearch) return 'research';
+  if (needsVerification || needsResearch) return 'verification';
+  
+  return 'none';
 }
 
 /**
@@ -226,16 +246,17 @@ function calculateConfidence(sources: Source[]): number {
 // =====================
 
 /**
- * Maritime Search Tool - Uses Tavily API for maritime research
+ * TOOL 1: Smart Verification - Fast fact-checking for regulations/compliance
+ * Ultra-fast, authoritative sources only, minimal results
  */
-const maritimeSearchTool = tool(
-  async ({ query, search_depth }: { query: string; search_depth: 'basic' | 'advanced' }, config) => {
+const smartVerificationTool = tool(
+  async ({ query }: { query: string }, config) => {
     const env = (config?.configurable as any)?.env;
     if (!env?.TAVILY_API_KEY) {
       throw new Error('TAVILY_API_KEY not configured');
     }
     
-    console.log(`🔍 Maritime Search: "${query}" (${search_depth})`);
+    console.log(`⚡ Smart Verification: "${query}"`);
     
     try {
       const response = await fetch('https://api.tavily.com/search', {
@@ -246,12 +267,22 @@ const maritimeSearchTool = tool(
         body: JSON.stringify({
           api_key: env.TAVILY_API_KEY,
           query,
-          search_depth,
-          include_answer: false,
+          search_depth: 'basic', // Fast mode
+          include_answer: true, // Tavily AI summary for instant facts
           include_raw_content: false,
-          max_results: search_depth === 'advanced' ? 20 : 15,
-          include_domains: [],
-          exclude_domains: ['facebook.com', 'twitter.com', 'instagram.com'],
+          max_results: 5, // Minimal, authoritative only
+          // CRITICAL: Only authoritative maritime sources
+          include_domains: [
+            'imo.org',              // International Maritime Organization
+            'gov',                  // Government sites
+            'dnv.com',              // DNV Classification
+            'lr.org',               // Lloyd's Register
+            'abs.org',              // American Bureau of Shipping
+            'bvmarine.com',         // Bureau Veritas
+            'uscg.mil',             // US Coast Guard
+            'emsa.europa.eu'        // European Maritime Safety Agency
+          ],
+          exclude_domains: ['wikipedia.org', 'facebook.com', 'twitter.com', 'instagram.com'],
         }),
       });
       
@@ -261,48 +292,140 @@ const maritimeSearchTool = tool(
       
       const data = await response.json();
       
-      // Select best sources
+      // For verification, we want QUALITY over QUANTITY
+      const results = data.results || [];
+      const topSources = results.slice(0, 3); // Max 3 authoritative sources
+      
+      console.log(`✅ Verification complete: ${topSources.length} authoritative sources`);
+      console.log(`   Tavily AI Answer: ${data.answer ? 'YES' : 'NO'}`);
+      
+      return {
+        sources: topSources,
+        tavily_answer: data.answer || null, // AI-generated fact summary
+        confidence: topSources.length >= 2 ? 0.9 : 0.7, // High confidence from authoritative sources
+        mode: 'verification'
+      };
+    } catch (error: any) {
+      console.error('❌ Verification error:', error.message);
+      return {
+        sources: [],
+        tavily_answer: null,
+        confidence: 0,
+        mode: 'verification',
+        error: error.message,
+      };
+    }
+  },
+  {
+    name: "smart_verification",
+    description: `Fast fact-checking tool for regulations, compliance, and maritime standards.
+    
+Use this for:
+- SOLAS, MARPOL, ISM Code, STCW requirements
+- Maritime law and compliance questions
+- Classification society standards
+- Regulatory definitions and explanations
+
+Returns: 2-3 authoritative sources + Tavily AI fact summary`,
+    schema: z.object({
+      query: z.string().describe("Regulatory or compliance query needing authoritative verification")
+    })
+  }
+);
+
+/**
+ * TOOL 2: Deep Research - Comprehensive maritime intelligence
+ * Multi-source analysis, quality filtering, iterative refinement
+ */
+const deepResearchTool = tool(
+  async ({ query, search_depth }: { query: string; search_depth: 'basic' | 'advanced' }, config) => {
+    const env = (config?.configurable as any)?.env;
+    if (!env?.TAVILY_API_KEY) {
+      throw new Error('TAVILY_API_KEY not configured');
+    }
+    
+    console.log(`🔬 Deep Research: "${query}" (${search_depth})`);
+    
+    try {
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_key: env.TAVILY_API_KEY,
+          query,
+          search_depth, // 'basic' or 'advanced'
+          include_answer: false, // We synthesize our own from sources
+          include_raw_content: false, // May enable later for PDF extraction
+          max_results: search_depth === 'advanced' ? 20 : 15,
+          // Maritime intelligence domains
+          include_domains: [
+            'marinetraffic.com',      // Vessel tracking
+            'vesselfinder.com',       // Fleet data
+            'wartsila.com',           // OEM equipment
+            'man-es.com',             // MAN engines
+            'rolls-royce.com',        // Propulsion
+            'kongsberg.com',          // Maritime tech
+            'maritime-executive.com', // Industry news
+            'gcaptain.com',           // Maritime news
+            'dnv.com',                // Classification
+            'lr.org',                 // Lloyd's Register
+          ],
+          exclude_domains: ['facebook.com', 'twitter.com', 'instagram.com', 'wikipedia.org'],
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Tavily API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Advanced source selection with quality scoring
       const { selected, rejected } = selectBestSources(
         data.results || [],
         search_depth === 'advanced' ? 15 : 10
       );
       
-      console.log(`✅ Found ${selected.length} sources (rejected ${rejected.length})`);
+      console.log(`✅ Deep research complete: ${selected.length} sources (rejected ${rejected.length})`);
       
       return {
         sources: selected,
         rejected_sources: rejected,
         total_results: data.results?.length || 0,
         confidence: calculateConfidence(selected),
+        mode: 'research'
       };
     } catch (error: any) {
-      console.error('❌ Maritime search error:', error.message);
+      console.error('❌ Deep research error:', error.message);
       return {
         sources: [],
         rejected_sources: [],
         total_results: 0,
         confidence: 0,
+        mode: 'research',
         error: error.message,
       };
     }
   },
   {
-    name: "maritime_search",
-    description: `Search maritime databases, vessel registries, equipment specifications, and technical documentation.
+    name: "deep_research",
+    description: `Comprehensive maritime intelligence tool for complex queries.
     
-Use this tool when users ask about:
-- Specific vessels, ships, or marine equipment
-- Maritime companies and their fleets
-- Equipment specifications and manufacturers
-- Current maritime news or developments
-- Specific technical documentation
+Use this for:
+- Specific vessels, ships, fleets
+- Technical specifications and equipment
+- Maritime companies and operations
+- Comparative analysis
+- Industry developments
 
 Parameters:
-- query: Search query (be specific and include entity names)
-- search_depth: 'basic' for quick searches, 'advanced' for comprehensive research`,
+- query: Detailed search query
+- search_depth: 'basic' for focused search, 'advanced' for comprehensive intelligence`,
     schema: z.object({
-      query: z.string().describe("Search query with specific entities (vessels, companies, equipment)"),
-      search_depth: z.enum(['basic', 'advanced']).default('basic').describe("Search depth: 'basic' for quick answers, 'advanced' for comprehensive research")
+      query: z.string().describe("Complex maritime query requiring multi-source intelligence"),
+      search_depth: z.enum(['basic', 'advanced']).default('basic').describe("'basic' for focused search, 'advanced' for comprehensive research")
     })
   }
 );
@@ -337,7 +460,8 @@ const maritimeKnowledgeTool = tool(
   }
 );
 
-const tools = [maritimeSearchTool, maritimeKnowledgeTool];
+// Register both tools - router will decide which to use
+const tools = [smartVerificationTool, deepResearchTool, maritimeKnowledgeTool];
 const toolNode = new ToolNode(tools);
 
 // =====================
@@ -359,71 +483,81 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   // Check if follow-up
   const isFollowUp = isFollowUpQuery(userQuery, state.messages);
   
-  // Auto-detect if research is needed
-  const requiresResearch = needsResearch(userQuery);
+  // Detect query mode: verification, research, or none
+  const queryMode = detectQueryMode(userQuery, state.enableBrowsing);
   
   console.log(`   Entities: ${entities.length ? entities.join(', ') : 'none'}`);
   console.log(`   Follow-up: ${isFollowUp}`);
   console.log(`   User enabled browsing: ${state.enableBrowsing}`);
-  console.log(`   Auto-detected research need: ${requiresResearch}`);
+  console.log(`   Detected mode: ${queryMode}`);
   
   // If follow-up with existing research context, skip research
   if (isFollowUp && state.researchContext) {
     console.log(`✅ Using existing research context for follow-up`);
     return {
       maritimeEntities: entities,
+      researchMode: state.researchMode, // Keep existing mode
     };
   }
   
-  // Trigger research if:
-  // 1. User explicitly enabled browsing, OR
-  // 2. Query requires research (compliance, regulations, current data)
-  const shouldResearch = state.enableBrowsing || requiresResearch;
-  
-  if (entities.length > 0 || requiresResearch) {
-    if (!shouldResearch) {
-      console.log(`⚠️ Query needs research but browsing disabled. Answering from expertise.`);
-    }
+  // Route based on detected mode
+  if (queryMode === 'none') {
+    // Expert mode - no external queries needed
+    console.log(`💬 Expert mode: Answering from maritime expertise`);
+    return {
+      maritimeEntities: entities,
+      researchMode: 'none',
+    };
   }
   
-  // If specific entities detected OR research required, and browsing allowed, trigger research
-  if ((entities.length > 0 || requiresResearch) && shouldResearch) {
-    const model = new ChatOpenAI({
-      modelName: "gpt-4o-mini",
-      temperature: 0.1,
-      apiKey: (config?.configurable as any)?.env?.OPENAI_API_KEY,
-    }).bindTools(tools);
+  // Prepare AI planner for tool selection
+  const model = new ChatOpenAI({
+    modelName: "gpt-4o-mini",
+    temperature: 0.1,
+    apiKey: (config?.configurable as any)?.env?.OPENAI_API_KEY,
+  }).bindTools(tools);
+  
+  // Mode-specific planning prompts
+  const planningPrompts = {
+    verification: `You are a fact-checking assistant for maritime regulations and compliance.
+
+User Query: "${userQuery}"
+
+Your task: Use the smart_verification tool to quickly verify regulatory facts.
+- This query needs AUTHORITATIVE sources (IMO, classification societies, gov sites)
+- Call smart_verification with a concise, focused query
+- DO NOT use deep_research for simple compliance questions
+
+Call smart_verification now.`,
     
-    const planningPrompt = `You are a research planner for maritime queries.
+    research: `You are a maritime intelligence researcher.
 
 User Query: "${userQuery}"
 Detected Entities: ${entities.join(', ')}
 
-Your task: Decide which tool(s) to call to answer this query.
-- Use maritime_search for specific vessels, companies, equipment specs, or current information
-- Use maritime_knowledge for general regulations, standards, or fleetcore features
-- You can call multiple tools if needed
+Your task: Use the deep_research tool for comprehensive intelligence.
+- Call deep_research with search_depth='advanced' for complex queries
+- Use search_depth='basic' for focused entity searches
+- You can also use maritime_knowledge for internal fleetcore information
 
-Call the appropriate tool(s) now.`;
-    
-    const response = await model.invoke([
-      new SystemMessage(planningPrompt),
-      new HumanMessage(userQuery)
-    ], config);
-    
-    console.log(`📋 Planner decided: ${response.tool_calls?.length || 0} tool calls`);
-    
-    return {
-      messages: [response],
-      maritimeEntities: entities,
-    };
-  }
+Call the appropriate tool(s) now.`
+  };
   
-  // No research needed - go straight to answer
-  console.log(`💬 No research needed, answering from expertise`);
-  console.log(`   → State will have: messages=${state.messages.length}, entities=${entities.length}`);
+  const planningPrompt = planningPrompts[queryMode];
+  
+  console.log(`📋 Invoking ${queryMode} mode planner...`);
+  
+  const response = await model.invoke([
+    new SystemMessage(planningPrompt),
+    new HumanMessage(userQuery)
+  ], config);
+  
+  console.log(`📋 Planner decided: ${response.tool_calls?.length || 0} tool calls`);
+  
   return {
+    messages: [response],
     maritimeEntities: entities,
+    researchMode: queryMode,
   };
 }
 
