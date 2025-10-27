@@ -92,6 +92,7 @@ This is **specialized maritime search** – not general web search. Get precise,
   };
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResearching, setIsResearching] = useState(false); // NEW: Track research phase
   // modelName removed (unused)
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
   // Gate chain-of-thought behind Online research
@@ -126,6 +127,7 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [, setViewportTop] = useState<number>(0);
   // Throttle streaming UI updates
   const lastStreamUpdateRef = useRef<number>(0);
+  const isResearchingRef = useRef<boolean>(false); // Track research state in ref for callbacks
   // Filter for source display: 'all', 'accepted', 'rejected'
   // DEFAULT TO 'all' TO SEE ALL SOURCES INITIALLY
   const [sourceFilter, setSourceFilter] = useState<'all' | 'accepted' | 'rejected'>('all');
@@ -468,8 +470,8 @@ This is **specialized maritime search** – not general web search. Get precise,
         thinkingStartTimeRef.current = null;
         
         // Do NOT create the assistant bubble yet; show research timeline first
-        // Hide loading spinner once streaming has started
-        setIsLoading(false);
+        // Keep loading spinner visible during research phase
+        // Will be cleared when first content arrives or research_start is received
 
         if (reader) {
           let buffer = '';
@@ -509,6 +511,20 @@ This is **specialized maritime search** – not general web search. Get precise,
 
               try {
                 const parsed = JSON.parse(jsonStr);
+                
+                // Handle research_start event - show research loading state
+                if (parsed?.type === 'research_start') {
+                  console.log('🔬 [Research Started]', { mode: parsed.mode, browsing: useBrowsing });
+                  // Only show research indicator if browsing is enabled
+                  if (useBrowsing) {
+                    setIsLoading(false); // Hide general loading
+                    setIsResearching(true); // Show research-specific loading
+                    isResearchingRef.current = true; // Sync ref
+                  }
+                  // If browsing is disabled, keep showing "Thinking..." with isLoading
+                  continue;
+                }
+                
                 // Capture structured research events (server emitted)
                 if (parsed?.type === 'step' || parsed?.type === 'tool' || parsed?.type === 'source') {
                   // Log source events
@@ -519,6 +535,15 @@ This is **specialized maritime search** – not general web search. Get precise,
                       title: parsed.title?.substring(0, 50),
                       hasActiveResearch: !!activeResearchIdRef.current
                     });
+                    
+                    // Once sources appear in research panel, hide loading indicator
+                    // The research panel itself shows the research happening
+                    if (isResearchingRef.current) {
+                      console.log('🎯 [Research Panel Active] Hiding loading indicator');
+                      setIsLoading(false);
+                      setIsResearching(false);
+                      isResearchingRef.current = false;
+                    }
                   }
                   
                   if (useBrowsing && activeResearchIdRef.current) {
@@ -592,6 +617,9 @@ This is **specialized maritime search** – not general web search. Get precise,
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
+                    
+                    // Clear any remaining loading states (research state already cleared by source events)
+                    setIsLoading(false);
                     
                     // CRITICAL FIX: Delay showing answer to let sources display first
                     // Give 1000ms for sources to render in the research panel before answer appears
@@ -879,6 +907,8 @@ This is **specialized maritime search** – not general web search. Get precise,
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setIsResearching(false); // Clear research state on completion or error
+      isResearchingRef.current = false; // Sync ref
     }
   };
 
@@ -1447,7 +1477,7 @@ This is **specialized maritime search** – not general web search. Get precise,
           );
           })}
           
-          {isLoading && (
+          {(isLoading || isResearching) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1459,10 +1489,20 @@ This is **specialized maritime search** – not general web search. Get precise,
               <div className="backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg">
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-maritime-600" />
-                  {useBrowsing && (
+                  {isResearching ? (
                     <div className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold">
                       <Globe className="w-3.5 h-3.5 animate-pulse" />
-                      <span>Researching...</span>
+                      <span>Researching maritime intelligence...</span>
+                    </div>
+                  ) : useBrowsing ? (
+                    <div className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold">
+                      <Globe className="w-3.5 h-3.5 animate-pulse" />
+                      <span>Preparing research...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold">
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                      <span>Thinking...</span>
                     </div>
                   )}
                 </div>

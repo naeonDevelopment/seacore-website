@@ -133,6 +133,26 @@ function isFollowUpQuery(query: string, previousMessages: BaseMessage[]): boolea
 function detectQueryMode(query: string, enableBrowsing: boolean): 'verification' | 'research' | 'none' {
   const queryLower = query.toLowerCase();
   
+  // EXCLUSIONS: Platform/system terms that should NEVER trigger research
+  // These are fleetcore features answered from training data
+  const platformExclusions = [
+    'pms', 'planned maintenance system',
+    'fleetcore', 'seacore',
+    'maintenance scheduling', 'work order',
+    'inventory management', 'crew management',
+    'compliance tracking', 'safety management system',
+    'dashboard', 'analytics', 'reporting'
+  ];
+  
+  const isPlatformQuery = platformExclusions.some(keyword => 
+    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
+  );
+  
+  if (isPlatformQuery) {
+    console.log(`   Platform query detected - answering from training data`);
+    return 'none';
+  }
+  
   // VERIFICATION MODE: Quick fact-checking for regulations/compliance
   // These need authoritative sources but not deep research
   const verificationKeywords = [
@@ -147,29 +167,55 @@ function detectQueryMode(query: string, enableBrowsing: boolean): 'verification'
     new RegExp(`\\b${keyword}`, 'i').test(queryLower)
   );
   
-  // RESEARCH MODE: Deep maritime intelligence
-  // Specific entities, technical specs, comparative analysis
-  const researchIndicators = [
+  // SPECIFIC ENTITY QUERIES: Use Gemini grounding for quick lookups
+  // Even when browsing is OFF, we want to use Gemini for these
+  const entityIndicators = [
     'MV ', 'MS ', 'MT ', 'vessel ', 'ship ',
-    'largest', 'biggest', 'best', 'compare',
-    'specifications', 'technical details', 'datasheet',
-    'propulsion system', 'engine specs', 'manufacturer',
-    'fleet', 'shipyard', 'maritime company'
+    'largest', 'biggest', 'newest', 'smallest',
+    'fleet', 'shipyard', 'maritime company', 'shipping company',
+    'cargo vessel', 'tanker', 'bulk carrier', 'container ship',
+    'caterpillar', 'wärtsilä', 'man', 'rolls-royce', // equipment manufacturers
   ];
   
-  const needsResearch = researchIndicators.some(keyword =>
+  const needsEntityLookup = entityIndicators.some(keyword =>
+    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
+  );
+  
+  // DEEP RESEARCH MODE: Multi-source comprehensive intelligence
+  // Only when user explicitly enables browsing toggle
+  const deepResearchIndicators = [
+    'compare', 'comparison', 'analyze', 'analysis',
+    'specifications', 'technical details', 'datasheet',
+    'propulsion system', 'engine specs', 'manufacturer documentation',
+    'detailed specs', 'technical specifications'
+  ];
+  
+  const needsDeepResearch = deepResearchIndicators.some(keyword =>
     new RegExp(`\\b${keyword}`, 'i').test(queryLower)
   );
   
   // Decision logic:
-  // 1. User enabled browsing → Research mode (even for simple queries)
-  // 2. Verification keywords → Verification mode (fast, targeted)
-  // 3. Research indicators → Auto-enable verification (regulatory accuracy)
-  // 4. Nothing detected → Expert mode (no external queries)
+  // 1. User enabled browsing → Research mode (ALWAYS - deep multi-source research)
+  // 2. Specific entities → Verification mode (use Gemini for quick lookup)
+  // 3. Verification keywords → Verification mode (regulatory fact-checking)
+  // 4. Nothing detected → Expert mode (training data only)
   
-  if (enableBrowsing && needsResearch) return 'research';
-  if (needsVerification || needsResearch) return 'verification';
+  if (enableBrowsing) {
+    console.log(`   Mode: RESEARCH (user enabled browsing - deep research)`);
+    return 'research';
+  }
   
+  if (needsEntityLookup) {
+    console.log(`   Mode: VERIFICATION (entity lookup with Gemini)`);
+    return 'verification';
+  }
+  
+  if (needsVerification) {
+    console.log(`   Mode: VERIFICATION (regulatory query)`);
+    return 'verification';
+  }
+  
+  console.log(`   Mode: NONE (expert mode - training data)`);
   return 'none';
 }
 
@@ -275,15 +321,15 @@ const geminiGroundingTool = tool(
   async ({ query }: { query: string }, config) => {
     const env = (config?.configurable as any)?.env;
     if (!env?.GEMINI_API_KEY) {
-      console.warn('⚠️ GEMINI_API_KEY not configured, falling back to Tavily');
-      return {
+      console.warn('⚠️ GEMINI_API_KEY not configured, falling back');
+      return JSON.stringify({
         sources: [],
         answer: null,
         confidence: 0,
         mode: 'gemini_grounding',
         error: 'GEMINI_API_KEY not configured',
         fallback_needed: true
-      };
+      });
     }
     
     console.log(`🔮 Gemini Grounding: "${query}"`);
@@ -327,7 +373,7 @@ const geminiGroundingTool = tool(
       console.log(`✅ Gemini grounding complete: ${sources.length} Google sources`);
       console.log(`   Answer generated: ${answer ? 'YES' : 'NO'}`);
       
-      return {
+      const result = {
         sources,
         answer,
         searchQueries: groundingMetadata?.searchQueries || [],
@@ -335,16 +381,19 @@ const geminiGroundingTool = tool(
         confidence: sources.length >= 2 ? 0.95 : 0.8, // High confidence from Google
         mode: 'gemini_grounding'
       };
+      
+      // Return as JSON string for ToolMessage compatibility
+      return JSON.stringify(result);
     } catch (error: any) {
       console.error('❌ Gemini grounding error:', error.message);
-      return {
+      return JSON.stringify({
         sources: [],
         answer: null,
         confidence: 0,
         mode: 'gemini_grounding',
         error: error.message,
         fallback_needed: true
-      };
+      });
     }
   },
   {
@@ -755,16 +804,17 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   
   // Mode-specific planning prompts
   const planningPrompts = {
-    verification: `You are a fact-checking assistant for maritime regulations and compliance.
+    verification: `You are a maritime intelligence assistant for quick fact-checking.
 
 User Query: "${userQuery}"
 
-Your task: Use the smart_verification tool to quickly verify regulatory facts.
-- This query needs AUTHORITATIVE sources (IMO, classification societies, gov sites)
-- Call smart_verification with a concise, focused query
-- DO NOT use deep_research for simple compliance questions
+Your task: Use the gemini_grounding tool for fast, accurate lookups.
+- For ENTITY queries (vessels, companies, equipment): Call gemini_grounding with the query
+- For REGULATORY queries (SOLAS, MARPOL, compliance): Call gemini_grounding with the query
+- Gemini provides Google-powered grounding with authoritative sources
+- DO NOT use deep_research - this is a quick lookup
 
-Call smart_verification now.`,
+Call gemini_grounding now.`,
     
     research: `You are a maritime intelligence researcher.
 
@@ -835,7 +885,7 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
   let allSources: Source[] = [];
   let allRejected: Source[] = [];
   let confidenceScore = 0;
-  let tavilyAnswer: string | null = null;
+  let geminiAnswer: string | null = null;
   
   for (const msg of toolMessages) {
     const content = msg.content;
@@ -849,10 +899,10 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
         if (parsed.rejected_sources) {
           allRejected.push(...parsed.rejected_sources);
         }
-        // VERIFICATION MODE: Capture Tavily's AI answer
-        if (parsed.tavily_answer) {
-          tavilyAnswer = parsed.tavily_answer;
-          console.log(`   📝 Tavily AI Answer available: ${tavilyAnswer?.substring(0, 100)}...`);
+        // VERIFICATION MODE: Capture AI answer (from Gemini or Tavily)
+        if (parsed.answer || parsed.tavily_answer) {
+          geminiAnswer = parsed.answer || parsed.tavily_answer;
+          console.log(`   📝 AI Answer available: ${geminiAnswer?.substring(0, 100)}...`);
         }
       } catch (e) {
         // Not JSON, might be knowledge base result
@@ -864,29 +914,55 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
   // Build research context based on mode
   let researchContext = '';
   
-  if (state.researchMode === 'verification' && allSources.length > 0) {
-    // VERIFICATION MODE: Compact context with Tavily answer
-    researchContext = `=== VERIFICATION SOURCES ===
+  if (state.researchMode === 'verification') {
+    if (allSources.length > 0 || geminiAnswer) {
+      // VERIFICATION MODE: Gemini-powered answer with Google sources
+      researchContext = `=== GEMINI GROUNDING RESULTS ===
 
-${tavilyAnswer ? `Tavily AI Summary: ${tavilyAnswer}\n\n` : ''}Authoritative sources (${allSources.length}):
+${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${allSources.length > 0 ? `Google Sources (${allSources.length}):\n\n${allSources.map((s, i) => `[${i + 1}] ${s.title} (${new URL(s.url).hostname})
+   ${s.content.substring(0, 300)}...`).join('\n\n')}` : 'Direct answer from Google\'s knowledge base'}
 
-${allSources.map((s, i) => `[${i + 1}] ${s.title} (${new URL(s.url).hostname})
-   ${s.content.substring(0, 200)}...`).join('\n\n')}
+=== END GEMINI GROUNDING ===
 
+**Instructions:**
+- Use the Google-verified information above to answer the user's query
+- Cite sources with [1][2][3] if provided
+- This is accurate information from Google Search grounding
+- Add the disclaimer about deep research for comprehensive analysis`;
+    } else {
+      // No sources found - provide guidance to use training data
+      console.warn(`⚠️ Verification mode but no sources found - falling back to training data`);
+      researchContext = `=== VERIFICATION ATTEMPT ===
+No specific sources found for this query.
+Please answer using your general maritime knowledge and add the disclaimer to enable deep research if needed.
 === END VERIFICATION ===`;
+    }
   } else if (state.researchMode === 'research' && allSources.length > 0) {
     // RESEARCH MODE: Comprehensive context with full details
     researchContext = `=== RESEARCH INTELLIGENCE ===
+
+**CRITICAL INSTRUCTIONS:**
+- You MUST write a COMPREHENSIVE, DETAILED response of AT LEAST 2000-3000 characters
+- Use ALL ${allSources.length} sources provided below - cite each source [1][2][3] throughout your response
+- Follow the structure: Overview → Technical Specifications → Operational Capabilities → Maritime Significance → Operational Impact
+- Include maritime context, strategic importance, and industry perspective for EVERY fact
+- Never give short, superficial answers - maritime professionals need depth and detail
 
 Found ${allSources.length} verified sources (rejected ${allRejected.length} low-quality):
 
 ${allSources.map((s, i) => `[${i + 1}] ${s.title}
    URL: ${s.url}
-   Score: ${s.score?.toFixed(2) || 'N/A'}
-   Content: ${s.content.substring(0, 500)}...
+   Domain: ${new URL(s.url).hostname}
+   Authority Score: ${s.score?.toFixed(2) || 'N/A'}
+   
+   Full Content:
+   ${s.content.substring(0, 2500)}${s.content.length > 2500 ? '...' : ''}
+   
 `).join('\n')}
 
-=== END RESEARCH ===`;
+=== END RESEARCH ===
+
+**REMINDER: Your response MUST be 2000-3000+ characters with comprehensive maritime detail, using ALL ${allSources.length} sources above.**`;
   }
   
   console.log(`✅ Processed: ${allSources.length} sources, confidence: ${confidenceScore.toFixed(2)}`);
@@ -962,6 +1038,19 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
   // We'll collect it here but the actual streaming happens in handleChatWithLangGraph
   let fullContent = '';
   
+  console.log(`🎨 Starting synthesis...`);
+  console.log(`   System prompt length: ${systemPrompt.length} chars`);
+  console.log(`   Research context length: ${state.researchContext?.length || 0} chars`);
+  console.log(`   Total messages to synthesize: ${synthesisMessages.length}`);
+  console.log(`   Research mode: ${state.researchMode}`);
+  console.log(`   Has research context: ${!!state.researchContext}`);
+  
+  if (state.researchContext) {
+    console.log(`   First 500 chars of research context:`, state.researchContext.substring(0, 500));
+  } else {
+    console.warn(`   ⚠️ WARNING: No research context despite having ${state.verifiedSources.length} verified sources!`);
+  }
+  
   const stream = await model.stream(synthesisMessages, config);
   
   for await (const chunk of stream) {
@@ -969,6 +1058,14 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
   }
   
   console.log(`✅ Synthesized ${fullContent.length} characters`);
+  
+  if (state.researchContext && fullContent.length < 2000) {
+    console.warn(`⚠️ WARNING: Response is too short! Only ${fullContent.length} chars (target: 2000-3000)`);
+    console.warn(`   Sources available: ${state.verifiedSources.length}`);
+    console.warn(`   This indicates the LLM is not following the comprehensive response requirement!`);
+  } else if (state.researchContext) {
+    console.log(`✅ Response length meets requirement: ${fullContent.length} chars`);
+  }
   
   return {
     messages: [new AIMessage(fullContent)],
@@ -1131,21 +1228,34 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         console.log(`   Browsing: ${enableBrowsing}`);
         console.log(`   Has API keys: ${!!env.OPENAI_API_KEY && !!env.TAVILY_API_KEY && !!env.GEMINI_API_KEY}`);
         
+        // Validate input
+        if (!env.OPENAI_API_KEY) {
+          throw new Error('OPENAI_API_KEY not configured');
+        }
+        if (enableBrowsing && !env.TAVILY_API_KEY) {
+          throw new Error('TAVILY_API_KEY not configured but browsing is enabled');
+        }
+        
         // Stream events from agent
         // Use "messages" mode to get token-by-token streaming
-        const stream = await agent.stream(
-          {
-            messages: baseMessages,
-            sessionId,
-            enableBrowsing,
-          },
-          {
-            ...config,
-            streamMode: ["messages", "updates"] as const,
-          }
-        );
-        
-        console.log(`📡 SSE Stream: Agent stream created successfully`);
+        let stream;
+        try {
+          stream = await agent.stream(
+            {
+              messages: baseMessages,
+              sessionId,
+              enableBrowsing,
+            },
+            {
+              ...config,
+              streamMode: ["messages", "updates"] as const,
+            }
+          );
+          console.log(`📡 SSE Stream: Agent stream created successfully`);
+        } catch (streamError: any) {
+          console.error(`❌ Failed to create agent stream:`, streamError);
+          throw new Error(`Agent stream creation failed: ${streamError.message}`);
+        }
         
         let sourcesEmitted = false;
         let eventCount = 0;
@@ -1153,10 +1263,12 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         console.log(`📡 SSE Stream: Entering event loop`);
         
         let hasStreamedContent = false;
+        let hasError = false;
         
-        for await (const [streamType, event] of stream) {
-          eventCount++;
-          console.log(`\n📤 EVENT #${eventCount}:`, streamType, Object.keys(event || {})[0]);
+        try {
+          for await (const [streamType, event] of stream) {
+            eventCount++;
+            console.log(`\n📤 EVENT #${eventCount}:`, streamType, Object.keys(event || {})[0]);
           
           // Handle token-level streaming from "messages" mode
           if (streamType === 'messages') {
@@ -1319,11 +1431,41 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
               }
             }
           }
+          }  // End for await loop
+        } catch (streamLoopError: any) {
+          hasError = true;
+          console.error(`❌ Error in stream event loop:`, streamLoopError);
+          console.error(`   Error name: ${streamLoopError.name}`);
+          console.error(`   Error message: ${streamLoopError.message}`);
+          console.error(`   Stack: ${streamLoopError.stack?.substring(0, 500)}`);
+          
+          // Send error to client
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ 
+              type: 'error', 
+              error: `Stream processing error: ${streamLoopError.message}`,
+              details: hasStreamedContent ? 'Partial content was sent' : 'No content was sent'
+            })}\n\n`
+          ));
         }
         
         // Done
         console.log(`📡 SSE Stream: Sending [DONE] and closing`);
         console.log(`📡 SSE Stream: Total events emitted: ${eventCount}`);
+        console.log(`📡 SSE Stream: Had streamed content: ${hasStreamedContent}`);
+        console.log(`📡 SSE Stream: Had errors: ${hasError}`);
+        
+        // Safety check: If no content was sent and no error was sent, send a fallback
+        if (!hasStreamedContent && !hasError) {
+          console.warn(`⚠️ WARNING: Stream ended without any content or errors!`);
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ 
+              type: 'content', 
+              content: 'I apologize, but I encountered an issue generating a response. Please try again.'
+            })}\n\n`
+          ));
+        }
+        
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
         
