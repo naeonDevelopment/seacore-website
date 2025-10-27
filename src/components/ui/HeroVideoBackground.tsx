@@ -58,12 +58,12 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         inactiveVideo.current.play().catch(() => {})
       }
       
-      // Swap active player after 1 second (completes at ~7.5s, before video ends at 8s)
+      // Swap active player after 1.2 seconds (completes at ~7.7s, before video ends at 8s)
       setTimeout(() => {
         setActivePlayer(prev => prev === 'A' ? 'B' : 'A')
         setCurrentVideoIndex(nextIndex)
         isTransitioningRef.current = false
-      }, 1000)
+      }, 1200)
     }
   }
 
@@ -116,7 +116,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         preload="auto"
         onTimeUpdate={() => handleTimeUpdate('A')}
         animate={{ opacity: activePlayer === 'A' ? 1 : 0 }}
-        transition={{ duration: 1, ease: 'easeInOut' }}
+        transition={{ duration: 1.2, ease: 'easeInOut' }}
         style={{ 
           objectFit: 'cover',
           objectPosition: 'center'
@@ -132,7 +132,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         preload="auto"
         onTimeUpdate={() => handleTimeUpdate('B')}
         animate={{ opacity: activePlayer === 'B' ? 1 : 0 }}
-        transition={{ duration: 1, ease: 'easeInOut' }}
+        transition={{ duration: 1.2, ease: 'easeInOut' }}
         style={{ 
           objectFit: 'cover',
           objectPosition: 'center'
