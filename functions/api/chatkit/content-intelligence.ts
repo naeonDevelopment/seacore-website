@@ -512,7 +512,7 @@ export function getDefaultWeights(): ScoringWeights {
 export async function analyzeContentIntelligence(
   source: ContentSource,
   query: string,
-  analysisDepth: 'fast' | 'standard' | 'deep' = 'standard',
+  analysisDepth: 'fast' | 'standard' | 'deep',
   customWeights?: Partial<ScoringWeights>
 ): Promise<ContentIntelligence> {
   const startTime = Date.now();
@@ -653,7 +653,7 @@ export async function analyzeContentIntelligence(
 export async function batchAnalyzeContent(
   sources: ContentSource[],
   query: string,
-  analysisDepth: 'fast' | 'standard' | 'deep' = 'standard'
+  analysisDepth: 'fast' | 'standard' | 'deep'
 ): Promise<(ContentSource & { intelligence: ContentIntelligence })[]> {
   // Parallel analysis for speed
   const analyses = await Promise.all(
