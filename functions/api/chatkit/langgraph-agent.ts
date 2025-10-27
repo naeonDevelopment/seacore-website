@@ -792,7 +792,19 @@ Call deep_research now with appropriate parameters.`
     new HumanMessage(userQuery)
   ], config);
   
-  console.log(`📋 Planner decided: ${response.tool_calls?.length || 0} tool calls`);
+  const toolCallsCount = response.tool_calls?.length || 0;
+  console.log(`📋 Planner decided: ${toolCallsCount} tool calls`);
+  
+  if (toolCallsCount > 0) {
+    const toolNames = response.tool_calls?.map(tc => tc.name).join(', ') || 'none';
+    console.log(`   🔧 Tools selected: ${toolNames}`);
+    console.log(`   💡 Strategy: ${
+      toolNames.includes('gemini_grounding') ? 'Google Gemini (fast factual lookup)' :
+      toolNames.includes('smart_verification') ? 'Tavily (authoritative sources only)' :
+      toolNames.includes('deep_research') ? 'Tavily (deep maritime intelligence)' :
+      'Knowledge base'
+    }`);
+  }
   
   return {
     messages: [response],
@@ -1172,22 +1184,45 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             const mode = event.router.researchMode || 'none';
             
             if (mode === 'verification') {
+              // Send research start event for frontend loading state
               controller.enqueue(encoder.encode(
-                `data: ${JSON.stringify({ type: 'thinking', content: '⚡ Verifying with authoritative sources...' })}\n\n`
+                `data: ${JSON.stringify({ type: 'research_start', mode: 'verification' })}\n\n`
               ));
             } else if (mode === 'research') {
+              // Send research start event for frontend loading state
               controller.enqueue(encoder.encode(
-                `data: ${JSON.stringify({ type: 'thinking', content: '🔬 Analyzing query and searching maritime intelligence...' })}\n\n`
+                `data: ${JSON.stringify({ type: 'research_start', mode: 'research' })}\n\n`
               ));
             }
-            // Expert mode (none): No thinking bubble
+            // Expert mode (none): No research event
           }
           
           if (event.tools) {
-            // Tools are executing - show progress
-            controller.enqueue(encoder.encode(
-              `data: ${JSON.stringify({ type: 'thinking', content: 'Gathering maritime data...' })}\n\n`
-            ));
+            // Tools are executing - emit which tool is being used
+            const currentMessages = event.router?.messages || [];
+            const toolMessages = currentMessages.filter((msg: any) => 
+              msg.tool_calls?.length > 0
+            );
+            
+            if (toolMessages.length > 0) {
+              const lastToolCall = toolMessages[toolMessages.length - 1].tool_calls[0];
+              const toolName = lastToolCall?.name || 'unknown';
+              
+              const toolLabels: Record<string, string> = {
+                'gemini_grounding': '🔮 Searching Google with Gemini...',
+                'smart_verification': '⚡ Verifying with authoritative sources...',
+                'deep_research': '🔬 Deep maritime intelligence search...',
+                'maritime_knowledge': '📚 Consulting fleetcore knowledge base...',
+              };
+              
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ 
+                  type: 'tool_execution',
+                  tool: toolName,
+                  message: toolLabels[toolName] || 'Gathering maritime data...'
+                })}\n\n`
+              ));
+            }
           }
           
           // Emit sources - Mode-specific display
