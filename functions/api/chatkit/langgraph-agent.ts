@@ -188,9 +188,10 @@ function selectBestSources(results: any[], maxSources: number = 15): { selected:
     if (/(manual|specification|datasheet|technical|whitepaper)/i.test(r.title)) score += 0.15;
     if (/(manufacturer|oem|equipment)/i.test(r.url)) score += 0.1;
     
-    // PRIORITY 3: Maritime authoritative sources
-    if (/(maritime|vessel|ship|marine|offshore)/i.test(r.url)) score += 0.1;
-    if (/(fleet|shipyard|naval|maritime-executive)/i.test(r.url)) score += 0.08;
+    // PRIORITY 3: Maritime authoritative sources (BOOSTED for better coverage)
+    if (/(maritime-executive|gcaptain|offshore|marinelink)/i.test(r.url)) score += 0.15; // Increased from 0.08
+    if (/(maritime|vessel|ship|marine)/i.test(r.url)) score += 0.1;
+    if (/(fleet|shipyard|naval|port)/i.test(r.url)) score += 0.08;
     
     // PRIORITY 4: Equipment/vessel databases
     if (/(marinetraffic|vesseltracker|equasis|shipping)/i.test(r.url)) score += 0.12;
@@ -212,15 +213,19 @@ function selectBestSources(results: any[], maxSources: number = 15): { selected:
   scored.sort((a, b) => b.score - a.score);
   
   // SMART SELECTION: Take top sources but ensure quality gap
-  const qualityGap = 0.15; // Only accept sources within 0.15 of best score
+  const qualityGap = 0.20; // Accept sources within 0.20 of best score (more inclusive)
   const bestScore = scored[0]?.score || 0;
+  const minQualityThreshold = 0.4; // Absolute minimum quality score
   
-  const qualityFiltered = scored.filter(s => s.score >= bestScore - qualityGap);
+  const qualityFiltered = scored.filter(s => 
+    s.score >= bestScore - qualityGap && s.score >= minQualityThreshold
+  );
   const selected = qualityFiltered.slice(0, maxSources);
   const rejected = scored.filter(s => !selected.includes(s));
   
-  console.log(`   Quality range: ${bestScore.toFixed(2)} - ${(bestScore - qualityGap).toFixed(2)}`);
+  console.log(`   Quality range: ${bestScore.toFixed(2)} - ${Math.max(bestScore - qualityGap, minQualityThreshold).toFixed(2)}`);
   console.log(`   Selected ${selected.length}/${scored.length} (rejected ${rejected.length} low-quality)`);
+  console.log(`   Top 3 scores: ${scored.slice(0, 3).map(s => s.score.toFixed(2)).join(', ')}`);
   
   return { selected, rejected };
 }
@@ -383,6 +388,9 @@ const deepResearchTool = tool(
       }
       
       console.log(`   📊 Total unique results: ${allResults.length} from ${queries.length} queries`);
+      if (queries.length > 1) {
+        console.log(`   🔍 Multi-query used: ${queries.map(q => `"${q.substring(0, 50)}..."`).join(', ')}`);
+      }
       
       // Advanced source selection with quality scoring
       const { selected, rejected } = selectBestSources(
@@ -449,6 +457,16 @@ function generateMultipleQueries(originalQuery: string): string[] {
   const queries: string[] = [originalQuery]; // Always include original
   
   const queryLower = originalQuery.toLowerCase();
+  
+  // SUPERLATIVES: biggest, largest, best, fastest (need comparison data)
+  if (/\b(biggest|largest|best|fastest|smallest|most|top|leading)\b/i.test(originalQuery)) {
+    // Extract the subject (ship, fleet, company, etc.)
+    const subject = originalQuery.match(/\b(ship|vessel|fleet|company|operator|port|container|tanker|bulk carrier)\b/i)?.[0] || 'vessel';
+    const location = originalQuery.match(/\b(german|germany|europe|asia|world)\b/i)?.[0] || '';
+    
+    queries.push(`${location} ${subject} size comparison specifications`);
+    queries.push(`${location} largest ${subject} fleet operator statistics`);
+  }
   
   // For vessel queries, add multiple search angles
   if (/vessel|ship|MV |MS |MT /i.test(originalQuery)) {
