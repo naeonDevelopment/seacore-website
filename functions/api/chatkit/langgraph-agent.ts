@@ -647,6 +647,12 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           `data: ${JSON.stringify({ type: 'debug', message: 'LangGraph stream started', sessionId, enableBrowsing })}\n\n`
         ));
         
+        // CRITICAL: Send visible content immediately to test frontend
+        console.log(`📡 SSE Stream: Sending test content`);
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ type: 'content', content: 'TEST: Stream active. Processing query...\n\n' })}\n\n`
+        ));
+        
         // Send thinking immediately
         console.log(`📡 SSE Stream: Sending initial thinking event`);
         controller.enqueue(encoder.encode(
