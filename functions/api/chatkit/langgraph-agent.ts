@@ -895,13 +895,6 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
     };
   }
   
-  // Prepare AI planner for tool selection
-  const model = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
-    temperature: 0.1,
-    apiKey: (config?.configurable as any)?.env?.OPENAI_API_KEY,
-  }).bindTools(tools);
-  
   // Mode-specific planning prompts
   const planningPrompts = {
     verification: `You are a maritime intelligence assistant for quick fact-checking.
@@ -937,35 +930,53 @@ Call deep_research now with appropriate parameters.`
   
   console.log(`📋 Invoking ${queryMode} mode planner...`);
   
-  // FORCE tool usage based on mode
-  // LangChain uses 'tool_choice' parameter for OpenAI
-  const invokeOptions: any = { ...config };
+  // CRITICAL FIX: Use .bind() to add tool_choice parameter
+  // bindTools() doesn't accept tool_choice as second parameter
+  let model: any;
+  
+  const baseModel = new ChatOpenAI({
+    modelName: "gpt-4o-mini",
+    temperature: 0.1,
+    apiKey: (config?.configurable as any)?.env?.OPENAI_API_KEY,
+  });
   
   if (queryMode === 'verification') {
-    // Force gemini_grounding tool for verification mode
-    // LangChain format: specify the tool name directly
-    invokeOptions.tool_choice = {
-      type: 'function',
-      function: { name: 'gemini_grounding' }
-    };
     console.log(`   🔒 FORCING tool: gemini_grounding`);
+    
+    // Bind tools, then bind tool_choice parameter
+    model = baseModel
+      .bindTools(tools)
+      .bind({
+        tool_choice: {
+          type: 'function',
+          function: { name: 'gemini_grounding' }
+        }
+      });
+    
+    console.log(`   ✅ Model bound with tools + forced tool_choice via .bind()`);
+  } else {
+    // Auto tool selection for research mode
+    model = baseModel.bindTools(tools);
   }
   
   const response = await model.invoke([
     new SystemMessage(planningPrompt),
     new HumanMessage(userQuery)
-  ], invokeOptions);
+  ], config);
   
   const toolCallsCount = response.tool_calls?.length || 0;
   console.log(`📋 Planner decided: ${toolCallsCount} tool calls`);
+  console.log(`   Response type: ${response.constructor.name}`);
+  console.log(`   Response has tool_calls property: ${!!response.tool_calls}`);
+  console.log(`   Response.tool_calls value: ${JSON.stringify(response.tool_calls)}`);
   
   // CRITICAL: Verify tool was called (we're in verification or research mode at this point)
   if (toolCallsCount === 0) {
-    console.warn(`⚠️ WARNING: ${queryMode} mode but no tools called! This should not happen.`);
-    console.warn(`   Query: "${userQuery}"`);
-    console.warn(`   Expected tool: ${queryMode === 'verification' ? 'gemini_grounding' : 'deep_research'}`);
-    console.warn(`   Response type: ${response.constructor.name}`);
-    console.warn(`   Response content: ${typeof response.content === 'string' ? response.content.substring(0, 200) : 'N/A'}`);
+    console.error(`❌ CRITICAL ERROR: ${queryMode} mode but no tools called!`);
+    console.error(`   Query: "${userQuery}"`);
+    console.error(`   Expected tool: ${queryMode === 'verification' ? 'gemini_grounding' : 'deep_research'}`);
+    console.error(`   Response content: ${typeof response.content === 'string' ? response.content.substring(0, 200) : 'N/A'}`);
+    console.error(`   ⚠️ THIS MEANS TOOL_CHOICE PARAMETER IS NOT WORKING!`);
   }
   
   if (toolCallsCount > 0) {
@@ -1311,6 +1322,8 @@ function shouldContinue(state: AgentState): string {
   console.log(`\n🔀 ROUTING DECISION`);
   console.log(`   Messages: ${state.messages.length}`);
   console.log(`   Last message type: ${messageType}`);
+  console.log(`   Last message has tool_calls: ${!!(lastMessage as AIMessage).tool_calls}`);
+  console.log(`   Last message tool_calls count: ${(lastMessage as AIMessage).tool_calls?.length || 0}`);
   console.log(`   Research context: ${state.researchContext ? 'YES' : 'NO'}`);
   console.log(`   Confidence: ${state.confidence}`);
   console.log(`   Verified sources: ${state.verifiedSources.length}`);
@@ -1318,7 +1331,8 @@ function shouldContinue(state: AgentState): string {
   
   // If last message has tool calls, execute them
   if ((lastMessage as AIMessage).tool_calls?.length) {
-    console.log(`→ Routing to: tools`);
+    console.log(`→ Routing to: tools (${(lastMessage as AIMessage).tool_calls?.length} tool calls to execute)`);
+    console.log(`   Tool names: ${(lastMessage as AIMessage).tool_calls?.map((tc: any) => tc.name).join(', ')}`);
     return "tools";
   }
   
@@ -1408,6 +1422,7 @@ export interface ChatRequest {
     OPENAI_API_KEY: string;
     TAVILY_API_KEY: string;
     GEMINI_API_KEY: string;
+    LANGSMITH_API_KEY?: string; // Optional for tracing/debugging
   };
 }
 
@@ -1419,6 +1434,17 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
   const { messages, sessionId, enableBrowsing, env } = request;
   
   console.log(`\n🚀 LangGraph Agent Request | Session: ${sessionId} | Browsing: ${enableBrowsing}`);
+  
+  // Configure LangSmith tracing if API key is available
+  if (env.LANGSMITH_API_KEY) {
+    console.log(`🔬 LangSmith tracing enabled`);
+    // Set environment variables for LangSmith
+    (globalThis as any).process = (globalThis as any).process || {};
+    (globalThis as any).process.env = (globalThis as any).process.env || {};
+    (globalThis as any).process.env.LANGCHAIN_TRACING_V2 = 'true';
+    (globalThis as any).process.env.LANGCHAIN_API_KEY = env.LANGSMITH_API_KEY;
+    (globalThis as any).process.env.LANGCHAIN_PROJECT = 'fleetcore-maritime-agent';
+  }
   
   // Convert messages to BaseMessage format
   const baseMessages: BaseMessage[] = messages.map(msg => {

@@ -32,6 +32,7 @@ export async function routeChatRequest(
   console.log(`   OPENAI_API_KEY present: ${!!env.OPENAI_API_KEY}`);
   console.log(`   TAVILY_API_KEY present: ${!!env.TAVILY_API_KEY}`);
   console.log(`   GEMINI_API_KEY present: ${!!env.GEMINI_API_KEY}`);
+  console.log(`   LANGSMITH_API_KEY present: ${!!env.LANGSMITH_API_KEY}`);
   
   if (useLangGraph) {
     // Use new LangGraph agent with Gemini + Tavily hybrid
@@ -45,6 +46,7 @@ export async function routeChatRequest(
           OPENAI_API_KEY: env.OPENAI_API_KEY,
           TAVILY_API_KEY: env.TAVILY_API_KEY,
           GEMINI_API_KEY: env.GEMINI_API_KEY,
+          LANGSMITH_API_KEY: env.LANGSMITH_API_KEY,
         }
       });
       
