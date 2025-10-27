@@ -898,8 +898,13 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   // VERIFICATION MODE: Direct Gemini call (bypasses tool_choice issues)
   if (queryMode === 'verification') {
     console.log(`🔮 VERIFICATION MODE: Calling Gemini directly (bypass tool_choice)`);
+    console.log(`   Query: "${userQuery}"`);
+    console.log(`   Entity context: "${entityContext}"`);
+    console.log(`   Full query to Gemini: "${userQuery + entityContext}"`);
     
     try {
+      console.log(`   Calling geminiGroundingTool.invoke()...`);
+      
       // Call Gemini grounding tool directly
       const geminiResult = await geminiGroundingTool.invoke(
         { query: userQuery + entityContext },
@@ -961,21 +966,10 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.l
     }
   }
   
-  // Mode-specific planning prompts
-  const planningPrompts = {
-    verification: `You are a maritime intelligence assistant for quick fact-checking.
-
-User Query: "${userQuery}"
-
-Your task: Use the gemini_grounding tool for fast, accurate lookups.
-- For ENTITY queries (vessels, companies, equipment): Call gemini_grounding with the query
-- For REGULATORY queries (SOLAS, MARPOL, compliance): Call gemini_grounding with the query
-- Gemini provides Google-powered grounding with authoritative sources
-- DO NOT use deep_research - this is a quick lookup
-
-Call gemini_grounding now.`,
-    
-    research: `You are a maritime intelligence researcher.
+  // RESEARCH MODE: Use deep_research tool via LangGraph
+  console.log(`📋 Invoking research mode planner...`);
+  
+  const planningPrompt = `You are a maritime intelligence researcher.
 
 User Query: "${userQuery}"
 Detected Entities: ${entities.join(', ')}
@@ -989,41 +983,13 @@ Your task: Use the deep_research tool for comprehensive intelligence.
   * Keep use_multi_query=false
 - You can also use maritime_knowledge for internal fleetcore information
 
-Call deep_research now with appropriate parameters.`
-  };
+Call deep_research now with appropriate parameters.`;
   
-  const planningPrompt = planningPrompts[queryMode];
-  
-  console.log(`📋 Invoking ${queryMode} mode planner...`);
-  
-  // CRITICAL FIX: Use .bind() to add tool_choice parameter
-  // bindTools() doesn't accept tool_choice as second parameter
-  let model: any;
-  
-  const baseModel = new ChatOpenAI({
+  const model = new ChatOpenAI({
     modelName: "gpt-4o-mini",
     temperature: 0.1,
     apiKey: (config?.configurable as any)?.env?.OPENAI_API_KEY,
-  });
-  
-  if (queryMode === 'verification') {
-    console.log(`   🔒 FORCING tool: gemini_grounding`);
-    
-    // Bind tools, then bind tool_choice parameter
-    model = baseModel
-      .bindTools(tools)
-      .bind({
-        tool_choice: {
-          type: 'function',
-          function: { name: 'gemini_grounding' }
-        }
-      });
-    
-    console.log(`   ✅ Model bound with tools + forced tool_choice via .bind()`);
-  } else {
-    // Auto tool selection for research mode
-    model = baseModel.bindTools(tools);
-  }
+  }).bindTools(tools);
   
   const response = await model.invoke([
     new SystemMessage(planningPrompt),
@@ -1036,13 +1002,12 @@ Call deep_research now with appropriate parameters.`
   console.log(`   Response has tool_calls property: ${!!response.tool_calls}`);
   console.log(`   Response.tool_calls value: ${JSON.stringify(response.tool_calls)}`);
   
-  // CRITICAL: Verify tool was called (we're in verification or research mode at this point)
+  // CRITICAL: Verify tool was called (we're in research mode at this point)
   if (toolCallsCount === 0) {
-    console.error(`❌ CRITICAL ERROR: ${queryMode} mode but no tools called!`);
+    console.error(`❌ CRITICAL ERROR: research mode but no tools called!`);
     console.error(`   Query: "${userQuery}"`);
-    console.error(`   Expected tool: ${queryMode === 'verification' ? 'gemini_grounding' : 'deep_research'}`);
+    console.error(`   Expected tool: deep_research`);
     console.error(`   Response content: ${typeof response.content === 'string' ? response.content.substring(0, 200) : 'N/A'}`);
-    console.error(`   ⚠️ THIS MEANS TOOL_CHOICE PARAMETER IS NOT WORKING!`);
   }
   
   if (toolCallsCount > 0) {
@@ -1636,6 +1601,19 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
               controller.enqueue(encoder.encode(
                 `data: ${JSON.stringify({ type: 'research_start', mode: 'verification' })}\n\n`
               ));
+              
+              // If router has research context, Gemini was called directly
+              if (event.router.researchContext) {
+                const sourceCount = event.router.verifiedSources?.length || 0;
+                controller.enqueue(encoder.encode(
+                  `data: ${JSON.stringify({ 
+                    type: 'debug',
+                    message: `✅ Gemini executed directly: ${sourceCount} sources`,
+                    geminiUsed: true,
+                    sourceCount
+                  })}\n\n`
+                ));
+              }
             } else if (mode === 'research') {
               // Send research start event for frontend loading state
               controller.enqueue(encoder.encode(

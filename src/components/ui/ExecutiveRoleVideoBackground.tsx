@@ -102,7 +102,7 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
   }, [videoSources])
 
   return (
-    <div ref={containerRef} className={`absolute inset-0 overflow-hidden ${className}`}>
+    <div ref={containerRef} className={`absolute inset-0 overflow-hidden z-10 ${className}`}>
       {/* Fallback gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-slate-900 dark:to-emerald-950/30 z-0" />
 

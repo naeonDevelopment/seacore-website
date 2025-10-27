@@ -103,7 +103,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   }, [videoSources])
 
   return (
-    <div ref={containerRef} className={`absolute inset-0 overflow-hidden ${className}`}>
+    <div ref={containerRef} className={`absolute inset-0 overflow-hidden z-10 ${className}`}>
       {/* Fallback gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 z-0" />
 
