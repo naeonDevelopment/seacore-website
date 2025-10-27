@@ -563,6 +563,7 @@ Call the appropriate tool(s) now.`
 
 /**
  * Process Tool Results - Extract and format research findings
+ * Handles both verification (minimal sources) and research (comprehensive) modes
  */
 async function processToolResults(state: AgentState): Promise<Partial<AgentState>> {
   const lastMessage = state.messages[state.messages.length - 1];
@@ -576,12 +577,13 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
     return {};
   }
   
-  console.log(`🔧 Processing ${toolMessages.length} tool results`);
+  console.log(`🔧 Processing ${toolMessages.length} tool results (mode: ${state.researchMode})`);
   
   // Extract sources from tool results
   let allSources: Source[] = [];
   let allRejected: Source[] = [];
   let confidenceScore = 0;
+  let tavilyAnswer: string | null = null;
   
   for (const msg of toolMessages) {
     const content = msg.content;
@@ -595,6 +597,11 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
         if (parsed.rejected_sources) {
           allRejected.push(...parsed.rejected_sources);
         }
+        // VERIFICATION MODE: Capture Tavily's AI answer
+        if (parsed.tavily_answer) {
+          tavilyAnswer = parsed.tavily_answer;
+          console.log(`   📝 Tavily AI Answer available: ${tavilyAnswer.substring(0, 100)}...`);
+        }
       } catch (e) {
         // Not JSON, might be knowledge base result
         console.log('   Non-JSON tool result (likely knowledge base)');
@@ -602,28 +609,43 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
     }
   }
   
-  // Build research context
-  const researchContext = allSources.length > 0
-    ? `=== RESEARCH CONTEXT ===
+  // Build research context based on mode
+  let researchContext = '';
+  
+  if (state.researchMode === 'verification' && allSources.length > 0) {
+    // VERIFICATION MODE: Compact context with Tavily answer
+    researchContext = `=== VERIFICATION SOURCES ===
 
-Found ${allSources.length} verified sources:
+${tavilyAnswer ? `Tavily AI Summary: ${tavilyAnswer}\n\n` : ''}Authoritative sources (${allSources.length}):
+
+${allSources.map((s, i) => `[${i + 1}] ${s.title} (${new URL(s.url).hostname})
+   ${s.content.substring(0, 200)}...`).join('\n\n')}
+
+=== END VERIFICATION ===`;
+  } else if (state.researchMode === 'research' && allSources.length > 0) {
+    // RESEARCH MODE: Comprehensive context with full details
+    researchContext = `=== RESEARCH INTELLIGENCE ===
+
+Found ${allSources.length} verified sources (rejected ${allRejected.length} low-quality):
 
 ${allSources.map((s, i) => `[${i + 1}] ${s.title}
    URL: ${s.url}
+   Score: ${s.score?.toFixed(2) || 'N/A'}
    Content: ${s.content.substring(0, 500)}...
 `).join('\n')}
 
-=== END RESEARCH CONTEXT ===`
-    : '';
+=== END RESEARCH ===`;
+  }
   
   console.log(`✅ Processed: ${allSources.length} sources, confidence: ${confidenceScore.toFixed(2)}`);
+  console.log(`   Mode: ${state.researchMode}, Context length: ${researchContext.length} chars`);
   
   return {
     researchContext,
     verifiedSources: allSources,
     rejectedSources: allRejected,
     confidence: confidenceScore,
-    needsRefinement: confidenceScore < 0.7 && allSources.length < 5,
+    needsRefinement: state.researchMode === 'research' && confidenceScore < 0.7 && allSources.length < 5,
   };
 }
 
@@ -842,14 +864,13 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         //   `data: ${JSON.stringify({ type: 'content', content: 'TEST: Stream active. Processing query...\n\n' })}\n\n`
         // ));
         
-        // Don't send thinking for expert mode - it's too fast and causes empty bubble
-        // Thinking will be sent if research is performed
-        if (enableBrowsing) {
-          console.log(`📡 SSE Stream: Sending initial thinking event`);
-          controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ type: 'thinking', content: 'Analyzing query and searching maritime databases...' })}\n\n`
-          ));
-        }
+        // Send thinking based on expected mode
+        // Expert mode: No thinking (instant)
+        // Verification mode: Brief thinking (fast verification)
+        // Research mode: Full thinking (comprehensive search)
+        
+        // We don't know the mode yet, so we'll send thinking in the router event instead
+        // This keeps the stream clean for expert mode
         
         console.log(`📡 SSE Stream: Starting agent.stream()`);
         
@@ -899,52 +920,74 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           const eventKey = Object.keys(event || {})[0];
           console.log(`   Event structure:`, JSON.stringify(event, null, 2).substring(0, 500));
           
-          // Emit thinking process
+          // Emit thinking process - Mode-specific messages
           if (event.router) {
-            controller.enqueue(encoder.encode(
-              `data: ${JSON.stringify({ type: 'thinking', content: 'Analyzing query...' })}\n\n`
-            ));
+            const mode = event.router.researchMode || 'none';
+            
+            if (mode === 'verification') {
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: 'thinking', content: '⚡ Verifying with authoritative sources...' })}\n\n`
+              ));
+            } else if (mode === 'research') {
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: 'thinking', content: '🔬 Analyzing query and searching maritime intelligence...' })}\n\n`
+              ));
+            }
+            // Expert mode (none): No thinking bubble
           }
           
           if (event.tools) {
+            // Tools are executing - show progress
             controller.enqueue(encoder.encode(
-              `data: ${JSON.stringify({ type: 'thinking', content: 'Searching maritime databases...' })}\n\n`
+              `data: ${JSON.stringify({ type: 'thinking', content: 'Gathering maritime data...' })}\n\n`
             ));
           }
           
-          // Emit sources (Frontend expects: type='source', action='select'/'reject')
+          // Emit sources - Mode-specific display
           if (event.process?.verifiedSources && !sourcesEmitted) {
             const sources = event.process.verifiedSources;
-            console.log(`   Emitting ${sources.length} verified sources`);
+            const mode = event.process.researchMode || 'research'; // Default to research for backward compat
             
-            // Emit verified sources with action='select'
-            for (const source of sources) {
-              controller.enqueue(encoder.encode(
-                `data: ${JSON.stringify({ 
-                  type: 'source',
-                  action: 'select', // Frontend expects this
-                  title: source.title,
-                  url: source.url,
-                  content: source.content.substring(0, 300),
-                  score: source.score || 0.5
-                })}\n\n`
-              ));
-            }
+            console.log(`   Emitting ${sources.length} sources (mode: ${mode})`);
             
-            // Emit rejected sources with action='reject'
-            if (event.process.rejectedSources?.length) {
-              console.log(`   Emitting ${event.process.rejectedSources.length} rejected sources`);
-              for (const rejected of event.process.rejectedSources) {
+            if (mode === 'verification') {
+              // VERIFICATION MODE: Minimal inline display
+              // Don't emit individual source events for verification
+              // Sources will be inline-cited in the answer like [1][2][3]
+              console.log(`   ⚡ Verification mode: Sources will be inline-cited, no research panel`);
+            } else {
+              // RESEARCH MODE: Full research panel with source selection
+              console.log(`   🔬 Research mode: Emitting sources to research panel`);
+              
+              // Emit verified sources with action='select'
+              for (const source of sources) {
                 controller.enqueue(encoder.encode(
                   `data: ${JSON.stringify({ 
                     type: 'source',
-                    action: 'reject', // Frontend expects this
-                    title: rejected.title,
-                    url: rejected.url,
-                    reason: 'Lower relevance score',
-                    score: rejected.score || 0
+                    action: 'select',
+                    title: source.title,
+                    url: source.url,
+                    content: source.content.substring(0, 300),
+                    score: source.score || 0.5
                   })}\n\n`
                 ));
+              }
+              
+              // Emit rejected sources with action='reject'
+              if (event.process.rejectedSources?.length) {
+                console.log(`   Emitting ${event.process.rejectedSources.length} rejected sources`);
+                for (const rejected of event.process.rejectedSources) {
+                  controller.enqueue(encoder.encode(
+                    `data: ${JSON.stringify({ 
+                      type: 'source',
+                      action: 'reject',
+                      title: rejected.title,
+                      url: rejected.url,
+                      reason: 'Lower relevance score',
+                      score: rejected.score || 0
+                    })}\n\n`
+                  ));
+                }
               }
             }
             
