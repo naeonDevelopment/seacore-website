@@ -49,10 +49,8 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
       const inactiveVideo = getInactiveVideo()
       const nextIndex = getNextIndex()
       
-      // Load next video into inactive player
+      // Play the already-preloaded video
       if (inactiveVideo.current) {
-        inactiveVideo.current.src = videoSources[nextIndex]
-        inactiveVideo.current.load()
         inactiveVideo.current.currentTime = 0
         inactiveVideo.current.play().catch(() => {})
       }
@@ -92,14 +90,31 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
     return () => observer.disconnect()
   }, [activePlayer])
 
-  // Initialize first video
+  // Initialize first video and preload second video
   useEffect(() => {
     if (videoARef.current) {
       videoARef.current.src = videoSources[0]
       videoARef.current.load()
       videoARef.current.play().catch(() => {})
     }
+    // Eagerly preload the next video for smooth transitions
+    if (videoBRef.current && videoSources.length > 1) {
+      videoBRef.current.src = videoSources[1]
+      videoBRef.current.load()
+    }
   }, [videoSources])
+
+  // Preload next video when active player changes
+  useEffect(() => {
+    const nextIndex = getNextIndex()
+    const inactiveVideo = getInactiveVideo()
+    
+    // If the next video isn't already loaded, preload it
+    if (inactiveVideo.current && inactiveVideo.current.src !== videoSources[nextIndex]) {
+      inactiveVideo.current.src = videoSources[nextIndex]
+      inactiveVideo.current.load()
+    }
+  }, [activePlayer, currentVideoIndex, videoSources])
 
   return (
     <div ref={containerRef} className={`absolute inset-0 overflow-hidden z-10 ${className}`}>
