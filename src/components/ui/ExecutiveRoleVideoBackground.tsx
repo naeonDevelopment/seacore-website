@@ -18,6 +18,7 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
   const videoBRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isTransitioningRef = useRef(false)
+  const loadedVideosRef = useRef<Set<number>>(new Set([0])) // Track loaded video indices
 
   const videoSources = useMemo(() => [
     getAssetPath('assets/section_experts/vid_section_experts1.mp4'),
@@ -92,15 +93,25 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
 
   // Initialize first video and preload second video
   useEffect(() => {
+    loadedVideosRef.current = new Set([0])
+    
     if (videoARef.current) {
       videoARef.current.src = videoSources[0]
       videoARef.current.load()
-      videoARef.current.play().catch(() => {})
+      
+      // Wait for video to be ready before playing
+      const handleCanPlay = () => {
+        videoARef.current?.play().catch(e => console.error('Play error:', e))
+      }
+      
+      videoARef.current.addEventListener('canplaythrough', handleCanPlay, { once: true })
     }
+    
     // Eagerly preload the next video for smooth transitions
     if (videoBRef.current && videoSources.length > 1) {
       videoBRef.current.src = videoSources[1]
       videoBRef.current.load()
+      loadedVideosRef.current.add(1)
     }
   }, [videoSources])
 
@@ -110,11 +121,13 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
     const inactiveVideo = getInactiveVideo()
     
     // If the next video isn't already loaded, preload it
-    if (inactiveVideo.current && inactiveVideo.current.src !== videoSources[nextIndex]) {
+    if (inactiveVideo.current && !loadedVideosRef.current.has(nextIndex)) {
       inactiveVideo.current.src = videoSources[nextIndex]
       inactiveVideo.current.load()
+      loadedVideosRef.current.add(nextIndex)
     }
-  }, [activePlayer, currentVideoIndex, videoSources])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePlayer, currentVideoIndex])
 
   return (
     <div ref={containerRef} className={`absolute inset-0 overflow-hidden z-10 ${className}`}>
