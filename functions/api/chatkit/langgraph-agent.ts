@@ -642,9 +642,18 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
       
       try {
         // IMMEDIATE DEBUG: Send first event to confirm stream started
+        console.log(`📡 SSE Stream: Sending initial debug event`);
         controller.enqueue(encoder.encode(
           `data: ${JSON.stringify({ type: 'debug', message: 'LangGraph stream started', sessionId, enableBrowsing })}\n\n`
         ));
+        
+        // Send thinking immediately
+        console.log(`📡 SSE Stream: Sending initial thinking event`);
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ type: 'thinking', content: 'Initializing maritime intelligence agent...' })}\n\n`
+        ));
+        
+        console.log(`📡 SSE Stream: Starting agent.stream()`);
         
         // Stream events from agent
         const stream = await agent.stream(
@@ -662,9 +671,12 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         let sourcesEmitted = false;
         let eventCount = 0;
         
+        console.log(`📡 SSE Stream: Entering event loop`);
+        
         for await (const event of stream) {
           eventCount++;
           console.log(`\n📤 EVENT #${eventCount}:`, Object.keys(event)[0], Object.keys(event));
+          console.log(`📡 SSE: Enqueueing event to client`);
           
           // Emit thinking process
           if (event.router) {
@@ -743,10 +755,12 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         }
         
         // Done
+        console.log(`📡 SSE Stream: Sending [DONE] and closing`);
+        console.log(`📡 SSE Stream: Total events emitted: ${eventCount}`);
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
         
-        console.log(`✅ LangGraph stream complete\n`);
+        console.log(`✅ LangGraph stream complete (${eventCount} events)\n`);
         
       } catch (error: any) {
         console.error(`❌ LangGraph error:`, error);
