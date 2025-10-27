@@ -737,33 +737,44 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             ));
           }
           
-          // Emit final answer - CRITICAL FIX: Check correct path
+          // Emit final answer - CRITICAL FIX: Access messages array correctly
           if (event.synthesizer) {
             console.log(`   Synthesizer event keys:`, Object.keys(event.synthesizer));
+            console.log(`   Synthesizer full value:`, JSON.stringify(event.synthesizer, null, 2).substring(0, 800));
             
-            // LangGraph returns state updates, so messages might be in different path
-            const messages = event.synthesizer.messages;
+            // LangGraph "updates" stream mode returns state DELTAS (what changed)
+            // The messages field is the NEW messages added, which should be an array
+            const messagesUpdate = event.synthesizer.messages;
             
-            if (messages && messages.length > 0) {
-              const lastMessage = messages[messages.length - 1];
-              const content = lastMessage.content as string;
+            if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
+              // Get the last message (the AI's answer)
+              const lastMessage = messagesUpdate[messagesUpdate.length - 1];
+              const content = typeof lastMessage.content === 'string' 
+                ? lastMessage.content 
+                : JSON.stringify(lastMessage.content);
               
               console.log(`   ✅ Answer found: ${content?.length || 0} chars`);
+              console.log(`   First 200 chars: ${content?.substring(0, 200)}`);
               
               if (content && content.length > 0) {
+                console.log(`   📤 Emitting ${Math.ceil(content.length / 50)} content chunks`);
+                
                 // Stream content in chunks for better UX
                 const chunkSize = 50;
+                let chunkCount = 0;
                 for (let i = 0; i < content.length; i += chunkSize) {
                   const chunk = content.slice(i, i + chunkSize);
+                  chunkCount++;
                   controller.enqueue(encoder.encode(
                     `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
                   ));
                 }
+                console.log(`   ✅ Emitted ${chunkCount} content chunks`);
               } else {
                 console.error(`   ❌ Content is empty or undefined`);
               }
             } else {
-              console.error(`   ❌ No messages in synthesizer event`);
+              console.error(`   ❌ messages is not an array or is empty:`, typeof messagesUpdate, messagesUpdate);
             }
           }
         }
