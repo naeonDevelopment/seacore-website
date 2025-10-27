@@ -1051,10 +1051,10 @@ You are operating in EXPERT MODE. This means:
     let actualSourcesUsed: any[] = []; // Track actual sources sent to LLM for citation
     let actualRejectedSources: any[] = []; // Track rejected sources for transparency
     
-    // SIMPLIFIED FOLLOW-UP QUESTION DETECTION
-    // Reduce complexity - check for clear follow-up indicators only
-    const hasReferentialPronouns = /\b(them|those|that|it|its|each one|the above|mentioned|listed|same|their)\b/i.test(currentQuery);
-    const hasFollowUpPhrases = /\b(give me|tell me|what about|how about|also|additionally|furthermore)\b/i.test(currentQuery);
+    // ENHANCED FOLLOW-UP QUESTION DETECTION
+    // Check for clear follow-up indicators
+    const hasReferentialPronouns = /\b(them|those|that|it|its|each one|the above|mentioned|listed|same|their|this|these)\b/i.test(currentQuery);
+    const hasFollowUpPhrases = /\b(give me|tell me|what about|how about|also|additionally|furthermore|more about|details of|specs of|tech details)\b/i.test(currentQuery);
     
     // Direct entity match check - simpler and more reliable
     const mentionsPreviousEntity = previousResearchEntities.length > 0 && 
@@ -1062,21 +1062,13 @@ You are operating in EXPERT MODE. This means:
                                      currentQuery.toLowerCase().includes(entity.toLowerCase())
                                    );
     
-    // SIMPLIFIED: Only two clear indicators - pronouns OR previous entity mention
-    const isFollowUpQuery = hasReferentialPronouns || mentionsPreviousEntity;
+    // ENHANCED: Include follow-up phrases as strong indicator
+    const isFollowUpQuery = hasReferentialPronouns || hasFollowUpPhrases || mentionsPreviousEntity;
     const hasPreviousResearch = previousResearchContext.length > 0;
     
-    // Log follow-up detection for debugging
+    // Log only when follow-up detected or for debugging
     if (isFollowUpQuery && hasPreviousResearch) {
-      console.log('🔄 === FOLLOW-UP QUESTION DETECTED ===');
-      console.log(`   Has pronouns: ${hasReferentialPronouns}`);
-      console.log(`   Mentions previous entity: ${mentionsPreviousEntity}`);
-      if (mentionsPreviousEntity) {
-        console.log(`   Previous entities: ${previousResearchEntities.join(', ')}`);
-      }
-      console.log(`   Browsing enabled: ${enableBrowsing ? 'YES' : 'NO'}`);
-      console.log(`   Decision: ${enableBrowsing ? 'NEW RESEARCH' : 'USE PREVIOUS CONTEXT'}`);
-      console.log('=====================================\n');
+      console.log(`🔄 Follow-up detected: ${enableBrowsing ? 'NEW RESEARCH' : 'USING PREVIOUS CONTEXT'} (${previousResearchEntities.join(', ')})`);
     }
     
     if (enableBrowsing && TAVILY_API_KEY) {
@@ -1754,7 +1746,7 @@ You are operating in EXPERT MODE. This means:
           console.log('⚠️ No research results returned from any query');
         }
         
-        // PHASE 3: DEEP VERIFICATION (only if enabled by complexity level)
+        // DEEP VERIFICATION (only if enabled by complexity level)
         // Simplified: Respect user's complexity choice instead of auto-deciding
         const ENABLE_DEEP_VERIFICATION = researchConfig.enableDeepVerification;
         
@@ -1996,36 +1988,31 @@ You are operating in EXPERT MODE. This means:
     const modelCapabilities = getModelCapabilities(selectedModel);
     const isO1O3Model = modelCapabilities.nativeReasoning;
     const hasNativeCoT = isO1O3Model;
-    // CRITICAL FIX: Disable synthetic CoT when research is enabled
+    // CRITICAL FIX: ALWAYS disable synthetic CoT when research is enabled
     // Research mode has its own thinking display via the research panel
-    // Synthetic CoT parsing interferes with research streaming
-    let needsSyntheticCoT = useChainOfThought && !hasNativeCoT && !enableBrowsing;
-    
-    console.log(`🤖 Model Selected: ${selectedModel}`);
-    console.log(`   Tier: ${modelCapabilities.tier.toUpperCase()}`);
-    console.log(`   Context: ${modelCapabilities.contextWindow.toLocaleString()} tokens`);
-    console.log(`   Research Mode: ${enableBrowsing ? 'ENABLED' : 'Disabled'}`);
-    console.log(`   Chain-of-Thought: ${useChainOfThought ? (hasNativeCoT ? 'Native (o1/o3)' : enableBrowsing ? 'Disabled (Research Active)' : 'Synthetic') : 'Disabled'}`);
-    console.log(`   needsSyntheticCoT: ${needsSyntheticCoT}, hasNativeCoT: ${hasNativeCoT}`);
+    // Synthetic CoT parsing interferes with research streaming and causes content to be dropped
+    let needsSyntheticCoT = useChainOfThought && !hasNativeCoT && !enableBrowsing && !researchPerformed;
 
     // PHASE 1: INTELLIGENT TEMPERATURE SELECTION
     const isFactualQuery = /\b(what is|find|tell me|how many|when|where|which|largest|biggest|smallest|newest|oldest|first|last|list|show me|give me|get me)\b/i.test(currentQuery);
     const isComparisonQuery = /\b(largest|biggest|smallest|best|worst|most|least|highest|lowest)\b/i.test(currentQuery);
     
-    // GPT-5 and reasoning models benefit from slightly higher temp even for factual queries
+    // CRITICAL FIX: Research mode needs higher temperature for comprehensive answers
+    // Low temp (0.1) makes responses too terse/minimalistic
     let queryTemperature: number;
     if (isO1O3Model) {
       queryTemperature = 1.0; // Reasoning models use temp=1 by default
+    } else if (researchPerformed || enableBrowsing) {
+      // Research mode: Higher temp for detailed, comprehensive synthesis
+      queryTemperature = isFactualQuery ? 0.4 : 0.7;
     } else if (modelCapabilities.tier === 'gpt5') {
       queryTemperature = isFactualQuery ? 0.2 : 0.8; // GPT-5: slightly higher for better reasoning
     } else {
       queryTemperature = isFactualQuery ? 0.1 : 0.7; // Standard models
     }
     
-    console.log(`🎯 Query Analysis:`);
-    console.log(`   Type: ${isFactualQuery ? 'FACTUAL' : 'CONVERSATIONAL'}`);
-    console.log(`   Comparison: ${isComparisonQuery ? 'Yes' : 'No'}`);
-    console.log(`   Temperature: ${queryTemperature}`);
+    console.log(`🤖 ${selectedModel} | Temp: ${queryTemperature} | Research: ${enableBrowsing ? 'ON' : 'OFF'} | CoT: ${needsSyntheticCoT ? 'Synthetic' : hasNativeCoT ? 'Native' : 'OFF'}`);
+    
 
     // PHASE 1: INTELLIGENT MODEL FALLBACK CHAIN
     // Try GPT-5 → GPT-4o → GPT-4o-mini
@@ -2042,13 +2029,6 @@ You are operating in EXPERT MODE. This means:
     let fallbackAttempts = 0;
     const maxFallbackAttempts = 3;
     
-    console.log(`🤖 Primary Model: ${usedModel}`);
-    console.log(`   Tier: ${modelCapabilities.tier.toUpperCase()}`);
-    if (isO1O3Model) {
-      console.log('   🧠 Reasoning model with native chain-of-thought');
-    } else if (modelCapabilities.supportsChainOfThought) {
-      console.log('   🧠 Supports enhanced reasoning (GPT-5)');
-    }
     
     // PHASE 4: Add Chain-of-Thought prompting for non-reasoning models
     // UPDATED: Enhanced CoT with research-focused reasoning
@@ -2090,19 +2070,12 @@ Conclusion: [Confirm your approach to deliver a detailed, properly cited answer]
     // Build request body with model-specific parameters
     // When research is enabled, OVERRIDE system prompt to emphasize RESEARCH MODE
     
-    // ENHANCED LOGGING: Explicitly log mode detection
+    // Mode detection
     const isResearchMode = browsingContext && researchPerformed;
     const hasFollowUpContext = !isResearchMode && hasPreviousResearch && isFollowUpQuery;
     
-    console.log('\n🎯 === MODE DETECTION ===');
-    console.log(`   Research Mode: ${isResearchMode ? '✅ ENABLED' : '❌ DISABLED'}`);
-    console.log(`   Follow-up Context: ${hasFollowUpContext ? '✅ USING PREVIOUS RESEARCH' : '❌ NONE'}`);
-    console.log(`   Expert Mode: ${!isResearchMode && !hasFollowUpContext ? '✅ ACTIVE' : '❌ INACTIVE'}`);
-    console.log(`   Browsing Toggle: ${enableBrowsing ? 'ON' : 'OFF'}`);
-    console.log(`   Research Performed: ${researchPerformed ? 'YES' : 'NO'}`);
-    console.log(`   Previous Research Available: ${hasPreviousResearch ? 'YES' : 'NO'}`);
-    console.log(`   Is Follow-up Query: ${isFollowUpQuery ? 'YES' : 'NO'}`);
-    console.log('========================\n');
+    const mode = isResearchMode ? 'RESEARCH' : hasFollowUpContext ? 'FOLLOW-UP' : 'EXPERT';
+    console.log(`🎯 Mode: ${mode}`);
     
     const effectiveSystemPrompt = browsingContext 
       ? `${SYSTEM_PROMPT}${cotSystemPrompt}
@@ -2243,13 +2216,6 @@ ${previousResearchContext}
       ),
     };
     
-    console.log('🤖 ===== CALLING OPENAI API =====');
-    console.log('📤 Model:', usedModel);
-    console.log('📤 Message count:', requestBody.messages.length);
-    console.log('📤 Stream:', requestBody.stream);
-    console.log('📤 Temperature:', (requestBody as any).temperature || 'N/A (reasoning model)');
-    console.log('📤 Research context:', browsingContext ? `${browsingContext.length} chars` : 'None');
-    console.log('=================================');
     
     let response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -2260,15 +2226,9 @@ ${previousResearchContext}
       body: JSON.stringify(requestBody),
     });
     
-    console.log('📥 OpenAI response status:', response.status, response.statusText);
-    console.log('📥 OpenAI response has body:', !!response.body);
-    console.log('📥 OpenAI response body type:', response.body ? typeof response.body : 'null');
-    console.log('📥 OpenAI response bodyUsed:', response.bodyUsed);
-    console.log('📥 OpenAI response headers:', {
-      'content-type': response.headers.get('content-type'),
-      'transfer-encoding': response.headers.get('transfer-encoding'),
-      'content-length': response.headers.get('content-length')
-    });
+    if (!response.ok || !response.body) {
+      console.log('📥 OpenAI response:', response.status, response.statusText, 'Body:', !!response.body);
+    }
     
     // CRITICAL FIX: Check if body exists and hasn't been consumed
     if (!response.body && response.ok) {
@@ -2403,13 +2363,10 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
     
     const stream = new ReadableStream({
       async start(controller) {
-        // FIXED: Move accumulators INSIDE stream scope to reset per-message
         // Track thinking mode state and accumulate ALL content until we can parse sections
         let isInThinkingMode = false;
         let fullContentAccumulator = ''; // Accumulate ALL tokens to properly detect sections
         let lastStreamedIndex = 0; // Track what we've already streamed
-        
-        console.log('🔄 Stream started: Accumulator reset for new message');
         // CRITICAL FIX: Emit the ACTUAL sources used in browsingContext, not planner sources
         try {
           if (enableBrowsing && researchPerformed && actualSourcesUsed.length > 0) {
@@ -2420,7 +2377,6 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'step', id: 'verify', status: 'end', title: 'Verified/Extracted key data' })}\n\n`));
             
             // Emit the SELECTED sources that will be cited in the answer
-            console.log(`📤 Emitting ${actualSourcesUsed.length} selected sources`);
             for (let i = 0; i < actualSourcesUsed.length; i++) {
               const result = actualSourcesUsed[i];
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
@@ -2435,7 +2391,6 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
             
             // Emit REJECTED sources for transparency
             if (actualRejectedSources.length > 0) {
-              console.log(`📤 Emitting ${actualRejectedSources.length} rejected sources`);
               for (const result of actualRejectedSources) {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
                   type: 'source', 
@@ -2515,6 +2470,11 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
 
                 // Stream content tokens
                 if (content) {
+                  // Log first content
+                  if (fullContentAccumulator.length === 0) {
+                    console.log('✅ Content streaming started');
+                  }
+                  
                   // PHASE 4: Parse synthetic CoT for non-reasoning models
                   // FIXED: Stream thinking IMMEDIATELY as it arrives, don't wait for ANSWER marker
                   if (needsSyntheticCoT && !hasNativeCoT) {
@@ -2525,11 +2485,8 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                     const hasThinkingMarker = fullContentAccumulator.includes('**THINKING:**');
                     const hasAnswerMarker = fullContentAccumulator.includes('**ANSWER:**');
                     
-                    // CRITICAL FIX: If we've accumulated 50+ chars and no THINKING marker, 
-                    // assume model isn't using CoT format and stream everything as content
+                    // If no THINKING marker after 50 chars, fall back to standard streaming
                     if (!hasThinkingMarker && fullContentAccumulator.length >= 50) {
-                      console.log('⚠️ CoT: No THINKING marker after 50 chars, falling back to standard streaming');
-                      // Switch to standard streaming mode for remainder of response
                       needsSyntheticCoT = false; // Disable CoT parsing for this response
                       
                       // Stream ALL accumulated content as regular content
@@ -2555,7 +2512,6 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                       ); // DON'T trim - preserves spaces between words
                       
                       if (newThinkingContent.length > 0) {
-                        console.log(`🧠 CoT: Streaming NEW thinking (${newThinkingContent.length} chars, total: ${currentThinkingEnd - thinkingStartIndex})`);
                         controller.enqueue(
                           encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: newThinkingContent })}\n\n`)
                         );
@@ -2575,14 +2531,11 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                           const newThinking = remainingThinking.substring(Math.max(0, alreadyStreamed));
                           
                           if (newThinking) {
-                            console.log(`🧠 CoT: Streaming final thinking before switch (${newThinking.length} chars)`);
                             controller.enqueue(
                               encoder.encode(`data: ${JSON.stringify({ type: 'thinking', content: newThinking })}\n\n`)
                             );
                           }
                         }
-                        
-                        console.log('🧠 CoT: Switching to ANSWER mode');
                       }
                       
                       // FIXED: Stream answer content incrementally with correct offset
@@ -2609,6 +2562,7 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
                     }
                   } else {
                     // Standard content streaming (CoT disabled or native reasoning model)
+                    fullContentAccumulator += content;
                     controller.enqueue(
                       encoder.encode(`data: ${JSON.stringify({ type: 'content', content })}\n\n`)
                     );
@@ -2624,6 +2578,13 @@ Set OPENAI_MODEL to "gpt-4o" (latest stable model) in your Cloudflare Pages envi
           console.error('Stream error:', error);
           controller.error(error);
         } finally {
+          // Log completion
+          console.log(`🏁 Stream complete: ${fullContentAccumulator.length} chars`);
+          
+          if (fullContentAccumulator.length === 0) {
+            console.error('❌ Stream ended with ZERO content!');
+          }
+          
           controller.close();
           
           // ===== SAVE SESSION TO KV CACHE (Non-blocking) =====
