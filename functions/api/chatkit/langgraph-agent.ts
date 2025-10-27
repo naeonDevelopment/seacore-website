@@ -675,8 +675,9 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         
         for await (const event of stream) {
           eventCount++;
-          console.log(`\n📤 EVENT #${eventCount}:`, Object.keys(event)[0], Object.keys(event));
-          console.log(`📡 SSE: Enqueueing event to client`);
+          const eventKey = Object.keys(event)[0];
+          console.log(`\n📤 EVENT #${eventCount}:`, eventKey);
+          console.log(`   Event structure:`, JSON.stringify(event, null, 2).substring(0, 500));
           
           // Emit thinking process
           if (event.router) {
@@ -736,20 +737,33 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             ));
           }
           
-          // Emit final answer
-          if (event.synthesizer?.messages) {
-            const message = event.synthesizer.messages[0];
-            const content = message.content as string;
+          // Emit final answer - CRITICAL FIX: Check correct path
+          if (event.synthesizer) {
+            console.log(`   Synthesizer event keys:`, Object.keys(event.synthesizer));
             
-            console.log(`   Answer: ${content.length} chars`);
+            // LangGraph returns state updates, so messages might be in different path
+            const messages = event.synthesizer.messages;
             
-            // Stream content in chunks for better UX
-            const chunkSize = 50;
-            for (let i = 0; i < content.length; i += chunkSize) {
-              const chunk = content.slice(i, i + chunkSize);
-              controller.enqueue(encoder.encode(
-                `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
-              ));
+            if (messages && messages.length > 0) {
+              const lastMessage = messages[messages.length - 1];
+              const content = lastMessage.content as string;
+              
+              console.log(`   ✅ Answer found: ${content?.length || 0} chars`);
+              
+              if (content && content.length > 0) {
+                // Stream content in chunks for better UX
+                const chunkSize = 50;
+                for (let i = 0; i < content.length; i += chunkSize) {
+                  const chunk = content.slice(i, i + chunkSize);
+                  controller.enqueue(encoder.encode(
+                    `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
+                  ));
+                }
+              } else {
+                console.error(`   ❌ Content is empty or undefined`);
+              }
+            } else {
+              console.error(`   ❌ No messages in synthesizer event`);
             }
           }
         }
