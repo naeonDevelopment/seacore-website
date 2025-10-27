@@ -121,6 +121,37 @@ function isFollowUpQuery(query: string, previousMessages: BaseMessage[]): boolea
 }
 
 /**
+ * Auto-detect if query needs online research even if browsing is disabled
+ * Specific topics REQUIRE current/accurate data from external sources
+ */
+function needsResearch(query: string): boolean {
+  // Queries that REQUIRE research regardless of user setting
+  const researchKeywords = [
+    // Regulatory/Compliance (needs current regulations)
+    'compliance', 'regulations?', 'solas', 'marpol', 'ism code', 'port state',
+    'maritime law', 'classification', 'dnv', 'abs', 'lloyd', 'bureau veritas',
+    
+    // Specific entities (needs current data)
+    'MV ', 'MS ', 'MT ', 'vessel ', 'ship ', 
+    'largest', 'biggest', 'newest', 'latest',
+    
+    // Technical specs (needs accurate manufacturer data)
+    'specifications?', 'technical details', 'datasheet', 'manual',
+    'propulsion system', 'engine specs', 'equipment',
+    
+    // Current events
+    'current', 'recent', '2024', '2025', 'today', 'now',
+    'latest news', 'recent developments'
+  ];
+  
+  const queryLower = query.toLowerCase();
+  return researchKeywords.some(keyword => {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(queryLower);
+  });
+}
+
+/**
  * Select best sources based on quality scoring
  * Advanced logic transferred from chat.ts
  */
@@ -328,9 +359,13 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   // Check if follow-up
   const isFollowUp = isFollowUpQuery(userQuery, state.messages);
   
+  // Auto-detect if research is needed
+  const requiresResearch = needsResearch(userQuery);
+  
   console.log(`   Entities: ${entities.length ? entities.join(', ') : 'none'}`);
   console.log(`   Follow-up: ${isFollowUp}`);
-  console.log(`   Browsing: ${state.enableBrowsing}`);
+  console.log(`   User enabled browsing: ${state.enableBrowsing}`);
+  console.log(`   Auto-detected research need: ${requiresResearch}`);
   
   // If follow-up with existing research context, skip research
   if (isFollowUp && state.researchContext) {
@@ -340,8 +375,19 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
     };
   }
   
-  // If specific entities detected and browsing enabled, trigger research
-  if (entities.length > 0 && state.enableBrowsing) {
+  // Trigger research if:
+  // 1. User explicitly enabled browsing, OR
+  // 2. Query requires research (compliance, regulations, current data)
+  const shouldResearch = state.enableBrowsing || requiresResearch;
+  
+  if (entities.length > 0 || requiresResearch) {
+    if (!shouldResearch) {
+      console.log(`⚠️ Query needs research but browsing disabled. Answering from expertise.`);
+    }
+  }
+  
+  // If specific entities detected OR research required, and browsing allowed, trigger research
+  if ((entities.length > 0 || requiresResearch) && shouldResearch) {
     const model = new ChatOpenAI({
       modelName: "gpt-4o-mini",
       temperature: 0.1,
