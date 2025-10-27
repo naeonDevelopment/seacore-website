@@ -31,24 +31,56 @@ export async function routeChatRequest(
   console.log(`   USE_LANGGRAPH env value: "${env.USE_LANGGRAPH}"`);
   console.log(`   OPENAI_API_KEY present: ${!!env.OPENAI_API_KEY}`);
   console.log(`   TAVILY_API_KEY present: ${!!env.TAVILY_API_KEY}`);
+  console.log(`   GEMINI_API_KEY present: ${!!env.GEMINI_API_KEY}`);
   
   if (useLangGraph) {
-    // Use new LangGraph agent
-    const stream = await handleChatWithLangGraph({
-      messages,
-      sessionId,
-      enableBrowsing,
-      env: {
-        OPENAI_API_KEY: env.OPENAI_API_KEY,
-        TAVILY_API_KEY: env.TAVILY_API_KEY,
-      }
+    // Use new LangGraph agent with Gemini + Tavily hybrid
+    console.log(`   ✅ Routing to LangGraph agent (Gemini + Tavily)`);
+    try {
+      const stream = await handleChatWithLangGraph({
+        messages,
+        sessionId,
+        enableBrowsing,
+        env: {
+          OPENAI_API_KEY: env.OPENAI_API_KEY,
+          TAVILY_API_KEY: env.TAVILY_API_KEY,
+          GEMINI_API_KEY: env.GEMINI_API_KEY,
+        }
+      });
+      
+      console.log(`   ✅ LangGraph stream created successfully`);
+      return { stream, agent: 'langgraph' };
+    } catch (error: any) {
+      console.error(`❌ LangGraph agent failed:`, error);
+      console.error(`   Error name: ${error.name}`);
+      console.error(`   Error message: ${error.message}`);
+      console.error(`   Stack: ${error.stack?.substring(0, 500)}`);
+      
+      // Re-throw the error - don't fall back to legacy silently
+      throw new Error(`LangGraph agent error: ${error.message}`);
+    }
+  } else {
+    // Use legacy agent (Tavily only)
+    console.log(`   ⚠️  Routing to legacy agent (Tavily only - no Gemini)`);
+    const { onRequestPost } = await import('./_legacy_chat');
+    
+    // Create a mock Request object for the legacy agent
+    const mockRequest = new Request('https://dummy.com/api/chatkit/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages,
+        sessionId,
+        enableBrowsing,
+      }),
     });
     
-    return { stream, agent: 'langgraph' };
-  } else {
-    // Use legacy agent (import dynamically to avoid loading if not needed)
-    // This will be the existing chat.ts logic
-    throw new Error('Legacy agent routing not yet implemented - will be added in next step');
+    const response = await onRequestPost({
+      request: mockRequest,
+      env,
+    });
+    
+    return { stream: response.body as ReadableStream, agent: 'legacy' };
   }
 }
 
@@ -68,9 +100,11 @@ export function getAgentStatus(env: any): {
     capabilities: useLangGraph 
       ? [
           'LangGraph StateGraph orchestration',
-          'Tool-based research (Tavily)',
+          'Hybrid research (Gemini + Tavily)',
+          'Google Search grounding',
           'Maritime knowledge base',
-          'Automatic source selection',
+          'Intelligent tool selection',
+          'Automatic source evaluation',
           'Confidence scoring',
           'Follow-up detection',
           'State persistence (MemorySaver)',

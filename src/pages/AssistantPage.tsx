@@ -16,6 +16,7 @@ interface AssistantPageProps {
 const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
   // Track viewport dimensions for mobile keyboard handling
@@ -346,6 +347,8 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
             onSwitchSession={switchSession}
             onDeleteSession={deleteSession}
             onRenameSession={renameSession}
+            isOpen={isDesktopSidebarOpen}
+            onToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
           />
         )}
 

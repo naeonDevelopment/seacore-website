@@ -8,6 +8,7 @@ import { routeChatRequest, getAgentStatus } from './agent-router';
 interface Env {
   OPENAI_API_KEY: string;
   TAVILY_API_KEY: string;
+  GEMINI_API_KEY: string;
   USE_LANGGRAPH?: string;
   // CHAT_SESSIONS not needed - LangGraph uses built-in MemorySaver
 }

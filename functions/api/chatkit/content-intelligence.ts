@@ -682,7 +682,7 @@ export function generateIntelligenceReport(intelligence: ContentIntelligence): s
     final_score >= 0.6 ? 'ACCEPTABLE' :
     final_score >= 0.5 ? 'MODERATE' : 'LOW';
   
-  const report = [];
+  const report: string[] = [];
   report.push(`Intelligence Score: ${(final_score * 100).toFixed(1)}% (${scoreLabel})`);
   report.push(`Confidence: ${(confidence * 100).toFixed(1)}%`);
   report.push(`Analysis Depth: ${analysis_depth.toUpperCase()}`);

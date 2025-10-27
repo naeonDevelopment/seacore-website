@@ -268,8 +268,106 @@ function calculateConfidence(sources: Source[]): number {
 // =====================
 
 /**
- * TOOL 1: Smart Verification - Fast fact-checking for regulations/compliance
- * Ultra-fast, authoritative sources only, minimal results
+ * TOOL 1: Gemini Grounding Search - Google-powered instant answers with citations
+ * Uses Google's entire index for fresh, accurate maritime information
+ */
+const geminiGroundingTool = tool(
+  async ({ query }: { query: string }, config) => {
+    const env = (config?.configurable as any)?.env;
+    if (!env?.GEMINI_API_KEY) {
+      console.warn('⚠️ GEMINI_API_KEY not configured, falling back to Tavily');
+      return {
+        sources: [],
+        answer: null,
+        confidence: 0,
+        mode: 'gemini_grounding',
+        error: 'GEMINI_API_KEY not configured',
+        fallback_needed: true
+      };
+    }
+    
+    console.log(`🔮 Gemini Grounding: "${query}"`);
+    
+    try {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': env.GEMINI_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: query }]
+          }],
+          tools: [{
+            google_search: {}  // Enable Google Search grounding
+          }]
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Extract answer and grounding metadata
+      const candidate = data.candidates?.[0];
+      const answer = candidate?.content?.parts?.[0]?.text || null;
+      const groundingMetadata = candidate?.groundingMetadata;
+      
+      // Extract web results with citations
+      const sources = (groundingMetadata?.webResults || []).map((result: any) => ({
+        url: result.url,
+        title: result.title || 'Untitled',
+        content: result.snippet || '',
+        score: 0.9, // Google sources are high quality
+      }));
+      
+      console.log(`✅ Gemini grounding complete: ${sources.length} Google sources`);
+      console.log(`   Answer generated: ${answer ? 'YES' : 'NO'}`);
+      
+      return {
+        sources,
+        answer,
+        searchQueries: groundingMetadata?.searchQueries || [],
+        citations: groundingMetadata?.citations || [],
+        confidence: sources.length >= 2 ? 0.95 : 0.8, // High confidence from Google
+        mode: 'gemini_grounding'
+      };
+    } catch (error: any) {
+      console.error('❌ Gemini grounding error:', error.message);
+      return {
+        sources: [],
+        answer: null,
+        confidence: 0,
+        mode: 'gemini_grounding',
+        error: error.message,
+        fallback_needed: true
+      };
+    }
+  },
+  {
+    name: "gemini_grounding",
+    description: `Google-powered search with instant answers and citations. Best for simple factual queries.
+    
+Use this for:
+- Vessel information (IMO, owner, specs, location)
+- Company lookups (fleet, ownership, operations)
+- Current maritime news and events
+- Simple technical facts and definitions
+- Quick regulatory lookups
+
+Returns: Google search results with AI-generated answer and inline citations`,
+    schema: z.object({
+      query: z.string().describe("Simple factual query needing fast, accurate answer from Google's index")
+    })
+  }
+);
+
+/**
+ * TOOL 2: Smart Verification - Fast fact-checking for regulations/compliance
+ * Ultra-fast, authoritative sources only, minimal results (Tavily-powered)
  */
 const smartVerificationTool = tool(
   async ({ query }: { query: string }, config) => {
@@ -356,8 +454,8 @@ Returns: 2-3 authoritative sources + Tavily AI fact summary`,
 );
 
 /**
- * TOOL 2: Deep Research - Comprehensive maritime intelligence with multi-query orchestration
- * Features: Parallel searches, quality filtering, iterative refinement, raw content extraction
+ * TOOL 3: Deep Research - Comprehensive maritime intelligence with multi-query orchestration
+ * Features: Parallel searches, quality filtering, iterative refinement, raw content extraction (Tavily-powered)
  */
 const deepResearchTool = tool(
   async ({ 
@@ -599,7 +697,7 @@ const maritimeKnowledgeTool = tool(
 );
 
 // Register both tools - router will decide which to use
-const tools = [smartVerificationTool, deepResearchTool, maritimeKnowledgeTool];
+const tools = [geminiGroundingTool, smartVerificationTool, deepResearchTool, maritimeKnowledgeTool];
 const toolNode = new ToolNode(tools);
 
 // =====================
@@ -972,6 +1070,7 @@ export interface ChatRequest {
   env: {
     OPENAI_API_KEY: string;
     TAVILY_API_KEY: string;
+    GEMINI_API_KEY: string;
   };
 }
 
@@ -1014,21 +1113,11 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           `data: ${JSON.stringify({ type: 'debug', message: 'LangGraph stream started', sessionId, enableBrowsing })}\n\n`
         ));
         
-        // Remove test content now that streaming is confirmed working
-        // console.log(`📡 SSE Stream: Sending test content`);
-        // controller.enqueue(encoder.encode(
-        //   `data: ${JSON.stringify({ type: 'content', content: 'TEST: Stream active. Processing query...\n\n' })}\n\n`
-        // ));
-        
-        // Send thinking based on expected mode
-        // Expert mode: No thinking (instant)
-        // Verification mode: Brief thinking (fast verification)
-        // Research mode: Full thinking (comprehensive search)
-        
-        // We don't know the mode yet, so we'll send thinking in the router event instead
-        // This keeps the stream clean for expert mode
-        
-        console.log(`📡 SSE Stream: Starting agent.stream()`);
+        console.log(`📡 SSE Stream: Creating agent stream...`);
+        console.log(`   Messages: ${baseMessages.length}`);
+        console.log(`   Session: ${sessionId}`);
+        console.log(`   Browsing: ${enableBrowsing}`);
+        console.log(`   Has API keys: ${!!env.OPENAI_API_KEY && !!env.TAVILY_API_KEY && !!env.GEMINI_API_KEY}`);
         
         // Stream events from agent
         // Use "messages" mode to get token-by-token streaming
@@ -1043,6 +1132,8 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             streamMode: ["messages", "updates"] as const,
           }
         );
+        
+        console.log(`📡 SSE Stream: Agent stream created successfully`);
         
         let sourcesEmitted = false;
         let eventCount = 0;
@@ -1120,7 +1211,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
                 controller.enqueue(encoder.encode(
                   `data: ${JSON.stringify({ 
                     type: 'source',
-                    action: 'select',
+                    action: 'selected',
                     title: source.title,
                     url: source.url,
                     content: source.content.substring(0, 300),
@@ -1136,7 +1227,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
                   controller.enqueue(encoder.encode(
                     `data: ${JSON.stringify({ 
                       type: 'source',
-                      action: 'reject',
+                      action: 'rejected',
                       title: rejected.title,
                       url: rejected.url,
                       reason: 'Lower relevance score',

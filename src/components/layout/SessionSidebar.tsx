@@ -14,6 +14,7 @@ interface SessionSidebarProps {
   isMobile?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
+  onToggle?: () => void;
 }
 
 export const SessionSidebar: React.FC<SessionSidebarProps> = ({
@@ -26,6 +27,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   isMobile = false,
   isOpen = true,
   onClose,
+  onToggle,
 }) => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -190,18 +192,54 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     </div>
   );
 
-  // Desktop: Floating sidebar positioned at top (hidden on smaller screens)
+  // Desktop: Floating sidebar positioned at top with toggle button (hidden on smaller screens)
   if (!isMobile) {
     return (
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 20, opacity: 0 }}
-        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="fixed left-2 xl:left-6 top-32 w-56 xl:w-64 max-h-[500px] z-[100] hidden lg:block"
-      >
-        {sidebarContent}
-      </motion.div>
+      <>
+        {/* Toggle Button - Always visible */}
+        <motion.button
+          initial={{ x: -60, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+          onClick={onToggle}
+          className={cn(
+            "fixed left-0 top-32 z-[101] hidden lg:flex items-center justify-center",
+            "w-10 h-14 rounded-r-xl",
+            "bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl",
+            "border border-l-0 border-slate-200/50 dark:border-slate-700/50",
+            "shadow-xl hover:shadow-2xl",
+            "transition-all duration-300",
+            "hover:w-12",
+            "group"
+          )}
+          aria-label={isOpen ? "Close sessions" : "Open sessions"}
+        >
+          <motion.div
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Menu className={cn(
+              "w-5 h-5 transition-colors",
+              isOpen ? "text-maritime-600 dark:text-maritime-400" : "text-slate-600 dark:text-slate-400"
+            )} />
+          </motion.div>
+        </motion.button>
+
+        {/* Sidebar - Conditionally visible */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ x: -280, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -280, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="fixed left-2 xl:left-6 top-32 w-56 xl:w-64 max-h-[500px] z-[100] hidden lg:block"
+            >
+              {sidebarContent}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
     );
   }
 
