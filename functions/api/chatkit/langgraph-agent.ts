@@ -523,6 +523,13 @@ function shouldContinue(state: AgentState): string {
     return "synthesizer";
   }
   
+  // CRITICAL: If no research was performed (browsing disabled), go to synthesizer
+  // Check if last message is from user (no assistant response yet)
+  if (lastMessage.constructor.name === 'HumanMessage') {
+    console.log(`→ Routing to: synthesizer (expert mode - no research)`);
+    return "synthesizer";
+  }
+  
   // Otherwise, we're done
   console.log(`→ Routing to: END`);
   return END;
