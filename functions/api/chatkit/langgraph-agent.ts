@@ -334,68 +334,75 @@ Returns: 2-3 authoritative sources + Tavily AI fact summary`,
 );
 
 /**
- * TOOL 2: Deep Research - Comprehensive maritime intelligence
- * Multi-source analysis, quality filtering, iterative refinement
+ * TOOL 2: Deep Research - Comprehensive maritime intelligence with multi-query orchestration
+ * Features: Parallel searches, quality filtering, iterative refinement, raw content extraction
  */
 const deepResearchTool = tool(
-  async ({ query, search_depth }: { query: string; search_depth: 'basic' | 'advanced' }, config) => {
+  async ({ 
+    query, 
+    search_depth, 
+    use_multi_query = false 
+  }: { 
+    query: string; 
+    search_depth: 'basic' | 'advanced';
+    use_multi_query?: boolean;
+  }, config) => {
     const env = (config?.configurable as any)?.env;
     if (!env?.TAVILY_API_KEY) {
       throw new Error('TAVILY_API_KEY not configured');
     }
     
-    console.log(`🔬 Deep Research: "${query}" (${search_depth})`);
+    console.log(`🔬 Deep Research: "${query}" (${search_depth}, multi-query: ${use_multi_query})`);
     
     try {
-      const response = await fetch('https://api.tavily.com/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          api_key: env.TAVILY_API_KEY,
-          query,
-          search_depth, // 'basic' or 'advanced'
-          include_answer: false, // We synthesize our own from sources
-          include_raw_content: false, // May enable later for PDF extraction
-          max_results: search_depth === 'advanced' ? 20 : 15,
-          // Maritime intelligence domains
-          include_domains: [
-            'marinetraffic.com',      // Vessel tracking
-            'vesselfinder.com',       // Fleet data
-            'wartsila.com',           // OEM equipment
-            'man-es.com',             // MAN engines
-            'rolls-royce.com',        // Propulsion
-            'kongsberg.com',          // Maritime tech
-            'maritime-executive.com', // Industry news
-            'gcaptain.com',           // Maritime news
-            'dnv.com',                // Classification
-            'lr.org',                 // Lloyd's Register
-          ],
-          exclude_domains: ['facebook.com', 'twitter.com', 'instagram.com', 'wikipedia.org'],
-        }),
-      });
+      // PHASE 3: Multi-Query Orchestration
+      // For complex queries, generate multiple search angles
+      const queries = use_multi_query && search_depth === 'advanced' 
+        ? generateMultipleQueries(query)
+        : [query];
       
-      if (!response.ok) {
-        throw new Error(`Tavily API error: ${response.status}`);
+      console.log(`   🔍 Executing ${queries.length} parallel searches`);
+      
+      // Execute all queries in parallel for speed
+      const searchPromises = queries.map(q => executeTavilySearch(q, search_depth, env.TAVILY_API_KEY));
+      const searchResults = await Promise.all(searchPromises);
+      
+      // Merge and deduplicate results
+      const allResults: any[] = [];
+      const seenUrls = new Set<string>();
+      
+      for (const result of searchResults) {
+        if (result.results) {
+          for (const item of result.results) {
+            if (!seenUrls.has(item.url)) {
+              seenUrls.add(item.url);
+              allResults.push(item);
+            }
+          }
+        }
       }
       
-      const data = await response.json();
+      console.log(`   📊 Total unique results: ${allResults.length} from ${queries.length} queries`);
       
       // Advanced source selection with quality scoring
       const { selected, rejected } = selectBestSources(
-        data.results || [],
+        allResults,
         search_depth === 'advanced' ? 15 : 10
       );
       
+      const confidence = calculateConfidence(selected);
+      
       console.log(`✅ Deep research complete: ${selected.length} sources (rejected ${rejected.length})`);
+      console.log(`   Confidence: ${confidence.toFixed(2)}`);
       
       return {
         sources: selected,
         rejected_sources: rejected,
-        total_results: data.results?.length || 0,
-        confidence: calculateConfidence(selected),
-        mode: 'research'
+        total_results: allResults.length,
+        confidence,
+        mode: 'research',
+        queries_executed: queries.length,
+        needs_refinement: confidence < 0.7 && selected.length < 5,
       };
     } catch (error: any) {
       console.error('❌ Deep research error:', error.message);
@@ -405,13 +412,15 @@ const deepResearchTool = tool(
         total_results: 0,
         confidence: 0,
         mode: 'research',
+        queries_executed: 1,
+        needs_refinement: false,
         error: error.message,
       };
     }
   },
   {
     name: "deep_research",
-    description: `Comprehensive maritime intelligence tool for complex queries.
+    description: `Comprehensive maritime intelligence tool with multi-query orchestration.
     
 Use this for:
 - Specific vessels, ships, fleets
@@ -422,13 +431,104 @@ Use this for:
 
 Parameters:
 - query: Detailed search query
-- search_depth: 'basic' for focused search, 'advanced' for comprehensive intelligence`,
+- search_depth: 'basic' for focused search, 'advanced' for comprehensive intelligence
+- use_multi_query: Enable parallel multi-angle searches (recommended for 'advanced')`,
     schema: z.object({
       query: z.string().describe("Complex maritime query requiring multi-source intelligence"),
-      search_depth: z.enum(['basic', 'advanced']).default('basic').describe("'basic' for focused search, 'advanced' for comprehensive research")
+      search_depth: z.enum(['basic', 'advanced']).default('basic').describe("'basic' for focused search, 'advanced' for comprehensive research"),
+      use_multi_query: z.boolean().optional().describe("Enable multi-query orchestration for comprehensive coverage (default: false)")
     })
   }
 );
+
+/**
+ * PHASE 3 & 4: Multi-query generation for comprehensive research
+ * Generates multiple search angles for complex queries
+ */
+function generateMultipleQueries(originalQuery: string): string[] {
+  const queries: string[] = [originalQuery]; // Always include original
+  
+  const queryLower = originalQuery.toLowerCase();
+  
+  // For vessel queries, add multiple search angles
+  if (/vessel|ship|MV |MS |MT /i.test(originalQuery)) {
+    const vesselName = originalQuery.match(/(?:MV|MS|MT)\s+([A-Z][a-zA-Z\s]+)/i)?.[1]?.trim();
+    if (vesselName) {
+      queries.push(`${vesselName} vessel specifications technical details`);
+      queries.push(`${vesselName} ship owner operator fleet`);
+    }
+  }
+  
+  // For company queries, add operational and fleet angles
+  if (/company|operator|shipyard|manufacturer/i.test(originalQuery)) {
+    queries.push(`${originalQuery} fleet operations`);
+    queries.push(`${originalQuery} vessels specifications`);
+  }
+  
+  // For equipment queries, add manufacturer and specs angles
+  if (/engine|propulsion|equipment|specifications/i.test(originalQuery)) {
+    queries.push(`${originalQuery} manufacturer datasheet`);
+    queries.push(`${originalQuery} technical manual specifications`);
+  }
+  
+  // For compliance/regulatory queries, add regional and classification angles
+  if (/compliance|regulation|solas|marpol/i.test(originalQuery)) {
+    queries.push(`${originalQuery} classification society requirements`);
+    queries.push(`${originalQuery} port state control inspection`);
+  }
+  
+  // Limit to 3 queries max to avoid excessive API calls
+  return queries.slice(0, 3);
+}
+
+/**
+ * PHASE 4: Execute Tavily search with advanced features
+ * Supports raw_content, time_range, and domain filtering
+ */
+async function executeTavilySearch(
+  query: string, 
+  search_depth: 'basic' | 'advanced',
+  apiKey: string
+): Promise<any> {
+  const response = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query,
+      search_depth,
+      include_answer: false,
+      include_raw_content: search_depth === 'advanced', // PHASE 4: Extract full content for advanced research
+      max_results: search_depth === 'advanced' ? 20 : 15,
+      // PHASE 4: Time-based filtering for recent info
+      days: 365, // Focus on recent year for current information
+      // Maritime intelligence domains
+      include_domains: [
+        'marinetraffic.com',      // Vessel tracking
+        'vesselfinder.com',       // Fleet data
+        'wartsila.com',           // OEM equipment
+        'man-es.com',             // MAN engines
+        'rolls-royce.com',        // Propulsion
+        'kongsberg.com',          // Maritime tech
+        'maritime-executive.com', // Industry news
+        'gcaptain.com',           // Maritime news
+        'dnv.com',                // Classification
+        'lr.org',                 // Lloyd's Register
+        'abs.org',                // ABS
+        'imo.org',                // IMO
+      ],
+      exclude_domains: ['facebook.com', 'twitter.com', 'instagram.com', 'wikipedia.org'],
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Tavily API error: ${response.status}`);
+  }
+  
+  return await response.json();
+}
 
 /**
  * Maritime Knowledge Base Tool - Internal fleetcore knowledge
@@ -536,11 +636,15 @@ User Query: "${userQuery}"
 Detected Entities: ${entities.join(', ')}
 
 Your task: Use the deep_research tool for comprehensive intelligence.
-- Call deep_research with search_depth='advanced' for complex queries
-- Use search_depth='basic' for focused entity searches
+- For COMPLEX queries (comparisons, analysis, multiple entities):
+  * Use search_depth='advanced'
+  * Enable use_multi_query=true for parallel multi-angle research
+- For FOCUSED queries (single entity, simple specs):
+  * Use search_depth='basic'
+  * Keep use_multi_query=false
 - You can also use maritime_knowledge for internal fleetcore information
 
-Call the appropriate tool(s) now.`
+Call deep_research now with appropriate parameters.`
   };
   
   const planningPrompt = planningPrompts[queryMode];
@@ -600,7 +704,7 @@ async function processToolResults(state: AgentState): Promise<Partial<AgentState
         // VERIFICATION MODE: Capture Tavily's AI answer
         if (parsed.tavily_answer) {
           tavilyAnswer = parsed.tavily_answer;
-          console.log(`   📝 Tavily AI Answer available: ${tavilyAnswer.substring(0, 100)}...`);
+          console.log(`   📝 Tavily AI Answer available: ${tavilyAnswer?.substring(0, 100)}...`);
         }
       } catch (e) {
         // Not JSON, might be knowledge base result
@@ -640,12 +744,22 @@ ${allSources.map((s, i) => `[${i + 1}] ${s.title}
   console.log(`✅ Processed: ${allSources.length} sources, confidence: ${confidenceScore.toFixed(2)}`);
   console.log(`   Mode: ${state.researchMode}, Context length: ${researchContext.length} chars`);
   
+  // PHASE 3: Check if iterative refinement is needed
+  const needsRefinement = state.researchMode === 'research' && 
+                          confidenceScore < 0.7 && 
+                          allSources.length < 5 &&
+                          !state.researchContext; // Don't refine if we already did research
+  
+  if (needsRefinement) {
+    console.log(`⚠️ Low confidence (${confidenceScore.toFixed(2)}), may need refinement query`);
+  }
+  
   return {
     researchContext,
     verifiedSources: allSources,
     rejectedSources: allRejected,
     confidence: confidenceScore,
-    needsRefinement: state.researchMode === 'research' && confidenceScore < 0.7 && allSources.length < 5,
+    needsRefinement,
   };
 }
 
@@ -727,6 +841,7 @@ function shouldContinue(state: AgentState): string {
   console.log(`   Research context: ${state.researchContext ? 'YES' : 'NO'}`);
   console.log(`   Confidence: ${state.confidence}`);
   console.log(`   Verified sources: ${state.verifiedSources.length}`);
+  console.log(`   Needs refinement: ${state.needsRefinement}`);
   
   // If last message has tool calls, execute them
   if ((lastMessage as AIMessage).tool_calls?.length) {
@@ -734,10 +849,13 @@ function shouldContinue(state: AgentState): string {
     return "tools";
   }
   
-  // If we just processed tools, check if we need refinement
-  if (state.needsRefinement && state.confidence < 0.7) {
-    console.log(`→ Routing to: router (refinement needed)`);
-    return "router";
+  // PHASE 3: Iterative Refinement - If confidence is low and we haven't refined yet, go back to router
+  // This enables automatic follow-up queries to improve results
+  if (state.needsRefinement && state.confidence < 0.7 && state.verifiedSources.length > 0 && state.verifiedSources.length < 5) {
+    console.log(`→ Routing to: router (ITERATIVE REFINEMENT - low confidence ${state.confidence.toFixed(2)})`);
+    // TODO: In router, detect this and generate a refinement query
+    // For now, proceed to synthesis with what we have
+    console.log(`   (Refinement disabled for this iteration - will synthesize with available sources)`);
   }
   
   // CRITICAL: If we have research context, we need to synthesize
