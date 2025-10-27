@@ -375,6 +375,7 @@ Call the appropriate tool(s) now.`;
   
   // No research needed - go straight to answer
   console.log(`💬 No research needed, answering from expertise`);
+  console.log(`   → State will have: messages=${state.messages.length}, entities=${entities.length}`);
   return {
     maritimeEntities: entities,
   };
@@ -450,7 +451,10 @@ ${allSources.map((s, i) => `[${i + 1}] ${s.title}
  * Synthesizer Node - Generate final answer with citations
  */
 async function synthesizerNode(state: AgentState, config?: any): Promise<Partial<AgentState>> {
-  console.log(`🎨 Synthesizing answer (${state.verifiedSources.length} sources)`);
+  console.log(`\n🎨 SYNTHESIZER NODE`);
+  console.log(`   Sources: ${state.verifiedSources.length}`);
+  console.log(`   Research context: ${state.researchContext ? 'YES' : 'NO'}`);
+  console.log(`   Messages in state: ${state.messages.length}`);
   
   const model = new ChatOpenAI({
     modelName: "gpt-4o",
@@ -506,7 +510,12 @@ function shouldContinue(state: AgentState): string {
   const lastMessage = state.messages[state.messages.length - 1];
   const messageType = lastMessage.constructor.name;
   
+  console.log(`\n🔀 ROUTING DECISION`);
+  console.log(`   Messages: ${state.messages.length}`);
   console.log(`   Last message type: ${messageType}`);
+  console.log(`   Research context: ${state.researchContext ? 'YES' : 'NO'}`);
+  console.log(`   Confidence: ${state.confidence}`);
+  console.log(`   Verified sources: ${state.verifiedSources.length}`);
   
   // If last message has tool calls, execute them
   if ((lastMessage as AIMessage).tool_calls?.length) {
@@ -541,7 +550,7 @@ function shouldContinue(state: AgentState): string {
   }
   
   // Otherwise, we're done
-  console.log(`→ Routing to: END`);
+  console.log(`→ Routing to: END (fallthrough)`);
   return END;
 }
 
@@ -646,9 +655,11 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         );
         
         let sourcesEmitted = false;
+        let eventCount = 0;
         
         for await (const event of stream) {
-          console.log(`📤 Event:`, Object.keys(event)[0]);
+          eventCount++;
+          console.log(`\n📤 EVENT #${eventCount}:`, Object.keys(event)[0], Object.keys(event));
           
           // Emit thinking process
           if (event.router) {
