@@ -303,6 +303,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       const parsed = typeof result === 'string' ? JSON.parse(result) : result;
       
       console.log(`   ✅ Gemini complete: ${parsed.sources?.length || 0} sources`);
+      console.log(`   📊 Raw Gemini response:`, JSON.stringify(parsed, null, 2).substring(0, 500));
       
       // Extract sources
       const sources = (parsed.sources || []).map((s: any) => ({
@@ -339,6 +340,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       } else {
         // Even if no sources, create minimal context so synthesizer knows we tried
         console.warn(`   ⚠️ Gemini returned no sources or answer`);
+        console.warn(`   📊 Parsed response:`, JSON.stringify(parsed));
+        console.warn(`   🔑 Check if GEMINI_API_KEY is set correctly in environment`);
         researchContext = `=== GEMINI GROUNDING RESULTS ===\n\nNo specific information found. Please answer from general maritime knowledge or suggest enabling deep research.`;
       }
       
