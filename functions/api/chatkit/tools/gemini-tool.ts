@@ -51,7 +51,10 @@ export const geminiTool = tool(
     }
     
     try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
+      // Gemini 2.5 Pro: Latest production model with enhanced reasoning (paid tier required)
+      // Pricing: $1.25/M input tokens, $10/M output tokens (<200K context)
+      // Alternatives: gemini-2.5-flash-latest (faster, cheaper), gemini-1.5-pro-latest (fallback)
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent', {
         method: 'POST',
         headers: {
           'x-goog-api-key': env.GEMINI_API_KEY,
@@ -112,7 +115,24 @@ CONTEXT HANDLING:
       });
       
       if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
+        const errorData = await response.json();
+        
+        // Handle quota exhaustion specifically
+        if (response.status === 429) {
+          console.error('❌ Gemini quota exceeded:', errorData.error?.message);
+          return JSON.stringify({
+            sources: [],
+            answer: null,
+            confidence: 0,
+            mode: 'gemini',
+            error: 'QUOTA_EXCEEDED',
+            quotaMessage: errorData.error?.message,
+            fallback_needed: true,
+            userMessage: '⚠️ Google Search quota exceeded. Upgrade Gemini API billing or enable "Online research" for Tavily search.'
+          });
+        }
+        
+        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
       
       const data = await response.json();
