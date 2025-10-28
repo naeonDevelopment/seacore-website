@@ -16,6 +16,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { maritimeTools } from './tools';
+import { geminiTool } from './tools/gemini-tool';
 import { SessionMemoryManager, type SessionMemory } from './session-memory';
 
 // Cloudflare Workers types
@@ -121,8 +122,43 @@ function isPlatformQuery(query: string): boolean {
 }
 
 /**
- * Main agent node - LLM decides what to do
- * Relies on maritime prompt intelligence, not code logic
+ * Intelligent query mode detection (replicated from legacy agent)
+ * Determines optimal strategy for each query type
+ */
+function detectQueryMode(
+  query: string,
+  enableBrowsing: boolean
+): 'verification' | 'research' | 'none' {
+  // PRIORITY 1: User explicitly enabled online research → deep multi-source research
+  if (enableBrowsing) {
+    console.log(`   📚 Mode: RESEARCH (user enabled browsing - deep multi-source)`);
+    return 'research';
+  }
+  
+  // PRIORITY 2: Platform queries without entities → answer from training data
+  const isPlatform = isPlatformQuery(query);
+  const hasEntityMention = /vessel|ship|fleet|company|equipment|manufacturer|imo|mmsi|flag/i.test(query);
+  
+  if (isPlatform && !hasEntityMention) {
+    console.log(`   🎯 Mode: NONE (pure platform query - training data)`);
+    return 'none';
+  }
+  
+  // HYBRID: Platform + entity → verification with context
+  if (isPlatform && hasEntityMention) {
+    console.log(`   🔮 Mode: VERIFICATION (platform + entity hybrid)`);
+    return 'verification';
+  }
+  
+  // DEFAULT: All maritime queries → Gemini verification
+  // This handles: vessel lookups, company queries, regulations, equipment specs
+  console.log(`   🔮 Mode: VERIFICATION (default - Gemini grounding for real-time data)`);
+  return 'verification';
+}
+
+/**
+ * Main agent node - Intelligent mode-based routing
+ * Replicated from legacy agent for optimal query handling
  */
 async function agentNode(state: State, config: any): Promise<Partial<State>> {
   const env = config.configurable?.env;
@@ -136,13 +172,6 @@ async function agentNode(state: State, config: any): Promise<Partial<State>> {
   // Get user query
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
   const userQuery = lastUserMessage?.content?.toString() || '';
-  
-  // Detect platform query (no entity mentions)
-  const isPlatform = isPlatformQuery(userQuery);
-  const hasEntityMention = /vessel|ship|fleet|company|equipment|manufacturer|imo|mmsi/i.test(userQuery);
-  
-  console.log(`   Platform query: ${isPlatform}`);
-  console.log(`   Has entity: ${hasEntityMention}`);
   
   // Build context from session memory
   let contextAddition = "";
@@ -166,15 +195,19 @@ async function agentNode(state: State, config: any): Promise<Partial<State>> {
     }
   }
   
+  // INTELLIGENT MODE DETECTION (replicated from legacy agent)
+  const mode = detectQueryMode(userQuery, state.enableBrowsing);
+  
+  console.log(`   Query: "${userQuery.substring(0, 80)}..."`);
+  console.log(`   Detected mode: ${mode}`);
+  
   // Create system message with prompt + context
   const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition);
   
-  // PLATFORM MODE: Don't bind tools at all (like legacy agent mode='none')
-  // Answer directly from training data about fleetcore features
-  if (isPlatform && !hasEntityMention) {
-    console.log(`   🎯 PLATFORM MODE: Responding from training data (NO TOOLS BOUND)`);
+  // MODE: NONE - Answer from training data (no tools)
+  if (mode === 'none') {
+    console.log(`   🎯 Executing NONE mode - training data only`);
     
-    // LLM WITHOUT tools - like legacy mode='none'
     const platformLlm = new ChatOpenAI({
       modelName: "gpt-4o",
       temperature: 0.1,
@@ -182,15 +215,12 @@ async function agentNode(state: State, config: any): Promise<Partial<State>> {
       streaming: true,
     });
     
-    // Add explicit platform instruction
-    const platformContext = `\n\n=== PLATFORM QUERY DETECTED ===
-This is a question about fleetcore platform features, capabilities, or implementation.
-Answer comprehensively from your training knowledge about the fleetcore Maritime Maintenance Operating System.
-Do NOT suggest using external research - provide detailed information about the system directly.`;
+    const platformContext = `\n\n=== PLATFORM QUERY ===
+Answer comprehensively from your training knowledge about fleetcore.
+Do NOT suggest using external research - provide detailed information directly.`;
     
     const platformSystemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
     
-    // CRITICAL: Use .stream() instead of .invoke() to enable token streaming
     const stream = await platformLlm.stream([platformSystemMessage, ...state.messages]);
     
     let fullContent = '';
@@ -198,12 +228,53 @@ Do NOT suggest using external research - provide detailed information about the 
       fullContent += chunk.content;
     }
     
-    console.log(`   ✅ Platform response generated (${fullContent.length} chars, no tools)`);
+    console.log(`   ✅ Response generated (${fullContent.length} chars, no tools)`);
     return { messages: [new AIMessage(fullContent)] };
   }
   
-  // NORMAL MODE: Initialize LLM with tools for entity queries
-  console.log(`   🔧 NORMAL MODE: LLM with tools available`);
+  // MODE: VERIFICATION - Call Gemini directly (fast, authoritative)
+  if (mode === 'verification') {
+    console.log(`   🔮 Executing VERIFICATION mode - calling Gemini directly`);
+    
+    try {
+      // Call gemini tool directly with user query
+      const result = await geminiTool.invoke({ query: userQuery }, config);
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      
+      console.log(`   ✅ Gemini call complete: ${parsed.sources?.length || 0} sources`);
+      
+      // Store sources in state for frontend display
+      const sources = (parsed.sources || []).map((s: any) => ({
+        title: s.title || '',
+        url: s.url || '',
+        content: s.content || '',
+        score: s.score || 0.5,
+      }));
+      
+      // Build answer with inline citations
+      let answer = parsed.answer || 'Unable to retrieve information.';
+      
+      // Add inline source citations [1][2][3]
+      if (sources.length > 0) {
+        answer += '\n\n**Sources:**\n';
+        sources.forEach((s: any, idx: number) => {
+          answer += `[${idx + 1}] ${s.title} - ${s.url}\n`;
+        });
+      }
+      
+      // Update state with sources
+      return {
+        messages: [new AIMessage(answer)],
+        sources,
+      };
+    } catch (error: any) {
+      console.error(`   ❌ Gemini verification failed:`, error.message);
+      // Fall through to research mode as fallback
+    }
+  }
+  
+  // MODE: RESEARCH - Let LLM orchestrate tools (deep multi-source)
+  console.log(`   📚 Executing RESEARCH mode - LLM tool orchestration`);
   const llm = new ChatOpenAI({
     modelName: "gpt-4o",
     temperature: 0.1,
@@ -211,7 +282,7 @@ Do NOT suggest using external research - provide detailed information about the 
     streaming: true,
   }).bindTools(maritimeTools);
   
-  // LLM decides what to do (call tools or respond directly)
+  // LLM decides what tools to use
   const response = await llm.invoke([systemMessage, ...state.messages]);
   
   console.log(`   Response type: ${response.constructor.name}`);
