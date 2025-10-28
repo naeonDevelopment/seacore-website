@@ -420,7 +420,10 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
     
     const platformContext = `\n\n=== PLATFORM QUERY ===
 Answer comprehensively from your training knowledge about fleetcore.
-DO NOT suggest using external research - provide detailed information directly.`;
+DO NOT suggest using external research - provide detailed information directly.
+
+**DEBUG INFO (REMOVE IN PRODUCTION):** Add this line at the very end of your response:
+"_[Mode: KNOWLEDGE | Training data only]_"`;
     
     const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
     
@@ -610,6 +613,9 @@ ${sourceUrlMapping}
 **TARGET:** 400-500 words maximum, professional structure, all facts cited
 
 💡 **Need comprehensive analysis?** User can enable 'Online research' toggle for detailed multi-source intelligence.
+
+**DEBUG INFO (REMOVE IN PRODUCTION):** Add this line at the very end of your response:
+"_[Mode: VERIFICATION | Sources: ${state.sources.length} | Gemini: ${state.geminiAnswer ? 'YES' : 'NO'}]_"
 
 Synthesize a professional technical brief with clickable citations based on the Gemini results above.`;
     
