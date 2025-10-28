@@ -827,8 +827,21 @@ This is **specialized maritime search** – not general web search. Get precise,
                     return prev;
                   }
                   
+                  // CRITICAL: Check if message has been committed to state yet
+                  // If idx >= length, React hasn't committed the creation yet - skip this update
+                  if (idx >= updated.length) {
+                    console.log('⏳ [ChatInterface] Message not in state yet, skipping update (will retry)', {
+                      idx,
+                      messagesLength: updated.length,
+                      contentPending: streamedContent.length
+                    });
+                    // Return prev unchanged - content is accumulated in streamedContent
+                    // and will be applied in next cycle after React commits
+                    return prev;
+                  }
+                  
                   // Validate index points to valid assistant message
-                  if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
+                  if (idx < 0 || updated[idx]?.role !== 'assistant') {
                     console.error('❌ [ChatInterface] Invalid streaming index:', { 
                       idx, 
                       messagesLength: updated.length,
