@@ -189,10 +189,17 @@ Answer comprehensively from your training knowledge about the fleetcore Maritime
 Do NOT suggest using external research - provide detailed information about the system directly.`;
     
     const platformSystemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
-    const response = await platformLlm.invoke([platformSystemMessage, ...state.messages]);
     
-    console.log(`   ✅ Platform response generated (no tools)`);
-    return { messages: [response] };
+    // CRITICAL: Use .stream() instead of .invoke() to enable token streaming
+    const stream = await platformLlm.stream([platformSystemMessage, ...state.messages]);
+    
+    let fullContent = '';
+    for await (const chunk of stream) {
+      fullContent += chunk.content;
+    }
+    
+    console.log(`   ✅ Platform response generated (${fullContent.length} chars, no tools)`);
+    return { messages: [new AIMessage(fullContent)] };
   }
   
   // NORMAL MODE: Initialize LLM with tools for entity queries
@@ -363,60 +370,85 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
       const encoder = new TextEncoder();
       
       try {
-        // Invoke agent with streaming
-        const events = agent.streamEvents(
+        // CRITICAL: Use .stream() with streamMode (not .streamEvents())
+        // This enables token-level streaming via AIMessageChunk
+        const agentStream = await agent.stream(
           {
             messages: baseMessages,
             sessionId,
             enableBrowsing,
           },
           {
-            version: "v2",
             configurable: {
               thread_id: sessionId,
               env,
               sessionMemory,
             },
+            streamMode: ["messages", "updates"] as const, // KEY: Enable both message and state streaming
           }
         );
         
         let fullResponse = "";
         let sources: Source[] = [];
+        let eventCount = 0;
         
-        // Stream events
-        for await (const event of events) {
-          // Debug logging
-          if (event.event === "on_chat_model_start" || event.event === "on_chat_model_stream" || event.event === "on_chat_model_end") {
-            console.log(`   📡 Stream event: ${event.event}`);
-          }
+        console.log(`📡 Agent stream created - entering event loop`);
+        
+        // Stream events using [streamType, event] tuple pattern
+        for await (const [streamType, event] of agentStream) {
+          eventCount++;
           
-          // Stream LLM tokens
-          if (event.event === "on_chat_model_stream") {
-            const chunk = event.data?.chunk;
-            if (chunk?.content) {
-              const text = typeof chunk.content === 'string' ? chunk.content : '';
-              if (text) {
-                fullResponse += text;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'token', content: text })}\n\n`));
-                console.log(`   💬 Token: "${text.substring(0, 50)}..."`);
-              }
-            }
-          }
-          
-          // Capture sources from tool results
-          if (event.event === "on_tool_end") {
-            console.log(`   🔧 Tool completed`);
-            try {
-              const result = event.data?.output;
-              if (result) {
-                const data = typeof result === 'string' ? JSON.parse(result) : result;
-                if (data.sources && Array.isArray(data.sources)) {
-                  sources.push(...data.sources);
-                  console.log(`   📚 Added ${data.sources.length} sources`);
+          // Handle token-level streaming from "messages" mode
+          if (streamType === 'messages') {
+            const messages = event as BaseMessage[] | BaseMessage;
+            const messageArray = Array.isArray(messages) ? messages : [messages];
+            
+            for (const msg of messageArray) {
+              // Check for AIMessageChunk (streaming tokens)
+              if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
+                const text = typeof msg.content === 'string' ? msg.content : String(msg.content);
+                if (text) {
+                  fullResponse += text;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
+                  
+                  if (eventCount <= 5) {
+                    console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
+                  }
                 }
               }
-            } catch (e) {
-              // Skip
+            }
+            continue; // Skip to next event
+          }
+          
+          // Handle node-level updates from "updates" mode
+          if (streamType === 'updates') {
+            const eventKey = Object.keys(event || {})[0];
+            
+            // Capture sources from tool execution node
+            if (event.tools || event.process) {
+              const nodeState = event.tools || event.process;
+              
+              // Check for verified sources in state
+              if (nodeState?.verifiedSources && Array.isArray(nodeState.verifiedSources)) {
+                const newSources = nodeState.verifiedSources;
+                
+                // Emit source events for frontend
+                for (const source of newSources) {
+                  controller.enqueue(encoder.encode(
+                    `data: ${JSON.stringify({ 
+                      type: 'source',
+                      action: 'selected',
+                      title: source.title,
+                      url: source.url,
+                      content: source.content?.substring(0, 300) || '',
+                      score: source.score || 0.5
+                    })}\n\n`
+                  ));
+                }
+                
+                sources.push(...newSources);
+                console.log(`   📚 Added ${newSources.length} sources (total: ${sources.length})`);
+              }
             }
           }
         }
