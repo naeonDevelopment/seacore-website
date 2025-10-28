@@ -12,7 +12,7 @@ import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/
 import { z } from "zod";
 import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { analyzeContentIntelligence, batchAnalyzeContent, type ContentSource, type ContentIntelligence } from './content-intelligence';
-import { SessionMemoryManager, extractTopicFromMessages, type SessionMemory } from './session-memory';
+import { SessionMemoryManager, extractTopicFromMessages, type SessionMemory, type VesselEntity } from './session-memory';
 
 // Cloudflare Workers types
 declare global {
@@ -415,47 +415,153 @@ function extractMaritimeEntities(text: string): string[] {
 }
 
 /**
- * Check if query is a follow-up question with entity extraction
- * IMPROVED: Extract entities from conversation history
+ * Extract entity context from research answer text
+ * Generic extraction for ANY maritime entity (vessels, companies, equipment, regulations, etc.)
+ * Returns structured context about the entity based on what's found in the answer
+ */
+function extractEntityContextFromAnswer(answer: string, entityName: string): Record<string, any> {
+  const context: Record<string, any> = {
+    name: entityName,
+    mentionedAt: Date.now(),
+  };
+  
+  // Build a focused section around the entity name
+  const entityPattern = new RegExp(`${entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^.]*?[.!?]`, 'gi');
+  const entityMentions = answer.match(entityPattern);
+  
+  if (entityMentions && entityMentions.length > 0) {
+    // Store the most relevant context snippet (first 2 sentences mentioning entity)
+    context.contextSnippet = entityMentions.slice(0, 2).join(' ').substring(0, 300);
+  }
+  
+  // VESSEL-SPECIFIC: Extract IMO, type, specs
+  const imoMatch = answer.match(/IMO[:\s]+(\d{7})/i);
+  if (imoMatch) {
+    context.imo = imoMatch[1];
+    context.entityType = 'vessel';
+  }
+  
+  const vesselTypePatterns = [
+    /(container ship|tanker|bulk carrier|crew boat|supply vessel|high-speed craft|offshore vessel|cargo ship|research vessel|fishing vessel)/i
+  ];
+  for (const pattern of vesselTypePatterns) {
+    const match = answer.match(pattern);
+    if (match) {
+      context.vesselType = match[1].trim();
+      context.entityType = 'vessel';
+      break;
+    }
+  }
+  
+  // COMPANY-SPECIFIC: Detect if it's a company
+  if (/\b(company|corporation|group|lines|shipping|marine|maritime|services|operator)\b/i.test(answer)) {
+    const companyContext = answer.match(new RegExp(`${entityName}[^.]*?(?:is|operates|specializes|provides)[^.]*?[.]`, 'i'));
+    if (companyContext) {
+      context.entityType = context.entityType || 'company';
+      context.companyContext = companyContext[0].substring(0, 200);
+    }
+  }
+  
+  // EQUIPMENT-SPECIFIC: Detect equipment/systems
+  if (/\b(engine|system|equipment|machinery|component|device|sensor|pump|valve|generator)\b/i.test(answer)) {
+    const equipmentContext = answer.match(new RegExp(`${entityName}[^.]*?(?:specification|model|capacity|power|type)[^.]*?[.]`, 'i'));
+    if (equipmentContext) {
+      context.entityType = context.entityType || 'equipment';
+      context.equipmentContext = equipmentContext[0].substring(0, 200);
+    }
+  }
+  
+  // REGULATION-SPECIFIC: Detect regulations/standards
+  if (/\b(regulation|standard|requirement|compliance|SOLAS|MARPOL|ISM|code|convention)\b/i.test(answer)) {
+    const regulationContext = answer.match(new RegExp(`${entityName}[^.]*?(?:requires|mandates|specifies|states)[^.]*?[.]`, 'i'));
+    if (regulationContext) {
+      context.entityType = context.entityType || 'regulation';
+      context.regulationContext = regulationContext[0].substring(0, 200);
+    }
+  }
+  
+  // Extract any key-value pairs near the entity
+  const specs: Record<string, string> = {};
+  
+  // Year
+  const yearMatch = answer.match(new RegExp(`${entityName}[^.]*?(?:built|established|founded|year)[^.]*?(\\d{4})`, 'i'));
+  if (yearMatch) specs.year = yearMatch[1];
+  
+  // Location/Flag
+  const locationMatch = answer.match(new RegExp(`${entityName}[^.]*?(?:flag|based|located|registered)[^.]*?in ([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)`, 'i'));
+  if (locationMatch) specs.location = locationMatch[1];
+  
+  if (Object.keys(specs).length > 0) {
+    context.specs = specs;
+  }
+  
+  console.log(`   🔍 Extracted context for ${entityName}:`, JSON.stringify(context, null, 2).substring(0, 200));
+  
+  return context;
+}
+
+/**
+ * Check if query is a follow-up question
+ * HUMAN-FRIENDLY: Handles vague references, incomplete sentences, conversational style
  */
 function isFollowUpQuery(query: string, previousMessages: BaseMessage[], entities: string[]): boolean {
-  const queryLower = query.toLowerCase();
+  const queryLower = query.toLowerCase().trim();
   
-  // Pattern 1: Referential pronouns
-  const hasReferentialPronouns = /\b(them|those|that|it|its|each one|the above|mentioned|listed|same|their|this|these)\b/i.test(query);
+  // Pattern 1: Very short queries (likely follow-ups)
+  // "ok", "cool", "and?", "how?", "why?", "what about it", "tell me more"
+  const isShortQuery = query.split(/\s+/).length <= 4;
+  const hasQuestionWord = /\b(what|how|why|when|where|which|who|can|could|would|should)\b/i.test(query);
+  const isVeryShort = query.length < 20;
   
-  // Pattern 2: Follow-up phrases
-  const hasFollowUpPhrases = /\b(give me|tell me|what about|how about|also|additionally|furthermore|more about|details of|specs of|tech details|list|show me)\b/i.test(query);
+  if (isVeryShort && (hasQuestionWord || isShortQuery)) {
+    console.log(`   ✅ Follow-up detected: Very short query with question pattern`);
+    return true;
+  }
   
-  // Pattern 3: NEW - Entity continuity (mentions entity from previous messages)
+  // Pattern 2: Referential pronouns (human conversational style)
+  const hasReferentialPronouns = /\b(it|that|this|those|these|them|the above|mentioned|one|same)\b/i.test(query);
+  
+  // Pattern 3: Follow-up phrases (casual human language)
+  const hasFollowUpPhrases = /\b(tell me|show me|what about|how about|what if|can you|could you|also|and|but|so|ok|cool|nice|interesting|use|apply|relate|connect)\b/i.test(query);
+  
+  // Pattern 4: Action words on implicit subject
+  // "how can i use", "apply to", "use it for", "works with", "compatible with"
+  const hasActionWithoutSubject = /\b(use|apply|works?|implement|integrate|handle|manage|track|monitor)\b/i.test(query) && 
+                                  !/(fleetcore|pms|system|platform|vessel|ship|company)/i.test(query);
+  
+  // Pattern 5: Fuzzy entity matching (handles typos, partial names)
   const mentionsPreviousEntity = entities.length > 0 && entities.some(entity => {
-    // Check if any previous entity is mentioned in current query
     const entityLower = entity.toLowerCase();
-    return queryLower.includes(entityLower);
+    const entityWords = entityLower.split(/\s+/);
+    
+    // Full match
+    if (queryLower.includes(entityLower)) return true;
+    
+    // Partial match (at least one significant word from entity name)
+    return entityWords.some(word => {
+      if (word.length < 4) return false; // Skip short words like "17", "ms"
+      return queryLower.includes(word);
+    });
   });
   
-  // Pattern 4: Specific request about previous subject
-  const hasSpecificRequest = /\b(engine|propulsion|specification|system|equipment|details|list)\b/i.test(query);
-  
-  // Check if previous messages contain research or specific entities
-  const hasPreviousContext = previousMessages.some(msg => {
+  // Pattern 6: Check if previous message had substantial content (indicates ongoing conversation)
+  const hasPreviousContext = previousMessages.length > 0 && previousMessages.slice(-2).some(msg => {
     if (!msg.content || typeof msg.content !== 'string') return false;
-    const content = msg.content.toLowerCase();
-    return content.includes('research') || 
-           content.includes('vessel') || 
-           content.includes('ship') ||
-           entities.some(e => content.includes(e.toLowerCase()));
+    const content = msg.content;
+    // Assistant message with substantial content (> 200 chars)
+    return content.length > 200 && msg.constructor.name.includes('AI');
   });
   
-  // Follow-up detected if:
-  // 1. Uses pronouns/follow-up phrases AND has context, OR
-  // 2. Mentions previous entity AND makes specific request
+  // LIBERAL follow-up detection (optimized for human conversation)
   const isFollowUp = 
-    ((hasReferentialPronouns || hasFollowUpPhrases) && hasPreviousContext) ||
-    (mentionsPreviousEntity && hasSpecificRequest);
+    (isShortQuery && hasPreviousContext) ||
+    (hasReferentialPronouns && hasPreviousContext) ||
+    (hasFollowUpPhrases && hasPreviousContext) ||
+    (hasActionWithoutSubject && hasPreviousContext) ||
+    mentionsPreviousEntity;
   
   if (isFollowUp) {
-    console.log(`   ✅ Follow-up detected: entity=${mentionsPreviousEntity}, specific=${hasSpecificRequest}`);
+    console.log(`   ✅ Follow-up detected: short=${isShortQuery}, pronoun=${hasReferentialPronouns}, action=${hasActionWithoutSubject}, entity=${mentionsPreviousEntity}`);
   }
   
   return isFollowUp;
@@ -463,7 +569,7 @@ function isFollowUpQuery(query: string, previousMessages: BaseMessage[], entitie
 
 /**
  * Detect user intent from conversation context
- * Infers high-level goal using accumulated knowledge and topic history
+ * HUMAN-FRIENDLY: Infers intent from vague, conversational language
  * @returns Intent string like "evaluating fleetcore for specific entity", "learning about maintenance"
  */
 function detectUserIntent(
@@ -472,40 +578,63 @@ function detectUserIntent(
   accumulatedKnowledge: Record<string, any>,
   modeHistory: Array<any>
 ): string {
-  const queryLower = query.toLowerCase();
+  const queryLower = query.toLowerCase().trim();
   
-  // Pattern 1: Evaluation intent
-  // User discussed fleetcore features, then asks about specific vessel/company
+  // Pattern 1: Evaluation/Application intent
+  // Combining product knowledge with specific entity
   const hasFleetcoreKnowledge = accumulatedKnowledge.fleetcoreFeatures?.length > 0;
-  const hasVesselQuery = /vessel|ship|fleet|company/i.test(query);
+  const hasAnyEntities = 
+    Object.keys(accumulatedKnowledge.vesselEntities || {}).length > 0 ||
+    Object.keys(accumulatedKnowledge.companyEntities || {}).length > 0 ||
+    (accumulatedKnowledge.discussedTopics || []).length > 0;
   
-  if (hasFleetcoreKnowledge && hasVesselQuery) {
-    return "evaluating fleetcore for specific entity";
+  // Action words suggesting application/evaluation
+  const hasActionIntent = /\b(use|apply|implement|integrate|work|help|support|handle|manage|track|monitor|compatible|suitable)\b/i.test(query);
+  
+  if (hasFleetcoreKnowledge && (hasAnyEntities || hasActionIntent)) {
+    return "evaluating how to apply fleetcore";
   }
   
-  // Pattern 2: Learning intent
-  // Sequential questions about same topic without entities
-  if (conversationTopic && !hasVesselQuery) {
-    const topicWords = conversationTopic.toLowerCase().split(/\s*→\s*/);
-    if (topicWords.length >= 2) {
-      return `learning about ${topicWords[topicWords.length - 1]}`;
+  // Pattern 2: Learning/Discovery intent
+  // Sequential questions, building knowledge
+  if (conversationTopic) {
+    const topicChain = conversationTopic.split(/\s*→\s*/);
+    if (topicChain.length >= 2) {
+      // Deepening understanding
+      return `exploring ${topicChain[topicChain.length - 1]}`;
     }
   }
   
-  // Pattern 3: Research intent
-  // Multiple specific entity queries
-  const vesselCount = Object.keys(accumulatedKnowledge.vesselEntities || {}).length;
-  if (vesselCount >= 2) {
-    return "researching multiple entities";
+  // Pattern 3: Information-seeking about product
+  // Questions about fleetcore capabilities
+  const isProductQuery = /\b(how does|what is|what are|tell me about|explain|feature|capability|function)\b/i.test(query) &&
+                        /\b(fleetcore|pms|system|platform|maintenance)\b/i.test(query);
+  
+  if (isProductQuery) {
+    return "learning about fleetcore capabilities";
   }
   
-  // Pattern 4: Comparison intent
-  if (/compare|versus|vs|difference|better|best|largest|biggest/i.test(query)) {
-    return "comparing entities or options";
+  // Pattern 4: Comparison/Research intent
+  if (/\b(compare|versus|vs|difference|between|better|best|largest|biggest|which one|alternative)\b/i.test(query)) {
+    return "comparing options or entities";
   }
   
-  // Default: Exploratory
-  return "exploring topic";
+  // Pattern 5: Troubleshooting/Problem-solving
+  if (/\b(issue|problem|error|fix|solve|help|why|not work|fail|wrong)\b/i.test(query)) {
+    return "seeking solution or troubleshooting";
+  }
+  
+  // Pattern 6: Multi-entity research pattern
+  const entityCount = 
+    Object.keys(accumulatedKnowledge.vesselEntities || {}).length +
+    Object.keys(accumulatedKnowledge.companyEntities || {}).length;
+  
+  if (entityCount >= 2) {
+    return "researching multiple maritime entities";
+  }
+  
+  // Default: Exploratory (first message or vague query)
+  return modeHistory.length === 0 ? "initial exploration" : "continuing conversation";
 }
 
 /**
@@ -1367,7 +1496,8 @@ function handleSystemIntelligenceMode(
 
 /**
  * Build fleetcore context section for verification/research modes
- * Injects previously discussed features into research context
+ * Injects previously discussed features AND all entity types into research context
+ * GENERIC: Handles vessels, companies, equipment, regulations, etc.
  */
 function buildFleetcoreContextSection(
   preserveFleetcoreContext: boolean,
@@ -1379,7 +1509,7 @@ function buildFleetcoreContextSection(
     return '';
   }
   
-  console.log(`   ✨ Adding fleetcore context to research context`);
+  console.log(`   ✨ Adding accumulated context to research query`);
   
   const featuresList = accumulatedKnowledge.fleetcoreFeatures
     .map((f: any, i: number) => `${i + 1}. **${f.name}**: ${f.explanation}`)
@@ -1390,18 +1520,48 @@ function buildFleetcoreContextSection(
     ? `\n\n**Previously Discussed Connections:**\n${connections.map((c: any) => `- ${c.from} → ${c.to}: ${c.relationship}`).join('\n')}`
     : '';
   
-  return `\n\n=== PREVIOUSLY DISCUSSED FLEETCORE CONTEXT ===
+  // CRITICAL: Include ALL previously discussed entities (vessels, companies, topics)
+  let entitiesText = '';
+  
+  // Vessels
+  const vesselEntities = Object.values(accumulatedKnowledge.vesselEntities || {});
+  if (vesselEntities.length > 0) {
+    entitiesText += `\n\n**Vessels Previously Discussed:**\n${vesselEntities.map((v: any, i: number) => {
+      let line = `${i + 1}. **${v.name}**`;
+      if (v.type) line += ` (${v.type})`;
+      if (v.imo) line += ` - IMO: ${v.imo}`;
+      return line;
+    }).join('\n')}`;
+  }
+  
+  // Companies
+  const companyEntities = Object.values(accumulatedKnowledge.companyEntities || {});
+  if (companyEntities.length > 0) {
+    entitiesText += `\n\n**Companies/Organizations Previously Discussed:**\n${companyEntities.map((c: any, i: number) => {
+      let line = `${i + 1}. **${c.name}**`;
+      if (c.companyContext) line += ` - ${c.companyContext.substring(0, 100)}`;
+      return line;
+    }).join('\n')}`;
+  }
+  
+  // General topics/entities
+  const discussedTopics = accumulatedKnowledge.discussedTopics || [];
+  if (discussedTopics.length > 0) {
+    entitiesText += `\n\n**Other Topics Discussed:** ${discussedTopics.join(', ')}`;
+  }
+  
+  return `\n\n=== PREVIOUSLY DISCUSSED CONTEXT ===
 
 **User Intent:** ${detectedIntent}
 **Conversation Topic:** ${conversationTopic}
 
 **Fleetcore PMS Features Already Discussed:**
-${featuresList}${connectionsText}
+${featuresList}${connectionsText}${entitiesText}
 
-**YOUR TASK:** Integrate vessel/entity information below with the fleetcore features above.
-Show how fleetcore's specific capabilities support this entity's requirements.
+**YOUR TASK:** Integrate the entity/information below with the context above.
+Show how the new information relates to what we've already discussed, especially fleetcore's capabilities.
 
-=== END FLEETCORE CONTEXT ===\n\n`;
+=== END PREVIOUS CONTEXT ===\n\n`;
 }
 
 /**
@@ -1464,6 +1624,20 @@ async function handleVerificationMode(
     
     const sources = parsed.sources || [];
     const geminiAnswer = parsed.answer || null;
+    
+    // CRITICAL: Extract entity context from answer and store in accumulated knowledge
+    const discussedEntities: Record<string, any> = {};
+    if (geminiAnswer && entities.length > 0) {
+      console.log(`   🔍 Extracting entity context from research answer`);
+      entities.forEach(entityName => {
+        const extractedContext = extractEntityContextFromAnswer(geminiAnswer, entityName);
+        if (extractedContext.contextSnippet || extractedContext.entityType) {
+          const entityKey = entityName.toLowerCase();
+          discussedEntities[entityKey] = extractedContext;
+          console.log(`   ✅ Stored context for ${entityName}: Type=${extractedContext.entityType || 'general'}`);
+        }
+      });
+    }
     
     // Build research context with fleetcore integration
     let researchContext = '';
@@ -1539,7 +1713,36 @@ ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
       console.log(`   📝 Research context built: ${researchContext.length} chars`);
     }
     
-    // Return state update
+    // Return state update with extracted entity contexts
+    // Intelligently route entities to correct storage based on detected type
+    const updatedKnowledge = {
+      ...accumulatedKnowledge,
+      vesselEntities: { ...(accumulatedKnowledge.vesselEntities || {}) },
+      companyEntities: { ...(accumulatedKnowledge.companyEntities || {}) },
+      discussedTopics: [...(accumulatedKnowledge.discussedTopics || [])],
+    };
+    
+    // Route entities to appropriate storage based on type
+    Object.entries(discussedEntities).forEach(([key, context]) => {
+      if (context.entityType === 'vessel' || context.imo) {
+        updatedKnowledge.vesselEntities[key] = {
+          name: context.name,
+          imo: context.imo,
+          type: context.vesselType,
+          specs: context.specs,
+          discussed: true,
+          firstMentioned: context.mentionedAt,
+        };
+      } else if (context.entityType === 'company') {
+        updatedKnowledge.companyEntities[key] = context;
+      } else {
+        // Store as discussed topic for general entities
+        if (!updatedKnowledge.discussedTopics.includes(context.name)) {
+          updatedKnowledge.discussedTopics.push(context.name);
+        }
+      }
+    });
+    
     return {
       ...stateUpdates,
       researchMode: 'verification' as const,
@@ -1548,6 +1751,7 @@ ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
       verifiedSources: sources,
       rejectedSources: [],
       confidence: parsed.confidence || 0.9,
+      accumulatedKnowledge: updatedKnowledge,
       modeHistory: [{
         mode: 'verification' as const,
         query: userQuery,
@@ -1656,22 +1860,74 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
     stateUpdates.conversationTopic = conversationTopic ? `${conversationTopic} → ${newTopic}` : newTopic;
   }
   
-  // NEW: Build entity context for follow-up queries
+  // CRITICAL: Build comprehensive context for vague/follow-up queries
+  // Handles: "how can i use it", "what about that vessel", "ok use for dynamic 17"
   let entityContext = '';
-  if (isFollowUp && allConversationEntities.length > 0) {
-    console.log(`📋 Follow-up query detected. Previous entities: ${allConversationEntities.join(', ')}`);
+  let contextEnrichedQuery = userQuery;
+  
+  if (isFollowUp) {
+    console.log(`📋 Follow-up query detected - building context enrichment`);
     
-    // Extract the main entity being discussed
-    const mainEntity = allConversationEntities[allConversationEntities.length - 1];
+    // Build context components
+    const contextParts: string[] = [];
     
-    // If user asks for specific details (engines, specs, etc.) without entity name, add it to query
+    // 1. Add conversation topic if available
+    if (conversationTopic) {
+      const latestTopic = conversationTopic.split(' → ').pop();
+      contextParts.push(`Current topic: ${latestTopic}`);
+    }
+    
+    // 2. Add fleetcore features if discussed (handles "it", "this", "the system")
+    if (accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+      const topFeatures = accumulatedKnowledge.fleetcoreFeatures
+        .slice(0, 3)
+        .map((f: any) => f.name)
+        .join(', ');
+      contextParts.push(`Previously discussed: fleetcore PMS (${topFeatures})`);
+    }
+    
+    // 3. Add entities (vessels, companies) if discussed
+    const allEntities = [
+      ...Object.values(accumulatedKnowledge.vesselEntities || {}).map((v: any) => v.name),
+      ...Object.values(accumulatedKnowledge.companyEntities || {}).map((c: any) => c.name),
+      ...(accumulatedKnowledge.discussedTopics || [])
+    ];
+    
+    if (allEntities.length > 0) {
+      const recentEntities = allEntities.slice(-3).join(', ');
+      contextParts.push(`Previous entities: ${recentEntities}`);
+    }
+    
+    // 4. Reconstruct implicit subjects ("it", "this", "that")
+    const hasImplicitSubject = /\b(it|this|that|these|those|them)\b/i.test(userQuery);
+    const hasActionVerb = /\b(use|apply|works?|implement|integrate|handle)\b/i.test(userQuery);
+    
+    if (hasImplicitSubject && hasActionVerb && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+      // Replace implicit "it" with explicit "fleetcore PMS"
+      contextEnrichedQuery = userQuery.replace(/\b(it|this|that)\b/gi, 'fleetcore PMS');
+      console.log(`   🔄 Resolved implicit subject: "${userQuery}" → "${contextEnrichedQuery}"`);
+    }
+    
+    // 5. Add entity if query mentions action but missing explicit entity
     const needsEntityAddition = 
-      /\b(engine|propulsion|specification|system|equipment|details|list)\b/i.test(userQuery) &&
+      allConversationEntities.length > 0 &&
+      /\b(use|apply|for|with|on|about|regarding)\b/i.test(userQuery) &&
       !allConversationEntities.some(e => userQuery.toLowerCase().includes(e.toLowerCase()));
     
-    if (needsEntityAddition) {
-      entityContext = `\n\n**CONTEXT**: User is asking about ${mainEntity} from previous discussion. Focus your search on ${mainEntity} specifically.`;
-      console.log(`   🎯 Enriching query with entity context: ${mainEntity}`);
+    if (needsEntityAddition && entities.length > 0) {
+      // New entity mentioned in vague way - use it
+      const newEntity = entities[0];
+      contextParts.push(`User is asking about applying previous discussion to: ${newEntity}`);
+    } else if (needsEntityAddition && allConversationEntities.length > 0) {
+      // No new entity, reference previous
+      const mainEntity = allConversationEntities[allConversationEntities.length - 1];
+      contextParts.push(`Focus on: ${mainEntity}`);
+    }
+    
+    // Build final context injection
+    if (contextParts.length > 0) {
+      entityContext = `\n\n**CONVERSATION CONTEXT**:\n${contextParts.map(p => `- ${p}`).join('\n')}\n\n**USER QUERY**: ${contextEnrichedQuery}`;
+      console.log(`   ✨ Enriched query with ${contextParts.length} context elements`);
     }
   }
   
@@ -1710,10 +1966,10 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
     };
   }
   
-  // VERIFICATION MODE: Direct Gemini call
+  // VERIFICATION MODE: Direct Gemini call with enriched query
   if (queryMode === 'verification') {
     return await handleVerificationMode(
-      userQuery,
+      contextEnrichedQuery,  // Use enriched query that resolves "it", "this", etc.
       entityContext,
       entities,
       preserveFleetcoreContext,
@@ -1725,10 +1981,10 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
     );
   }
   
-  // RESEARCH MODE: Use deep_research tool via LangGraph
-  console.log(`📋 Invoking research mode planner...`);
+  // RESEARCH MODE: Use deep_research tool via LangGraph with enriched query
+  console.log(`📋 Invoking research mode planner with context enrichment...`);
   
-  // Build context-aware planning prompt
+  // Build comprehensive context for planner
   let contextSection = '';
   if (preserveFleetcoreContext && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
     console.log(`   🎯 Adding fleetcore context to research planning`);
@@ -1749,10 +2005,14 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
 Your research should find information that helps assess fleetcore's fit for this specific use case.`;
   }
   
-  const planningPrompt = `You are a maritime intelligence researcher.
+  // Use enriched query for better research planning
+  const researchQuery = contextEnrichedQuery !== userQuery ? contextEnrichedQuery : userQuery;
+  
+  const planningPrompt = `You are a maritime intelligence researcher. The user's query may be vague or conversational.
 
-User Query: "${userQuery}"
-Detected Entities: ${entities.join(', ')}${contextSection}
+User Query (original): "${userQuery}"
+${contextEnrichedQuery !== userQuery ? `Enriched Query: "${contextEnrichedQuery}"` : ''}
+Detected Entities: ${entities.length > 0 ? entities.join(', ') : 'none detected'}${entityContext}${contextSection}
 
 Your task: Use the deep_research tool for comprehensive intelligence.
 - For COMPLEX queries (comparisons, analysis, multiple entities):
@@ -1765,6 +2025,8 @@ Your task: Use the deep_research tool for comprehensive intelligence.
 
 ${preserveFleetcoreContext ? `REMINDER: Consider how your research findings relate to the fleetcore features the user has been discussing.` : ''}
 
+**IMPORTANT**: If query is vague (uses "it", "this", "that"), use the enriched query and context above to understand what the user is asking about.
+
 Call deep_research now with appropriate parameters.`;
   
   const model = new ChatOpenAI({
@@ -1775,7 +2037,7 @@ Call deep_research now with appropriate parameters.`;
   
   const response = await model.invoke([
     new SystemMessage(planningPrompt),
-    new HumanMessage(userQuery)
+    new HumanMessage(researchQuery)  // Use enriched query for better context understanding
   ], config);
   
   const toolCallsCount = response.tool_calls?.length || 0;
@@ -2167,10 +2429,10 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
       accumulatedContextSection += '\n';
     }
     
-    // Add vessel entities
+    // Add ALL previously discussed entities (vessels, companies, general topics)
     const vesselEntities = Object.values(accumulatedKnowledge.vesselEntities || {});
     if (vesselEntities.length > 0) {
-      accumulatedContextSection += `**Vessels/Entities Previously Discussed:**\n`;
+      accumulatedContextSection += `**Vessels Previously Discussed:**\n`;
       vesselEntities.forEach((v: any, i: number) => {
         accumulatedContextSection += `${i + 1}. ${v.name}`;
         if (v.type) accumulatedContextSection += ` (${v.type})`;
@@ -2178,6 +2440,22 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
         accumulatedContextSection += '\n';
       });
       accumulatedContextSection += '\n';
+    }
+    
+    const companyEntities = Object.values(accumulatedKnowledge.companyEntities || {});
+    if (companyEntities.length > 0) {
+      accumulatedContextSection += `**Companies/Organizations Previously Discussed:**\n`;
+      companyEntities.forEach((c: any, i: number) => {
+        accumulatedContextSection += `${i + 1}. ${c.name}`;
+        if (c.companyContext) accumulatedContextSection += ` - ${c.companyContext.substring(0, 100)}`;
+        accumulatedContextSection += '\n';
+      });
+      accumulatedContextSection += '\n';
+    }
+    
+    const discussedTopics = accumulatedKnowledge.discussedTopics || [];
+    if (discussedTopics.length > 0) {
+      accumulatedContextSection += `**Other Topics Discussed:** ${discussedTopics.join(', ')}\n\n`;
     }
     
     // Add connections
@@ -2193,10 +2471,11 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
     accumulatedContextSection += `**CRITICAL INSTRUCTION:**\n`;
     accumulatedContextSection += `Your answer MUST acknowledge and integrate the accumulated context above.\n`;
     
-    // If this is about a vessel and fleetcore features were discussed
-    if (accumulatedKnowledge.fleetcoreFeatures?.length > 0 && vesselEntities.length > 0) {
-      accumulatedContextSection += `The user has been learning about fleetcore PMS and now is asking about a specific entity.\n`;
-      accumulatedContextSection += `Your answer should naturally explain how fleetcore's features support this entity's needs.\n`;
+    // Generic instruction for any entity type + fleetcore context
+    const hasAnyEntities = vesselEntities.length > 0 || companyEntities.length > 0 || discussedTopics.length > 0;
+    if (accumulatedKnowledge.fleetcoreFeatures?.length > 0 && hasAnyEntities) {
+      accumulatedContextSection += `The user has been learning about fleetcore PMS and now is asking about a related entity/topic.\n`;
+      accumulatedContextSection += `Your answer should naturally explain how fleetcore's features relate to or support this query.\n`;
     }
     
     // If no research context, remind to use accumulated knowledge
