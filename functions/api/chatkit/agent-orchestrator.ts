@@ -442,7 +442,7 @@ DO NOT suggest using external research - provide detailed information directly.
     return { messages: [new AIMessage(fullContent)] };
   }
   
-  // MODE: VERIFICATION - Synthesize from Gemini answer with optional verification pipeline
+  // MODE: VERIFICATION - Synthesize from Gemini answer with GPT-4o (enables streaming)
   if (state.mode === 'verification') {
     // Check if we have research context from Gemini
     if (!state.researchContext) {
@@ -464,14 +464,14 @@ If you don't have specific information, be honest and suggest the user enable on
       return { messages: [new AIMessage(fullContent)] };
     }
     
-    console.log(`   🔮 Synthesizing VERIFICATION mode from Gemini result`);
+    console.log(`   🔮 Synthesizing VERIFICATION mode from Gemini grounding (${state.sources.length} sources)`);
     
-    // Emit status: Starting synthesis
+    // Emit status: Starting synthesis (BEFORE calling GPT-4o)
     if (statusEmitter) {
       statusEmitter({
         type: 'status',
         step: 'synthesis_start',
-        content: `Formatting response from ${state.sources.length} sources...`
+        content: `Formatting results...`
       });
     }
     
@@ -567,69 +567,18 @@ If you don't have specific information, be honest and suggest the user enable on
       }
     }
     
-    // Build source URL mapping for clickable citations
-    const sourceUrlMapping = state.sources.map((s, i) => `[${i + 1}]: ${s.url}`).join('\n');
-    
+    // SIMPLIFIED synthesis prompt matching legacy pattern
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
 
 ${state.researchContext}
 
-=== SYNTHESIS INSTRUCTIONS FOR MARITIME EXPERTS ===
+**USER QUERY**: ${userQuery}
 
-AUDIENCE: Technical officers, captains, marine superintendents, and maritime professionals
-REQUIREMENT: Deliver precise, technical, actionable intelligence with CLICKABLE source citations
+Use the Gemini grounding results above to provide a professional technical answer.
+Cite sources with [[1]](url), [[2]](url) format.
+Keep response concise (400-500 words) with proper structure.
 
-**CITATION FORMAT (CRITICAL):**
-- Cite sources as CLICKABLE LINKS: [[1]](${state.sources[0]?.url || 'url'}), [[2]](url), [[3]](url), etc.
-- Every technical specification MUST have a citation
-- Example: "The vessel measures 87m LOA × 20m beam [[1]](url)"
-- Example: "Built by Vard Søviknes in Norway with IMO 9758246 [[2]](url)"
-
-**REQUIRED STRUCTURE & FORMATTING:**
-
-**1. EXECUTIVE SUMMARY** (2 sentences)
-   - Entity classification, operator, primary identification
-   - Example: "Stanford Bateleur is a DP2 platform supply vessel operated by Stanford Marine, registered in Singapore with IMO 9758246 [[1]](url). Built in 2015, the vessel serves offshore operations in Southeast Asia [[2]](url)."
-
-**2. TECHNICAL SPECIFICATIONS** (bullet points - concise)
-   • **Dimensions:** 87m LOA × 20m beam [[X]](url)
-   • **Capacity:** DWT 5,145t [[X]](url)
-   • **Propulsion:** Diesel-electric, DP2 capability [[X]](url)
-   • **Flag & Class:** Singapore registry, DNV class [[X]](url)
-
-**3. OPERATIONAL STATUS** (2-3 sentences if available)
-   - Current employment/charter
-   - Recent operational history
-   - Example: "Currently engaged in long-term charter supporting offshore drilling operations [[X]](url)."
-
-**4. TECHNICAL ANALYSIS** (1 short paragraph, 3-4 sentences)
-   - Maritime context and industry significance
-   - Technical capabilities and features
-   - Operational advantages
-
-**SOURCE URLS FOR CITATIONS:**
-${sourceUrlMapping}
-
-**FORMATTING REQUIREMENTS:**
-✅ Use **bold** for section headers
-✅ Use bullet points (•) for specifications - keep concise
-✅ Short paragraphs (2-4 sentences) for analysis sections
-✅ Cite sources after EVERY fact: [[1]](url), [[2]](url)
-✅ Use precise maritime terminology (LOA, DWT, DP2, etc.)
-✅ Include all numerical data with proper units (m, kW, DWT, TEU, etc.)
-❌ NO generic filler, speculation, or verbose explanations
-❌ NO information without citations
-❌ NO unnecessary details - focus on key facts only
-❌ DO NOT add a separate "Sources:" section at the end
-
-**TARGET:** 400-500 words maximum, professional structure, all facts cited
-
-💡 **Need comprehensive analysis?** User can enable 'Online research' toggle for detailed multi-source intelligence.
-
-**DEBUG INFO (REMOVE IN PRODUCTION):** Add this line at the very end of your response:
-"_[Mode: VERIFICATION | Sources: ${state.sources.length} | Gemini: ${state.geminiAnswer ? 'YES' : 'NO'}]_"
-
-Synthesize a professional technical brief with clickable citations based on the Gemini results above.`;
+_[Mode: VERIFICATION | Sources: ${state.sources.length} | Gemini 2.0 Flash]_`;
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     
