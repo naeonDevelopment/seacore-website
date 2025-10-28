@@ -116,11 +116,22 @@ CONTEXT HANDLING:
       }
       
       const data = await response.json();
+      
+      console.log(`   ✅ Gemini API response received`);
+      console.log(`   📊 FULL GEMINI RESPONSE:`, JSON.stringify(data, null, 2).substring(0, 2000));
+      
       const candidate = data.candidates?.[0];
       const answer = candidate?.content?.parts?.[0]?.text || null;
       const groundingMetadata = candidate?.groundingMetadata;
       
-      console.log(`   🔍 Gemini grounding metadata keys:`, Object.keys(groundingMetadata || {}));
+      console.log(`   Has candidate: ${!!candidate}`);
+      console.log(`   Has answer: ${!!answer}`);
+      console.log(`   Answer length: ${answer?.length || 0} chars`);
+      console.log(`   Has grounding metadata: ${!!groundingMetadata}`);
+      console.log(`   📊 groundingMetadata keys:`, Object.keys(groundingMetadata || {}));
+      console.log(`   📊 webResults count:`, groundingMetadata?.webResults?.length || 0);
+      console.log(`   📊 searchEntryPoint:`, groundingMetadata?.searchEntryPoint);
+      console.log(`   📊 groundingChunks:`, groundingMetadata?.groundingChunks?.length || 0);
       
       // Extract sources from multiple possible locations
       let sources: any[] = [];
