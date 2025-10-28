@@ -531,6 +531,11 @@ export const agent = workflow.compile({ checkpointer });
 // HANDLER
 // =====================
 
+// Streaming configuration (from legacy agent)
+const SSE_CHUNK_SIZE = 50; // chars per SSE event
+const SSE_THROTTLE_INTERVAL_MS = 8; // ms between chunks
+const SSE_THROTTLE_EVERY_N_CHUNKS = 5; // throttle every N chunks
+
 /**
  * Handle chat request with streaming
  */
@@ -587,6 +592,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         let fullResponse = "";
         let sources: Source[] = [];
         let eventCount = 0;
+        let hasStreamedContent = false; // Track if token streaming worked
+        let finalState: any = null; // Capture final state for fallback
         
         console.log(`📡 Agent stream created - entering event loop`);
         
@@ -604,6 +611,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
                 const text = typeof msg.content === 'string' ? msg.content : String(msg.content);
                 if (text) {
+                  hasStreamedContent = true; // Mark that token streaming is working
                   fullResponse += text;
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
                   
@@ -619,6 +627,11 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           // Handle node-level updates from "updates" mode
           if (streamType === 'updates') {
             const eventKey = Object.keys(event || {})[0];
+            
+            // Capture final state for fallback
+            if (event.synthesizer) {
+              finalState = event.synthesizer;
+            }
             
             // Capture sources from tool execution node
             if (event.tools || event.process) {
@@ -651,9 +664,43 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         
         console.log(`\n📊 Stream complete:`);
         console.log(`   Response length: ${fullResponse.length} chars`);
+        console.log(`   Token streaming worked: ${hasStreamedContent}`);
         console.log(`   Sources: ${sources.length}`);
         
-        // If we got no response, something went wrong
+        // FALLBACK: If token streaming didn't work, chunk the complete response
+        // This is the proven pattern from legacy agent
+        if (!hasStreamedContent && finalState?.messages) {
+          console.log(`⚠️ No token streaming occurred, using fallback chunking`);
+          
+          const messagesUpdate = finalState.messages;
+          if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
+            const lastMessage = messagesUpdate[messagesUpdate.length - 1];
+            const content = typeof lastMessage.content === 'string' 
+              ? lastMessage.content 
+              : JSON.stringify(lastMessage.content);
+            
+            if (content && content.length > 0) {
+              console.log(`   📦 Chunking ${content.length} chars in ${SSE_CHUNK_SIZE}-char chunks`);
+              
+              for (let i = 0; i < content.length; i += SSE_CHUNK_SIZE) {
+                const chunk = content.slice(i, i + SSE_CHUNK_SIZE);
+                controller.enqueue(encoder.encode(
+                  `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
+                ));
+                
+                // Throttle to prevent overwhelming client
+                if ((i / SSE_CHUNK_SIZE) % SSE_THROTTLE_EVERY_N_CHUNKS === 0) {
+                  await new Promise(resolve => setTimeout(resolve, SSE_THROTTLE_INTERVAL_MS));
+                }
+              }
+              
+              fullResponse = content;
+              console.log(`   ✅ Fallback chunking complete: ${content.length} chars sent`);
+            }
+          }
+        }
+        
+        // If we still got no response, something went wrong
         if (fullResponse.length === 0) {
           console.error(`❌ No response content generated!`);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
