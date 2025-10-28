@@ -49,11 +49,20 @@ export interface ModeTransition {
 export interface SessionMemory {
   sessionId: string;
   
-  // Core conversation tracking
-  conversationTopic: string;          // "fleetcore PMS → vessel Dynamic 17"
-  userIntent: string;                 // "evaluate PMS for specific vessel"
+  // NATURAL LANGUAGE CONTEXT (GPT-readable narrative)
+  conversationSummary: string;  // Free-form summary GPT can understand
+  // Example: "User is learning about fleetcore PMS features (schedule tracking, dual-interval logic).
+  //           Then asked about Dynamic 17 vessel (crew boat, IMO 9562752, operated by ABC Marine).
+  //           Now exploring how to apply fleetcore to this specific vessel."
   
-  // Accumulated knowledge (never cleared, only extended)
+  // RECENT CHAT HISTORY (last 5-10 messages for immediate context)
+  recentMessages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: number;
+  }>;
+  
+  // STRUCTURED KNOWLEDGE (for programmatic access - optional)
   accumulatedKnowledge: {
     fleetcoreFeatures: FleetcoreFeature[];
     vesselEntities: Record<string, VesselEntity>;
@@ -62,16 +71,11 @@ export interface SessionMemory {
     discussedTopics: string[];
   };
   
-  // Mode tracking
+  // Legacy fields (keep for backward compatibility)
+  conversationTopic: string;          // "fleetcore PMS → vessel Dynamic 17"
+  userIntent: string;                 // "evaluate PMS for specific vessel"
   modeHistory: ModeTransition[];
   currentMode: 'verification' | 'research' | 'none';
-  
-  // Recent context (for quick access)
-  recentMessages: Array<{
-    role: string;
-    content: string;
-    timestamp: number;
-  }>;
   
   // Metadata
   createdAt: number;
@@ -182,6 +186,66 @@ export class SessionMemoryManager {
     
     console.log(`🎯 Intent updated: "${memory.userIntent}" → "${newIntent}"`);
     memory.userIntent = newIntent;
+    
+    return memory;
+  }
+  
+  /**
+   * Update conversation summary with natural language context
+   * Builds a GPT-readable narrative of what's been discussed
+   */
+  updateConversationSummary(memory: SessionMemory): SessionMemory {
+    const parts: string[] = [];
+    
+    // Add topic evolution
+    if (memory.conversationTopic) {
+      parts.push(`Conversation has covered: ${memory.conversationTopic}.`);
+    }
+    
+    // Add user intent
+    if (memory.userIntent) {
+      parts.push(`User's goal: ${memory.userIntent}.`);
+    }
+    
+    // Add fleetcore features discussed
+    const features = memory.accumulatedKnowledge.fleetcoreFeatures;
+    if (features.length > 0) {
+      const featureNames = features.slice(0, 5).map(f => f.name).join(', ');
+      parts.push(`Discussed fleetcore features: ${featureNames}.`);
+    }
+    
+    // Add vessels mentioned
+    const vessels = Object.values(memory.accumulatedKnowledge.vesselEntities);
+    if (vessels.length > 0) {
+      const vesselSummaries = vessels.map((v: any) => {
+        let summary = v.name;
+        if (v.type) summary += ` (${v.type})`;
+        if (v.imo) summary += ` IMO: ${v.imo}`;
+        if (v.operator) summary += ` operated by ${v.operator}`;
+        return summary;
+      });
+      parts.push(`Vessels discussed: ${vesselSummaries.join('; ')}.`);
+    }
+    
+    // Add companies mentioned
+    const companies = Object.values(memory.accumulatedKnowledge.companyEntities);
+    if (companies.length > 0) {
+      const companyNames = companies.map((c: any) => c.name).join(', ');
+      parts.push(`Companies mentioned: ${companyNames}.`);
+    }
+    
+    // Add general topics
+    const topics = memory.accumulatedKnowledge.discussedTopics;
+    if (topics.length > 0) {
+      parts.push(`Other topics: ${topics.join(', ')}.`);
+    }
+    
+    // Build the summary
+    memory.conversationSummary = parts.join(' ');
+    
+    if (memory.conversationSummary) {
+      console.log(`📝 Conversation summary updated: ${memory.conversationSummary.substring(0, 150)}...`);
+    }
     
     return memory;
   }
@@ -311,7 +375,7 @@ export class SessionMemoryManager {
    */
   addMessage(
     memory: SessionMemory,
-    role: string,
+    role: 'user' | 'assistant',
     content: string
   ): SessionMemory {
     memory.recentMessages.push({
@@ -404,6 +468,8 @@ ${connections ? `\nConnections:\n${connections}` : ''}
     
     return {
       sessionId,
+      conversationSummary: '', // Will be built as conversation progresses
+      recentMessages: [],
       conversationTopic: '',
       userIntent: '',
       accumulatedKnowledge: {
@@ -415,7 +481,6 @@ ${connections ? `\nConnections:\n${connections}` : ''}
       },
       modeHistory: [],
       currentMode: 'none',
-      recentMessages: [],
       createdAt: now,
       updatedAt: now,
       messageCount: 0,

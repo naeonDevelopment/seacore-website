@@ -362,6 +362,10 @@ function syncStateToMemory(
     );
   }
   
+  // CRITICAL: Update natural language conversation summary
+  // This builds a GPT-readable narrative from the structured data
+  manager.updateConversationSummary(sessionMemory);
+  
   console.log(`   ✅ State synced to memory`);
   
   return sessionMemory;
@@ -2445,25 +2449,46 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
   if (hasAccumulatedKnowledge) {
     console.log(`   ✨ Injecting accumulated conversation context`);
     
-    let accumulatedContextSection = `=== ACCUMULATED CONVERSATION CONTEXT ===\n\n`;
+    let accumulatedContextSection = `=== CONVERSATION CONTEXT ===\n\n`;
     
-    // Add conversation topic
-    if (conversationTopic) {
-      accumulatedContextSection += `**Conversation Topic Evolution:**\n${conversationTopic}\n\n`;
-    }
-    
-    // Add user intent
-    if (userIntent) {
-      accumulatedContextSection += `**User Intent:** ${userIntent}\n\n`;
-    }
-    
-    // Add fleetcore features
-    if (accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
-      accumulatedContextSection += `**Previously Discussed Fleetcore Features:**\n`;
-      accumulatedKnowledge.fleetcoreFeatures.forEach((f: any, i: number) => {
-        accumulatedContextSection += `${i + 1}. **${f.name}**: ${f.explanation}\n`;
-      });
-      accumulatedContextSection += '\n';
+    // PREFERRED: Use natural language summary (GPT-readable)
+    const sessionMemory = (config?.configurable as any)?.sessionMemory as SessionMemory | undefined;
+    if (sessionMemory?.conversationSummary) {
+      console.log(`   📖 Using natural language summary from session memory`);
+      accumulatedContextSection += `**Conversation Summary:**\n${sessionMemory.conversationSummary}\n\n`;
+      
+      // Also include recent chat messages for immediate context
+      if (sessionMemory.recentMessages && sessionMemory.recentMessages.length > 0) {
+        accumulatedContextSection += `**Recent Messages (last ${Math.min(5, sessionMemory.recentMessages.length)}):**\n`;
+        sessionMemory.recentMessages.slice(-5).forEach((msg: any, i: number) => {
+          const role = msg.role === 'user' ? 'User' : 'Assistant';
+          const preview = msg.content.substring(0, 150);
+          accumulatedContextSection += `${role}: ${preview}${msg.content.length > 150 ? '...' : ''}\n`;
+        });
+        accumulatedContextSection += '\n';
+      }
+    } else {
+      // FALLBACK: Use structured format (backward compatibility)
+      console.log(`   📋 Using structured format (legacy)`)  ;
+      
+      // Add conversation topic
+      if (conversationTopic) {
+        accumulatedContextSection += `**Conversation Topic Evolution:**\n${conversationTopic}\n\n`;
+      }
+      
+      // Add user intent
+      if (userIntent) {
+        accumulatedContextSection += `**User Intent:** ${userIntent}\n\n`;
+      }
+      
+      // Add fleetcore features
+      if (accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+        accumulatedContextSection += `**Previously Discussed Fleetcore Features:**\n`;
+        accumulatedKnowledge.fleetcoreFeatures.forEach((f: any, i: number) => {
+          accumulatedContextSection += `${i + 1}. **${f.name}**: ${f.explanation}\n`;
+        });
+        accumulatedContextSection += '\n';
+      }
     }
     
     // Add ALL previously discussed entities (vessels, companies, general topics)
@@ -2836,6 +2861,30 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           `data: ${JSON.stringify({ type: 'debug', message: 'LangGraph stream started', sessionId, enableBrowsing })}\n\n`
         ));
         
+        // CRITICAL: Emit conversation memory narrative for thinking panel
+        // Shows user what context AI is working with
+        if (sessionMemory?.conversationSummary) {
+          console.log(`📖 Emitting conversation memory narrative to thinking panel`);
+          
+          // Split summary into sentences for progressive reveal
+          const sentences = sessionMemory.conversationSummary
+            .split(/(?<=[.!?])\s+/)
+            .filter(s => s.trim().length > 0);
+          
+          // Emit as special "memory" event type
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ 
+              type: 'memory',
+              content: sessionMemory.conversationSummary,
+              sentences: sentences,
+              hasRecentMessages: sessionMemory.recentMessages?.length > 0,
+              messageCount: sessionMemory.recentMessages?.length || 0
+            })}\n\n`
+          ));
+          
+          console.log(`   ✅ Sent memory narrative (${sentences.length} sentences)`);
+        }
+        
         console.log(`📡 SSE Stream: Creating agent stream...`);
         console.log(`   Messages: ${baseMessages.length}`);
         console.log(`   Session: ${sessionId}`);
@@ -3131,7 +3180,8 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             // Add this conversation to recent messages
             const userMessage = messages[messages.length - 1];
             if (userMessage) {
-              sessionMemoryManager.addMessage(sessionMemory, userMessage.role, userMessage.content);
+              const role = userMessage.role === 'assistant' ? 'assistant' : 'user';
+              sessionMemoryManager.addMessage(sessionMemory, role, userMessage.content);
             }
             
             // Extract and update topic from conversation
