@@ -43,11 +43,19 @@ export function extractMaritimeEntities(text: string): string[] {
   const equipmentMatch = text.match(/\b([A-Z][a-z]+\s+\d+[A-Z0-9-]+)\b/g);
   if (equipmentMatch) entities.push(...equipmentMatch);
   
-  // Pattern 4: Vessel names with numbers (case-insensitive) - "dynamic 17", "ever given", etc.
-  const vesselWithNumberMatch = text.match(/\b([a-z]+(?:\s+[a-z]+)*\s+\d+)\b/gi);
+  // Pattern 4: Vessel names with numbers (case-insensitive) - "dynamic 17", "stanford bateleur", etc.
+  // Match 1-3 word vessel names followed by numbers (not entire sentences)
+  const vesselWithNumberMatch = text.match(/\b([a-z]+(?:\s+[a-z]+){0,2}\s+\d+)\b/gi);
   if (vesselWithNumberMatch) {
-    // Capitalize each word for consistency
-    entities.push(...vesselWithNumberMatch.map(v => 
+    // Filter out common false positives and capitalize
+    const filtered = vesselWithNumberMatch.filter(v => {
+      const lower = v.toLowerCase();
+      // Exclude common phrases that aren't vessel names
+      return !lower.startsWith('tell ') && !lower.startsWith('about ') && 
+             !lower.startsWith('give ') && !lower.startsWith('show ') &&
+             v.split(' ').length <= 4; // Max 3 words + number
+    });
+    entities.push(...filtered.map(v => 
       v.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')
     ));
   }
