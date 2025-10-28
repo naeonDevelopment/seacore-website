@@ -192,100 +192,74 @@ function isFollowUpQuery(query: string, previousMessages: BaseMessage[], entitie
 
 /**
  * Detect if query needs VERIFICATION (fast fact-check) vs RESEARCH (deep intelligence)
+ * 
+ * SIMPLIFIED LOGIC (2025):
+ * 1. User enabled browsing → RESEARCH (deep multi-source intelligence)
+ * 2. Fleetcore platform queries → NONE (answer from training data)
+ * 3. EVERYTHING ELSE → VERIFICATION (Gemini grounding with Google Search)
+ * 
+ * This ensures we always provide real-time, accurate information for maritime queries
+ * while keeping platform feature explanations in expert mode.
  */
 function detectQueryMode(query: string, enableBrowsing: boolean): 'verification' | 'research' | 'none' {
   const queryLower = query.toLowerCase();
   
-  // EXCLUSIONS: Platform/system terms that should NEVER trigger research
-  // These are fleetcore features answered from training data
-  const platformExclusions = [
-    'pms', 'planned maintenance system',
-    'fleetcore', 'seacore',
-    'maintenance scheduling', 'work order',
-    'inventory management', 'crew management',
-    'compliance tracking', 'safety management system',
-    'dashboard', 'analytics', 'reporting'
-  ];
-  
-  const isPlatformQuery = platformExclusions.some(keyword => 
-    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
-  );
-  
-  if (isPlatformQuery) {
-    console.log(`   Platform query detected - answering from training data`);
-    return 'none';
-  }
-  
-  // VERIFICATION MODE: Quick fact-checking for regulations/compliance
-  // These need authoritative sources but not deep research
-  const verificationKeywords = [
-    'solas', 'marpol', 'ism code', 'stcw', 'colreg',
-    'compliance', 'regulation', 'requirement',
-    'maritime law', 'international convention',
-    'classification society', 'flag state', 'port state',
-    'what is', 'define', 'explain'
-  ];
-  
-  const needsVerification = verificationKeywords.some(keyword => 
-    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
-  );
-  
-  // SPECIFIC ENTITY QUERIES: Use Gemini grounding for quick lookups
-  // Even when browsing is OFF, we want to use Gemini for these
-  const entityIndicators = [
-    'MV ', 'MS ', 'MT ', 'vessel ', 'ship ',
-    'largest', 'biggest', 'newest', 'smallest',
-    'fleet', 'shipyard', 'maritime company', 'shipping company',
-    'cargo vessel', 'tanker', 'bulk carrier', 'container ship',
-    'caterpillar', 'wärtsilä', 'man', 'rolls-royce', // equipment manufacturers
-    'tell me about', 'what is', 'who is', 'information about', // direct entity queries
-  ];
-  
-  const needsEntityLookup = entityIndicators.some(keyword =>
-    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
-  );
-  
-  // Check if entities were extracted (vessel names, companies, equipment)
-  // Extract entities from query to check
-  const extractedEntities = extractMaritimeEntities(query);
-  const hasExtractedEntities = extractedEntities.length > 0;
-  
-  // DEEP RESEARCH MODE: Multi-source comprehensive intelligence
-  // Only when user explicitly enables browsing toggle
-  const deepResearchIndicators = [
-    'compare', 'comparison', 'analyze', 'analysis',
-    'specifications', 'technical details', 'datasheet',
-    'propulsion system', 'engine specs', 'manufacturer documentation',
-    'detailed specs', 'technical specifications'
-  ];
-  
-  const needsDeepResearch = deepResearchIndicators.some(keyword =>
-    new RegExp(`\\b${keyword}`, 'i').test(queryLower)
-  );
-  
-  // Decision logic:
-  // 1. User enabled browsing → Research mode (ALWAYS - deep multi-source research)
-  // 2. Entities extracted OR entity indicators → Verification mode (use Gemini for quick lookup)
-  // 3. Verification keywords → Verification mode (regulatory fact-checking)
-  // 4. Nothing detected → Expert mode (training data only)
-  
+  // PRIORITY 1: User explicitly enabled online research toggle
   if (enableBrowsing) {
-    console.log(`   Mode: RESEARCH (user enabled browsing - deep research)`);
+    console.log(`   Mode: RESEARCH (user enabled browsing - deep multi-source research)`);
     return 'research';
   }
   
-  if (needsEntityLookup || hasExtractedEntities) {
-    console.log(`   Mode: VERIFICATION (entity lookup with Gemini) - entities: ${extractedEntities.join(', ') || 'via indicators'}`);
-    return 'verification';
+  // PRIORITY 2: Fleetcore platform/system queries (ONLY exclusion)
+  // These should be answered from training data about our product
+  const platformKeywords = [
+    // Core platform terms
+    'fleetcore', 'seacore', 'fleet core', 'sea core',
+    
+    // Platform features
+    'pms', 'planned maintenance system', 'planned maintenance',
+    'work order', 'work orders', 'maintenance scheduling',
+    'inventory management', 'spare parts management',
+    'crew management', 'crew scheduling', 'crew roster',
+    'compliance tracking', 'compliance management',
+    'safety management system', 'sms system',
+    'procurement', 'purchasing system',
+    'budget tracking', 'cost management',
+    'document management', 'digital documentation',
+    
+    // Platform UI/UX
+    'dashboard', 'analytics', 'reporting', 'reports',
+    'user interface', 'how to use', 'tutorial',
+    'login', 'account', 'subscription', 'pricing',
+    
+    // Platform capabilities
+    'features', 'capabilities', 'integrations',
+    'mobile app', 'offline mode', 'sync',
+  ];
+  
+  // Check for platform queries with word boundary matching
+  const isPlatformQuery = platformKeywords.some(keyword => {
+    // Split multi-word keywords and check each combination
+    const words = keyword.split(' ');
+    if (words.length === 1) {
+      // Single word - require word boundary
+      return new RegExp(`\\b${keyword}\\b`, 'i').test(queryLower);
+    } else {
+      // Multi-word - check if phrase exists
+      return queryLower.includes(keyword);
+    }
+  });
+  
+  if (isPlatformQuery) {
+    console.log(`   Mode: NONE (Fleetcore platform query - training data)`);
+    return 'none';
   }
   
-  if (needsVerification) {
-    console.log(`   Mode: VERIFICATION (regulatory query)`);
-    return 'verification';
-  }
-  
-  console.log(`   Mode: NONE (expert mode - training data)`);
-  return 'none';
+  // PRIORITY 3: DEFAULT TO VERIFICATION
+  // All maritime queries, vessel lookups, regulations, companies, equipment, etc.
+  // Use Gemini grounding for fresh, accurate information
+  console.log(`   Mode: VERIFICATION (default - Gemini grounding for real-time data)`);
+  return 'verification';
 }
 
 /**
@@ -419,6 +393,16 @@ const geminiGroundingTool = tool(
           contents: [{
             parts: [{ text: query }]
           }],
+          systemInstruction: {
+            parts: [{
+              text: `You are a maritime intelligence expert. When answering:
+- Provide DIRECT answers immediately - no meta-commentary about searching
+- NEVER say "I'll search", "I'll look up", "hold on", or "let me find"
+- Start with the factual information right away
+- Use Google Search results to provide accurate, up-to-date information
+- Keep responses concise and factual`
+            }]
+          },
           tools: [{
             google_search: {}  // Enable Google Search grounding
           }]
