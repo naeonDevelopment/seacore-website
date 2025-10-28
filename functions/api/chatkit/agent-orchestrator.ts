@@ -149,8 +149,17 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         console.log(`   📝 Enriched query: "${queryToSend.substring(0, 100)}..."`);
       }
       
-      // Call Gemini tool directly (not via LLM)
-      const result = await geminiTool.invoke({ query: queryToSend }, config);
+      // Call Gemini tool directly (not via LLM) with timeout
+      const GEMINI_TIMEOUT = 30000; // 30 seconds
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Gemini timeout after 30s')), GEMINI_TIMEOUT)
+      );
+      
+      const result = await Promise.race([
+        geminiTool.invoke({ query: queryToSend }, config),
+        timeoutPromise
+      ]);
+      
       const parsed = typeof result === 'string' ? JSON.parse(result) : result;
       
       console.log(`   ✅ Gemini complete: ${parsed.sources?.length || 0} sources`);
@@ -187,6 +196,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
             console.log(`   ✨ Added fleetcore context to research`);
           }
         }
+      } else {
+        // Even if no sources, create minimal context so synthesizer knows we tried
+        console.warn(`   ⚠️ Gemini returned no sources or answer`);
+        researchContext = `=== GEMINI GROUNDING RESULTS ===\n\nNo specific information found. Please answer from general maritime knowledge or suggest enabling deep research.`;
       }
       
       return {
@@ -197,8 +210,16 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       };
     } catch (error: any) {
       console.error(`   ❌ Gemini failed:`, error.message);
-      // Fall back to research mode
-      return { mode: 'research' };
+      
+      // Create fallback research context indicating the error
+      const fallbackContext = `=== GEMINI GROUNDING RESULTS ===\n\nGemini search encountered an error: ${error.message}\n\nPlease answer from general maritime knowledge or suggest the user enable online research for comprehensive information.`;
+      
+      return { 
+        mode: classification.mode, // Keep verification mode
+        geminiAnswer: null,
+        sources: [],
+        researchContext: fallbackContext,
+      };
     }
   }
   
@@ -271,7 +292,27 @@ DO NOT suggest using external research - provide detailed information directly.`
   }
   
   // MODE: VERIFICATION - Synthesize from Gemini answer
-  if (state.mode === 'verification' && state.researchContext) {
+  if (state.mode === 'verification') {
+    // Check if we have research context from Gemini
+    if (!state.researchContext) {
+      console.warn(`   ⚠️ VERIFICATION mode but no research context - answering from training`);
+      const fallbackPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
+
+=== FALLBACK MODE ===
+Gemini search was unavailable. Answer from your maritime knowledge base.
+If you don't have specific information, be honest and suggest the user enable online research.`;
+      
+      const systemMessage = new SystemMessage(fallbackPrompt);
+      const stream = await llm.stream([systemMessage, ...state.messages], config);
+      let fullContent = '';
+      for await (const chunk of stream) {
+        fullContent += chunk.content;
+      }
+      
+      console.log(`   ✅ Synthesized fallback (${fullContent.length} chars)`);
+      return { messages: [new AIMessage(fullContent)] };
+    }
+    
     console.log(`   🔮 Synthesizing VERIFICATION mode from Gemini result`);
     
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
