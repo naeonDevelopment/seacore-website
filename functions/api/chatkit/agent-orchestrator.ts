@@ -444,6 +444,13 @@ DO NOT suggest using external research - provide detailed information directly.
   
   // MODE: VERIFICATION - Synthesize from Gemini answer with GPT-4o (enables streaming)
   if (state.mode === 'verification') {
+    console.log(`   📊 Verification mode state check:`);
+    console.log(`      - Has researchContext: ${!!state.researchContext}`);
+    console.log(`      - researchContext length: ${state.researchContext?.length || 0}`);
+    console.log(`      - Has geminiAnswer: ${!!state.geminiAnswer}`);
+    console.log(`      - geminiAnswer length: ${state.geminiAnswer?.length || 0}`);
+    console.log(`      - Sources count: ${state.sources?.length || 0}`);
+    
     // Check if we have research context from Gemini
     if (!state.researchContext) {
       console.warn(`   ⚠️ VERIFICATION mode but no research context - answering from training`);
