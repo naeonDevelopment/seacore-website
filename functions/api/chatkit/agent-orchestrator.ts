@@ -18,6 +18,7 @@ import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { maritimeTools } from './tools';
 import { geminiTool } from './tools/gemini-tool';
 import { SessionMemoryManager, type SessionMemory } from './session-memory';
+import { classifyQuery, generateClassificationLog } from './query-classification-rules';
 
 // Cloudflare Workers types
 declare global {
@@ -103,72 +104,8 @@ type State = typeof AgentState.State;
 // =====================
 
 /**
- * Detect if query is about fleetcore platform/features (should answer from training data)
- */
-function isPlatformQuery(query: string): boolean {
-  const queryLower = query.toLowerCase();
-  
-  const platformKeywords = [
-    'fleetcore', 'seacore', 'fleet core', 'sea core',
-    'pms', 'planned maintenance system', 'planned maintenance',
-    'work order', 'work orders', 'maintenance scheduling',
-    'inventory management', 'spare parts management',
-    'crew management', 'crew scheduling',
-    'compliance tracking', 'compliance management',
-    'safety management system', 'sms system',
-    'procurement', 'purchasing system',
-    'dashboard', 'analytics', 'reporting', 'reports',
-    'features', 'capabilities', 'integrations',
-  ];
-  
-  return platformKeywords.some(keyword => {
-    const words = keyword.split(' ');
-    if (words.length === 1) {
-      return new RegExp(`\\b${keyword}\\b`, 'i').test(query);
-    } else {
-      return queryLower.includes(keyword);
-    }
-  });
-}
-
-/**
- * Intelligent query mode detection (replicated from legacy agent)
- * Determines optimal strategy for each query type
- */
-function detectQueryMode(
-  query: string,
-  enableBrowsing: boolean
-): 'verification' | 'research' | 'none' {
-  // PRIORITY 1: User explicitly enabled online research → deep multi-source research
-  if (enableBrowsing) {
-    console.log(`   📚 Mode: RESEARCH (user enabled browsing - deep multi-source)`);
-    return 'research';
-  }
-  
-  // PRIORITY 2: Platform queries without entities → answer from training data
-  const isPlatform = isPlatformQuery(query);
-  const hasEntityMention = /vessel|ship|fleet|company|equipment|manufacturer|imo|mmsi|flag/i.test(query);
-  
-  if (isPlatform && !hasEntityMention) {
-    console.log(`   🎯 Mode: NONE (pure platform query - training data)`);
-    return 'none';
-  }
-  
-  // HYBRID: Platform + entity → verification with context
-  if (isPlatform && hasEntityMention) {
-    console.log(`   🔮 Mode: VERIFICATION (platform + entity hybrid)`);
-    return 'verification';
-  }
-  
-  // DEFAULT: All maritime queries → Gemini verification
-  // This handles: vessel lookups, company queries, regulations, equipment specs
-  console.log(`   🔮 Mode: VERIFICATION (default - Gemini grounding for real-time data)`);
-  return 'verification';
-}
-
-/**
  * Router Node - Intelligent mode detection and Gemini calling (for verification)
- * Replicated from legacy agent architecture
+ * Uses centralized classification rules from query-classification-rules.ts
  */
 async function routerNode(state: State, config: any): Promise<Partial<State>> {
   const env = config.configurable?.env;
@@ -176,17 +113,17 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
   
   console.log(`\n🎯 ROUTER NODE`);
   console.log(`   Messages: ${state.messages.length}`);
-  console.log(`   Browsing: ${state.enableBrowsing}`);
   
   // Get user query
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
   const userQuery = lastUserMessage?.content?.toString() || '';
   
-  // INTELLIGENT MODE DETECTION (replicated from legacy agent)
-  const mode = detectQueryMode(userQuery, state.enableBrowsing);
+  // INTELLIGENT MODE DETECTION (using centralized classification rules)
+  const mode = classifyQuery(userQuery, state.enableBrowsing);
   
-  console.log(`   Query: "${userQuery.substring(0, 80)}..."`);
-  console.log(`   Detected mode: ${mode}`);
+  // Log detailed classification for debugging
+  const log = generateClassificationLog(userQuery, mode, state.enableBrowsing);
+  console.log(log);
   
   // MODE: VERIFICATION - Call Gemini directly and store result
   if (mode === 'verification') {
