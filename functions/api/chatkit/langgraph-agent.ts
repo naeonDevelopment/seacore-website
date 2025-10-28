@@ -992,15 +992,22 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.l
 === END GEMINI GROUNDING ===
 
 **CRITICAL INSTRUCTIONS:**
-- You MUST cite sources with [1][2][3] after EVERY factual statement
-- Example: "The vessel is 400m long [1] and has 24,346 TEU capacity [2]"
+- Write a COMPREHENSIVE, DETAILED response of 400-600 words
+- Cite sources as CLICKABLE LINKS using markdown format after EVERY fact
+- Citation format: "The vessel is 400m long [[1]](URL_HERE) and has 24,346 TEU capacity [[2]](URL_HERE)"
+- Use ALL sources provided - weave information from all sources into your answer
+- Structure: Introduction (1-2 sentences) → Main Details (3-4 paragraphs) → Maritime Context (1 paragraph)
+- Each paragraph should be 3-4 sentences with multiple source citations
 - Use the Google-verified information above to answer the user's query
-- This is accurate information from Google Search grounding
-- Add the disclaimer about deep research for comprehensive analysis
+- Add the disclaimer about deep research for comprehensive analysis at the end
+
+**Source URLs for Citations:**
+${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
 
 **CRITICAL - Answer Focus:**
 - User query: "${userQuery}"
-- Answer ONLY what the user asked for, don't provide generic overviews`;
+- Answer comprehensively - provide context, details, and maritime significance
+- Target: 400-600 words with citations throughout`;
         
         console.log(`   📝 Research context built: ${researchContext.length} chars`);
       } else {
