@@ -356,7 +356,7 @@ const HomePage: React.FC = () => {
       {/* Dynamic Scroll Gradient Background */}
       <ScrollGradientBackground sections={gradientSections} />
       {/* Hero Section - Two Column Layout with Video Background */}
-      <section className="relative pt-16 lg:pt-24 pb-20 overflow-hidden min-h-[80vh] flex items-center">
+      <section className="relative pt-16 lg:pt-24 pb-24 lg:pb-20 overflow-hidden min-h-[80vh] flex items-center">
         {/* Fallback gradients (shown while video loads) - behind video */}
         <div className="absolute inset-0 bg-gradient-to-br from-maritime-50/50 via-ocean-50/30 to-signal-50/20 dark:from-maritime-950/50 dark:via-ocean-950/30 dark:to-signal-950/20 z-0"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(14,165,233,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(14,165,233,0.05),transparent_50%)] z-0"></div>
@@ -445,26 +445,26 @@ const HomePage: React.FC = () => {
               </p>
 
               {/* Mobile Only - Feature Pills Below Description */}
-              <div className="flex flex-wrap gap-2 justify-center px-4 md:hidden">
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-sky-100 to-blue-100 dark:from-sky-900/30 dark:to-blue-900/30 text-sky-700 dark:text-sky-300 text-xs sm:text-sm font-medium whitespace-nowrap">
-                  <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+              <div className="flex flex-wrap gap-1.5 justify-center px-4 md:hidden mb-2">
+                <div className="inline-flex items-center space-x-1.5 px-2 py-1 rounded-full bg-gradient-to-r from-sky-100 to-blue-100 dark:from-sky-900/30 dark:to-blue-900/30 text-sky-700 dark:text-sky-300 text-xs font-medium whitespace-nowrap">
+                  <Database className="w-3 h-3 flex-shrink-0" />
                   <span>Centralized Knowledge Base</span>
                 </div>
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm font-medium whitespace-nowrap">
-                  <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <div className="inline-flex items-center space-x-1.5 px-2 py-1 rounded-full bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium whitespace-nowrap">
+                  <CheckCircle className="w-3 h-3 flex-shrink-0" />
                   <span>Verified OEM Recommendations</span>
                 </div>
                 <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30 text-teal-700 dark:text-teal-300 text-xs sm:text-sm font-medium whitespace-nowrap">
-                  <Ship className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <Ship className="w-3 h-3 flex-shrink-0" />
                   <span>Individual Vessel Intelligence</span>
                 </div>
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm font-medium whitespace-nowrap">
-                  <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <div className="inline-flex items-center space-x-1.5 px-2 py-1 rounded-full bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium whitespace-nowrap">
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
                   <span>Automated Scheduling</span>
                 </div>
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 text-purple-700 dark:text-purple-300 text-xs sm:text-sm font-medium whitespace-nowrap">
-                  <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                  <span>AI Intelligence Layer</span>
+                <div className="inline-flex items-center space-x-1.5 px-2 py-1 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium whitespace-nowrap">
+                  <Brain className="w-3 h-3 flex-shrink-0" />
+                  <span>AI Layer</span>
                 </div>
               </div>
 
