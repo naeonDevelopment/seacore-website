@@ -1361,12 +1361,7 @@ function handleSystemIntelligenceMode(
     ...stateUpdates,
     accumulatedKnowledge: knowledgeUpdate,
     researchMode: 'none',
-    messages: [
-      new AIMessage({ 
-        content: '', 
-        tool_calls: [], 
-      })
-    ],
+    // No messages - goes directly to synthesizer
   };
 }
 
