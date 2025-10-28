@@ -791,97 +791,19 @@ This is **specialized maritime search** – not general web search. Get precise,
                 );
 
                 // Update the assistant message with new content
+                // CRITICAL: Pre-validate before entering setState to avoid error logs
+                const idx = streamingIndexRef.current as number | null;
+                if (idx == null || idx >= latestMessagesRef.current.length) {
+                  // Message not created yet or not committed - skip this update silently
+                  // Content is accumulated in streamedContent and will be applied in next cycle
+                  continue;
+                }
+                
                 setMessages((prev) => {
                   const updated = [...prev];
-                  let idx = streamingIndexRef.current as number | null;
                   
-                  // CRITICAL: Validate message exists before updating
-                  if (idx == null) {
-                    console.error('❌ [ChatInterface] Streaming index is null - message was never created!');
-                    console.error('   This indicates the first content chunk was throttled.');
-                    console.error('   Current state:', { 
-                      hasReceivedContent, 
-                      streamedContentLength: streamedContent.length,
-                      messagesLength: updated.length 
-                    });
-                    
-                    // Emergency: create message now if it doesn't exist
-                    if (hasReceivedContent && streamedContent.length > 0) {
-                      console.warn('⚠️ [ChatInterface] Creating assistant message in fallback path');
-                      const newIdx = updated.length;
-                      streamingIndexRef.current = newIdx;
-                      
-                      updated.push({
-                        role: 'assistant' as const,
-                        content: streamedContent,
-                        thinkingContent: useBrowsing ? streamedThinking : '',
-                        memoryNarrative: '',
-                        timestamp: new Date(),
-                        isStreaming: true,
-                        isThinking: shouldShowThinking,
-                      });
-                      
-                      return updated;
-                    }
-                    
-                    return prev;
-                  }
-                  
-                  // CRITICAL: Check if message has been committed to state yet
-                  // If idx >= length, React hasn't committed the creation yet - skip this update
-                  if (idx >= updated.length) {
-                    console.log('⏳ [ChatInterface] Message not in state yet, skipping update (will retry)', {
-                      idx,
-                      messagesLength: updated.length,
-                      contentPending: streamedContent.length
-                    });
-                    // Return prev unchanged - content is accumulated in streamedContent
-                    // and will be applied in next cycle after React commits
-                    return prev;
-                  }
-                  
-                  // Validate index points to valid assistant message
-                  if (idx < 0 || updated[idx]?.role !== 'assistant') {
-                    console.error('❌ [ChatInterface] Invalid streaming index:', { 
-                      idx, 
-                      messagesLength: updated.length,
-                      messageAtIndex: updated[idx]?.role 
-                    });
-                    
-                    // Try to find the currently streaming assistant message
-                    const found = [...updated].reverse().findIndex((m) => m.role === 'assistant' && m.isStreaming);
-                    if (found !== -1) {
-                      idx = updated.length - 1 - found;
-                      streamingIndexRef.current = idx;
-                      console.log('✅ [ChatInterface] Found streaming message at index:', idx);
-                    } else {
-                      console.error('❌ [ChatInterface] Cannot find any streaming assistant message');
-                      console.error('   Messages:', updated.map((m, i) => ({ idx: i, role: m.role, isStreaming: m.isStreaming })));
-                      
-                      // Emergency: create message if we have content
-                      if (streamedContent.length > 0) {
-                        console.warn('⚠️ [ChatInterface] Creating assistant message in recovery path');
-                        const newIdx = updated.length;
-                        streamingIndexRef.current = newIdx;
-                        
-                        updated.push({
-                          role: 'assistant' as const,
-                          content: streamedContent,
-                          thinkingContent: useBrowsing ? streamedThinking : '',
-                          memoryNarrative: '',
-                          timestamp: new Date(),
-                          isStreaming: true,
-                          isThinking: shouldShowThinking,
-                        });
-                        
-                        return updated;
-                      }
-                      
-                      return prev;
-                    }
-                  }
-                  
-                  // Update streaming content
+                  // idx is guaranteed valid here due to pre-validation
+                  // Just update the message directly
                   updated[idx] = {
                     ...updated[idx],
                     content: streamedContent,
@@ -890,11 +812,6 @@ This is **specialized maritime search** – not general web search. Get precise,
                     isThinking: shouldShowThinking,
                   };
                   
-                  // Minimal live log for debugging
-                  if ((window as any).__ci_log_once !== true) {
-                    console.log('🔄 [ChatInterface] stream update', { idx, contentLen: streamedContent.length, thinkingLen: streamedThinking.length, shouldShowThinking });
-                    (window as any).__ci_log_once = true;
-                  }
                   return updated;
                 });
               } catch (e) {
