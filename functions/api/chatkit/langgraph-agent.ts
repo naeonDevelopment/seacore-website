@@ -416,6 +416,7 @@ const geminiGroundingTool = tool(
       const data = await response.json();
       
       console.log(`   ✅ Gemini API response received`);
+      console.log(`   📊 FULL GEMINI RESPONSE:`, JSON.stringify(data, null, 2).substring(0, 2000));
       
       // Extract answer and grounding metadata
       const candidate = data.candidates?.[0];
@@ -426,16 +427,61 @@ const geminiGroundingTool = tool(
       console.log(`   Has answer: ${!!answer}`);
       console.log(`   Answer length: ${answer?.length || 0} chars`);
       console.log(`   Has grounding metadata: ${!!groundingMetadata}`);
+      console.log(`   📊 groundingMetadata keys:`, Object.keys(groundingMetadata || {}));
+      console.log(`   📊 webResults count:`, groundingMetadata?.webResults?.length || 0);
+      console.log(`   📊 searchEntryPoint:`, groundingMetadata?.searchEntryPoint);
+      console.log(`   📊 groundingChunks:`, groundingMetadata?.groundingChunks?.length || 0);
       
       // Extract web results with citations
-      const sources = (groundingMetadata?.webResults || []).map((result: any) => ({
-        url: result.url,
-        title: result.title || 'Untitled',
-        content: result.snippet || '',
-        score: 0.9, // Google sources are high quality
-      }));
+      // Try multiple possible locations for sources
+      let sources: any[] = [];
+      
+      // Method 1: webResults (most common)
+      if (groundingMetadata?.webResults && Array.isArray(groundingMetadata.webResults)) {
+        sources = groundingMetadata.webResults.map((result: any) => ({
+          url: result.url,
+          title: result.title || 'Untitled',
+          content: result.snippet || result.content || '',
+          score: 0.9,
+        }));
+        console.log(`   📚 Extracted ${sources.length} sources from webResults`);
+      }
+      
+      // Method 2: groundingChunks (alternative structure)
+      else if (groundingMetadata?.groundingChunks && Array.isArray(groundingMetadata.groundingChunks)) {
+        sources = groundingMetadata.groundingChunks
+          .filter((chunk: any) => chunk.web)
+          .map((chunk: any) => ({
+            url: chunk.web?.uri || '',
+            title: chunk.web?.title || 'Untitled',
+            content: chunk.web?.snippet || '',
+            score: 0.9,
+          }));
+        console.log(`   📚 Extracted ${sources.length} sources from groundingChunks`);
+      }
+      
+      // Method 3: searchEntryPoint with related searches
+      else if (groundingMetadata?.searchEntryPoint) {
+        console.log(`   ℹ️ Gemini used searchEntryPoint but no direct sources available`);
+        // Create a pseudo-source from search entry point
+        sources = [{
+          url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+          title: 'Google Search',
+          content: answer?.substring(0, 500) || '',
+          score: 0.8,
+        }];
+      }
       
       console.log(`✅ Gemini grounding complete: ${sources.length} Google sources`);
+      if (sources.length > 0) {
+        console.log(`   📚 Sources extracted:`);
+        sources.forEach((s: any, i: number) => {
+          console.log(`      [${i+1}] ${s.title.substring(0, 60)} - ${s.url}`);
+        });
+      } else {
+        console.log(`   ⚠️ NO SOURCES EXTRACTED from Gemini response!`);
+        console.log(`   Gemini provided answer but no source URLs`);
+      }
       console.log(`   Answer generated: ${answer ? 'YES' : 'NO'}`);
       if (answer) {
         console.log(`   Answer preview: ${answer.substring(0, 200)}...`);
@@ -918,8 +964,17 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
       // Parse the result
       const parsed = typeof geminiResult === 'string' ? JSON.parse(geminiResult) : geminiResult;
       
-      console.log(`   Sources: ${parsed.sources?.length || 0}`);
+      console.log(`   📊 Parsed result keys:`, Object.keys(parsed));
+      console.log(`   Sources count: ${parsed.sources?.length || 0}`);
       console.log(`   Has answer: ${!!parsed.answer}`);
+      if (parsed.sources && parsed.sources.length > 0) {
+        console.log(`   ✅ Sources successfully extracted from Gemini:`);
+        parsed.sources.forEach((s: any, i: number) => {
+          console.log(`      [${i+1}] ${s.title} - ${s.url}`);
+        });
+      } else {
+        console.log(`   ⚠️ WARNING: Gemini returned 0 sources! This is why citations are missing.`);
+      }
       
       // Process the sources directly and build research context
       const sources = parsed.sources || [];
@@ -928,6 +983,7 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
       // Build research context for synthesis
       let researchContext = '';
       if (sources.length > 0 || geminiAnswer) {
+        console.log(`   📝 Building research context with ${sources.length} sources`);
         researchContext = `=== GEMINI GROUNDING RESULTS (Direct Call) ===
 
 ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.length > 0 ? `Google Sources (${sources.length}):\n\n${sources.map((s: any, i: number) => `[${i + 1}] ${s.title} (${new URL(s.url).hostname})
@@ -935,26 +991,34 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.l
 
 === END GEMINI GROUNDING ===
 
-**Instructions:**
+**CRITICAL INSTRUCTIONS:**
+- You MUST cite sources with [1][2][3] after EVERY factual statement
+- Example: "The vessel is 400m long [1] and has 24,346 TEU capacity [2]"
 - Use the Google-verified information above to answer the user's query
-- Cite sources with [1][2][3] if provided
 - This is accurate information from Google Search grounding
 - Add the disclaimer about deep research for comprehensive analysis
 
 **CRITICAL - Answer Focus:**
 - User query: "${userQuery}"
 - Answer ONLY what the user asked for, don't provide generic overviews`;
+        
+        console.log(`   📝 Research context built: ${researchContext.length} chars`);
+      } else {
+        console.log(`   ⚠️ No sources or answer from Gemini - this should not happen!`);
       }
       
       // Return state update to skip directly to synthesis
-      return {
+      console.log(`   📤 Returning state with ${sources.length} verified sources`);
+      const stateUpdate = {
         maritimeEntities: entities,
-        researchMode: 'verification',
+        researchMode: 'verification' as const,
         conversationEntities: entities.reduce((acc, e) => ({ ...acc, [e.toLowerCase()]: e }), {}),
         researchContext,
         verifiedSources: sources,
         confidence: parsed.confidence || 0.9,
       };
+      console.log(`   📊 State update verifiedSources length:`, stateUpdate.verifiedSources.length);
+      return stateUpdate;
     } catch (error: any) {
       console.error(`❌ Direct Gemini call failed:`, error.message);
       console.error(`   Stack: ${error.stack?.substring(0, 300)}`);
