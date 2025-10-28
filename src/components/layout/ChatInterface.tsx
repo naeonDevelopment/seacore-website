@@ -676,6 +676,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                     }
                   }
                 } else if (parsed.type === 'content') {
+                  // CRITICAL FIX: Create assistant message BEFORE any throttling
+                  // This ensures message exists before any updates try to modify it
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
@@ -686,9 +688,12 @@ This is **specialized maritime search** – not general web search. Get precise,
                     // Clear any remaining loading states (research state already cleared by source events)
                     setIsLoading(false);
                     
-                    // Create assistant message IMMEDIATELY (before throttling)
-                    // This prevents race condition where stream finishes before message is created
+                    // Create assistant message IMMEDIATELY and SYNCHRONOUSLY
+                    // This MUST happen before throttling to prevent race conditions
                     if (streamingIndexRef.current === null) {
+                      // Use synchronous state update to ensure message exists immediately
+                      let messageCreated = false;
+                      
                       setMessages((prev) => {
                         const updated = [...prev];
                         const idx = updated.length;
@@ -705,7 +710,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                         };
                         updated.push(assistantMessage);
                         
-                        console.log(`💬 [ChatInterface] Assistant message created immediately (idx: ${idx})`);
+                        console.log(`💬 [ChatInterface] Assistant message created BEFORE throttling (idx: ${idx})`);
+                        messageCreated = true;
                         
                         // Link research session if browsing enabled
                         if (useBrowsing && activeResearchIdRef.current) {
@@ -736,6 +742,11 @@ This is **specialized maritime search** – not general web search. Get precise,
                         
                         return updated;
                       });
+                      
+                      // Verify message was created
+                      if (!messageCreated) {
+                        console.error('❌ [ChatInterface] Failed to create assistant message!');
+                      }
                     }
                     
                     // CRITICAL FIX: Delay showing answer to let sources display first
@@ -759,13 +770,17 @@ This is **specialized maritime search** – not general web search. Get precise,
                       }, 3000); // Increased from 1200ms to 3000ms
                     }
                   }
+                  
+                  // Accumulate content
                   streamedContent += parsed.content;
                 }
 
-                // Throttle UI updates to ~100ms
+                // Throttle UI updates to ~100ms AFTER message creation
+                // This prevents excessive re-renders while ensuring message exists
                 const now = Date.now();
                 const UPDATE_THROTTLE = 100;
                 if (now - lastStreamUpdateRef.current < UPDATE_THROTTLE) {
+                  // Skip this update but content is already accumulated in streamedContent
                   continue;
                 }
                 lastStreamUpdateRef.current = now;
@@ -785,20 +800,75 @@ This is **specialized maritime search** – not general web search. Get precise,
                   const updated = [...prev];
                   let idx = streamingIndexRef.current as number | null;
                   
-                  // Message should already be created by now
+                  // CRITICAL: Validate message exists before updating
                   if (idx == null) {
-                    console.warn('⚠️ [ChatInterface] Streaming index is null in throttled update');
+                    console.error('❌ [ChatInterface] Streaming index is null - message was never created!');
+                    console.error('   This indicates the first content chunk was throttled.');
+                    console.error('   Current state:', { 
+                      hasReceivedContent, 
+                      streamedContentLength: streamedContent.length,
+                      messagesLength: updated.length 
+                    });
+                    
+                    // Emergency: create message now if it doesn't exist
+                    if (hasReceivedContent && streamedContent.length > 0) {
+                      console.warn('⚠️ [ChatInterface] Creating assistant message in fallback path');
+                      const newIdx = updated.length;
+                      streamingIndexRef.current = newIdx;
+                      
+                      updated.push({
+                        role: 'assistant' as const,
+                        content: streamedContent,
+                        thinkingContent: useBrowsing ? streamedThinking : '',
+                        memoryNarrative: '',
+                        timestamp: new Date(),
+                        isStreaming: true,
+                        isThinking: shouldShowThinking,
+                      });
+                      
+                      return updated;
+                    }
+                    
                     return prev;
                   }
                   
+                  // Validate index points to valid assistant message
                   if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
+                    console.error('❌ [ChatInterface] Invalid streaming index:', { 
+                      idx, 
+                      messagesLength: updated.length,
+                      messageAtIndex: updated[idx]?.role 
+                    });
+                    
                     // Try to find the currently streaming assistant message
                     const found = [...updated].reverse().findIndex((m) => m.role === 'assistant' && m.isStreaming);
                     if (found !== -1) {
                       idx = updated.length - 1 - found;
                       streamingIndexRef.current = idx;
+                      console.log('✅ [ChatInterface] Found streaming message at index:', idx);
                     } else {
-                      console.warn('⚠️ [ChatInterface] Cannot find assistant message to update');
+                      console.error('❌ [ChatInterface] Cannot find any streaming assistant message');
+                      console.error('   Messages:', updated.map((m, i) => ({ idx: i, role: m.role, isStreaming: m.isStreaming })));
+                      
+                      // Emergency: create message if we have content
+                      if (streamedContent.length > 0) {
+                        console.warn('⚠️ [ChatInterface] Creating assistant message in recovery path');
+                        const newIdx = updated.length;
+                        streamingIndexRef.current = newIdx;
+                        
+                        updated.push({
+                          role: 'assistant' as const,
+                          content: streamedContent,
+                          thinkingContent: useBrowsing ? streamedThinking : '',
+                          memoryNarrative: '',
+                          timestamp: new Date(),
+                          isStreaming: true,
+                          isThinking: shouldShowThinking,
+                        });
+                        
+                        return updated;
+                      }
+                      
                       return prev;
                     }
                   }
