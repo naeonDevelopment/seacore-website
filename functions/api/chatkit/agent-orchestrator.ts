@@ -92,6 +92,35 @@ type State = typeof AgentState.State;
 // =====================
 
 /**
+ * Detect if query is about fleetcore platform/features (should answer from training data)
+ */
+function isPlatformQuery(query: string): boolean {
+  const queryLower = query.toLowerCase();
+  
+  const platformKeywords = [
+    'fleetcore', 'seacore', 'fleet core', 'sea core',
+    'pms', 'planned maintenance system', 'planned maintenance',
+    'work order', 'work orders', 'maintenance scheduling',
+    'inventory management', 'spare parts management',
+    'crew management', 'crew scheduling',
+    'compliance tracking', 'compliance management',
+    'safety management system', 'sms system',
+    'procurement', 'purchasing system',
+    'dashboard', 'analytics', 'reporting', 'reports',
+    'features', 'capabilities', 'integrations',
+  ];
+  
+  return platformKeywords.some(keyword => {
+    const words = keyword.split(' ');
+    if (words.length === 1) {
+      return new RegExp(`\\b${keyword}\\b`, 'i').test(query);
+    } else {
+      return queryLower.includes(keyword);
+    }
+  });
+}
+
+/**
  * Main agent node - LLM decides what to do
  * Relies on maritime prompt intelligence, not code logic
  */
@@ -103,6 +132,17 @@ async function agentNode(state: State, config: any): Promise<Partial<State>> {
   console.log(`   Messages: ${state.messages.length}`);
   console.log(`   Browsing: ${state.enableBrowsing}`);
   console.log(`   Has memory: ${!!sessionMemory}`);
+  
+  // Get user query
+  const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
+  const userQuery = lastUserMessage?.content?.toString() || '';
+  
+  // Detect platform query (no entity mentions)
+  const isPlatform = isPlatformQuery(userQuery);
+  const hasEntityMention = /vessel|ship|fleet|company|equipment|manufacturer|imo|mmsi/i.test(userQuery);
+  
+  console.log(`   Platform query: ${isPlatform}`);
+  console.log(`   Has entity: ${hasEntityMention}`);
   
   // Build context from session memory
   let contextAddition = "";
@@ -129,7 +169,34 @@ async function agentNode(state: State, config: any): Promise<Partial<State>> {
   // Create system message with prompt + context
   const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition);
   
-  // Initialize LLM with tools
+  // PLATFORM MODE: Don't bind tools at all (like legacy agent mode='none')
+  // Answer directly from training data about fleetcore features
+  if (isPlatform && !hasEntityMention) {
+    console.log(`   🎯 PLATFORM MODE: Responding from training data (NO TOOLS BOUND)`);
+    
+    // LLM WITHOUT tools - like legacy mode='none'
+    const platformLlm = new ChatOpenAI({
+      modelName: "gpt-4o",
+      temperature: 0.1,
+      openAIApiKey: env.OPENAI_API_KEY,
+      streaming: true,
+    });
+    
+    // Add explicit platform instruction
+    const platformContext = `\n\n=== PLATFORM QUERY DETECTED ===
+This is a question about fleetcore platform features, capabilities, or implementation.
+Answer comprehensively from your training knowledge about the fleetcore Maritime Maintenance Operating System.
+Do NOT suggest using external research - provide detailed information about the system directly.`;
+    
+    const platformSystemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
+    const response = await platformLlm.invoke([platformSystemMessage, ...state.messages]);
+    
+    console.log(`   ✅ Platform response generated (no tools)`);
+    return { messages: [response] };
+  }
+  
+  // NORMAL MODE: Initialize LLM with tools for entity queries
+  console.log(`   🔧 NORMAL MODE: LLM with tools available`);
   const llm = new ChatOpenAI({
     modelName: "gpt-4o",
     temperature: 0.1,
@@ -318,6 +385,11 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         
         // Stream events
         for await (const event of events) {
+          // Debug logging
+          if (event.event === "on_chat_model_start" || event.event === "on_chat_model_stream" || event.event === "on_chat_model_end") {
+            console.log(`   📡 Stream event: ${event.event}`);
+          }
+          
           // Stream LLM tokens
           if (event.event === "on_chat_model_stream") {
             const chunk = event.data?.chunk;
@@ -326,24 +398,40 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               if (text) {
                 fullResponse += text;
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'token', content: text })}\n\n`));
+                console.log(`   💬 Token: "${text.substring(0, 50)}..."`);
               }
             }
           }
           
           // Capture sources from tool results
           if (event.event === "on_tool_end") {
+            console.log(`   🔧 Tool completed`);
             try {
               const result = event.data?.output;
               if (result) {
                 const data = typeof result === 'string' ? JSON.parse(result) : result;
                 if (data.sources && Array.isArray(data.sources)) {
                   sources.push(...data.sources);
+                  console.log(`   📚 Added ${data.sources.length} sources`);
                 }
               }
             } catch (e) {
               // Skip
             }
           }
+        }
+        
+        console.log(`\n📊 Stream complete:`);
+        console.log(`   Response length: ${fullResponse.length} chars`);
+        console.log(`   Sources: ${sources.length}`);
+        
+        // If we got no response, something went wrong
+        if (fullResponse.length === 0) {
+          console.error(`❌ No response content generated!`);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+            type: 'error', 
+            content: 'Agent completed but produced no response. This might be a streaming configuration issue.' 
+          })}\n\n`));
         }
         
         // Send sources
