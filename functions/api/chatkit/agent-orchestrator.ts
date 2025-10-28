@@ -277,18 +277,38 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       }
       
       // Call Gemini tool directly (not via LLM) with timeout
-      const GEMINI_TIMEOUT = 30000; // 30 seconds
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Gemini timeout after 30s')), GEMINI_TIMEOUT)
-      );
+      const GEMINI_TIMEOUT = 45000; // 45 seconds (increased from 30s for reliability)
+      let timeoutId: any;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          console.error(`   ⏰ Gemini timeout triggered after ${GEMINI_TIMEOUT}ms`);
+          reject(new Error('GEMINI_TIMEOUT'));
+        }, GEMINI_TIMEOUT);
+      });
       
-      const result = await Promise.race([
-        geminiTool.invoke({ 
-          query: queryToSend,
-          entityContext: entityContext || undefined
-        }, config),
-        timeoutPromise
-      ]);
+      let result: any;
+      try {
+        result = await Promise.race([
+          geminiTool.invoke({ 
+            query: queryToSend,
+            entityContext: entityContext || undefined
+          }, config),
+          timeoutPromise
+        ]);
+        
+        // Clear timeout if successful
+        clearTimeout(timeoutId);
+        console.log(`   ✅ Gemini completed within timeout`);
+      } catch (raceError: any) {
+        clearTimeout(timeoutId);
+        
+        // Differentiate between timeout and other errors
+        if (raceError.message === 'GEMINI_TIMEOUT') {
+          console.error(`   ❌ Gemini timed out after ${GEMINI_TIMEOUT}ms`);
+          throw new Error('Gemini search timed out. Please try again or enable deep research for comprehensive results.');
+        }
+        throw raceError;
+      }
       
       // Emit status AFTER Gemini completes
       if (statusEmitter) {
@@ -300,10 +320,29 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      // Parse Gemini result
+      let parsed: any;
+      try {
+        parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      } catch (parseError: any) {
+        console.error(`   ❌ Failed to parse Gemini result:`, parseError.message);
+        console.error(`   Result type:`, typeof result);
+        console.error(`   Result preview:`, String(result).substring(0, 200));
+        throw new Error('Failed to parse Gemini response');
+      }
       
-      console.log(`   ✅ Gemini complete: ${parsed.sources?.length || 0} sources`);
+      console.log(`   ✅ Gemini complete: ${parsed.sources?.length || 0} sources, answer: ${parsed.answer ? 'YES' : 'NO'}`);
       console.log(`   📊 Raw Gemini response:`, JSON.stringify(parsed, null, 2).substring(0, 500));
+      console.log(`   📊 Answer length: ${parsed.answer?.length || 0} chars`);
+      
+      // CRITICAL: Check for Gemini errors (quota, API issues)
+      if (parsed.error || parsed.fallback_needed) {
+        console.error(`   ❌ Gemini returned error:`, parsed.error || 'fallback_needed flag set');
+        if (parsed.quotaMessage) {
+          console.error(`   💰 Quota message:`, parsed.quotaMessage);
+        }
+        throw new Error(parsed.userMessage || parsed.error || 'Gemini search failed');
+      }
       
       // Extract sources
       const sources = (parsed.sources || []).map((s: any) => ({
@@ -321,13 +360,28 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       // Build research context from Gemini answer
       let researchContext = '';
-      if (sources.length > 0 || parsed.answer) {
+      
+      // CRITICAL FIX: Always build research context if we got a response from Gemini
+      // The presence of parsed.answer OR sources means Gemini succeeded
+      const hasGeminiData = parsed.answer || sources.length > 0;
+      
+      if (hasGeminiData) {
+        console.log(`   ✅ Building research context - Answer: ${!!parsed.answer} (${parsed.answer?.length || 0} chars), Sources: ${sources.length}`);
+        
         researchContext = `=== GEMINI GROUNDING RESULTS ===\n\n`;
-        researchContext += `ANSWER:\n${parsed.answer || 'No answer provided.'}\n\n`;
-        researchContext += `SOURCES (${sources.length}):\n`;
-        sources.forEach((s: any, idx: number) => {
-          researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
-        });
+        
+        // ALWAYS include the answer if present (this is the Google-grounded response)
+        if (parsed.answer) {
+          researchContext += `ANSWER:\n${parsed.answer}\n\n`;
+        }
+        
+        // Include sources if available
+        if (sources.length > 0) {
+          researchContext += `SOURCES (${sources.length}):\n`;
+          sources.forEach((s: any, idx: number) => {
+            researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
+          });
+        }
         
         // Add fleetcore context if hybrid query or context preservation is enabled
         if (classification.preserveFleetcoreContext) {
@@ -337,9 +391,11 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
             console.log(`   ✨ Added fleetcore context to research`);
           }
         }
+        
+        console.log(`   ✅ Research context built: ${researchContext.length} chars`);
       } else {
-        // Even if no sources, create minimal context so synthesizer knows we tried
-        console.warn(`   ⚠️ Gemini returned no sources or answer`);
+        // Only trigger fallback if Gemini truly returned nothing
+        console.warn(`   ⚠️ Gemini returned no sources AND no answer`);
         console.warn(`   📊 Parsed response:`, JSON.stringify(parsed));
         console.warn(`   🔑 Check if GEMINI_API_KEY is set correctly in environment`);
         researchContext = `=== GEMINI GROUNDING RESULTS ===\n\nNo specific information found. Please answer from general maritime knowledge or suggest enabling deep research.`;
@@ -444,16 +500,24 @@ DO NOT suggest using external research - provide detailed information directly.
   
   // MODE: VERIFICATION - Synthesize from Gemini answer with GPT-4o (enables streaming)
   if (state.mode === 'verification') {
-    console.log(`   📊 Verification mode state check:`);
+    console.log(`\n   📊 VERIFICATION MODE STATE CHECK:`);
     console.log(`      - Has researchContext: ${!!state.researchContext}`);
     console.log(`      - researchContext length: ${state.researchContext?.length || 0}`);
+    console.log(`      - researchContext preview: ${state.researchContext?.substring(0, 150)}...`);
     console.log(`      - Has geminiAnswer: ${!!state.geminiAnswer}`);
     console.log(`      - geminiAnswer length: ${state.geminiAnswer?.length || 0}`);
     console.log(`      - Sources count: ${state.sources?.length || 0}`);
     
-    // Check if we have research context from Gemini
-    if (!state.researchContext) {
-      console.warn(`   ⚠️ VERIFICATION mode but no research context - answering from training`);
+    // CRITICAL: Check if we have research context from Gemini
+    // This should ALWAYS be present in verification mode since router node builds it
+    if (!state.researchContext || state.researchContext.length === 0) {
+      console.error(`\n   ❌ CRITICAL ERROR: VERIFICATION mode but researchContext is missing!`);
+      console.error(`   This should never happen - router node always builds researchContext`);
+      console.error(`   State object keys:`, Object.keys(state));
+      console.error(`   Mode:`, state.mode);
+      console.error(`   Sources:`, state.sources?.length || 0);
+      console.error(`   GeminiAnswer:`, state.geminiAnswer?.substring(0, 100));
+      
       const fallbackPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
 
 === FALLBACK MODE ===
@@ -470,6 +534,8 @@ If you don't have specific information, be honest and suggest the user enable on
       console.log(`   ✅ Synthesized fallback (${fullContent.length} chars)`);
       return { messages: [new AIMessage(fullContent)] };
     }
+    
+    console.log(`   ✅ Research context validated - proceeding with Gemini synthesis`);
     
     console.log(`   🔮 Synthesizing VERIFICATION mode from Gemini grounding (${state.sources.length} sources)`);
     
@@ -581,11 +647,18 @@ ${state.researchContext}
 
 **USER QUERY**: ${userQuery}
 
-Use the Gemini grounding results above to provide a professional technical answer.
-Cite sources with [[1]](url), [[2]](url) format.
-Keep response concise (400-500 words) with proper structure.
+**INSTRUCTIONS:**
+- Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
+- The ANSWER section contains Google-grounded information - use it as your primary source
+- Cite all facts using [[1]](url), [[2]](url) format from the SOURCES section
+- Format as: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
+- Keep response concise (400-500 words) with proper structure
+- Be confident - this is Google-verified information
 
-_[Mode: VERIFICATION | Sources: ${state.sources.length} | Gemini 2.0 Flash]_`;
+_[Mode: VERIFICATION | Sources: ${state.sources.length} | Gemini 2.5 Pro]_`;
+    
+    console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
+    console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     
