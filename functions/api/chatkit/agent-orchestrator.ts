@@ -308,8 +308,50 @@ Do NOT suggest using external research - provide detailed information directly.`
 
 ${state.researchContext}
 
-Based on the Gemini grounding results above, synthesize a comprehensive answer to the user's question.
-Format with inline source citations [1][2][3] and proper maritime technical structure.`;
+=== SYNTHESIS INSTRUCTIONS FOR MARITIME EXPERTS ===
+
+AUDIENCE: Technical officers, captains, marine superintendents, and maritime professionals
+REQUIREMENT: Deliver precise, technical, actionable intelligence
+
+STRUCTURE YOUR RESPONSE:
+
+**VESSEL IDENTIFICATION** (if applicable)
+- Vessel name, IMO number, MMSI
+- Flag state, port of registry
+- Classification society, class notation
+- Build year, shipyard, current status
+
+**TECHNICAL SPECIFICATIONS**
+- Vessel type and design classification
+- Principal dimensions (LOA, Beam, Draft, Depth)
+- Tonnage (GRT, NRT, DWT) and cargo capacity
+- Propulsion system (engine type, power output, speed)
+- Notable equipment or systems
+
+**OPERATIONAL DATA** (if available)
+- Current employment/trade route
+- Ownership and management structure
+- Notable operational history or incidents
+- Regulatory compliance status
+
+**COMPARATIVE ANALYSIS** (when relevant)
+- How this compares to similar vessels
+- Industry context and significance
+- Technical advantages or limitations
+
+**SOURCE ATTRIBUTION**
+- Cite sources inline with [1][2][3] notation
+- List all sources at the end with full URLs
+
+CRITICAL REQUIREMENTS:
+- Use precise maritime terminology (not simplified)
+- Include all numerical data with proper units (m, kW, DWT, TEU, etc.)
+- Cite classification society standards when relevant (DNV, ABS, Lloyd's)
+- Reference IMO/SOLAS/MARPOL regulations when applicable
+- Be factual and technical - avoid marketing language
+- If data is unavailable, state it clearly rather than speculating
+
+Synthesize a professional technical brief based on the Gemini results above.`;
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     
