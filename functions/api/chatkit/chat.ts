@@ -1,18 +1,9 @@
 /**
- * Legacy Chat Endpoint - Routes to legacy agent
- * Use chat-langgraph.ts for new simplified orchestrator
+ * ChatKit Chat Endpoint - Maritime Intelligence Agent
+ * LLM-driven orchestrator with unified tools (Gemini + Deep Research)
  */
 
-import { routeChatRequest, getAgentStatus } from './legacy/agent-router';
-
-// Cloudflare Workers types
-declare global {
-  interface KVNamespace {
-    get(key: string, type?: 'text' | 'json' | 'arrayBuffer' | 'stream'): Promise<any>;
-    put(key: string, value: string | ArrayBuffer | ReadableStream, options?: { expirationTtl?: number }): Promise<void>;
-    delete(key: string): Promise<void>;
-  }
-}
+import { handleChatWithAgent, type ChatRequest } from './agent-orchestrator';
 
 interface Env {
   OPENAI_API_KEY: string;
@@ -20,7 +11,12 @@ interface Env {
   GEMINI_API_KEY: string;
   LANGSMITH_API_KEY?: string;
   USE_LANGGRAPH?: string;
-  CHAT_SESSIONS: KVNamespace; // Cloudflare KV for persistent session memory
+  
+  // Cross-session memory infrastructure
+  MARITIME_MEMORY: D1Database;
+  VECTOR_INDEX: VectorizeIndex;
+  AI: Ai;
+  CHAT_SESSIONS: KVNamespace;
 }
 
 export async function onRequestPost(context: { request: Request; env: Env }) {
@@ -58,15 +54,24 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     console.log(`📥 Chat Request | Session: ${sessionId} | Messages: ${messages.length} | Browsing: ${enableBrowsing}`);
     console.log(`${'='.repeat(80)}\n`);
 
-    // Route to appropriate agent
-    const { stream, agent } = await routeChatRequest(
+    // Direct call to new simplified orchestrator
+    const stream = await handleChatWithAgent({
       messages,
       sessionId,
       enableBrowsing,
-      env
-    );
+      env: {
+        OPENAI_API_KEY: env.OPENAI_API_KEY,
+        TAVILY_API_KEY: env.TAVILY_API_KEY,
+        GEMINI_API_KEY: env.GEMINI_API_KEY,
+        LANGSMITH_API_KEY: env.LANGSMITH_API_KEY,
+        CHAT_SESSIONS: env.CHAT_SESSIONS,
+        MARITIME_MEMORY: env.MARITIME_MEMORY,
+        VECTOR_INDEX: env.VECTOR_INDEX,
+        AI: env.AI,
+      }
+    });
 
-    console.log(`✅ Using ${agent} agent\n`);
+    console.log(`✅ Using simplified orchestrator\n`);
 
     // Return SSE stream
     return new Response(stream, {
@@ -100,12 +105,20 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 export async function onRequestGet(context: { request: Request; env: Env }) {
   const { env } = context;
   
-  const status = getAgentStatus(env);
-  
   return new Response(
     JSON.stringify({
       status: 'healthy',
-      agent: status,
+      agent: 'simplified-orchestrator',
+      capabilities: [
+        'LangGraph StateGraph orchestration',
+        'LLM-driven tool selection',
+        'Unified Gemini tool (grounding + verification)',
+        'Deep research with content intelligence',
+        'Maritime knowledge base',
+        'Context-aware follow-ups',
+        'Entity extraction and memory',
+        'Session memory (KV)',
+      ],
       timestamp: new Date().toISOString(),
     }),
     {
