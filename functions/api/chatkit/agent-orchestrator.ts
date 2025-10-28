@@ -288,16 +288,19 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
     
     const platformContext = `\n\n=== PLATFORM QUERY ===
 Answer comprehensively from your training knowledge about fleetcore.
-Do NOT suggest using external research - provide detailed information directly.`;
+DO NOT suggest using external research - provide detailed information directly.`;
     
     const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
     
-    // CRITICAL: Use .invoke() to let LangGraph handle streaming
-    // Don't consume stream here - let workflow streaming capture it
-    const response = await llm.invoke([systemMessage, ...state.messages]);
+    // Use stream to enable streaming, but consume for state management
+    const stream = await llm.stream([systemMessage, ...state.messages]);
+    let fullContent = '';
+    for await (const chunk of stream) {
+      fullContent += chunk.content;
+    }
     
-    console.log(`   ✅ Synthesized (${response.content.toString().length} chars)`);
-    return { messages: [response] };
+    console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
+    return { messages: [new AIMessage(fullContent)] };
   }
   
   // MODE: VERIFICATION - Synthesize from Gemini answer
@@ -366,12 +369,15 @@ Synthesize a professional technical brief based on the Gemini results above.`;
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     
-    // CRITICAL: Use .invoke() to let LangGraph handle streaming
-    // Don't consume stream here - let workflow streaming capture it
-    const response = await llm.invoke([systemMessage, ...state.messages]);
+    // Use stream to enable streaming, but consume for state management
+    const stream = await llm.stream([systemMessage, ...state.messages]);
+    let fullContent = '';
+    for await (const chunk of stream) {
+      fullContent += chunk.content;
+    }
     
-    console.log(`   ✅ Synthesized (${response.content.toString().length} chars)`);
-    return { messages: [response] };
+    console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
+    return { messages: [new AIMessage(fullContent)] };
   }
   
   // MODE: RESEARCH - LLM orchestrates tools

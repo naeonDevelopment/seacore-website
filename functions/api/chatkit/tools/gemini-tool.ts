@@ -120,9 +120,12 @@ CONTEXT HANDLING:
       const answer = candidate?.content?.parts?.[0]?.text || null;
       const groundingMetadata = candidate?.groundingMetadata;
       
+      console.log(`   🔍 Gemini grounding metadata keys:`, Object.keys(groundingMetadata || {}));
+      
       // Extract sources from multiple possible locations
       let sources: any[] = [];
       
+      // PRIORITY 1: webResults (most detailed)
       if (groundingMetadata?.webResults && Array.isArray(groundingMetadata.webResults)) {
         sources = groundingMetadata.webResults.map((result: any) => ({
           url: result.url,
@@ -131,7 +134,10 @@ CONTEXT HANDLING:
           score: 0.9,
         }));
         console.log(`   📚 Extracted ${sources.length} sources from webResults`);
-      } else if (groundingMetadata?.groundingChunks && Array.isArray(groundingMetadata.groundingChunks)) {
+      } 
+      
+      // PRIORITY 2: groundingChunks (alternative format)
+      if (sources.length === 0 && groundingMetadata?.groundingChunks && Array.isArray(groundingMetadata.groundingChunks)) {
         sources = groundingMetadata.groundingChunks
           .filter((chunk: any) => chunk.web)
           .map((chunk: any) => ({
@@ -141,13 +147,42 @@ CONTEXT HANDLING:
             score: 0.9,
           }));
         console.log(`   📚 Extracted ${sources.length} sources from groundingChunks`);
-      } else if (groundingMetadata?.searchEntryPoint) {
+      }
+      
+      // PRIORITY 3: groundingSupport (Gemini 2.0 format)
+      if (sources.length === 0 && groundingMetadata?.groundingSupport && Array.isArray(groundingMetadata.groundingSupport)) {
+        sources = groundingMetadata.groundingSupport
+          .filter((support: any) => support.segment && support.groundingChunkIndices)
+          .flatMap((support: any) => {
+            return support.groundingChunkIndices.map((idx: number) => {
+              const chunk = groundingMetadata.retrievalMetadata?.groundingChunks?.[idx];
+              return {
+                url: chunk?.web?.uri || '',
+                title: chunk?.web?.title || 'Source',
+                content: support.segment?.text || '',
+                score: 0.85,
+              };
+            });
+          })
+          .filter((s: any) => s.url); // Remove entries without URLs
+        console.log(`   📚 Extracted ${sources.length} sources from groundingSupport`);
+      }
+      
+      // FALLBACK: searchEntryPoint (minimal)
+      if (sources.length === 0 && groundingMetadata?.searchEntryPoint) {
+        console.warn(`   ⚠️ Only searchEntryPoint available - Gemini didn't return detailed sources`);
         sources = [{
           url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
           title: 'Google Search',
           content: answer?.substring(0, 500) || '',
-          score: 0.8,
+          score: 0.6,
         }];
+      }
+      
+      // WARNING: No sources at all
+      if (sources.length === 0) {
+        console.warn(`   ⚠️ ZERO sources returned by Gemini! This shouldn't happen with grounding enabled.`);
+        console.warn(`   Raw metadata:`, JSON.stringify(groundingMetadata, null, 2));
       }
       
       console.log(`✅ Gemini complete: ${sources.length} sources, answer: ${answer ? 'YES' : 'NO'}`);
@@ -157,7 +192,7 @@ CONTEXT HANDLING:
         answer,
         searchQueries: groundingMetadata?.searchQueries || [],
         citations: groundingMetadata?.citations || [],
-        confidence: sources.length >= 2 ? 0.95 : 0.8,
+        confidence: sources.length >= 3 ? 0.95 : (sources.length >= 2 ? 0.85 : 0.7),
         mode: 'gemini'
       });
     } catch (error: any) {
