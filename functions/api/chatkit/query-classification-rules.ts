@@ -280,7 +280,19 @@ export function classifyQuery(
   // Use resolved query for classification (contains actual entity names)
   const queryForClassification = resolvedQuery.resolvedQuery;
   
-  // PRIORITY 1: System organization queries → knowledge mode (LLM training data)
+  // PRIORITY 1: User explicitly enabled online research toggle → research mode
+  if (enableBrowsing) {
+    console.log(`   🔬 RESEARCH MODE: User enabled browsing (Tavily deep research)`);
+    return {
+      mode: 'research',
+      preserveFleetcoreContext: true,
+      enrichQuery: true,
+      isHybrid: false,
+      resolvedQuery
+    };
+  }
+  
+  // PRIORITY 2: System organization queries → knowledge mode (LLM training data)
   if (isSystemOrganizationQuery(queryForClassification)) {
     return {
       mode: 'none',
@@ -291,7 +303,7 @@ export function classifyQuery(
     };
   }
   
-  // PRIORITY 2: "How to" queries → knowledge mode (LLM training data)
+  // PRIORITY 3: "How to" queries → knowledge mode (LLM training data)
   if (isHowToQuery(queryForClassification)) {
     return {
       mode: 'none',
@@ -302,7 +314,7 @@ export function classifyQuery(
     };
   }
   
-  // PRIORITY 3: Check for platform vs entity queries
+  // PRIORITY 4: Check for platform vs entity queries
   // CRITICAL: Use resolved query AND check if we have entity context from memory
   const isPlatform = isPlatformQuery(queryForClassification);
   const hasEntity = hasEntityMention(queryForClassification) || resolvedQuery.hasContext;
@@ -343,27 +355,15 @@ export function classifyQuery(
     };
   }
   
-  // DEFAULT: Maritime entity queries → verification mode
+  // DEFAULT: Maritime entity queries → verification mode (Gemini grounding)
   // Check if conversation already has fleetcore context
   const hasFleetcoreContext = (sessionMemory?.accumulatedKnowledge?.fleetcoreFeatures?.length || 0) > 0;
   
-  // Base mode for entity queries is verification (Gemini grounding)
-  let finalMode: 'none' | 'verification' | 'research' = 'verification';
-  
-  // UPGRADE to research mode if enableBrowsing AND query needs deep research
-  // Deep research indicators: comparison queries, complex analysis, multi-entity queries
-  const needsDeepResearch = enableBrowsing && (
-    /largest|biggest|smallest|best|worst|compare|versus|vs\.|difference/i.test(queryForClassification) ||
-    /comprehensive|detailed|full analysis|all vessels|fleet overview/i.test(queryForClassification)
-  );
-  
-  if (needsDeepResearch) {
-    finalMode = 'research';
-    console.log(`   🔬 Upgrading to RESEARCH mode: Complex query detected with browsing enabled`);
-  }
+  console.log(`   🔮 VERIFICATION MODE: Default for entity queries (Gemini grounding)`);
+  console.log(`   Fleetcore context available: ${hasFleetcoreContext}`);
   
   return {
-    mode: finalMode,
+    mode: 'verification',
     preserveFleetcoreContext: hasFleetcoreContext,
     enrichQuery: hasFleetcoreContext && hasEntity,
     isHybrid: false,
