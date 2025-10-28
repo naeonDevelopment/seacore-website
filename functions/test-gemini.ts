@@ -13,7 +13,7 @@ export async function onRequest(context: any) {
     console.log('Has GEMINI_API_KEY:', !!env.GEMINI_API_KEY);
     
     // Gemini 2.5 Pro: Latest production model (paid tier)
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
       method: 'POST',
       headers: {
         'x-goog-api-key': env.GEMINI_API_KEY,
