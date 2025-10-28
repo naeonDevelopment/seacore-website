@@ -1007,10 +1007,10 @@ This is **specialized maritime search** – not general web search. Get precise,
     <div 
       className={cn(
         "flex flex-col overflow-hidden",
-        isFullscreen ? "h-full" : "",
+        isFullscreen ? "h-full" : "h-screen",
         className
       )}
-      style={undefined}
+      style={{ maxHeight: '100vh' }}
     >
       {/* Header - Full Width Background - Match website header h-16 */}
       {showHeader && (
@@ -1605,10 +1605,10 @@ This is **specialized maritime search** – not general web search. Get precise,
         </div>
       </div>
 
-      {/* Input Area - Sticky */}
+      {/* Input Area - Fixed at bottom */}
       <div 
         ref={inputAreaRef}
-        className="sticky bottom-0 px-3 pt-3 pb-3 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 flex-shrink-0 z-10"
+        className="px-3 pt-3 pb-3 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 flex-shrink-0 z-20 shadow-lg"
       >
         <div className="flex gap-2 md:gap-3 max-w-5xl mx-auto">
           <input
