@@ -10,6 +10,15 @@
 
 import { BaseMessage } from "@langchain/core/messages";
 
+// Cloudflare Workers types
+declare global {
+  interface KVNamespace {
+    get(key: string, type?: 'text' | 'json' | 'arrayBuffer' | 'stream'): Promise<any>;
+    put(key: string, value: string | ArrayBuffer | ReadableStream, options?: { expirationTtl?: number }): Promise<void>;
+    delete(key: string): Promise<void>;
+  }
+}
+
 // =====================
 // TYPE DEFINITIONS
 // =====================
