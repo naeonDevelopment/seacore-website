@@ -321,6 +321,39 @@ export class SessionMemoryManager {
   }
   
   /**
+   * Add company entity to accumulated knowledge
+   */
+  addCompanyEntity(
+    memory: SessionMemory,
+    name: string,
+    details: Record<string, any>
+  ): SessionMemory {
+    const companyKey = name.toLowerCase();
+    
+    if (!memory.accumulatedKnowledge.companyEntities[companyKey]) {
+      memory.accumulatedKnowledge.companyEntities[companyKey] = {
+        name,
+        discussed: true,
+        firstMentioned: Date.now(),
+        ...details,
+      };
+      
+      console.log(`🏢 Added company entity: ${name}`);
+    } else {
+      // Update existing
+      memory.accumulatedKnowledge.companyEntities[companyKey] = {
+        ...memory.accumulatedKnowledge.companyEntities[companyKey],
+        ...details,
+        discussed: true,
+      };
+      
+      console.log(`🔄 Updated company entity: ${name}`);
+    }
+    
+    return memory;
+  }
+  
+  /**
    * Add connection between topics
    */
   addConnection(

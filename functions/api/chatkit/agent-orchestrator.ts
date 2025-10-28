@@ -18,7 +18,14 @@ import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { maritimeTools } from './tools';
 import { geminiTool } from './tools/gemini-tool';
 import { SessionMemoryManager, type SessionMemory } from './session-memory';
-import { classifyQuery, generateClassificationLog } from './query-classification-rules';
+import { 
+  classifyQuery, 
+  generateClassificationLog,
+  enrichQueryWithContext,
+  buildFleetcoreContext,
+  type QueryClassification
+} from './query-classification-rules';
+import { accumulateKnowledge } from './memory-accumulation';
 
 // Cloudflare Workers types
 declare global {
@@ -106,6 +113,7 @@ type State = typeof AgentState.State;
 /**
  * Router Node - Intelligent mode detection and Gemini calling (for verification)
  * Uses centralized classification rules from query-classification-rules.ts
+ * Enhanced with context preservation for hybrid queries
  */
 async function routerNode(state: State, config: any): Promise<Partial<State>> {
   const env = config.configurable?.env;
@@ -118,20 +126,31 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
   const userQuery = lastUserMessage?.content?.toString() || '';
   
-  // INTELLIGENT MODE DETECTION (using centralized classification rules)
-  const mode = classifyQuery(userQuery, state.enableBrowsing);
+  // INTELLIGENT MODE DETECTION (using centralized classification rules with session context)
+  const classification = classifyQuery(userQuery, state.enableBrowsing, sessionMemory || undefined);
   
   // Log detailed classification for debugging
-  const log = generateClassificationLog(userQuery, mode, state.enableBrowsing);
+  const log = generateClassificationLog(userQuery, classification, state.enableBrowsing);
   console.log(log);
   
   // MODE: VERIFICATION - Call Gemini directly and store result
-  if (mode === 'verification') {
+  if (classification.mode === 'verification') {
     console.log(`   🔮 VERIFICATION MODE: Calling Gemini directly`);
     
+    if (classification.isHybrid) {
+      console.log(`   🎯 HYBRID QUERY: Will inject fleetcore context`);
+    }
+    
     try {
+      // Enrich query with fleetcore context if needed (hybrid queries)
+      let queryToSend = userQuery;
+      if (classification.enrichQuery && classification.preserveFleetcoreContext) {
+        queryToSend = enrichQueryWithContext(userQuery, sessionMemory || undefined);
+        console.log(`   📝 Enriched query: "${queryToSend.substring(0, 100)}..."`);
+      }
+      
       // Call Gemini tool directly (not via LLM)
-      const result = await geminiTool.invoke({ query: userQuery }, config);
+      const result = await geminiTool.invoke({ query: queryToSend }, config);
       const parsed = typeof result === 'string' ? JSON.parse(result) : result;
       
       console.log(`   ✅ Gemini complete: ${parsed.sources?.length || 0} sources`);
@@ -159,10 +178,19 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         sources.forEach((s: any, idx: number) => {
           researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
         });
+        
+        // Add fleetcore context if hybrid query or context preservation is enabled
+        if (classification.preserveFleetcoreContext) {
+          const fleetcoreContext = buildFleetcoreContext(sessionMemory || undefined);
+          if (fleetcoreContext) {
+            researchContext += fleetcoreContext;
+            console.log(`   ✨ Added fleetcore context to research`);
+          }
+        }
       }
       
       return {
-        mode,
+        mode: classification.mode,
         geminiAnswer: parsed.answer || null,
         sources,
         researchContext,
@@ -174,8 +202,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
     }
   }
   
-  // Other modes just set the mode
-  return { mode };
+  // Other modes (none/research) just set the mode
+  return { mode: classification.mode };
 }
 
 /**
@@ -654,9 +682,20 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           })}\n\n`));
         }
         
-        // Save memory
-        if (sessionMemoryManager && sessionMemory) {
+        // Save memory with knowledge accumulation
+        if (sessionMemoryManager && sessionMemory && fullResponse.length > 0) {
           const userMessage = messages[messages.length - 1];
+          
+          // ACCUMULATE KNOWLEDGE: Extract entities, features, topics from this turn
+          await accumulateKnowledge(
+            userMessage.content,
+            fullResponse,
+            sessionMemory,
+            sessionMemoryManager,
+            sessionMemory.messageCount
+          );
+          
+          // Add messages to recent history
           sessionMemory.recentMessages.push(
             { role: 'user', content: userMessage.content, timestamp: Date.now() },
             { role: 'assistant', content: fullResponse, timestamp: Date.now() }
@@ -667,8 +706,11 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             sessionMemory.recentMessages = sessionMemory.recentMessages.slice(-20);
           }
           
+          // Increment message count
+          sessionMemory.messageCount++;
+          
           await sessionMemoryManager.save(sessionId, sessionMemory);
-          console.log(`💾 Memory saved`);
+          console.log(`💾 Memory saved with accumulated knowledge`);
         }
         
         // Done

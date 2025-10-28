@@ -212,31 +212,65 @@ export function isSystemOrganizationQuery(query: string): boolean {
 }
 
 /**
- * Main query classification function
- * Determines the appropriate mode for handling a query
+ * Query classification result with mode and context metadata
+ */
+export interface QueryClassification {
+  mode: 'none' | 'verification' | 'research';
+  preserveFleetcoreContext: boolean;
+  enrichQuery: boolean;
+  isHybrid: boolean;
+}
+
+/**
+ * Main query classification function (Enhanced from legacy agent)
+ * Determines the appropriate mode and context preservation strategy
  * 
  * @param query - User query string
  * @param enableBrowsing - Whether user enabled online research toggle
- * @returns Query mode: 'none' (knowledge), 'verification' (Gemini), or 'research' (deep)
+ * @param sessionMemory - Optional session memory for context-aware classification
+ * @returns Classification object with mode and metadata flags
  */
 export function classifyQuery(
   query: string,
-  enableBrowsing: boolean
-): 'none' | 'verification' | 'research' {
+  enableBrowsing: boolean,
+  sessionMemory?: {
+    accumulatedKnowledge?: {
+      fleetcoreFeatures?: Array<{ name: string; explanation: string }>;
+      vesselEntities?: Record<string, any>;
+      companyEntities?: Record<string, any>;
+    };
+    userIntent?: string;
+  }
+): QueryClassification {
   
   // PRIORITY 1: User explicitly enabled online research → deep research mode
   if (enableBrowsing) {
-    return 'research';
+    return {
+      mode: 'research',
+      preserveFleetcoreContext: true,
+      enrichQuery: true,
+      isHybrid: false
+    };
   }
   
   // PRIORITY 2: System organization queries → knowledge mode
   if (isSystemOrganizationQuery(query)) {
-    return 'none';
+    return {
+      mode: 'none',
+      preserveFleetcoreContext: false,
+      enrichQuery: false,
+      isHybrid: false
+    };
   }
   
   // PRIORITY 3: "How to" queries → knowledge mode
   if (isHowToQuery(query)) {
-    return 'none';
+    return {
+      mode: 'none',
+      preserveFleetcoreContext: false,
+      enrichQuery: false,
+      isHybrid: false
+    };
   }
   
   // PRIORITY 4: Check for platform vs entity queries
@@ -245,16 +279,144 @@ export function classifyQuery(
   
   // Pure platform query without entities → knowledge mode
   if (isPlatform && !hasEntity) {
-    return 'none';
+    return {
+      mode: 'none',
+      preserveFleetcoreContext: false,
+      enrichQuery: false,
+      isHybrid: false
+    };
   }
   
-  // Hybrid: Platform + entity → verification mode with context
+  // HYBRID MODE: Platform + entity → verification with context injection
+  // Example: "How can fleetcore PMS support vessel Dynamic 17?"
   if (isPlatform && hasEntity) {
-    return 'verification';
+    return {
+      mode: 'verification',
+      preserveFleetcoreContext: true,
+      enrichQuery: true,
+      isHybrid: true
+    };
   }
   
-  // DEFAULT: Maritime entity queries → verification mode (Gemini grounding)
-  return 'verification';
+  // Check if user is evaluating fleetcore (from session memory)
+  const isEvaluationIntent = sessionMemory?.userIntent?.includes('evaluating fleetcore') || false;
+  
+  if (isEvaluationIntent && hasEntity) {
+    return {
+      mode: 'verification',
+      preserveFleetcoreContext: true,
+      enrichQuery: true,
+      isHybrid: true
+    };
+  }
+  
+  // DEFAULT: Maritime entity queries → verification mode
+  // Check if conversation already has fleetcore context
+  const hasFleetcoreContext = (sessionMemory?.accumulatedKnowledge?.fleetcoreFeatures?.length || 0) > 0;
+  
+  return {
+    mode: 'verification',
+    preserveFleetcoreContext: hasFleetcoreContext,
+    enrichQuery: hasFleetcoreContext && hasEntity,
+    isHybrid: false
+  };
+}
+
+// =====================
+// CONTEXT ENRICHMENT HELPERS
+// =====================
+
+/**
+ * Build fleetcore context section for verification/research queries
+ * Injects previously discussed features and entities into queries
+ * (Replicated from legacy agent)
+ * 
+ * @param sessionMemory - Session memory with accumulated knowledge
+ * @returns Context string to prepend to queries
+ */
+export function buildFleetcoreContext(
+  sessionMemory?: {
+    accumulatedKnowledge?: {
+      fleetcoreFeatures?: Array<{ name: string; explanation: string }>;
+      vesselEntities?: Record<string, any>;
+      companyEntities?: Record<string, any>;
+    };
+    conversationTopic?: string;
+    userIntent?: string;
+  }
+): string {
+  if (!sessionMemory?.accumulatedKnowledge?.fleetcoreFeatures?.length) {
+    return '';
+  }
+  
+  const knowledge = sessionMemory.accumulatedKnowledge;
+  let context = '\n\n=== CONVERSATION CONTEXT ===\n';
+  
+  // Add fleetcore features discussed
+  if (knowledge.fleetcoreFeatures && knowledge.fleetcoreFeatures.length > 0) {
+    context += `\nFleetcore features discussed:\n`;
+    knowledge.fleetcoreFeatures.slice(0, 5).forEach((feature, idx) => {
+      context += `${idx + 1}. ${feature.name}: ${feature.explanation}\n`;
+    });
+  }
+  
+  // Add vessel entities
+  const vesselNames = Object.keys(knowledge.vesselEntities || {});
+  if (vesselNames.length > 0) {
+    context += `\nVessels discussed: ${vesselNames.join(', ')}\n`;
+  }
+  
+  // Add company entities
+  const companyNames = Object.keys(knowledge.companyEntities || {});
+  if (companyNames.length > 0) {
+    context += `\nCompanies discussed: ${companyNames.join(', ')}\n`;
+  }
+  
+  // Add conversation topic if available
+  if (sessionMemory.conversationTopic) {
+    context += `\nConversation topic: ${sessionMemory.conversationTopic}\n`;
+  }
+  
+  // Add user intent if available
+  if (sessionMemory.userIntent) {
+    context += `\nUser intent: ${sessionMemory.userIntent}\n`;
+  }
+  
+  return context;
+}
+
+/**
+ * Enrich query with fleetcore context for better search results
+ * Used in hybrid queries to inject fleetcore knowledge into Gemini searches
+ * (Replicated from legacy agent)
+ * 
+ * @param query - Original user query
+ * @param sessionMemory - Session memory with accumulated knowledge
+ * @returns Enriched query string
+ */
+export function enrichQueryWithContext(
+  query: string,
+  sessionMemory?: {
+    accumulatedKnowledge?: {
+      fleetcoreFeatures?: Array<{ name: string; explanation: string }>;
+      vesselEntities?: Record<string, any>;
+      companyEntities?: Record<string, any>;
+    };
+  }
+): string {
+  if (!sessionMemory?.accumulatedKnowledge?.fleetcoreFeatures?.length) {
+    return query;
+  }
+  
+  const features = sessionMemory.accumulatedKnowledge.fleetcoreFeatures
+    .map((f: any) => f.name)
+    .slice(0, 5)
+    .join(', ');
+  
+  // Build enriched query with context prefix
+  const contextPrefix = `[Context: User is evaluating fleetcore maritime maintenance system with features: ${features}] `;
+  
+  return contextPrefix + query;
 }
 
 // =====================
@@ -265,13 +427,13 @@ export function classifyQuery(
  * Generate detailed classification log for debugging
  * 
  * @param query - User query string
- * @param mode - Detected mode
+ * @param classification - Classification result object
  * @param enableBrowsing - Whether browsing is enabled
  * @returns Formatted log string
  */
 export function generateClassificationLog(
   query: string,
-  mode: 'none' | 'verification' | 'research',
+  classification: QueryClassification,
   enableBrowsing: boolean
 ): string {
   const isPlatform = isPlatformQuery(query);
@@ -291,9 +453,9 @@ export function generateClassificationLog(
     'research': 'RESEARCH MODE - Deep multi-source'
   };
   
-  let log = `\n${modeEmoji[mode]} MODE CLASSIFICATION\n`;
+  let log = `\n${modeEmoji[classification.mode]} MODE CLASSIFICATION\n`;
   log += `   Query: "${query.substring(0, 80)}${query.length > 80 ? '...' : ''}"\n`;
-  log += `   Mode: ${modeDescription[mode]}\n`;
+  log += `   Mode: ${modeDescription[classification.mode]}\n`;
   log += `   \n`;
   log += `   Detection Flags:\n`;
   log += `   - Browsing enabled: ${enableBrowsing}\n`;
@@ -301,6 +463,11 @@ export function generateClassificationLog(
   log += `   - Entity mention: ${hasEntity}\n`;
   log += `   - How-to query: ${isHowTo}\n`;
   log += `   - System organization: ${isSystemOrg}\n`;
+  log += `   \n`;
+  log += `   Context Flags:\n`;
+  log += `   - Preserve fleetcore context: ${classification.preserveFleetcoreContext}\n`;
+  log += `   - Enrich query: ${classification.enrichQuery}\n`;
+  log += `   - Is hybrid query: ${classification.isHybrid}\n`;
   
   return log;
 }
