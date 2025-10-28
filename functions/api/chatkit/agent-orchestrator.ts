@@ -291,15 +291,13 @@ Answer comprehensively from your training knowledge about fleetcore.
 Do NOT suggest using external research - provide detailed information directly.`;
     
     const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
-    const stream = await llm.stream([systemMessage, ...state.messages]);
     
-    let fullContent = '';
-    for await (const chunk of stream) {
-      fullContent += chunk.content;
-    }
+    // CRITICAL: Use .invoke() to let LangGraph handle streaming
+    // Don't consume stream here - let workflow streaming capture it
+    const response = await llm.invoke([systemMessage, ...state.messages]);
     
-    console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
-    return { messages: [new AIMessage(fullContent)] };
+    console.log(`   ✅ Synthesized (${response.content.toString().length} chars)`);
+    return { messages: [response] };
   }
   
   // MODE: VERIFICATION - Synthesize from Gemini answer
@@ -314,15 +312,13 @@ Based on the Gemini grounding results above, synthesize a comprehensive answer t
 Format with inline source citations [1][2][3] and proper maritime technical structure.`;
     
     const systemMessage = new SystemMessage(synthesisPrompt);
-    const stream = await llm.stream([systemMessage, ...state.messages]);
     
-    let fullContent = '';
-    for await (const chunk of stream) {
-      fullContent += chunk.content;
-    }
+    // CRITICAL: Use .invoke() to let LangGraph handle streaming
+    // Don't consume stream here - let workflow streaming capture it
+    const response = await llm.invoke([systemMessage, ...state.messages]);
     
-    console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
-    return { messages: [new AIMessage(fullContent)] };
+    console.log(`   ✅ Synthesized (${response.content.toString().length} chars)`);
+    return { messages: [response] };
   }
   
   // MODE: RESEARCH - LLM orchestrates tools
