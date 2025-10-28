@@ -75,6 +75,11 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => false,
   }),
+  // Query mode detection result
+  mode: Annotation<'verification' | 'research' | 'none'>({
+    reducer: (_, next) => next,
+    default: () => 'none',
+  }),
   // Research context - populated after tool execution
   researchContext: Annotation<string | null>({
     reducer: (_, next) => next,
@@ -83,6 +88,11 @@ const AgentState = Annotation.Root({
   sources: Annotation<Source[]>({
     reducer: (_, next) => next,
     default: () => [],
+  }),
+  // Gemini answer for verification mode
+  geminiAnswer: Annotation<string | null>({
+    reducer: (_, next) => next,
+    default: () => null,
   }),
 });
 
@@ -157,21 +167,92 @@ function detectQueryMode(
 }
 
 /**
- * Main agent node - Intelligent mode-based routing
- * Replicated from legacy agent for optimal query handling
+ * Router Node - Intelligent mode detection and Gemini calling (for verification)
+ * Replicated from legacy agent architecture
  */
-async function agentNode(state: State, config: any): Promise<Partial<State>> {
+async function routerNode(state: State, config: any): Promise<Partial<State>> {
   const env = config.configurable?.env;
   const sessionMemory = config.configurable?.sessionMemory as SessionMemory | null;
   
-  console.log(`\n🤖 AGENT NODE`);
+  console.log(`\n🎯 ROUTER NODE`);
   console.log(`   Messages: ${state.messages.length}`);
   console.log(`   Browsing: ${state.enableBrowsing}`);
-  console.log(`   Has memory: ${!!sessionMemory}`);
   
   // Get user query
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
   const userQuery = lastUserMessage?.content?.toString() || '';
+  
+  // INTELLIGENT MODE DETECTION (replicated from legacy agent)
+  const mode = detectQueryMode(userQuery, state.enableBrowsing);
+  
+  console.log(`   Query: "${userQuery.substring(0, 80)}..."`);
+  console.log(`   Detected mode: ${mode}`);
+  
+  // MODE: VERIFICATION - Call Gemini directly and store result
+  if (mode === 'verification') {
+    console.log(`   🔮 VERIFICATION MODE: Calling Gemini directly`);
+    
+    try {
+      // Call Gemini tool directly (not via LLM)
+      const result = await geminiTool.invoke({ query: userQuery }, config);
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      
+      console.log(`   ✅ Gemini complete: ${parsed.sources?.length || 0} sources`);
+      
+      // Extract sources
+      const sources = (parsed.sources || []).map((s: any) => ({
+        title: s.title || '',
+        url: s.url || '',
+        content: s.content || '',
+        score: s.score || 0.5,
+      }));
+      
+      if (parsed.sources?.length > 0) {
+        parsed.sources.forEach((s: any, i: number) => {
+          console.log(`      [${i+1}] ${s.title?.substring(0, 60)}`);
+        });
+      }
+      
+      // Build research context from Gemini answer
+      let researchContext = '';
+      if (sources.length > 0 || parsed.answer) {
+        researchContext = `=== GEMINI GROUNDING RESULTS ===\n\n`;
+        researchContext += `ANSWER:\n${parsed.answer || 'No answer provided.'}\n\n`;
+        researchContext += `SOURCES (${sources.length}):\n`;
+        sources.forEach((s: any, idx: number) => {
+          researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
+        });
+      }
+      
+      return {
+        mode,
+        geminiAnswer: parsed.answer || null,
+        sources,
+        researchContext,
+      };
+    } catch (error: any) {
+      console.error(`   ❌ Gemini failed:`, error.message);
+      // Fall back to research mode
+      return { mode: 'research' };
+    }
+  }
+  
+  // Other modes just set the mode
+  return { mode };
+}
+
+/**
+ * Synthesizer Node - Streams answer based on mode
+ * Replicated from legacy agent architecture
+ */
+async function synthesizerNode(state: State, config: any): Promise<Partial<State>> {
+  const env = config.configurable?.env;
+  const sessionMemory = config.configurable?.sessionMemory as SessionMemory | null;
+  
+  console.log(`\n🎨 SYNTHESIZER NODE`);
+  console.log(`   Mode: ${state.mode}`);
+  console.log(`   Has Gemini answer: ${!!state.geminiAnswer}`);
+  console.log(`   Has research context: ${!!state.researchContext}`);
   
   // Build context from session memory
   let contextAddition = "";
@@ -180,7 +261,6 @@ async function agentNode(state: State, config: any): Promise<Partial<State>> {
       contextAddition += `\n\n=== CONVERSATION CONTEXT ===\n${sessionMemory.conversationSummary}\n`;
     }
     
-    // Add entity context for follow-up queries
     const vesselEntities = Object.keys(sessionMemory.accumulatedKnowledge?.vesselEntities || {});
     const companyEntities = Object.keys(sessionMemory.accumulatedKnowledge?.companyEntities || {});
     
@@ -195,92 +275,63 @@ async function agentNode(state: State, config: any): Promise<Partial<State>> {
     }
   }
   
-  // INTELLIGENT MODE DETECTION (replicated from legacy agent)
-  const mode = detectQueryMode(userQuery, state.enableBrowsing);
+  const llm = new ChatOpenAI({
+    modelName: "gpt-4o",
+    temperature: 0.1,
+    openAIApiKey: env.OPENAI_API_KEY,
+    streaming: true,
+  });
   
-  console.log(`   Query: "${userQuery.substring(0, 80)}..."`);
-  console.log(`   Detected mode: ${mode}`);
-  
-  // Create system message with prompt + context
-  const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition);
-  
-  // MODE: NONE - Answer from training data (no tools)
-  if (mode === 'none') {
-    console.log(`   🎯 Executing NONE mode - training data only`);
-    
-    const platformLlm = new ChatOpenAI({
-      modelName: "gpt-4o",
-      temperature: 0.1,
-      openAIApiKey: env.OPENAI_API_KEY,
-      streaming: true,
-    });
+  // MODE: NONE - Answer from training data
+  if (state.mode === 'none') {
+    console.log(`   🎯 Synthesizing NONE mode - training data only`);
     
     const platformContext = `\n\n=== PLATFORM QUERY ===
 Answer comprehensively from your training knowledge about fleetcore.
 Do NOT suggest using external research - provide detailed information directly.`;
     
-    const platformSystemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
-    
-    const stream = await platformLlm.stream([platformSystemMessage, ...state.messages]);
+    const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
+    const stream = await llm.stream([systemMessage, ...state.messages]);
     
     let fullContent = '';
     for await (const chunk of stream) {
       fullContent += chunk.content;
     }
     
-    console.log(`   ✅ Response generated (${fullContent.length} chars, no tools)`);
+    console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
     return { messages: [new AIMessage(fullContent)] };
   }
   
-  // MODE: VERIFICATION - Use Gemini tool with LLM orchestration (streams naturally)
-  if (mode === 'verification') {
-    console.log(`   🔮 Executing VERIFICATION mode - LLM with Gemini tool only`);
+  // MODE: VERIFICATION - Synthesize from Gemini answer
+  if (state.mode === 'verification' && state.researchContext) {
+    console.log(`   🔮 Synthesizing VERIFICATION mode from Gemini result`);
     
-    // Enhanced prompt for verification mode
-    const verificationContext = `\n\n=== VERIFICATION MODE ===
-This is a real-time maritime query requiring current, factual information.
-Use the gemini_search tool to get authoritative, up-to-date information.
-Provide a comprehensive answer with inline source citations.`;
+    const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
+
+${state.researchContext}
+
+Based on the Gemini grounding results above, synthesize a comprehensive answer to the user's question.
+Format with inline source citations [1][2][3] and proper maritime technical structure.`;
     
-    const verificationSystemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + verificationContext);
+    const systemMessage = new SystemMessage(synthesisPrompt);
+    const stream = await llm.stream([systemMessage, ...state.messages]);
     
-    // Bind ONLY Gemini tool for fast, authoritative lookups
-    const verificationLlm = new ChatOpenAI({
-      modelName: "gpt-4o",
-      temperature: 0.1,
-      openAIApiKey: env.OPENAI_API_KEY,
-      streaming: true,
-    }).bindTools([geminiTool]); // Only Gemini tool bound
+    let fullContent = '';
+    for await (const chunk of stream) {
+      fullContent += chunk.content;
+    }
     
-    // LLM will call Gemini tool and synthesize answer (streams naturally)
-    const response = await verificationLlm.invoke([verificationSystemMessage, ...state.messages]);
-    
-    console.log(`   Response type: ${response.constructor.name}`);
-    console.log(`   Has tool calls: ${!!(response as AIMessage).tool_calls?.length}`);
-    
-    return {
-      messages: [response],
-    };
+    console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
+    return { messages: [new AIMessage(fullContent)] };
   }
   
-  // MODE: RESEARCH - Let LLM orchestrate tools (deep multi-source)
-  console.log(`   📚 Executing RESEARCH mode - LLM tool orchestration`);
-  const llm = new ChatOpenAI({
-    modelName: "gpt-4o",
-    temperature: 0.1,
-    openAIApiKey: env.OPENAI_API_KEY,
-    streaming: true,
-  }).bindTools(maritimeTools);
+  // MODE: RESEARCH - LLM orchestrates tools
+  console.log(`   📚 Executing RESEARCH mode - LLM with all tools`);
+  const researchLlm = llm.bindTools(maritimeTools);
+  const response = await researchLlm.invoke([new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition), ...state.messages]);
   
-  // LLM decides what tools to use
-  const response = await llm.invoke([systemMessage, ...state.messages]);
-  
-  console.log(`   Response type: ${response.constructor.name}`);
   console.log(`   Has tool calls: ${!!(response as AIMessage).tool_calls?.length}`);
-  
-  return {
-    messages: [response],
-  };
+  return { messages: [response] };
 }
 
 // =====================
@@ -350,17 +401,18 @@ async function processToolResults(state: State): Promise<Partial<State>> {
 // =====================
 
 /**
- * Simple routing - LLM decides via tool calls
+ * Routing logic - determines next step based on mode and tool calls
  */
 function shouldContinue(state: State): string {
   const lastMessage = state.messages[state.messages.length - 1];
   const hasToolCalls = !!(lastMessage as AIMessage).tool_calls?.length;
   
   console.log(`\n🔀 ROUTING`);
-  console.log(`   Last message: ${lastMessage.constructor.name}`);
+  console.log(`   Mode: ${state.mode}`);
+  console.log(`   Last message: ${lastMessage?.constructor.name}`);
   console.log(`   Has tool calls: ${hasToolCalls}`);
   
-  // If LLM called tools, execute them
+  // If LLM called tools (research mode), execute them
   if (hasToolCalls) {
     console.log(`→ Execute tools`);
     return "tools";
@@ -378,16 +430,18 @@ function shouldContinue(state: State): string {
 const toolNode = new ToolNode(maritimeTools);
 
 const workflow = new StateGraph(AgentState)
-  .addNode("agent", agentNode)
-  .addNode("tools", toolNode)
-  .addNode("process", processToolResults)
-  .addEdge(START, "agent")
-  .addConditionalEdges("agent", shouldContinue, {
-    "tools": "tools",
-    [END]: END,
+  .addNode("router", routerNode)        // Detects mode, calls Gemini for verification
+  .addNode("synthesizer", synthesizerNode) // Streams answer based on mode
+  .addNode("tools", toolNode)            // Executes tools (research mode only)
+  .addNode("process", processToolResults) // Processes tool results
+  .addEdge(START, "router")             // Start with router
+  .addEdge("router", "synthesizer")      // Router always goes to synthesizer
+  .addConditionalEdges("synthesizer", shouldContinue, {
+    "tools": "tools",                    // Research mode: execute tools
+    [END]: END,                          // None/Verification mode: done
   })
-  .addEdge("tools", "process")
-  .addEdge("process", "agent"); // Loop back to agent after processing
+  .addEdge("tools", "process")          // Process tool results
+  .addEdge("process", "synthesizer");    // Loop back to synthesizer after tools
 
 const checkpointer = new MemorySaver();
 export const agent = workflow.compile({ checkpointer });
