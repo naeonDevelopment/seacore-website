@@ -13,6 +13,7 @@ interface Message {
   isStreaming?: boolean;
   isThinking?: boolean;
   thinkingContent?: string;
+  memoryNarrative?: string; // Conversation context (disappears when content starts)
 }
 
 interface ChatInterfaceProps {
@@ -462,6 +463,7 @@ This is **specialized maritime search** – not general web search. Get precise,
         
         let streamedContent = '';
         let streamedThinking = '';
+        let memoryNarrative = ''; // Conversation context from session memory
         let hasReceivedContent = false;
         let answerReadyToShow = false;
         
@@ -586,7 +588,11 @@ This is **specialized maritime search** – not general web search. Get precise,
                   // Do not treat as content/thinking; continue
                   continue;
                 }
-                if (parsed.type === 'thinking') {
+                if (parsed.type === 'memory') {
+                  // Capture conversation memory narrative (will be cleared when content starts)
+                  memoryNarrative = parsed.content || '';
+                  console.log('📖 [ChatInterface] Memory narrative received:', memoryNarrative.substring(0, 100));
+                } else if (parsed.type === 'thinking') {
                   // Only accumulate thinking when online research is enabled
                   if (useBrowsing) {
                     streamedThinking += parsed.content;
@@ -613,10 +619,13 @@ This is **specialized maritime search** – not general web search. Get precise,
                       }
                     }
                   }
-                } else                 if (parsed.type === 'content') {
+                } else if (parsed.type === 'content') {
                   if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
+                    
+                    // CLEAR MEMORY NARRATIVE when content starts (user only sees it briefly)
+                    memoryNarrative = '';
                     
                     // Clear any remaining loading states (research state already cleared by source events)
                     setIsLoading(false);
@@ -677,6 +686,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                       role: 'assistant' as const,
                       content: streamedContent,
                       thinkingContent: useBrowsing ? streamedThinking : '',
+                      memoryNarrative: memoryNarrative || '',
                       timestamp: new Date(),
                       isStreaming: true,
                       isThinking: shouldShowThinking,
@@ -744,6 +754,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                     ...updated[idx],
                     content: streamedContent,
                     thinkingContent: useBrowsing ? streamedThinking : '',
+                    memoryNarrative: memoryNarrative || '',
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
@@ -803,6 +814,7 @@ This is **specialized maritime search** – not general web search. Get precise,
               role: 'assistant',
               content: streamedContent || "I received a response but couldn't display it correctly. Please try again.",
               thinkingContent: useBrowsing ? streamedThinking : '',
+              memoryNarrative: '', // Memory already cleared by this point
               timestamp: new Date(),
               isStreaming: false,
               isThinking: false,
@@ -814,6 +826,7 @@ This is **specialized maritime search** – not general web search. Get precise,
             ...updated[idx],
             content: streamedContent,
             thinkingContent: useBrowsing ? streamedThinking : '',
+            memoryNarrative: '', // Memory already cleared by this point
             isStreaming: false,
             isThinking: false,
           };
@@ -1361,6 +1374,19 @@ This is **specialized maritime search** – not general web search. Get precise,
                           transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                         >...</motion.span>
                       </span>
+                    </motion.div>
+                  )}
+                
+                  {/* Memory narrative - conversation context (subtle, greyed, disappears when answer starts) */}
+                  {message.memoryNarrative && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.5 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-xs text-slate-400 dark:text-slate-500 italic mb-3 leading-relaxed"
+                    >
+                      {message.memoryNarrative}
                     </motion.div>
                   )}
                 
