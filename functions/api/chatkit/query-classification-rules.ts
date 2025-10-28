@@ -280,7 +280,7 @@ export function classifyQuery(
   // Use resolved query for classification (contains actual entity names)
   const queryForClassification = resolvedQuery.resolvedQuery;
   
-  // PRIORITY 1: System organization queries → knowledge mode
+  // PRIORITY 1: System organization queries → knowledge mode (LLM training data)
   if (isSystemOrganizationQuery(queryForClassification)) {
     return {
       mode: 'none',
@@ -291,7 +291,7 @@ export function classifyQuery(
     };
   }
   
-  // PRIORITY 3: "How to" queries → knowledge mode
+  // PRIORITY 2: "How to" queries → knowledge mode (LLM training data)
   if (isHowToQuery(queryForClassification)) {
     return {
       mode: 'none',
@@ -302,7 +302,7 @@ export function classifyQuery(
     };
   }
   
-  // PRIORITY 4: Check for platform vs entity queries
+  // PRIORITY 3: Check for platform vs entity queries
   // CRITICAL: Use resolved query AND check if we have entity context from memory
   const isPlatform = isPlatformQuery(queryForClassification);
   const hasEntity = hasEntityMention(queryForClassification) || resolvedQuery.hasContext;
