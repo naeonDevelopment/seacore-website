@@ -156,6 +156,11 @@ CONTEXT HANDLING:
       // Extract sources from multiple possible locations
       let sources: any[] = [];
       
+      console.log(`   🔍 DEBUG: groundingMetadata keys:`, Object.keys(groundingMetadata || {}));
+      console.log(`   🔍 DEBUG: has webResults?`, !!groundingMetadata?.webResults);
+      console.log(`   🔍 DEBUG: has groundingChunks?`, !!groundingMetadata?.groundingChunks);
+      console.log(`   🔍 DEBUG: groundingChunks length:`, groundingMetadata?.groundingChunks?.length || 0);
+      
       // PRIORITY 1: webResults (most detailed)
       if (groundingMetadata?.webResults && Array.isArray(groundingMetadata.webResults)) {
         sources = groundingMetadata.webResults.map((result: any) => ({
@@ -167,8 +172,9 @@ CONTEXT HANDLING:
         console.log(`   📚 Extracted ${sources.length} sources from webResults`);
       } 
       
-      // PRIORITY 2: groundingChunks (alternative format)
+      // PRIORITY 2: groundingChunks (alternative format - Gemini 2.5 format)
       if (sources.length === 0 && groundingMetadata?.groundingChunks && Array.isArray(groundingMetadata.groundingChunks)) {
+        console.log(`   🔍 DEBUG: First chunk structure:`, JSON.stringify(groundingMetadata.groundingChunks[0], null, 2));
         sources = groundingMetadata.groundingChunks
           .filter((chunk: any) => chunk.web)
           .map((chunk: any) => ({
@@ -178,6 +184,9 @@ CONTEXT HANDLING:
             score: 0.9,
           }));
         console.log(`   📚 Extracted ${sources.length} sources from groundingChunks`);
+        if (sources.length > 0) {
+          console.log(`   ✅ Sample source:`, JSON.stringify(sources[0], null, 2));
+        }
       }
       
       // PRIORITY 3: groundingSupport (Gemini 2.0 format)
