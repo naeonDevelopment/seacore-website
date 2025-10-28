@@ -495,7 +495,31 @@ function extractEntityContextFromAnswer(answer: string, entityName: string): Rec
     context.specs = specs;
   }
   
-  console.log(`   🔍 Extracted context for ${entityName}:`, JSON.stringify(context, null, 2).substring(0, 200));
+  // CRITICAL: Extract operator/owner information (for vessels)
+  // Patterns: "operated by X", "owned by X", "managed by X", "operated under X"
+  const operatorPatterns = [
+    /(?:operated|owned|managed|chartered)\s+(?:by|under)\s+([A-Z][A-Za-z\s&.,-]+?)(?:\s+(?:and|,|\.|;|$))/i,
+    /operator[:\s]+([A-Z][A-Za-z\s&.,-]+?)(?:\s+(?:and|,|\.|;|$))/i,
+    /owner[:\s]+([A-Z][A-Za-z\s&.,-]+?)(?:\s+(?:and|,|\.|;|$))/i
+  ];
+  
+  for (const pattern of operatorPatterns) {
+    const operatorMatch = answer.match(pattern);
+    if (operatorMatch) {
+      context.operator = operatorMatch[1].trim();
+      console.log(`   🏢 Extracted operator: ${context.operator}`);
+      break;
+    }
+  }
+  
+  // Also check for management company mentions
+  const managementMatch = answer.match(/management[:\s]+([A-Z][A-Za-z\s&.,-]+?)(?:\s+(?:and|,|\.|;|$))/i);
+  if (managementMatch && !context.operator) {
+    context.operator = managementMatch[1].trim();
+    console.log(`   🏢 Extracted management: ${context.operator}`);
+  }
+  
+  console.log(`   🔍 Extracted context for ${entityName}:`, JSON.stringify(context, null, 2).substring(0, 300));
   
   return context;
 }
@@ -519,7 +543,8 @@ function isFollowUpQuery(query: string, previousMessages: BaseMessage[], entitie
   }
   
   // Pattern 2: Referential pronouns (human conversational style)
-  const hasReferentialPronouns = /\b(it|that|this|those|these|them|the above|mentioned|one|same)\b/i.test(query);
+  // CRITICAL: Include possessive pronouns for queries like "give me its engines", "show me their specs"
+  const hasReferentialPronouns = /\b(it|its|that|this|those|these|them|their|his|her|the above|mentioned|one|same)\b/i.test(query);
   
   // Pattern 3: Follow-up phrases (casual human language)
   const hasFollowUpPhrases = /\b(tell me|show me|what about|how about|what if|can you|could you|also|and|but|so|ok|cool|nice|interesting|use|apply|relate|connect)\b/i.test(query);
@@ -1530,6 +1555,7 @@ function buildFleetcoreContextSection(
       let line = `${i + 1}. **${v.name}**`;
       if (v.type) line += ` (${v.type})`;
       if (v.imo) line += ` - IMO: ${v.imo}`;
+      if (v.operator) line += ` - Operator: ${v.operator}`;
       return line;
     }).join('\n')}`;
   }
@@ -1729,6 +1755,7 @@ ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
           name: context.name,
           imo: context.imo,
           type: context.vesselType,
+          operator: context.operator,  // CRITICAL: Store operator/owner info
           specs: context.specs,
           discussed: true,
           firstMentioned: context.mentionedAt,
@@ -1900,12 +1927,22 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
     
     // 4. Reconstruct implicit subjects ("it", "this", "that")
     const hasImplicitSubject = /\b(it|this|that|these|those|them)\b/i.test(userQuery);
+    const hasPossessivePronoun = /\b(its|their|his|her)\b/i.test(userQuery);
     const hasActionVerb = /\b(use|apply|works?|implement|integrate|handle)\b/i.test(userQuery);
     
     if (hasImplicitSubject && hasActionVerb && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
       // Replace implicit "it" with explicit "fleetcore PMS"
       contextEnrichedQuery = userQuery.replace(/\b(it|this|that)\b/gi, 'fleetcore PMS');
       console.log(`   🔄 Resolved implicit subject: "${userQuery}" → "${contextEnrichedQuery}"`);
+    }
+    
+    // 4b. Handle possessive pronouns ("its engines", "their specs")
+    // CRITICAL: Queries like "give me its engines" need entity context
+    if (hasPossessivePronoun && allEntities.length > 0) {
+      const recentEntity = allEntities[allEntities.length - 1];
+      // Replace possessive with explicit entity name
+      contextEnrichedQuery = userQuery.replace(/\b(its|their|his|her)\b/gi, `${recentEntity}'s`);
+      console.log(`   🔄 Resolved possessive pronoun: "${userQuery}" → "${contextEnrichedQuery}"`);
     }
     
     // 5. Add entity if query mentions action but missing explicit entity
@@ -2437,6 +2474,7 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
         accumulatedContextSection += `${i + 1}. ${v.name}`;
         if (v.type) accumulatedContextSection += ` (${v.type})`;
         if (v.imo) accumulatedContextSection += ` - IMO: ${v.imo}`;
+        if (v.operator) accumulatedContextSection += ` - Operator: ${v.operator}`;
         accumulatedContextSection += '\n';
       });
       accumulatedContextSection += '\n';

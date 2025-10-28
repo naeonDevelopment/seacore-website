@@ -25,6 +25,7 @@ export interface VesselEntity {
   name: string;
   imo?: string;
   type?: string;
+  operator?: string;  // Operator/owner/management company
   specs?: Record<string, any>;
   discussed: boolean;
   firstMentioned: number;
