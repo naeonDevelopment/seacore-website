@@ -13,6 +13,7 @@ export const geminiTool = tool(
     
     const env = (config?.configurable as any)?.env;
     const sessionMemory = (config?.configurable as any)?.sessionMemory;
+    const statusEmitter = (config?.configurable as any)?.statusEmitter;
     
     if (!env?.GEMINI_API_KEY) {
       return JSON.stringify({
@@ -22,6 +23,15 @@ export const geminiTool = tool(
         mode: 'gemini',
         error: 'GEMINI_API_KEY not configured',
         fallback_needed: true
+      });
+    }
+    
+    // Emit status: Starting Gemini search
+    if (statusEmitter) {
+      statusEmitter({
+        type: 'status',
+        step: 'gemini_search',
+        content: 'Searching Google with Gemini...'
       });
     }
     
@@ -54,6 +64,7 @@ export const geminiTool = tool(
       // Gemini 2.5 Pro: Latest production model with enhanced reasoning (paid tier required)
       // Pricing: $1.25/M input tokens, $10/M output tokens (<200K context)
       // Alternatives: gemini-2.5-flash (faster, cheaper), gemini-1.5-pro-latest (fallback)
+      // NOTE: Using non-streaming for now - streaming requires SSE parsing which complicates tool integration
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
         method: 'POST',
         headers: {
@@ -139,6 +150,15 @@ CONTEXT HANDLING:
       
       console.log(`   ✅ Gemini API response received`);
       console.log(`   📊 FULL GEMINI RESPONSE:`, JSON.stringify(data, null, 2).substring(0, 2000));
+      
+      // Emit status: Received Gemini response
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'status',
+          step: 'gemini_received',
+          content: 'Processing search results...'
+        });
+      }
       
       const candidate = data.candidates?.[0];
       const answer = candidate?.content?.parts?.[0]?.text || null;

@@ -466,6 +466,15 @@ If you don't have specific information, be honest and suggest the user enable on
     
     console.log(`   🔮 Synthesizing VERIFICATION mode from Gemini result`);
     
+    // Emit status: Starting synthesis
+    if (statusEmitter) {
+      statusEmitter({
+        type: 'status',
+        step: 'synthesis_start',
+        content: `Formatting response from ${state.sources.length} sources...`
+      });
+    }
+    
     // OPTIONAL: Run verification pipeline for high-value queries (comparative, multi-entity)
     const shouldRunVerificationPipeline = 
       state.sources.length >= 3 && // Multiple sources available
@@ -937,10 +946,10 @@ export const agent = workflow.compile({ checkpointer });
 // HANDLER
 // =====================
 
-// Streaming configuration (from legacy agent)
-const SSE_CHUNK_SIZE = 50; // chars per SSE event
-const SSE_THROTTLE_INTERVAL_MS = 8; // ms between chunks
-const SSE_THROTTLE_EVERY_N_CHUNKS = 5; // throttle every N chunks
+// Streaming configuration (optimized for smooth playback)
+const SSE_CHUNK_SIZE = 150; // chars per SSE event (increased from 50 for smoother flow)
+const SSE_THROTTLE_INTERVAL_MS = 5; // ms between chunks (reduced from 8 for faster delivery)
+const SSE_THROTTLE_EVERY_N_CHUNKS = 10; // throttle every N chunks (increased to reduce throttling frequency)
 
 /**
  * Handle chat request with streaming
