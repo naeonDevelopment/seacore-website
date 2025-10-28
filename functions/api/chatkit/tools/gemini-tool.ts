@@ -81,7 +81,13 @@ When discussing vessels, ALWAYS include (if available):
 - Build year and shipyard
 - Classification society and class notation
 - Propulsion: main engine type, power output in kW, service speed in knots
-- Owner/operator and management company
+
+Ownership structure (CRITICAL for maritime professionals):
+- Registered owner (legal entity, country)
+- Beneficial owner (ultimate parent company)
+- Technical manager (vessel operations)
+- Commercial manager/operator
+- ISM DOC company (safety management)
 
 When discussing companies:
 - Fleet size and composition

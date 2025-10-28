@@ -328,11 +328,22 @@ STRUCTURE YOUR RESPONSE:
 - Propulsion system (engine type, power output, speed)
 - Notable equipment or systems
 
+**OWNERSHIP & MANAGEMENT**
+- Registered owner (legal entity, country of incorporation)
+- Beneficial owner (ultimate parent company if different)
+- Technical manager (responsible for vessel operations)
+- Commercial manager/operator (if different from owner)
+- ISM Code Document of Compliance (DOC) company
+- Bareboat charter arrangements (if applicable)
+- Management agreements and duration
+
 **OPERATIONAL DATA** (if available)
 - Current employment/trade route
-- Ownership and management structure
+- Charter type (spot, time charter, bareboat, owned fleet)
 - Notable operational history or incidents
-- Regulatory compliance status
+- Port state control (PSC) inspection record
+- Vetting inspection status (SIRE, CDI, RightShip)
+- Regulatory compliance status (ISM, ISPS)
 
 **COMPARATIVE ANALYSIS** (when relevant)
 - How this compares to similar vessels
