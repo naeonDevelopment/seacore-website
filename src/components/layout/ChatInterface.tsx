@@ -686,6 +686,58 @@ This is **specialized maritime search** – not general web search. Get precise,
                     // Clear any remaining loading states (research state already cleared by source events)
                     setIsLoading(false);
                     
+                    // Create assistant message IMMEDIATELY (before throttling)
+                    // This prevents race condition where stream finishes before message is created
+                    if (streamingIndexRef.current === null) {
+                      setMessages((prev) => {
+                        const updated = [...prev];
+                        const idx = updated.length;
+                        streamingIndexRef.current = idx;
+                        
+                        const assistantMessage = {
+                          role: 'assistant' as const,
+                          content: '',
+                          thinkingContent: useBrowsing ? streamedThinking : '',
+                          memoryNarrative: memoryNarrative || '',
+                          timestamp: new Date(),
+                          isStreaming: true,
+                          isThinking: false,
+                        };
+                        updated.push(assistantMessage);
+                        
+                        console.log(`💬 [ChatInterface] Assistant message created immediately (idx: ${idx})`);
+                        
+                        // Link research session if browsing enabled
+                        if (useBrowsing && activeResearchIdRef.current) {
+                          const assistantMessageId = assistantMessage.timestamp.getTime().toString();
+                          const pendingId = activeResearchIdRef.current;
+                          
+                          setResearchSessions((prev) => {
+                            const updated = new Map(prev);
+                            const pendingSession = updated.get(pendingId);
+                            
+                            if (pendingSession) {
+                              const newSession = {
+                                ...pendingSession,
+                                messageId: assistantMessageId,
+                              };
+                              updated.set(assistantMessageId, newSession);
+                            }
+                            
+                            return updated;
+                          });
+                          
+                          setExpandedSources((prev) => {
+                            const ns = new Set(prev);
+                            ns.add(idx);
+                            return ns;
+                          });
+                        }
+                        
+                        return updated;
+                      });
+                    }
+                    
                     // CRITICAL FIX: Delay showing answer to let sources display first
                     // Give 1000ms for sources to render in the research panel before answer appears
                     setTimeout(() => {
@@ -728,72 +780,17 @@ This is **specialized maritime search** – not general web search. Get precise,
                   (!answerReadyToShow && thinkingElapsedTime < MINIMUM_THINKING_TIME) || (answerReadyToShow && overlapActive)
                 );
 
+                // Update the assistant message with new content
                 setMessages((prev) => {
                   const updated = [...prev];
                   let idx = streamingIndexRef.current as number | null;
+                  
+                  // Message should already be created by now
                   if (idx == null) {
-                    // Create assistant bubble ONLY after first content arrives
-                    if (!hasReceivedContent) {
-                      return prev; // wait until content to create
-                    }
-                    idx = updated.length;
-                    streamingIndexRef.current = idx;
-                    const assistantMessage = {
-                      role: 'assistant' as const,
-                      content: streamedContent,
-                      thinkingContent: useBrowsing ? streamedThinking : '',
-                      memoryNarrative: memoryNarrative || '',
-                      timestamp: new Date(),
-                      isStreaming: true,
-                      isThinking: shouldShowThinking,
-                    };
-                    updated.push(assistantMessage);
-                    
-                    // Link existing research session to this assistant message
-                    if (useBrowsing && activeResearchIdRef.current) {
-                      const assistantMessageId = assistantMessage.timestamp.getTime().toString();
-                      const pendingId = activeResearchIdRef.current;
-                      
-                      console.log('🔗 Linking research session:', pendingId, '→', assistantMessageId);
-                      
-                      setResearchSessions((prev) => {
-                        const updated = new Map(prev);
-                        const pendingSession = updated.get(pendingId);
-                        
-                        if (pendingSession) {
-                          // CRITICAL FIX: Create new session with same reference to events array
-                          // This way both IDs point to the SAME events array during transition
-                          const newSession = {
-                            ...pendingSession,
-                            messageId: assistantMessageId,
-                          };
-                          
-                          // Keep BOTH sessions during streaming so sources can update either one
-                          updated.set(assistantMessageId, newSession);
-                          // DON'T delete pending session yet - sources might still arrive
-                          
-                          console.log('✅ Research session linked, events:', pendingSession.events.length);
-                        } else {
-                          console.warn('⚠️ No pending session found:', pendingId);
-                        }
-                        
-                        return updated;
-                      });
-                      
-                      // CRITICAL: Keep activeResearchIdRef as pending ID during streaming
-                      // It will be updated to assistant ID on finalize
-                      // This ensures all incoming sources go to the right session
-                      
-                      // Auto-expand this research panel
-                      setExpandedSources((prev) => {
-                        const ns = new Set(prev);
-                        ns.add(idx!);
-                        return ns;
-                      });
-                    }
-                    
-                    return updated;
+                    console.warn('⚠️ [ChatInterface] Streaming index is null in throttled update');
+                    return prev;
                   }
+                  
                   if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
                     // Try to find the currently streaming assistant message
                     const found = [...updated].reverse().findIndex((m) => m.role === 'assistant' && m.isStreaming);
@@ -801,19 +798,20 @@ This is **specialized maritime search** – not general web search. Get precise,
                       idx = updated.length - 1 - found;
                       streamingIndexRef.current = idx;
                     } else {
+                      console.warn('⚠️ [ChatInterface] Cannot find assistant message to update');
                       return prev;
                     }
                   }
-                  // Show streaming content even while thinking
-                  // Preserve original timestamp to keep React keys stable during streaming
+                  
+                  // Update streaming content
                   updated[idx] = {
                     ...updated[idx],
                     content: streamedContent,
                     thinkingContent: useBrowsing ? streamedThinking : '',
-                    memoryNarrative: memoryNarrative || '',
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
+                  
                   // Minimal live log for debugging
                   if ((window as any).__ci_log_once !== true) {
                     console.log('🔄 [ChatInterface] stream update', { idx, contentLen: streamedContent.length, thinkingLen: streamedThinking.length, shouldShowThinking });
