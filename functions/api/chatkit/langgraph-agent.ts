@@ -13,6 +13,10 @@ import { z } from "zod";
 import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { analyzeContentIntelligence, batchAnalyzeContent, type ContentSource, type ContentIntelligence } from './content-intelligence';
 import { SessionMemoryManager, extractTopicFromMessages, type SessionMemory, type VesselEntity } from './session-memory';
+import { CloudflareBaseStore } from './store/cloudflare-store';
+import { syncSessionToStore, loadCrossSessionContext, initializeUser } from './store/integration';
+import { createEntityResolver, type EntityResolver } from './store/entity-resolver';
+import { incrementalSummarize } from './store/summarization';
 
 // Cloudflare Workers types
 declare global {
@@ -874,13 +878,20 @@ function calculateConfidence(sources: Source[]): number {
 /**
  * TOOL 1: Gemini Grounding Search - Google-powered instant answers with citations
  * Uses Google's entire index for fresh, accurate maritime information
+ * NOW CONTEXT-AWARE: Receives accumulated knowledge for intelligent follow-up queries
  */
 const geminiGroundingTool = tool(
-  async ({ query }: { query: string }, config) => {
+  async ({ query, entityContext }: { query: string; entityContext?: string }, config) => {
     console.log(`\n🔮 GEMINI GROUNDING TOOL CALLED`);
     console.log(`   Query: "${query}"`);
+    console.log(`   Has entity context: ${!!entityContext}`);
+    if (entityContext) {
+      console.log(`   Context preview: ${entityContext.substring(0, 200)}...`);
+    }
     
     const env = (config?.configurable as any)?.env;
+    const sessionMemory = (config?.configurable as any)?.sessionMemory;
+    
     console.log(`   Has GEMINI_API_KEY: ${!!env?.GEMINI_API_KEY}`);
     
     if (!env?.GEMINI_API_KEY) {
@@ -895,7 +906,33 @@ const geminiGroundingTool = tool(
       });
     }
     
-    console.log(`🔮 Executing Gemini API call...`);
+    // CRITICAL: Build context-enriched query for Gemini
+    // This allows Gemini to understand follow-up queries in context
+    let enrichedQuery = query;
+    
+    if (entityContext || sessionMemory?.conversationSummary) {
+      console.log(`   🎯 Enriching query with conversation context`);
+      
+      const contextParts: string[] = [];
+      
+      // Add conversation summary if available (natural language context)
+      if (sessionMemory?.conversationSummary) {
+        contextParts.push(`CONVERSATION CONTEXT:\n${sessionMemory.conversationSummary}`);
+      }
+      
+      // Add specific entity context if provided (structured data)
+      if (entityContext) {
+        contextParts.push(`SPECIFIC CONTEXT FOR THIS QUERY:\n${entityContext}`);
+      }
+      
+      // Build enriched query that Gemini can understand
+      enrichedQuery = `${contextParts.join('\n\n')}\n\nBased on the context above, answer this question:\n${query}`;
+      
+      console.log(`   ✅ Query enriched with ${contextParts.length} context sections`);
+      console.log(`   Enriched query length: ${enrichedQuery.length} chars`);
+    }
+    
+    console.log(`🔮 Executing Gemini API call with ${entityContext || sessionMemory?.conversationSummary ? 'CONTEXT' : 'NO CONTEXT'}...`);
     
     try {
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
@@ -906,7 +943,7 @@ const geminiGroundingTool = tool(
         },
         body: JSON.stringify({
           contents: [{
-            parts: [{ text: query }]
+            parts: [{ text: enrichedQuery }]  // ← Now includes full context
           }],
           systemInstruction: {
             parts: [{
@@ -915,6 +952,8 @@ const geminiGroundingTool = tool(
 - NEVER say "I'll search", "I'll look up", "hold on", or "let me find"
 - Start with the factual information right away
 - Use Google Search results to provide accurate, up-to-date information
+- If context is provided, USE IT to understand what the user is asking about
+- For follow-up questions, answer based on the entity mentioned in the context
 - Keep responses concise and factual`
             }]
           },
@@ -1031,16 +1070,26 @@ const geminiGroundingTool = tool(
     name: "gemini_grounding",
     description: `Google-powered search with instant answers and citations. Best for simple factual queries.
     
+CONTEXT-AWARE: This tool now understands conversation context and follow-up queries.
+    
 Use this for:
 - Vessel information (IMO, owner, specs, location)
 - Company lookups (fleet, ownership, operations)
 - Current maritime news and events
 - Simple technical facts and definitions
 - Quick regulatory lookups
+- Follow-up questions about previously discussed entities
+
+The tool automatically receives conversation context, so follow-up queries like:
+- "what engines does it have" (after discussing a vessel)
+- "tell me about their fleet" (after discussing a company)
+- "give me its specifications" (after mentioning equipment)
+will work correctly with full context awareness.
 
 Returns: Google search results with AI-generated answer and inline citations`,
     schema: z.object({
-      query: z.string().describe("Simple factual query needing fast, accurate answer from Google's index")
+      query: z.string().describe("Search query for Google grounding (can be conversational/vague - context is added automatically)"),
+      entityContext: z.string().optional().describe("Optional: Specific entity details from conversation memory to provide additional context")
     })
   }
 );
@@ -1142,20 +1191,24 @@ Returns: 2-3 authoritative sources + Tavily AI fact summary`,
  * - Multi-tiered content intelligence analysis
  * - Raw content extraction for deep analysis
  * - Quality filtering with authority scoring
+ * - NOW CONTEXT-AWARE: Uses accumulated knowledge for intelligent follow-ups
  * 
  * @param query - Main search query
  * @param search_depth - 'basic' (10 sources) or 'advanced' (15 sources with full content)
  * @param use_multi_query - Enable multi-query orchestration for complex research
+ * @param entityContext - Optional entity context from memory
  */
 const deepResearchTool = tool(
   async ({ 
     query, 
     search_depth, 
-    use_multi_query = false 
+    use_multi_query = false,
+    entityContext 
   }: { 
     query: string; 
     search_depth: 'basic' | 'advanced';
     use_multi_query?: boolean;
+    entityContext?: string;
   }, config) => {
     const env = (config?.configurable as any)?.env;
     if (!env?.TAVILY_API_KEY) {
@@ -1168,15 +1221,47 @@ const deepResearchTool = tool(
     const accumulatedKnowledge = sessionMemory?.accumulatedKnowledge || {};
     
     console.log(`🔬 Deep Research: "${query}" (${search_depth}, multi-query: ${use_multi_query})`);
+    console.log(`   Has entity context: ${!!entityContext}`);
     if (preserveFleetcoreContext) {
       console.log(`   🎯 Fleetcore context available: ${accumulatedKnowledge.fleetcoreFeatures?.length || 0} features`);
     }
     
+    // CRITICAL: Build context-enriched query for better search results
+    // Extract entity names from context to include in searches
+    let enrichedQuery = query;
+    const contextEntities: string[] = [];
+    
+    if (entityContext) {
+      // Extract vessel/company names from context
+      const vesselMatches = entityContext.match(/PREVIOUSLY DISCUSSED (?:VESSELS|COMPANIES):\s*-\s*([^\n|]+)/g);
+      if (vesselMatches) {
+        vesselMatches.forEach(match => {
+          const name = match.replace(/PREVIOUSLY DISCUSSED (?:VESSELS|COMPANIES):\s*-\s*/, '').trim();
+          if (name) contextEntities.push(name);
+        });
+      }
+      
+      // If query is vague (pronouns, short), make it explicit with entity names
+      const isVagueQuery = /\b(it|its|their|them|this|that|these|those)\b/i.test(query) || query.split(' ').length <= 5;
+      if (isVagueQuery && contextEntities.length > 0) {
+        // Use most recent entity
+        const recentEntity = contextEntities[contextEntities.length - 1];
+        enrichedQuery = `${recentEntity} ${query.replace(/\b(it|its|their|them|this|that|these|those)\b/gi, '').trim()}`;
+        console.log(`   🔄 Vague query enriched: "${query}" → "${enrichedQuery}"`);
+      }
+    }
+    
+    console.log(`   Final search query: "${enrichedQuery}"`);
+    if (contextEntities.length > 0) {
+      console.log(`   Context entities: ${contextEntities.join(', ')}`);
+    }
+    
     try {
       // Multi-Query Orchestration: Generate multiple search angles including context-aware variants
+      // Use enriched query that includes entity context
       const queries = use_multi_query && search_depth === 'advanced' 
-        ? generateMultipleQueries(query, preserveFleetcoreContext, accumulatedKnowledge)
-        : [query];
+        ? generateMultipleQueries(enrichedQuery, preserveFleetcoreContext, accumulatedKnowledge)
+        : [enrichedQuery];  // Use enriched query, not original
       
       console.log(`   🔍 Executing ${queries.length} parallel searches`);
       
@@ -1245,21 +1330,30 @@ const deepResearchTool = tool(
     name: "deep_research",
     description: `Comprehensive maritime intelligence tool with multi-query orchestration.
     
+CONTEXT-AWARE: Automatically enriches vague queries with entity context from conversation.
+    
 Use this for:
 - Specific vessels, ships, fleets
 - Technical specifications and equipment
 - Maritime companies and operations
 - Comparative analysis
 - Industry developments
+- Follow-up questions about previously discussed entities
+
+The tool automatically enriches vague/conversational queries with entity context:
+- "what are the engines" → "Dynamic 17 engines" (if Dynamic 17 was just discussed)
+- "tell me the specifications" → "Stanford Bateleur specifications" (with context)
 
 Parameters:
-- query: Detailed search query
+- query: Detailed search query (can be conversational - will be enriched with context)
 - search_depth: 'basic' for focused search, 'advanced' for comprehensive intelligence
-- use_multi_query: Enable parallel multi-angle searches (recommended for 'advanced')`,
+- use_multi_query: Enable parallel multi-angle searches (recommended for 'advanced')
+- entityContext: Optional - Automatically passed from conversation memory`,
     schema: z.object({
-      query: z.string().describe("Complex maritime query requiring multi-source intelligence"),
+      query: z.string().describe("Complex maritime query requiring multi-source intelligence (conversational queries work with context)"),
       search_depth: z.enum(['basic', 'advanced']).default('basic').describe("'basic' for focused search, 'advanced' for comprehensive research"),
-      use_multi_query: z.boolean().optional().describe("Enable multi-query orchestration for comprehensive coverage (default: false)")
+      use_multi_query: z.boolean().optional().describe("Enable multi-query orchestration for comprehensive coverage (default: false)"),
+      entityContext: z.string().optional().describe("Optional: Entity details from conversation memory (auto-populated)")
     })
   }
 );
@@ -1613,8 +1707,60 @@ async function handleVerificationMode(
   console.log(`   Query: "${userQuery}"`);
   console.log(`   Entity context: "${entityContext}"`);
   
+  // CRITICAL: Build RICH entity context from accumulated knowledge
+  // This enables intelligent follow-up queries
+  const vesselEntities = Object.values(accumulatedKnowledge.vesselEntities || {});
+  const companyEntities = Object.values(accumulatedKnowledge.companyEntities || {});
+  
+  let richEntityContext = '';
+  
+  if (vesselEntities.length > 0 || companyEntities.length > 0) {
+    console.log(`   🔍 Building rich entity context from memory`);
+    console.log(`      Vessels in memory: ${vesselEntities.length}`);
+    console.log(`      Companies in memory: ${companyEntities.length}`);
+    
+    const contextParts: string[] = [];
+    
+    // Add vessel details with ALL available information
+    if (vesselEntities.length > 0) {
+      contextParts.push(`PREVIOUSLY DISCUSSED VESSELS:`);
+      vesselEntities.forEach((vessel: any) => {
+        const details: string[] = [`${vessel.name}`];
+        if (vessel.type) details.push(`Type: ${vessel.type}`);
+        if (vessel.imo) details.push(`IMO: ${vessel.imo}`);
+        if (vessel.operator) details.push(`Operator: ${vessel.operator}`);
+        if (vessel.specs && Object.keys(vessel.specs).length > 0) {
+          details.push(`Specs: ${JSON.stringify(vessel.specs).substring(0, 200)}`);
+        }
+        contextParts.push(`- ${details.join(' | ')}`);
+      });
+    }
+    
+    // Add company details
+    if (companyEntities.length > 0) {
+      contextParts.push(`\nPREVIOUSLY DISCUSSED COMPANIES:`);
+      companyEntities.forEach((company: any) => {
+        const details: string[] = [`${company.name}`];
+        if (company.companyContext) {
+          details.push(company.companyContext.substring(0, 150));
+        }
+        contextParts.push(`- ${details.join(' | ')}`);
+      });
+    }
+    
+    richEntityContext = contextParts.join('\n');
+    console.log(`   ✅ Rich context built (${richEntityContext.length} chars)`);
+  }
+  
+  // Add basic entity context if provided
+  if (entityContext && richEntityContext) {
+    richEntityContext += '\n\n' + entityContext;
+  } else if (entityContext) {
+    richEntityContext = entityContext;
+  }
+  
   // Build enriched query with fleetcore context
-  let enrichedQuery = userQuery + entityContext;
+  let enrichedQuery = userQuery;
   let fleetcoreContextPrefix = '';
   
   if (preserveFleetcoreContext && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
@@ -1631,10 +1777,16 @@ async function handleVerificationMode(
   
   const finalQuery = fleetcoreContextPrefix + enrichedQuery;
   console.log(`   Full query to Gemini: "${finalQuery.substring(0, 150)}..."`);
+  if (richEntityContext) {
+    console.log(`   Passing rich entity context (${richEntityContext.length} chars) to Gemini`);
+  }
   
   try {
-    // Call Gemini grounding tool directly
-    const geminiResult = await geminiGroundingTool.invoke({ query: finalQuery }, config);
+    // Call Gemini grounding tool directly with RICH CONTEXT
+    const geminiResult = await geminiGroundingTool.invoke({ 
+      query: finalQuery,
+      entityContext: richEntityContext || undefined  // Pass rich context to Gemini
+    }, config);
     
     console.log(`   ✅ Gemini direct call complete`);
     
@@ -2049,6 +2201,9 @@ Your research should find information that helps assess fleetcore's fit for this
   // Use enriched query for better research planning
   const researchQuery = contextEnrichedQuery !== userQuery ? contextEnrichedQuery : userQuery;
   
+  // CRITICAL: Build rich entity context to pass to tools
+  const richEntityContext = entityContext;  // Already contains vessel/company details
+  
   const planningPrompt = `You are a maritime intelligence researcher. The user's query may be vague or conversational.
 
 User Query (original): "${userQuery}"
@@ -2064,11 +2219,17 @@ Your task: Use the deep_research tool for comprehensive intelligence.
   * Keep use_multi_query=false
 - You can also use maritime_knowledge for internal fleetcore information
 
+**CRITICAL - CONTEXT PASSING:**
+${entityContext ? `IMPORTANT: Pass the entity context below as the 'entityContext' parameter to deep_research:
+${entityContext.substring(0, 500)}...
+
+This ensures the tool understands which vessel/company/entity the user is asking about.` : 'No entity context available - use query as-is.'}
+
 ${preserveFleetcoreContext ? `REMINDER: Consider how your research findings relate to the fleetcore features the user has been discussing.` : ''}
 
 **IMPORTANT**: If query is vague (uses "it", "this", "that"), use the enriched query and context above to understand what the user is asking about.
 
-Call deep_research now with appropriate parameters.`;
+Call deep_research now with appropriate parameters (including entityContext if available).`;
   
   const model = new ChatOpenAI({
     modelName: "gpt-4o-mini",
@@ -2765,7 +2926,10 @@ export interface ChatRequest {
     TAVILY_API_KEY: string;
     GEMINI_API_KEY: string;
     LANGSMITH_API_KEY?: string; // Optional for tracing/debugging
-    CHAT_SESSIONS?: KVNamespace; // Cloudflare KV for persistent session memory
+    CHAT_SESSIONS?: KVNamespace; // Cloudflare KV for session memory
+    MARITIME_MEMORY?: D1Database; // D1 for cross-session persistent memory
+    VECTOR_INDEX?: VectorizeIndex; // Vectorize for semantic search
+    AI?: Ai; // Workers AI for embeddings
   };
 }
 
@@ -2806,6 +2970,65 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
     console.warn(`⚠️ CHAT_SESSIONS KV not available - session memory disabled`);
   }
   
+  // Initialize CloudflareBaseStore for cross-session memory
+  let store: CloudflareBaseStore | null = null;
+  let crossSessionContext: any = null;
+  let entityResolver: EntityResolver | null = null;
+  const userId = sessionId.split('-')[0] || sessionId; // Extract user ID from session
+  
+  if (env.MARITIME_MEMORY && env.VECTOR_INDEX && env.AI) {
+    try {
+      console.log(`🔮 Initializing CloudflareBaseStore...`);
+      store = new CloudflareBaseStore({
+        d1: env.MARITIME_MEMORY,
+        vectorize: env.VECTOR_INDEX,
+        ai: env.AI,
+      });
+      
+      // Initialize user if first time
+      await initializeUser(store, userId);
+      
+      // Load cross-session context
+      const userQuery = messages[messages.length - 1]?.content || '';
+      crossSessionContext = await loadCrossSessionContext(
+        store,
+        userId,
+        userQuery,
+        sessionMemory || {} as SessionMemory
+      );
+      
+      console.log(`✅ Cross-session context loaded:`);
+      console.log(`   Relevant entities: ${crossSessionContext.relevantEntities.length}`);
+      console.log(`   Relevant memories: ${crossSessionContext.relevantMemories.length}`);
+      
+      // Create entity resolver with current session + cross-session entities
+      entityResolver = createEntityResolver(
+        sessionMemory?.accumulatedKnowledge?.vesselEntities,
+        sessionMemory?.accumulatedKnowledge?.companyEntities
+      );
+      
+      // Add cross-session entities to resolver
+      for (const entity of crossSessionContext.relevantEntities) {
+        entityResolver.addEntity({
+          id: entity.name,
+          name: entity.name,
+          type: entity.type as any,
+          lastMentioned: Date.now(),
+          mentionCount: 1,
+          attributes: entity,
+        });
+      }
+      
+      console.log(`🔗 Entity resolver initialized`);
+      
+    } catch (error) {
+      console.error(`❌ Failed to initialize BaseStore:`, error);
+      // Continue without cross-session memory
+    }
+  } else {
+    console.warn(`⚠️ MARITIME_MEMORY/VECTOR_INDEX/AI not available - cross-session memory disabled`);
+  }
+  
   // Configure LangSmith tracing if API key is available
   if (env.LANGSMITH_API_KEY) {
     console.log(`🔬 LangSmith tracing enabled`);
@@ -2842,6 +3065,10 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
       env,
       sessionMemory, // Pass session memory to nodes
       sessionMemoryManager, // Pass manager for saving
+      store, // CloudflareBaseStore for cross-session memory
+      entityResolver, // Entity resolution service
+      crossSessionContext, // Pre-loaded relevant entities/memories
+      userId, // User ID for namespace isolation
     },
     // Add metadata for LangSmith tracing
     metadata: {
@@ -2849,6 +3076,8 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
       enable_browsing: enableBrowsing,
       user_query: messages[messages.length - 1]?.content?.substring(0, 100),
       has_session_memory: !!sessionMemory,
+      has_cross_session_memory: !!store,
+      cross_session_entities: crossSessionContext?.relevantEntities?.length || 0,
     },
     // Add tags for easier filtering in LangSmith
     tags: ['maritime-agent', enableBrowsing ? 'research-mode' : 'verification-mode'],
@@ -3221,6 +3450,22 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             // Save to KV
             await sessionMemoryManager.save(sessionId, sessionMemory);
             console.log(`💾 Session memory saved successfully`);
+            
+            // Sync to CloudflareBaseStore for cross-session persistence
+            if (store && sessionMemory) {
+              try {
+                await syncSessionToStore({
+                  store,
+                  sessionMemory,
+                  userId,
+                  sessionId,
+                });
+                console.log(`🔄 Session synced to persistent store (cross-session memory)`);
+              } catch (error) {
+                console.error(`❌ Failed to sync to BaseStore:`, error);
+                // Non-critical, continue
+              }
+            }
           } catch (error) {
             console.error(`❌ Failed to save session memory:`, error);
           }

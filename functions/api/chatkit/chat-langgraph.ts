@@ -11,7 +11,12 @@ interface Env {
   GEMINI_API_KEY: string;
   LANGSMITH_API_KEY?: string;
   USE_LANGGRAPH?: string;
-  // CHAT_SESSIONS not needed - LangGraph uses built-in MemorySaver
+  
+  // Cross-session memory infrastructure
+  MARITIME_MEMORY: D1Database;
+  VECTOR_INDEX: VectorizeIndex;
+  AI: Ai;
+  CHAT_SESSIONS: KVNamespace;
 }
 
 export async function onRequestPost(context: { request: Request; env: Env }) {
