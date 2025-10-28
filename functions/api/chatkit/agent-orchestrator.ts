@@ -275,11 +275,12 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
     }
   }
   
+  // CRITICAL: streaming: true enables token-by-token output via LangGraph callbacks
   const llm = new ChatOpenAI({
     modelName: "gpt-4o",
-    temperature: 0.1,
+    temperature: state.researchContext ? 0.4 : 0.3,
     openAIApiKey: env.OPENAI_API_KEY,
-    streaming: true,
+    streaming: true, // Enable token streaming for all modes
   });
   
   // MODE: NONE - Answer from training data
@@ -292,8 +293,9 @@ DO NOT suggest using external research - provide detailed information directly.`
     
     const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
     
-    // Use stream to enable streaming, but consume for state management
-    const stream = await llm.stream([systemMessage, ...state.messages]);
+    // CRITICAL: Use stream() and pass config for LangGraph callback system
+    // The for-await loop allows node to complete, but LangGraph intercepts chunks via callbacks
+    const stream = await llm.stream([systemMessage, ...state.messages], config);
     let fullContent = '';
     for await (const chunk of stream) {
       fullContent += chunk.content;
@@ -369,8 +371,8 @@ Synthesize a professional technical brief based on the Gemini results above.`;
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     
-    // Use stream to enable streaming, but consume for state management
-    const stream = await llm.stream([systemMessage, ...state.messages]);
+    // CRITICAL: Use stream() and pass config for LangGraph callback system
+    const stream = await llm.stream([systemMessage, ...state.messages], config);
     let fullContent = '';
     for await (const chunk of stream) {
       fullContent += chunk.content;
@@ -383,10 +385,34 @@ Synthesize a professional technical brief based on the Gemini results above.`;
   // MODE: RESEARCH - LLM orchestrates tools
   console.log(`   📚 Executing RESEARCH mode - LLM with all tools`);
   const researchLlm = llm.bindTools(maritimeTools);
-  const response = await researchLlm.invoke([new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition), ...state.messages]);
   
-  console.log(`   Has tool calls: ${!!(response as AIMessage).tool_calls?.length}`);
-  return { messages: [response] };
+  // CRITICAL: Use stream() even with tools for consistent streaming behavior
+  // When tools are called, stream() will pause at tool calls
+  // When generating final answer, stream() will emit tokens
+  const stream = await researchLlm.stream([new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition), ...state.messages], config);
+  let response: AIMessage | null = null;
+  let fullContent = '';
+  
+  for await (const chunk of stream) {
+    if (!response) {
+      response = chunk as AIMessage;
+      fullContent = typeof chunk.content === 'string' ? chunk.content : '';
+    } else {
+      // Accumulate string content
+      if (typeof chunk.content === 'string') {
+        fullContent += chunk.content;
+      }
+    }
+  }
+  
+  // Ensure response has accumulated content
+  if (response && fullContent) {
+    response.content = fullContent;
+  }
+  
+  console.log(`   Has tool calls: ${!!response?.tool_calls?.length}`);
+  console.log(`   Response content length: ${fullContent.length} chars`);
+  return { messages: [response!] };
 }
 
 // =====================
