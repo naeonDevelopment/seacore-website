@@ -3,7 +3,7 @@
  * Routes between LangGraph agent (new) and legacy agent (old)
  */
 
-import { handleChatWithAgent, type ChatRequest } from './agent-orchestrator';
+import { handleChatWithAgent, type ChatRequest } from '../agent-orchestrator';
 
 // Feature flag - controlled via environment variable
 const USE_LANGGRAPH = (env: any): boolean => {
@@ -66,7 +66,7 @@ export async function routeChatRequest(
   } else {
     // Use legacy agent (Tavily only)
     console.log(`   ⚠️  Routing to legacy agent (Tavily only - no Gemini)`);
-    const { onRequestPost } = await import('./legacy/_legacy_chat');
+    const { onRequestPost } = await import('./_legacy_chat');
     
     // Create a mock Request object for the legacy agent
     const mockRequest = new Request('https://dummy.com/api/chatkit/chat', {
