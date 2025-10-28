@@ -13,7 +13,7 @@ import {
   generateGroundedAnswer, 
   selfVerifyAnswer,
   verifyAndAnswer
-} from './verification-system';
+} from '../verification-system';
 
 import {
   compressSession,
@@ -23,7 +23,7 @@ import {
   calculateCacheSize,
   type SessionCache,
   type Message as CacheMessage,
-} from './cache-utils';
+} from '../cache-utils';
 
 const SYSTEM_PROMPT = `You are a senior maritime technical advisor and digital transformation specialist for **fleetcore**.ai - the world's most advanced Maritime Maintenance Operating System.
 

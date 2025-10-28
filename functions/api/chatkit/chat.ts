@@ -1,9 +1,9 @@
 /**
- * LangGraph Chat Endpoint - New Implementation
- * Feature-flagged endpoint using LangGraph orchestration
+ * Legacy Chat Endpoint - Routes to legacy agent
+ * Use chat-langgraph.ts for new simplified orchestrator
  */
 
-import { routeChatRequest, getAgentStatus } from './agent-router';
+import { routeChatRequest, getAgentStatus } from './legacy/agent-router';
 
 // Cloudflare Workers types
 declare global {
