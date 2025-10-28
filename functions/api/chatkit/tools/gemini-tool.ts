@@ -61,11 +61,11 @@ export const geminiTool = tool(
     }
     
     try {
-      // Gemini 2.0 Flash: Fast, production-ready model optimized for speed
-      // Pricing: $0.075/M input, $0.30/M output (16x cheaper than 2.5 Pro!)
-      // Speed: ~2-3x faster than 2.5 Pro, perfect for verification mode
-      // TESTED: Delivers same quality sources with much better latency
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
+      // Gemini 1.5 Pro: Stable, comprehensive model with excellent grounding
+      // Speed: Faster than 2.5 Pro, more comprehensive than 2.0 Flash
+      // Pricing: $0.125/M input, $0.50/M output (balanced cost/quality)
+      // PROVEN: Best balance of speed, detail, and source quality for vessel queries
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent', {
         method: 'POST',
         headers: {
           'x-goog-api-key': env.GEMINI_API_KEY,
