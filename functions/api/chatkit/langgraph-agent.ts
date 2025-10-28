@@ -991,28 +991,64 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.l
 
 === END GEMINI GROUNDING ===
 
-**CRITICAL INSTRUCTIONS - MARITIME EXPERT BRIEFING:**
-- Write a CONCISE, TECHNICAL response of 150-250 words maximum
-- Cite sources as CLICKABLE LINKS: "The vessel is 399m LOA [[1]](URL_HERE)"
-- Focus on HARD FACTS: IMO, MMSI, dimensions, tonnage, capacity, operator, location, status
-- Use MARITIME TERMINOLOGY: LOA/LBP, DWT, GT, TEU, flag state, class society
-- Structure: Key ID (1 sentence) → Technical Specs (2-3 sentences) → Current Status/News (1-2 sentences)
-- NO generic industry commentary or filler - ONLY specific facts about this entity
-- Include latest news, position, or operational updates if available
-- Every technical specification MUST have a citation [[X]](URL)
+**CRITICAL INSTRUCTIONS - MARITIME EXPERT TECHNICAL BRIEFING:**
+
+**Writing Style & Tone:**
+- Write as a **Technical Director / Maritime Industry Consultant**
+- Professional, authoritative, technically precise
+- Target length: **800-1000 words**
+- Use proper maritime terminology throughout
+
+**Citation Format:**
+- Cite sources as CLICKABLE LINKS: [[1]](URL), [[2]](URL), etc.
+- Every technical specification MUST have a citation
+- Example: "The vessel measures 399m LOA × 60m beam [[1]](url)"
+
+**Required Structure & Formatting:**
+
+**1. EXECUTIVE SUMMARY** (2-3 sentences)
+   - Entity classification, operator, and primary identification
+   - Example: "MSC Loreto is a Post-Suezmax container ship operated by Mediterranean Shipping Company, registered in Liberia with IMO 9934735 [[1]](url)."
+
+**2. TECHNICAL SPECIFICATIONS**
+   Use bullet points or numbered lists:
+   • **Dimensions:** LOA, beam, draft (with citations)
+   • **Capacity:** TEU, DWT, GT (with citations)
+   • **Propulsion & Machinery:** Engine type, power, speed (if available)
+   • **Class & Flag:** Classification society, flag state, build year (with citations)
+
+**3. OPERATIONAL DETAILS** (paragraph format)
+   - Current position, route, ETA (with citations)
+   - Recent port calls and voyage history (with citations)
+   - Operational status and deployment (with citations)
+
+**4. TECHNICAL ANALYSIS** (paragraph format)
+   - Design features and capabilities
+   - Fleet positioning and comparative analysis
+   - Regulatory compliance (SOLAS, MARPOL, etc.)
+   - Environmental and efficiency considerations
+
+**5. MARITIME CONTEXT** (1-2 paragraphs)
+   - Industry significance
+   - Operator fleet strategy
+   - Market positioning and trade routes
 
 **Source URLs for Citations:**
 ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
 
-**Response Format:**
-[Entity Type & Operator in 1 sentence with citations]
-[Technical specifications: dimensions, capacity, tonnage with citations]
-[Latest news, position, or operational status with citations]
-
-💡 **Need comprehensive analysis?** Enable 'Online research' for detailed multi-source intelligence.
+**Formatting Requirements:**
+✅ Use **bold** for section headers and key terms
+✅ Use bullet points (•) or numbered lists for specifications
+✅ Use paragraphs for narrative sections
+✅ Cite sources after EVERY fact: [[1]](url), [[2]](url)
+✅ Professional spacing and structure
+❌ NO generic filler or speculation
+❌ NO information without citations
 
 **User Query:** "${userQuery}"
-**Target:** 150-250 words, technical precision, all facts cited`;
+**Target:** 800-1000 words, professional formatting, all facts cited
+
+💡 **Need comprehensive analysis?** Enable 'Online research' for detailed multi-source intelligence.`;
         
         console.log(`   📝 Research context built: ${researchContext.length} chars`);
       } else {
