@@ -55,15 +55,15 @@ const MaritimeAgentState = Annotation.Root({
     default: () => 'none',
   }),
   researchContext: Annotation<string>({
-    reducer: (_, next) => next || "",
+    reducer: (_, next) => next ?? "", // Use nullish coalescing to allow empty string override
     default: () => "",
   }),
   verifiedSources: Annotation<Source[]>({
-    reducer: (current, update) => [...current, ...update],
+    reducer: (current, update) => update, // Replace instead of accumulate for fresh queries
     default: () => [],
   }),
   rejectedSources: Annotation<Source[]>({
-    reducer: (current, update) => [...current, ...update],
+    reducer: (current, update) => update, // Replace instead of accumulate for fresh queries
     default: () => [],
   }),
   confidence: Annotation<number>({
@@ -924,10 +924,12 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
       return {
         maritimeEntities: entities,
         researchMode: state.researchMode,
+        // Keep existing context
       };
     } else {
-      console.log(`🔄 Follow-up needs NEW technical research despite existing context`);
-      // Continue to research below
+      console.log(`🔄 Follow-up needs NEW technical research - clearing old context`);
+      // CRITICAL: Clear old research context for fresh query
+      // This will be replaced with new context from Gemini/Tavily
     }
   }
   
@@ -1057,7 +1059,8 @@ ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
         researchMode: 'verification' as const,
         conversationEntities: entities.reduce((acc, e) => ({ ...acc, [e.toLowerCase()]: e }), {}),
         researchContext,
-        verifiedSources: sources,
+        verifiedSources: sources, // Will replace old sources via reducer
+        rejectedSources: [], // Clear rejected sources for fresh query
         confidence: parsed.confidence || 0.9,
       };
       console.log(`   📊 State update verifiedSources length:`, stateUpdate.verifiedSources.length);
@@ -1139,6 +1142,10 @@ Call deep_research now with appropriate parameters.`;
     maritimeEntities: entities,
     researchMode: queryMode,
     conversationEntities: entityMemory,
+    // Clear old research state for fresh query
+    verifiedSources: [],
+    rejectedSources: [],
+    researchContext: "",
   };
 }
 
@@ -1357,8 +1364,8 @@ ${allSources.map((s, i) => `[${i + 1}] ${s.title}
   
   return {
     researchContext,
-    verifiedSources: allSources,
-    rejectedSources: allRejected,
+    verifiedSources: allSources, // Will replace via reducer
+    rejectedSources: allRejected, // Will replace via reducer
     confidence: confidenceScore,
     needsRefinement,
   };
