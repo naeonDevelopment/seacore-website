@@ -361,19 +361,21 @@ STRUCTURE YOUR RESPONSE:
 - Industry context and significance
 - Technical advantages or limitations
 
-**SOURCE ATTRIBUTION**
-- Cite sources inline with [1][2][3] notation
-- List all sources at the end with full URLs
+**SOURCE ATTRIBUTION** (CRITICAL)
+- Cite sources inline with [1][2][3] notation after EVERY factual statement
+- DO NOT add a "Sources:" section at the end - sources are shown in the research panel
+- Example: "The vessel has an IMO number of 9562752 [1] and was built in 2009 [2]."
 
 CRITICAL REQUIREMENTS:
 - Use precise maritime terminology (not simplified)
 - Include all numerical data with proper units (m, kW, DWT, TEU, etc.)
+- **CITE EVERY FACT with [1][2][3] inline citations**
 - Cite classification society standards when relevant (DNV, ABS, Lloyd's)
 - Reference IMO/SOLAS/MARPOL regulations when applicable
 - Be factual and technical - avoid marketing language
 - If data is unavailable, state it clearly rather than speculating
 
-Synthesize a professional technical brief based on the Gemini results above.`;
+Synthesize a professional technical brief with inline citations based on the Gemini results above.`;
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     
@@ -639,13 +641,15 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               finalState = event.synthesizer;
             }
             
-            // Capture sources from tool execution node
-            if (event.tools || event.process) {
-              const nodeState = event.tools || event.process;
+            // Capture sources from router node (Gemini results)
+            if (event.router) {
+              const routerState = event.router;
               
-              // Check for verified sources in state
-              if (nodeState?.verifiedSources && Array.isArray(nodeState.verifiedSources)) {
-                const newSources = nodeState.verifiedSources;
+              // Check for sources from Gemini
+              if (routerState?.sources && Array.isArray(routerState.sources) && routerState.sources.length > 0) {
+                const newSources = routerState.sources;
+                
+                console.log(`   🔮 Router returned ${newSources.length} Gemini sources`);
                 
                 // Emit source events for frontend
                 for (const source of newSources) {
@@ -662,7 +666,34 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 }
                 
                 sources.push(...newSources);
-                console.log(`   📚 Added ${newSources.length} sources (total: ${sources.length})`);
+                console.log(`   📚 Added ${newSources.length} Gemini sources (total: ${sources.length})`);
+              }
+            }
+            
+            // Capture sources from tool execution node (research mode)
+            if (event.tools || event.process) {
+              const nodeState = event.tools || event.process;
+              
+              // Check for verified sources in state
+              if (nodeState?.sources && Array.isArray(nodeState.sources) && nodeState.sources.length > 0) {
+                const newSources = nodeState.sources;
+                
+                // Emit source events for frontend
+                for (const source of newSources) {
+                  controller.enqueue(encoder.encode(
+                    `data: ${JSON.stringify({ 
+                      type: 'source',
+                      action: 'selected',
+                      title: source.title,
+                      url: source.url,
+                      content: source.content?.substring(0, 300) || '',
+                      score: source.score || 0.5
+                    })}\n\n`
+                  ));
+                }
+                
+                sources.push(...newSources);
+                console.log(`   📚 Added ${newSources.length} research sources (total: ${sources.length})`);
               }
             }
           }
