@@ -130,6 +130,16 @@ function extractMaritimeEntities(text: string): string[] {
   const equipmentMatch = text.match(/\b([A-Z][a-z]+\s+\d+[A-Z0-9-]+)\b/g);
   if (equipmentMatch) entities.push(...equipmentMatch);
   
+  // Pattern 4: Vessel names with numbers (case-insensitive) - "dynamic 17", "ever given", etc.
+  // Matches word(s) followed by number, capturing the full name
+  const vesselWithNumberMatch = text.match(/\b([a-z]+(?:\s+[a-z]+)*\s+\d+)\b/gi);
+  if (vesselWithNumberMatch) {
+    // Capitalize each word for consistency
+    entities.push(...vesselWithNumberMatch.map(v => 
+      v.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')
+    ));
+  }
+  
   return [...new Set(entities)];
 }
 
@@ -228,11 +238,17 @@ function detectQueryMode(query: string, enableBrowsing: boolean): 'verification'
     'fleet', 'shipyard', 'maritime company', 'shipping company',
     'cargo vessel', 'tanker', 'bulk carrier', 'container ship',
     'caterpillar', 'wärtsilä', 'man', 'rolls-royce', // equipment manufacturers
+    'tell me about', 'what is', 'who is', 'information about', // direct entity queries
   ];
   
   const needsEntityLookup = entityIndicators.some(keyword =>
     new RegExp(`\\b${keyword}`, 'i').test(queryLower)
   );
+  
+  // Check if entities were extracted (vessel names, companies, equipment)
+  // Extract entities from query to check
+  const extractedEntities = extractMaritimeEntities(query);
+  const hasExtractedEntities = extractedEntities.length > 0;
   
   // DEEP RESEARCH MODE: Multi-source comprehensive intelligence
   // Only when user explicitly enables browsing toggle
@@ -249,7 +265,7 @@ function detectQueryMode(query: string, enableBrowsing: boolean): 'verification'
   
   // Decision logic:
   // 1. User enabled browsing → Research mode (ALWAYS - deep multi-source research)
-  // 2. Specific entities → Verification mode (use Gemini for quick lookup)
+  // 2. Entities extracted OR entity indicators → Verification mode (use Gemini for quick lookup)
   // 3. Verification keywords → Verification mode (regulatory fact-checking)
   // 4. Nothing detected → Expert mode (training data only)
   
@@ -258,8 +274,8 @@ function detectQueryMode(query: string, enableBrowsing: boolean): 'verification'
     return 'research';
   }
   
-  if (needsEntityLookup) {
-    console.log(`   Mode: VERIFICATION (entity lookup with Gemini)`);
+  if (needsEntityLookup || hasExtractedEntities) {
+    console.log(`   Mode: VERIFICATION (entity lookup with Gemini) - entities: ${extractedEntities.join(', ') || 'via indicators'}`);
     return 'verification';
   }
   
