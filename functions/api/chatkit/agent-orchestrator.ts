@@ -232,45 +232,35 @@ Do NOT suggest using external research - provide detailed information directly.`
     return { messages: [new AIMessage(fullContent)] };
   }
   
-  // MODE: VERIFICATION - Call Gemini directly (fast, authoritative)
+  // MODE: VERIFICATION - Use Gemini tool with LLM orchestration (streams naturally)
   if (mode === 'verification') {
-    console.log(`   🔮 Executing VERIFICATION mode - calling Gemini directly`);
+    console.log(`   🔮 Executing VERIFICATION mode - LLM with Gemini tool only`);
     
-    try {
-      // Call gemini tool directly with user query
-      const result = await geminiTool.invoke({ query: userQuery }, config);
-      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
-      
-      console.log(`   ✅ Gemini call complete: ${parsed.sources?.length || 0} sources`);
-      
-      // Store sources in state for frontend display
-      const sources = (parsed.sources || []).map((s: any) => ({
-        title: s.title || '',
-        url: s.url || '',
-        content: s.content || '',
-        score: s.score || 0.5,
-      }));
-      
-      // Build answer with inline citations
-      let answer = parsed.answer || 'Unable to retrieve information.';
-      
-      // Add inline source citations [1][2][3]
-      if (sources.length > 0) {
-        answer += '\n\n**Sources:**\n';
-        sources.forEach((s: any, idx: number) => {
-          answer += `[${idx + 1}] ${s.title} - ${s.url}\n`;
-        });
-      }
-      
-      // Update state with sources
-      return {
-        messages: [new AIMessage(answer)],
-        sources,
-      };
-    } catch (error: any) {
-      console.error(`   ❌ Gemini verification failed:`, error.message);
-      // Fall through to research mode as fallback
-    }
+    // Enhanced prompt for verification mode
+    const verificationContext = `\n\n=== VERIFICATION MODE ===
+This is a real-time maritime query requiring current, factual information.
+Use the gemini_search tool to get authoritative, up-to-date information.
+Provide a comprehensive answer with inline source citations.`;
+    
+    const verificationSystemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + verificationContext);
+    
+    // Bind ONLY Gemini tool for fast, authoritative lookups
+    const verificationLlm = new ChatOpenAI({
+      modelName: "gpt-4o",
+      temperature: 0.1,
+      openAIApiKey: env.OPENAI_API_KEY,
+      streaming: true,
+    }).bindTools([geminiTool]); // Only Gemini tool bound
+    
+    // LLM will call Gemini tool and synthesize answer (streams naturally)
+    const response = await verificationLlm.invoke([verificationSystemMessage, ...state.messages]);
+    
+    console.log(`   Response type: ${response.constructor.name}`);
+    console.log(`   Has tool calls: ${!!(response as AIMessage).tool_calls?.length}`);
+    
+    return {
+      messages: [response],
+    };
   }
   
   // MODE: RESEARCH - Let LLM orchestrate tools (deep multi-source)
