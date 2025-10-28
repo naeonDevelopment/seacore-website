@@ -86,6 +86,11 @@ export interface SessionMemory {
   modeHistory: ModeTransition[];
   currentMode: 'verification' | 'research' | 'none';
   
+  // NEW: Conversation state tracking (Phase 2)
+  conversationState?: string;         // ConversationState enum value
+  intentHistory?: Array<any>;         // IntentEvolution tracking
+  stateTransitions?: Array<any>;      // StateTransition tracking
+  
   // Metadata
   createdAt: number;
   updatedAt: number;
@@ -197,6 +202,44 @@ export class SessionMemoryManager {
     memory.userIntent = newIntent;
     
     return memory;
+  }
+  
+  /**
+   * Update conversation state (Phase 2)
+   */
+  updateConversationState(memory: SessionMemory, newState: string): void {
+    if (memory.conversationState !== newState) {
+      console.log(`🔄 State updated: "${memory.conversationState}" → "${newState}"`);
+      memory.conversationState = newState;
+    }
+  }
+  
+  /**
+   * Add intent evolution to history (Phase 2)
+   */
+  addIntentEvolution(memory: SessionMemory, intent: any): void {
+    if (!memory.intentHistory) {
+      memory.intentHistory = [];
+    }
+    memory.intentHistory.push(intent);
+    // Keep last 10 intents
+    if (memory.intentHistory.length > 10) {
+      memory.intentHistory = memory.intentHistory.slice(-10);
+    }
+  }
+  
+  /**
+   * Add state transition to history (Phase 2)
+   */
+  addStateTransition(memory: SessionMemory, transition: any): void {
+    if (!memory.stateTransitions) {
+      memory.stateTransitions = [];
+    }
+    memory.stateTransitions.push(transition);
+    // Keep last 10 transitions
+    if (memory.stateTransitions.length > 10) {
+      memory.stateTransitions = memory.stateTransitions.slice(-10);
+    }
   }
   
   /**
@@ -523,6 +566,12 @@ ${connections ? `\nConnections:\n${connections}` : ''}
       },
       modeHistory: [],
       currentMode: 'none',
+      
+      // NEW: Initialize conversation state tracking (Phase 2)
+      conversationState: 'cold_start',
+      intentHistory: [],
+      stateTransitions: [],
+      
       createdAt: now,
       updatedAt: now,
       messageCount: 0,

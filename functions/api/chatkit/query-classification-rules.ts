@@ -7,9 +7,12 @@
  * Knowledge Mode: Questions about fleetcore platform, features, and capabilities
  * Verification Mode: Questions about specific entities (vessels, companies, equipment)
  * Research Mode: Complex queries requiring multi-source research (enabled by user toggle)
+ * 
+ * ENHANCED: Now includes entity context resolution for follow-up queries
  */
 
 import { extractMaritimeEntities } from './utils/entity-utils';
+import { resolveQueryContext, type ResolvedQuery } from './utils/entity-resolver';
 
 // =====================
 // PLATFORM KEYWORDS
@@ -225,17 +228,22 @@ export function isSystemOrganizationQuery(query: string): boolean {
 
 /**
  * Query classification result with mode and context metadata
+ * ENHANCED: Now includes resolved query information
  */
 export interface QueryClassification {
   mode: 'none' | 'verification' | 'research';
   preserveFleetcoreContext: boolean;
   enrichQuery: boolean;
   isHybrid: boolean;
+  /** Resolved query information (original, resolved, context) */
+  resolvedQuery: ResolvedQuery;
 }
 
 /**
  * Main query classification function (Enhanced from legacy agent)
  * Determines the appropriate mode and context preservation strategy
+ * 
+ * NOW CONTEXT-AWARE: Resolves pronouns and entity references before classification
  * 
  * @param query - User query string
  * @param enableBrowsing - Whether user enabled online research toggle
@@ -252,8 +260,25 @@ export function classifyQuery(
       companyEntities?: Record<string, any>;
     };
     userIntent?: string;
+    messageCount?: number;
+    recentMessages?: Array<{ role: string; content: string; timestamp: number }>;
+    conversationSummary?: string;
   }
 ): QueryClassification {
+  
+  // STEP 1: Resolve entity context (pronouns → actual entity names)
+  // This handles "its engines", "the vessel", "that company", etc.
+  const resolvedQuery = resolveQueryContext(query, sessionMemory as any);
+  
+  if (resolvedQuery.hasContext) {
+    console.log(`   🔍 Entity context resolved:`);
+    console.log(`      Original: "${resolvedQuery.originalQuery}"`);
+    console.log(`      Resolved: "${resolvedQuery.resolvedQuery}"`);
+    console.log(`      Entity: ${resolvedQuery.activeEntity?.name} (${resolvedQuery.activeEntity?.type})`);
+  }
+  
+  // Use resolved query for classification (contains actual entity names)
+  const queryForClassification = resolvedQuery.resolvedQuery;
   
   // PRIORITY 1: User explicitly enabled online research → deep research mode
   if (enableBrowsing) {
@@ -261,33 +286,37 @@ export function classifyQuery(
       mode: 'research',
       preserveFleetcoreContext: true,
       enrichQuery: true,
-      isHybrid: false
+      isHybrid: false,
+      resolvedQuery
     };
   }
   
   // PRIORITY 2: System organization queries → knowledge mode
-  if (isSystemOrganizationQuery(query)) {
+  if (isSystemOrganizationQuery(queryForClassification)) {
     return {
       mode: 'none',
       preserveFleetcoreContext: false,
       enrichQuery: false,
-      isHybrid: false
+      isHybrid: false,
+      resolvedQuery
     };
   }
   
   // PRIORITY 3: "How to" queries → knowledge mode
-  if (isHowToQuery(query)) {
+  if (isHowToQuery(queryForClassification)) {
     return {
       mode: 'none',
       preserveFleetcoreContext: false,
       enrichQuery: false,
-      isHybrid: false
+      isHybrid: false,
+      resolvedQuery
     };
   }
   
   // PRIORITY 4: Check for platform vs entity queries
-  const isPlatform = isPlatformQuery(query);
-  const hasEntity = hasEntityMention(query);
+  // CRITICAL: Use resolved query AND check if we have entity context from memory
+  const isPlatform = isPlatformQuery(queryForClassification);
+  const hasEntity = hasEntityMention(queryForClassification) || resolvedQuery.hasContext;
   
   // Pure platform query without entities → knowledge mode
   if (isPlatform && !hasEntity) {
@@ -295,7 +324,8 @@ export function classifyQuery(
       mode: 'none',
       preserveFleetcoreContext: false,
       enrichQuery: false,
-      isHybrid: false
+      isHybrid: false,
+      resolvedQuery
     };
   }
   
@@ -306,7 +336,8 @@ export function classifyQuery(
       mode: 'verification',
       preserveFleetcoreContext: true,
       enrichQuery: true,
-      isHybrid: true
+      isHybrid: true,
+      resolvedQuery
     };
   }
   
@@ -318,7 +349,8 @@ export function classifyQuery(
       mode: 'verification',
       preserveFleetcoreContext: true,
       enrichQuery: true,
-      isHybrid: true
+      isHybrid: true,
+      resolvedQuery
     };
   }
   
@@ -330,7 +362,8 @@ export function classifyQuery(
     mode: 'verification',
     preserveFleetcoreContext: hasFleetcoreContext,
     enrichQuery: hasFleetcoreContext && hasEntity,
-    isHybrid: false
+    isHybrid: false,
+    resolvedQuery
   };
 }
 

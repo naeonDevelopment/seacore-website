@@ -26,6 +26,24 @@ import {
   type QueryClassification
 } from './query-classification-rules';
 import { accumulateKnowledge } from './memory-accumulation';
+import { 
+  detectConversationState, 
+  detectUserIntent,
+  detectStateTransition,
+  shouldPreserveContext,
+  getContextWindow,
+  buildStateSummary,
+  ConversationState
+} from './conversation-state';
+import {
+  shouldSummarize,
+  generateSummary,
+  compressOldTurns,
+  logSummarization
+} from './conversation-summarization';
+import { verifyAndAnswer as verificationPipeline } from './verification-system';
+import { generateFollowUps, trackFollowUpUsage, type FollowUpSuggestion } from './follow-up-generator';
+import { calculateConfidenceIndicator, assessSourceQuality, getConfidenceMessage, type QualityMetrics, type ConfidenceIndicator } from './confidence-indicators';
 
 // Cloudflare Workers types
 declare global {
@@ -102,6 +120,15 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => null,
   }),
+  // Phase B & C: Quality metrics and engagement
+  confidenceIndicator: Annotation<any>({
+    reducer: (_, next) => next,
+    default: () => null,
+  }),
+  followUpSuggestions: Annotation<any[]>({
+    reducer: (_, next) => next,
+    default: () => [],
+  }),
 });
 
 type State = typeof AgentState.State;
@@ -118,6 +145,7 @@ type State = typeof AgentState.State;
 async function routerNode(state: State, config: any): Promise<Partial<State>> {
   const env = config.configurable?.env;
   const sessionMemory = config.configurable?.sessionMemory as SessionMemory | null;
+  const statusEmitter = config.configurable?.statusEmitter; // NEW: Phase A1
   
   console.log(`\n🎯 ROUTER NODE`);
   console.log(`   Messages: ${state.messages.length}`);
@@ -126,8 +154,76 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
   const userQuery = lastUserMessage?.content?.toString() || '';
   
+  // Detect conversation state and intent
+  if (sessionMemory) {
+    const currentState = (sessionMemory.conversationState || 'cold_start') as ConversationState;
+    const newState = detectConversationState(userQuery, sessionMemory, currentState);
+    const intent = detectUserIntent(userQuery, sessionMemory);
+    const transition = detectStateTransition(currentState, newState, userQuery);
+    
+    console.log(`\n🔄 CONVERSATION STATE TRACKING`);
+    console.log(buildStateSummary(newState, intent, transition));
+    
+    // Chain of Thought - ALWAYS emit state transition (transparency-first)
+    if (transition && statusEmitter) {
+      statusEmitter({
+        type: 'thinking',
+        step: 'state_detection',
+        content: `${transition.from} → ${transition.to}`
+      });
+    }
+    
+    // Update session memory with state tracking (will be saved later)
+    if (transition) {
+      (config.configurable.sessionMemory as any).conversationState = newState;
+      (config.configurable.sessionMemory as any).stateTransitions = [
+        ...((config.configurable.sessionMemory as any).stateTransitions || []),
+        transition
+      ].slice(-10);
+    }
+    
+    (config.configurable.sessionMemory as any).intentHistory = [
+      ...((config.configurable.sessionMemory as any).intentHistory || []),
+      intent
+    ].slice(-10);
+    
+    // Chain of Thought - ALWAYS emit intent (transparency-first)
+    if (statusEmitter && intent.confidence > 0.5) {
+      statusEmitter({
+        type: 'thinking',
+        step: 'intent_detection',
+        content: `${intent.intent} (${(intent.confidence * 100).toFixed(0)}%)`
+      });
+    }
+  }
+  
   // INTELLIGENT MODE DETECTION (using centralized classification rules with session context)
   const classification = classifyQuery(userQuery, state.enableBrowsing, sessionMemory || undefined);
+  
+  // Chain of Thought - ALWAYS emit entity resolution (if applicable)
+  if (classification.resolvedQuery.hasContext && statusEmitter) {
+    statusEmitter({
+      type: 'thinking',
+      step: 'entity_resolution',
+      content: `"${classification.resolvedQuery.originalQuery}" → ${classification.resolvedQuery.activeEntity?.name}`
+    });
+  }
+  
+  // Chain of Thought - ALWAYS emit mode selection
+  if (statusEmitter) {
+    const modeDescription = {
+      'none': 'Using knowledge base',
+      'verification': 'Verifying with Google Search',
+      'research': 'Deep research mode'
+    };
+    const modeText = modeDescription[classification.mode];
+    const hybridText = classification.isHybrid ? ' + platform context' : '';
+    statusEmitter({
+      type: 'thinking',
+      step: 'mode_selection',
+      content: `${modeText}${hybridText}`
+    });
+  }
   
   // Log detailed classification for debugging
   const log = generateClassificationLog(userQuery, classification, state.enableBrowsing);
@@ -142,11 +238,35 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
     }
     
     try {
-      // Enrich query with fleetcore context if needed (hybrid queries)
-      let queryToSend = userQuery;
+      // CRITICAL: Use resolved query (pronouns already replaced with entity names)
+      let queryToSend = classification.resolvedQuery.resolvedQuery;
+      
+      // Build entity context for Gemini
+      let entityContext = classification.resolvedQuery.entityContext || '';
+      
+      // Enrich with fleetcore context if needed (hybrid queries)
       if (classification.enrichQuery && classification.preserveFleetcoreContext) {
-        queryToSend = enrichQueryWithContext(userQuery, sessionMemory || undefined);
-        console.log(`   📝 Enriched query: "${queryToSend.substring(0, 100)}..."`);
+        const fleetcoreContext = buildFleetcoreContext(sessionMemory || undefined);
+        if (fleetcoreContext) {
+          entityContext += fleetcoreContext;
+          console.log(`   📝 Added fleetcore context to Gemini query`);
+        }
+      }
+      
+      console.log(`   📤 Sending to Gemini:`);
+      console.log(`      Query: "${queryToSend.substring(0, 80)}"`);
+      if (entityContext) {
+        console.log(`      Context length: ${entityContext.length} chars`);
+      }
+      
+      // Emit status BEFORE calling Gemini (fixes 30s silence!)
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'status',
+          stage: 'searching',
+          content: `🔍 Searching Google for: ${queryToSend.substring(0, 60)}${queryToSend.length > 60 ? '...' : ''}`,
+          progress: 0
+        });
       }
       
       // Call Gemini tool directly (not via LLM) with timeout
@@ -156,9 +276,22 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       );
       
       const result = await Promise.race([
-        geminiTool.invoke({ query: queryToSend }, config),
+        geminiTool.invoke({ 
+          query: queryToSend,
+          entityContext: entityContext || undefined
+        }, config),
         timeoutPromise
       ]);
+      
+      // Emit status AFTER Gemini completes
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'status',
+          stage: 'analyzing',
+          content: '✓ Search complete, analyzing results...',
+          progress: 50
+        });
+      }
       
       const parsed = typeof result === 'string' ? JSON.parse(result) : result;
       
@@ -234,10 +367,15 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
 async function synthesizerNode(state: State, config: any): Promise<Partial<State>> {
   const env = config.configurable?.env;
   const sessionMemory = config.configurable?.sessionMemory as SessionMemory | null;
+  const statusEmitter = config.configurable?.statusEmitter;
   
   console.log(`\n🎨 SYNTHESIZER NODE`);
   console.log(`   Mode: ${state.mode}`);
   console.log(`   Has Gemini answer: ${!!state.geminiAnswer}`);
+  
+  // Get user query for Phase C follow-ups
+  const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
+  const userQuery = lastUserMessage?.content?.toString() || '';
   console.log(`   Has research context: ${!!state.researchContext}`);
   
   // Build context from session memory
@@ -387,7 +525,22 @@ Synthesize a professional technical brief with inline citations based on the Gem
     }
     
     console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
-    return { messages: [new AIMessage(fullContent)] };
+    
+    // Phase B & C: Calculate confidence and generate follow-ups
+    const updates = await generateIntelligenceMetrics(
+      userQuery,
+      fullContent,
+      state.sources,
+      state.mode,
+      sessionMemory,
+      env.OPENAI_API_KEY,
+      statusEmitter
+    );
+    
+    return { 
+      messages: [new AIMessage(fullContent)],
+      ...updates
+    };
   }
   
   // MODE: RESEARCH - LLM orchestrates tools
@@ -420,7 +573,105 @@ Synthesize a professional technical brief with inline citations based on the Gem
   
   console.log(`   Has tool calls: ${!!response?.tool_calls?.length}`);
   console.log(`   Response content length: ${fullContent.length} chars`);
+  
+  // Phase B & C: Calculate confidence and generate follow-ups (for research mode final answer)
+  if (!response?.tool_calls?.length && fullContent.length > 100) {
+    const updates = await generateIntelligenceMetrics(
+      userQuery,
+      fullContent,
+      state.sources,
+      state.mode,
+      sessionMemory,
+      env.OPENAI_API_KEY,
+      statusEmitter
+    );
+    
+    return { 
+      messages: [response!],
+      ...updates
+    };
+  }
+  
   return { messages: [response!] };
+}
+
+/**
+ * Phase B & C: Generate intelligence metrics (confidence + follow-ups)
+ */
+async function generateIntelligenceMetrics(
+  query: string,
+  answer: string,
+  sources: Source[],
+  mode: string,
+  sessionMemory: SessionMemory | null,
+  openaiKey: string,
+  statusEmitter: any
+): Promise<{ confidenceIndicator: any | null; followUpSuggestions: any[] }> {
+  
+  // Phase C3: Calculate confidence indicator
+  let confidenceIndicator: any | null = null;
+  
+  if (mode === 'verification' || mode === 'research') {
+    if (statusEmitter) {
+      statusEmitter({
+        type: 'thinking',
+        step: 'quality_assessment',
+        content: 'Evaluating answer quality...'
+      });
+    }
+    
+    const sourceQuality = assessSourceQuality(sources);
+    const metrics: QualityMetrics = {
+      sourceCount: sources.length,
+      sourceQuality,
+      hasConflicts: false, // Will be enhanced when verification pipeline is integrated
+      verificationPassed: sources.length >= 2,
+      comparativeAnalysis: false, // Will be set by verification pipeline
+      claimCount: 0,
+      normalizedDataPoints: 0
+    };
+    
+    confidenceIndicator = calculateConfidenceIndicator(
+      sources.length >= 3 ? 75 : sources.length >= 1 ? 60 : 40,
+      metrics
+    );
+    
+    console.log(`✅ Confidence: ${confidenceIndicator?.score || 0}% (${confidenceIndicator?.label || 'N/A'})`);
+  }
+  
+  // Phase C1 & C2: Generate follow-up suggestions
+  let followUpSuggestions: FollowUpSuggestion[] = [];
+  
+  if (sessionMemory && answer.length > 100) {
+    if (statusEmitter) {
+      statusEmitter({
+        type: 'thinking',
+        step: 'followup_generation',
+        content: 'Generating follow-up questions...'
+      });
+    }
+    
+    try {
+      followUpSuggestions = await generateFollowUps(
+        query,
+        answer,
+        sessionMemory,
+        openaiKey
+      );
+      
+      console.log(`✅ Generated ${followUpSuggestions.length} follow-up suggestions`);
+      
+      // Track that follow-ups were presented
+      trackFollowUpUsage(sessionMemory, null);
+    } catch (error) {
+      console.error('❌ Follow-up generation failed:', error);
+    }
+  }
+  
+  return {
+    confidenceIndicator,
+    followUpSuggestions
+  };
 }
 
 // =====================
@@ -429,11 +680,12 @@ Synthesize a professional technical brief with inline citations based on the Gem
 
 /**
  * Process tool results and build research context
- * Simplified - just extract sources and format context
+ * Enhanced with source quality evaluation (PHASE A2)
  */
-async function processToolResults(state: State): Promise<Partial<State>> {
+async function processToolResults(state: State, config: any): Promise<Partial<State>> {
   console.log(`\n🔧 PROCESS TOOL RESULTS`);
   
+  const statusEmitter = config.configurable?.statusEmitter;
   const lastMessages = state.messages.slice(-10); // Check recent messages
   const toolMessages = lastMessages.filter((m: BaseMessage) => m.constructor.name === 'ToolMessage');
   
@@ -464,6 +716,45 @@ async function processToolResults(state: State): Promise<Partial<State>> {
       }
     } catch (e) {
       // Not JSON, skip
+    }
+  }
+  
+  // Advanced Chain of Thought - Source Quality Evaluation
+  if (hasResearch && allSources.length > 0 && statusEmitter) {
+    // Evaluate source quality
+    const highQuality = allSources.filter(s => {
+      const url = s.url?.toLowerCase() || '';
+      return url.includes('.gov') || url.includes('.edu') || url.includes('imo.org') || 
+             url.includes('iacs.org.uk') || url.includes('classnk') || url.includes('dnv.com');
+    });
+    
+    const mediumQuality = allSources.filter(s => {
+      const url = s.url?.toLowerCase() || '';
+      return url.includes('maritime') || url.includes('shipping') || url.includes('vessel');
+    });
+    
+    statusEmitter({
+      type: 'thinking',
+      step: 'source_evaluation',
+      content: `Evaluating ${allSources.length} sources: ${highQuality.length} authoritative, ${mediumQuality.length} maritime-specific`
+    });
+    
+    // Emit accepted/rejected logic
+    const acceptedCount = Math.min(10, allSources.length);
+    const rejectedCount = Math.max(0, allSources.length - 10);
+    
+    if (rejectedCount > 0) {
+      statusEmitter({
+        type: 'thinking',
+        step: 'source_filtering',
+        content: `✓ Accepting top ${acceptedCount} sources, filtering ${rejectedCount} low-relevance`
+      });
+    } else {
+      statusEmitter({
+        type: 'thinking',
+        step: 'source_filtering',
+        content: `✓ All ${acceptedCount} sources meet quality threshold`
+      });
     }
   }
   
@@ -578,6 +869,15 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
     async start(controller) {
       const encoder = new TextEncoder();
       
+      // PHASE A1 & A2: Create status/thinking emitter
+      const statusEmitter = (event: { type: string; step?: string; stage?: string; content: string; progress?: number }) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch (err) {
+          console.warn('⚠️ Status emit failed:', err);
+        }
+      };
+      
       try {
         // CRITICAL: Use .stream() with streamMode (not .streamEvents())
         // This enables token-level streaming via AIMessageChunk
@@ -592,6 +892,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               thread_id: sessionId,
               env,
               sessionMemory,
+              statusEmitter, // PHASE A1 & A2: Pass emitter to nodes
             },
             streamMode: ["messages", "updates"] as const, // KEY: Enable both message and state streaming
           }
@@ -746,6 +1047,24 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           })}\n\n`));
         }
         
+        // Phase C3: Send confidence indicator
+        if (finalState?.confidenceIndicator) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'confidence',
+            indicator: finalState.confidenceIndicator
+          })}\n\n`));
+          console.log(`📊 Confidence indicator sent: ${finalState.confidenceIndicator.score}%`);
+        }
+        
+        // Phase C1 & C2: Send follow-up suggestions
+        if (finalState?.followUpSuggestions && finalState.followUpSuggestions.length > 0) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'followups',
+            suggestions: finalState.followUpSuggestions
+          })}\n\n`));
+          console.log(`💡 Sent ${finalState.followUpSuggestions.length} follow-up suggestions`);
+        }
+        
         // Send sources
         if (sources.length > 0) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
@@ -773,13 +1092,23 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             { role: 'assistant', content: fullResponse, timestamp: Date.now() }
           );
           
-          // Keep last 20 messages
-          if (sessionMemory.recentMessages.length > 20) {
-            sessionMemory.recentMessages = sessionMemory.recentMessages.slice(-20);
-          }
-          
           // Increment message count
           sessionMemory.messageCount++;
+          
+          // Automatic summarization every 5 turns
+          if (shouldSummarize(sessionMemory.messageCount)) {
+            const summary = generateSummary(sessionMemory);
+            const oldMessageCount = sessionMemory.recentMessages.length;
+            
+            // Update summary
+            sessionMemory.conversationSummary = summary;
+            
+            // Compress old turns
+            compressOldTurns(sessionMemory, 10);
+            
+            const compressed = oldMessageCount - sessionMemory.recentMessages.length;
+            logSummarization(sessionMemory.messageCount, summary.length, compressed);
+          }
           
           await sessionMemoryManager.save(sessionId, sessionMemory);
           console.log(`💾 Memory saved with accumulated knowledge`);

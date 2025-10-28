@@ -648,6 +648,22 @@ This is **specialized maritime search** – not general web search. Get precise,
                   // Capture conversation memory narrative (will be cleared when content starts)
                   memoryNarrative = parsed.content || '';
                   console.log('📖 [ChatInterface] Memory narrative received:', memoryNarrative.substring(0, 100));
+                } else if (parsed.type === 'status') {
+                  // PHASE A1: Handle status events (tool execution progress)
+                  if (useBrowsing) {
+                    streamedThinking += '\n' + parsed.content;
+                    if (activeResearchIdRef.current) {
+                      setResearchSessions((prev) => {
+                        const updated = new Map(prev);
+                        const session = updated.get(activeResearchIdRef.current!);
+                        if (session) {
+                          session.transientAnalysis = parsed.content;
+                          updated.set(activeResearchIdRef.current!, session);
+                        }
+                        return updated;
+                      });
+                    }
+                  }
                 } else if (parsed.type === 'thinking') {
                   // Only accumulate thinking when online research is enabled
                   if (useBrowsing) {
