@@ -996,7 +996,7 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.l
 **Writing Style & Tone:**
 - Write as a **Technical Director / Maritime Industry Consultant**
 - Professional, authoritative, technically precise
-- Target length: **800-1000 words**
+- Target length: **400-500 words maximum**
 - Use proper maritime terminology throughout
 
 **Citation Format:**
@@ -1006,47 +1006,42 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.l
 
 **Required Structure & Formatting:**
 
-**1. EXECUTIVE SUMMARY** (2-3 sentences)
-   - Entity classification, operator, and primary identification
-   - Example: "MSC Loreto is a Post-Suezmax container ship operated by Mediterranean Shipping Company, registered in Liberia with IMO 9934735 [[1]](url)."
+**1. EXECUTIVE SUMMARY** (2 sentences)
+   - Entity classification, operator, primary identification
+   - Example: "MSC Loreto is a Post-Suezmax container ship operated by Mediterranean Shipping Company, registered in Liberia with IMO 9934735 [[1]](url). Built in 2023, the vessel represents MSC's latest generation of ultra-large container ships [[2]](url)."
 
-**2. TECHNICAL SPECIFICATIONS**
-   Use bullet points or numbered lists:
-   • **Dimensions:** LOA, beam, draft (with citations)
-   • **Capacity:** TEU, DWT, GT (with citations)
-   • **Propulsion & Machinery:** Engine type, power, speed (if available)
-   • **Class & Flag:** Classification society, flag state, build year (with citations)
+**2. TECHNICAL SPECIFICATIONS** (bullet points - concise)
+   • **Dimensions:** 399m LOA × 60m beam [[X]](url)
+   • **Capacity:** 24,346 TEU, DWT 281,456t, GT 236,184 [[X]](url)
+   • **Flag & Class:** Liberian registry, built 2023 [[X]](url)
 
-**3. OPERATIONAL DETAILS** (paragraph format)
-   - Current position, route, ETA (with citations)
-   - Recent port calls and voyage history (with citations)
-   - Operational status and deployment (with citations)
+**3. OPERATIONAL STATUS** (2-3 sentences)
+   - Current position/route with citations
+   - Example: "As of [date], the vessel was en route to Singapore from Cai Mep at position 001°14'41"N / 103°38'06"E [[X]](url)."
 
-**4. TECHNICAL ANALYSIS** (paragraph format)
-   - Design features and capabilities
-   - Fleet positioning and comparative analysis
-   - Regulatory compliance (SOLAS, MARPOL, etc.)
-   - Environmental and efficiency considerations
+**4. TECHNICAL ANALYSIS** (1 short paragraph, 3-4 sentences)
+   - Key design features and capabilities
+   - Regulatory compliance (SOLAS, MARPOL)
+   - Fleet positioning
 
-**5. MARITIME CONTEXT** (1-2 paragraphs)
-   - Industry significance
-   - Operator fleet strategy
-   - Market positioning and trade routes
+**5. MARITIME CONTEXT** (1 paragraph, 2-3 sentences)
+   - Strategic importance
+   - Operator strategy and market positioning
 
 **Source URLs for Citations:**
 ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
 
 **Formatting Requirements:**
-✅ Use **bold** for section headers and key terms
-✅ Use bullet points (•) or numbered lists for specifications
-✅ Use paragraphs for narrative sections
+✅ Use **bold** for section headers (EXECUTIVE SUMMARY, TECHNICAL SPECIFICATIONS, etc.)
+✅ Use bullet points (•) for specifications - keep concise
+✅ Short paragraphs (2-4 sentences) for analysis sections
 ✅ Cite sources after EVERY fact: [[1]](url), [[2]](url)
-✅ Professional spacing and structure
-❌ NO generic filler or speculation
+❌ NO generic filler, speculation, or verbose explanations
 ❌ NO information without citations
+❌ NO unnecessary details - focus on key facts only
 
 **User Query:** "${userQuery}"
-**Target:** 800-1000 words, professional formatting, all facts cited
+**Target:** 400-500 words maximum, professional structure, all facts cited
 
 💡 **Need comprehensive analysis?** Enable 'Online research' for detailed multi-source intelligence.`;
         
