@@ -31,14 +31,14 @@ declare global {
 // CONFIGURATION CONSTANTS
 // =====================
 
-/** Session memory TTL in seconds (7 days) */
-const SESSION_MEMORY_TTL = 86400 * 7;
+/** Session memory TTL in seconds (30 days - extended for long conversations) */
+const SESSION_MEMORY_TTL = 86400 * 30;
 
 /** Maximum number of mode transitions to keep in history */
-const MAX_MODE_HISTORY = 5;
+const MAX_MODE_HISTORY = 10;
 
-/** Maximum number of recent messages to store in session */
-const MAX_RECENT_MESSAGES = 10;
+/** Maximum number of recent messages to store in session (increased for better context) */
+const MAX_RECENT_MESSAGES = 20;
 
 /** Source selection limits */
 const SOURCES_LIMIT_BASIC = 10;
@@ -397,6 +397,13 @@ function extractMaritimeEntities(text: string): string[] {
   const multiWordMatch = text.match(/\b([A-Z]{2,}(?:\s+[A-Z][a-z]+){1,3})\b/g);
   if (multiWordMatch) {
     entities.push(...multiWordMatch);
+  }
+  
+  // Pattern 2b: Capitalized multi-word vessel names (like "Castillo de Merida", "Ever Given")
+  // Matches: Capital word + lowercase connector (de/of/the) + Capital word(s)
+  const mixedCaseVesselMatch = text.match(/\b([A-Z][a-z]+(?:\s+(?:de|of|the|van|von|del|della|di)\s+[A-Z][a-z]+|\s+[A-Z][a-z]+){1,3})\b/g);
+  if (mixedCaseVesselMatch) {
+    entities.push(...mixedCaseVesselMatch);
   }
   
   // Pattern 3: "vessel [Name]" or "ship [Name]"
@@ -1809,9 +1816,19 @@ async function handleVerificationMode(
     
     // CRITICAL: Extract entity context from answer and store in accumulated knowledge
     const discussedEntities: Record<string, any> = {};
-    if (geminiAnswer && entities.length > 0) {
-      console.log(`   🔍 Extracting entity context from research answer`);
-      entities.forEach(entityName => {
+    if (geminiAnswer) {
+      console.log(`   🔍 Extracting entities from Gemini answer (not just from query)`);
+      
+      // Extract entities from the ANSWER text (not just query entities)
+      // This handles cases like "biggest vessel under X flag" where vessel name is in answer
+      const entitiesInAnswer = extractMaritimeEntities(geminiAnswer);
+      console.log(`   📊 Found ${entitiesInAnswer.length} entities in answer: ${entitiesInAnswer.join(', ')}`);
+      
+      // Combine query entities and answer entities
+      const allEntities = [...new Set([...entities, ...entitiesInAnswer])];
+      console.log(`   🔗 Total unique entities to process: ${allEntities.length}`);
+      
+      allEntities.forEach(entityName => {
         const extractedContext = extractEntityContextFromAnswer(geminiAnswer, entityName);
         if (extractedContext.contextSnippet || extractedContext.entityType) {
           const entityKey = entityName.toLowerCase();
@@ -1926,10 +1943,21 @@ ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
       }
     });
     
+    // Collect all discovered entities (from query + answer)
+    const allDiscoveredEntities = [
+      ...new Set([
+        ...entities,
+        ...Object.keys(updatedKnowledge.vesselEntities),
+        ...Object.keys(updatedKnowledge.companyEntities)
+      ])
+    ];
+    console.log(`   🎯 Total entities discovered: ${allDiscoveredEntities.length} (query: ${entities.length}, answer: ${Object.keys(discussedEntities).length})`);
+    
     return {
       ...stateUpdates,
       researchMode: 'verification' as const,
-      conversationEntities: entities.reduce((acc, e) => ({ ...acc, [e.toLowerCase()]: e }), {}),
+      maritimeEntities: allDiscoveredEntities, // Update with ALL entities (query + answer)
+      conversationEntities: allDiscoveredEntities.reduce((acc, e) => ({ ...acc, [e.toLowerCase()]: e }), {}),
       researchContext,
       verifiedSources: sources,
       rejectedSources: [],
@@ -1939,7 +1967,7 @@ ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
         mode: 'verification' as const,
         query: userQuery,
         timestamp: Date.now(),
-        entities: entities,
+        entities: allDiscoveredEntities, // Store all entities in history
       }],
     };
   } catch (error: any) {
@@ -1978,6 +2006,9 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   
   console.log(`🎯 Router analyzing: "${userQuery.substring(0, 100)}..."`);
   
+  // Get entity resolver from config (session-scoped)
+  const entityResolver = (config?.configurable as any)?.entityResolver;
+  
   // Extract conversation context from state
   const conversationTopic = state.conversationTopic || "";
   const userIntent = state.userIntent || "";
@@ -2004,6 +2035,40 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
   
   // Extract entities from current query
   const entities = extractMaritimeEntities(userQuery);
+  
+  // CRITICAL: Update entity resolver with any newly mentioned entities
+  // This ensures the resolver tracks entity recency
+  if (entityResolver && entities.length > 0) {
+    console.log(`   🔄 Updating entity resolver with ${entities.length} entities from current query`);
+    entities.forEach(entityName => {
+      // Check if entity already exists in accumulatedKnowledge
+      const existingVessel = accumulatedKnowledge.vesselEntities?.[entityName];
+      const existingCompany = accumulatedKnowledge.companyEntities?.[entityName];
+      
+      if (existingVessel) {
+        entityResolver.updateEntity(entityName, {
+          lastMentioned: Date.now(),
+        });
+        console.log(`   ♻️ Updated vessel in resolver: ${entityName}`);
+      } else if (existingCompany) {
+        entityResolver.updateEntity(entityName, {
+          lastMentioned: Date.now(),
+        });
+        console.log(`   ♻️ Updated company in resolver: ${entityName}`);
+      } else {
+        // New entity discovered - add it
+        entityResolver.addEntity({
+          id: entityName,
+          name: entityName,
+          type: 'vessel',
+          lastMentioned: Date.now(),
+          mentionCount: 1,
+          attributes: { name: entityName },
+        });
+        console.log(`   ✅ New entity added to resolver: ${entityName}`);
+      }
+    });
+  }
   
   // Get ALL entities from conversation history (persistent memory)
   const allConversationEntities = [...entities, ...state.maritimeEntities];
@@ -2069,12 +2134,14 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
       contextParts.push(`Previously discussed: fleetcore PMS (${topFeatures})`);
     }
     
-    // 3. Add entities (vessels, companies) if discussed
+    // 3. Add entities from SESSION memory
     const allEntities = [
       ...Object.values(accumulatedKnowledge.vesselEntities || {}).map((v: any) => v.name),
       ...Object.values(accumulatedKnowledge.companyEntities || {}).map((c: any) => c.name),
       ...(accumulatedKnowledge.discussedTopics || [])
     ];
+    
+    console.log(`   📊 Session entities: ${allEntities.length}`);
     
     if (allEntities.length > 0) {
       const recentEntities = allEntities.slice(-3).join(', ');
@@ -2092,13 +2159,53 @@ async function routerNode(state: AgentState, config?: any): Promise<Partial<Agen
       console.log(`   🔄 Resolved implicit subject: "${userQuery}" → "${contextEnrichedQuery}"`);
     }
     
-    // 4b. Handle possessive pronouns ("its engines", "their specs")
+    // 4b. ENHANCED: Handle possessive pronouns using entityResolver
     // CRITICAL: Queries like "give me its engines" need entity context
-    if (hasPossessivePronoun && allEntities.length > 0) {
-      const recentEntity = allEntities[allEntities.length - 1];
-      // Replace possessive with explicit entity name
-      contextEnrichedQuery = userQuery.replace(/\b(its|their|his|her)\b/gi, `${recentEntity}'s`);
-      console.log(`   🔄 Resolved possessive pronoun: "${userQuery}" → "${contextEnrichedQuery}"`);
+    if (hasPossessivePronoun || hasImplicitSubject) {
+      let resolvedEntity: any = null;
+      
+      // Try entityResolver first (most accurate - uses recency)
+      if (entityResolver) {
+        console.log(`   🔍 Attempting entity resolution for: "${userQuery}"`);
+        resolvedEntity = entityResolver.resolve(userQuery);
+        if (resolvedEntity) {
+          console.log(`   ✅ EntityResolver found: ${resolvedEntity.name} (type: ${resolvedEntity.type})`);
+        } else {
+          // Fallback: Get most recent entity from resolver
+          resolvedEntity = entityResolver.getMostRecent();
+          if (resolvedEntity) {
+            console.log(`   📌 Using most recent entity: ${resolvedEntity.name}`);
+          }
+        }
+      }
+      
+      // Last resort: Use most recent from allEntities array
+      if (!resolvedEntity && allEntities.length > 0) {
+        const recentEntity = allEntities[allEntities.length - 1];
+        resolvedEntity = { name: recentEntity, type: 'vessel' };
+        console.log(`   📍 Fallback to recent entity: ${recentEntity}`);
+      }
+      
+      if (resolvedEntity) {
+        // Replace possessive/implicit with explicit entity name
+        if (hasPossessivePronoun) {
+          contextEnrichedQuery = userQuery.replace(/\b(its|their|his|her)\b/gi, `${resolvedEntity.name}'s`);
+          console.log(`   🔄 Resolved possessive: "${userQuery}" → "${contextEnrichedQuery}"`);
+        } else if (hasImplicitSubject) {
+          contextEnrichedQuery = userQuery.replace(/\b(it|this|that)\b/gi, resolvedEntity.name);
+          console.log(`   🔄 Resolved implicit subject: "${userQuery}" → "${contextEnrichedQuery}"`);
+        }
+        
+        // Add detailed entity context if available
+        if (resolvedEntity.attributes) {
+          const attrs = resolvedEntity.attributes;
+          if (attrs.imo || attrs.operator || attrs.specs) {
+            contextParts.push(`Specific entity details: ${resolvedEntity.name}${attrs.imo ? ` (IMO: ${attrs.imo})` : ''}${attrs.operator ? ` operated by ${attrs.operator}` : ''}`);
+          }
+        }
+      } else {
+        console.warn(`   ⚠️ Could not resolve pronoun - no entities available!`);
+      }
     }
     
     // 5. Add entity if query mentions action but missing explicit entity
@@ -2970,63 +3077,32 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
     console.warn(`⚠️ CHAT_SESSIONS KV not available - session memory disabled`);
   }
   
-  // Initialize CloudflareBaseStore for cross-session memory
-  let store: CloudflareBaseStore | null = null;
-  let crossSessionContext: any = null;
+  // DISABLED: Cross-session memory (per user request - keep sessions isolated)
+  // Initialize entity resolver for THIS SESSION ONLY with ALL known entities
   let entityResolver: EntityResolver | null = null;
-  const userId = sessionId.split('-')[0] || sessionId; // Extract user ID from session
   
-  if (env.MARITIME_MEMORY && env.VECTOR_INDEX && env.AI) {
-    try {
-      console.log(`🔮 Initializing CloudflareBaseStore...`);
-      store = new CloudflareBaseStore({
-        d1: env.MARITIME_MEMORY,
-        vectorize: env.VECTOR_INDEX,
-        ai: env.AI,
-      });
-      
-      // Initialize user if first time
-      await initializeUser(store, userId);
-      
-      // Load cross-session context
-      const userQuery = messages[messages.length - 1]?.content || '';
-      crossSessionContext = await loadCrossSessionContext(
-        store,
-        userId,
-        userQuery,
-        sessionMemory || {} as SessionMemory
-      );
-      
-      console.log(`✅ Cross-session context loaded:`);
-      console.log(`   Relevant entities: ${crossSessionContext.relevantEntities.length}`);
-      console.log(`   Relevant memories: ${crossSessionContext.relevantMemories.length}`);
-      
-      // Create entity resolver with current session + cross-session entities
-      entityResolver = createEntityResolver(
-        sessionMemory?.accumulatedKnowledge?.vesselEntities,
-        sessionMemory?.accumulatedKnowledge?.companyEntities
-      );
-      
-      // Add cross-session entities to resolver
-      for (const entity of crossSessionContext.relevantEntities) {
-        entityResolver.addEntity({
-          id: entity.name,
-          name: entity.name,
-          type: entity.type as any,
-          lastMentioned: Date.now(),
-          mentionCount: 1,
-          attributes: entity,
-        });
-      }
-      
-      console.log(`🔗 Entity resolver initialized`);
-      
-    } catch (error) {
-      console.error(`❌ Failed to initialize BaseStore:`, error);
-      // Continue without cross-session memory
+  if (sessionMemory) {
+    console.log(`🔗 Initializing session-scoped entity resolver with ALL session entities...`);
+    
+    // CRITICAL: Load ALL entities from session memory into resolver
+    entityResolver = createEntityResolver(
+      sessionMemory.accumulatedKnowledge?.vesselEntities,
+      sessionMemory.accumulatedKnowledge?.companyEntities
+    );
+    
+    const vesselCount = Object.keys(sessionMemory.accumulatedKnowledge?.vesselEntities || {}).length;
+    const companyCount = Object.keys(sessionMemory.accumulatedKnowledge?.companyEntities || {}).length;
+    console.log(`   ✅ Entity resolver loaded with ${vesselCount} vessels and ${companyCount} companies`);
+    
+    // Log all entities for debugging
+    if (vesselCount > 0) {
+      const vesselNames = Object.keys(sessionMemory.accumulatedKnowledge.vesselEntities).join(', ');
+      console.log(`   🚢 Vessels: ${vesselNames}`);
     }
-  } else {
-    console.warn(`⚠️ MARITIME_MEMORY/VECTOR_INDEX/AI not available - cross-session memory disabled`);
+    if (companyCount > 0) {
+      const companyNames = Object.keys(sessionMemory.accumulatedKnowledge.companyEntities).join(', ');
+      console.log(`   🏢 Companies: ${companyNames}`);
+    }
   }
   
   // Configure LangSmith tracing if API key is available
@@ -3065,10 +3141,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
       env,
       sessionMemory, // Pass session memory to nodes
       sessionMemoryManager, // Pass manager for saving
-      store, // CloudflareBaseStore for cross-session memory
-      entityResolver, // Entity resolution service
-      crossSessionContext, // Pre-loaded relevant entities/memories
-      userId, // User ID for namespace isolation
+      entityResolver, // Entity resolution service (SESSION-SCOPED)
     },
     // Add metadata for LangSmith tracing
     metadata: {
@@ -3076,8 +3149,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
       enable_browsing: enableBrowsing,
       user_query: messages[messages.length - 1]?.content?.substring(0, 100),
       has_session_memory: !!sessionMemory,
-      has_cross_session_memory: !!store,
-      cross_session_entities: crossSessionContext?.relevantEntities?.length || 0,
+      entity_resolver_active: !!entityResolver,
     },
     // Add tags for easier filtering in LangSmith
     tags: ['maritime-agent', enableBrowsing ? 'research-mode' : 'verification-mode'],
@@ -3447,25 +3519,14 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
               }
             }
             
-            // Save to KV
+            // Save to KV (session-scoped only)
             await sessionMemoryManager.save(sessionId, sessionMemory);
-            console.log(`💾 Session memory saved successfully`);
+            console.log(`💾 Session memory saved successfully (session-scoped)`);
+            console.log(`   Vessels: ${Object.keys(sessionMemory.accumulatedKnowledge?.vesselEntities || {}).length}`);
+            console.log(`   Companies: ${Object.keys(sessionMemory.accumulatedKnowledge?.companyEntities || {}).length}`);
+            console.log(`   Messages: ${sessionMemory.messageCount}`);
             
-            // Sync to CloudflareBaseStore for cross-session persistence
-            if (store && sessionMemory) {
-              try {
-                await syncSessionToStore({
-                  store,
-                  sessionMemory,
-                  userId,
-                  sessionId,
-                });
-                console.log(`🔄 Session synced to persistent store (cross-session memory)`);
-              } catch (error) {
-                console.error(`❌ Failed to sync to BaseStore:`, error);
-                // Non-critical, continue
-              }
-            }
+            // DISABLED: Cross-session sync (per user request)
           } catch (error) {
             console.error(`❌ Failed to save session memory:`, error);
           }

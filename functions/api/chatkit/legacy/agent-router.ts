@@ -3,7 +3,7 @@
  * Routes between LangGraph agent (new) and legacy agent (old)
  */
 
-import { handleChatWithLangGraph, type ChatRequest } from './langgraph-agent';
+import { handleChatWithAgent, type ChatRequest } from './agent-orchestrator';
 
 // Feature flag - controlled via environment variable
 const USE_LANGGRAPH = (env: any): boolean => {
@@ -36,10 +36,10 @@ export async function routeChatRequest(
   console.log(`   CHAT_SESSIONS KV present: ${!!env.CHAT_SESSIONS}`);
   
   if (useLangGraph) {
-    // Use new LangGraph agent with Gemini + Tavily hybrid
-    console.log(`   ✅ Routing to LangGraph agent (Gemini + Tavily + KV Session Memory)`);
+    // Use new simplified orchestrator with Gemini + Tavily hybrid
+    console.log(`   ✅ Routing to simplified orchestrator (Gemini + Tavily + KV Session Memory)`);
     try {
-      const stream = await handleChatWithLangGraph({
+      const stream = await handleChatWithAgent({
         messages,
         sessionId,
         enableBrowsing,
@@ -52,21 +52,21 @@ export async function routeChatRequest(
         }
       });
       
-      console.log(`   ✅ LangGraph stream created successfully`);
+      console.log(`   ✅ Orchestrator stream created successfully`);
       return { stream, agent: 'langgraph' };
     } catch (error: any) {
-      console.error(`❌ LangGraph agent failed:`, error);
+      console.error(`❌ Orchestrator failed:`, error);
       console.error(`   Error name: ${error.name}`);
       console.error(`   Error message: ${error.message}`);
       console.error(`   Stack: ${error.stack?.substring(0, 500)}`);
       
       // Re-throw the error - don't fall back to legacy silently
-      throw new Error(`LangGraph agent error: ${error.message}`);
+      throw new Error(`Orchestrator error: ${error.message}`);
     }
   } else {
     // Use legacy agent (Tavily only)
     console.log(`   ⚠️  Routing to legacy agent (Tavily only - no Gemini)`);
-    const { onRequestPost } = await import('./_legacy_chat');
+    const { onRequestPost } = await import('./legacy/_legacy_chat');
     
     // Create a mock Request object for the legacy agent
     const mockRequest = new Request('https://dummy.com/api/chatkit/chat', {
