@@ -1,11 +1,11 @@
 /**
- * JEWEL: Entity Extraction & Context Building Utilities
+ * Entity Extraction & Context Building Utilities
  * Sophisticated entity recognition and context extraction for maritime domain
  */
 
 /**
  * Extract maritime entities from text (vessels, companies, equipment)
- * JEWEL: Comprehensive pattern matching for various entity types
+ * Comprehensive pattern matching for various entity types
  */
 export function extractMaritimeEntities(text: string): string[] {
   const entities: string[] = [];

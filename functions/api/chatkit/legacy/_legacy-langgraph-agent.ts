@@ -1,4 +1,7 @@
 /**
+ * LEGACY FILE - KEPT FOR REFERENCE ONLY
+ * This agent implementation is not actively used
+ * 
  * LangGraph-powered Maritime Intelligence Agent
  * Modern agent architecture with tool-based research and state management
  */
@@ -10,13 +13,45 @@ import { ChatOpenAI } from "@langchain/openai";
 import { tool } from "@langchain/core/tools";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
-import { analyzeContentIntelligence, batchAnalyzeContent, type ContentSource, type ContentIntelligence } from './content-intelligence';
-import { SessionMemoryManager, extractTopicFromMessages, type SessionMemory, type VesselEntity } from './session-memory';
-import { CloudflareBaseStore } from './store/cloudflare-store';
-import { syncSessionToStore, loadCrossSessionContext, initializeUser } from './store/integration';
-import { createEntityResolver, type EntityResolver } from './store/entity-resolver';
-import { incrementalSummarize } from './store/summarization';
+
+// LEGACY IMPORTS - Commented out as this file is for reference only
+// import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
+// import { analyzeContentIntelligence, batchAnalyzeContent, type ContentSource, type ContentIntelligence } from './content-intelligence';
+// import { SessionMemoryManager, extractTopicFromMessages, type SessionMemory, type VesselEntity } from './session-memory';
+// import { CloudflareBaseStore } from './store/cloudflare-store';
+// import { syncSessionToStore, loadCrossSessionContext, initializeUser } from './store/integration';
+// import { createEntityResolver, type EntityResolver } from './store/entity-resolver';
+// import { incrementalSummarize } from './store/summarization';
+
+// Type stubs for reference (these types are used throughout but not imported)
+type ContentSource = any;
+type ContentIntelligence = any;
+type SessionMemory = any;
+type VesselEntity = any;
+type EntityResolver = any;
+const MARITIME_SYSTEM_PROMPT = ""; // Stub for reference
+
+// SessionMemoryManager type and class stub
+type SessionMemoryManager = InstanceType<typeof SessionMemoryManagerClass>;
+const SessionMemoryManagerClass = class { 
+  constructor(kv: any) {}
+  load(id: string): Promise<SessionMemory> { return Promise.resolve({} as any); }
+  save(id: string, memory: SessionMemory): Promise<void> { return Promise.resolve(); }
+  updateTopic(memory: SessionMemory, topic: string): void {}
+  updateIntent(memory: SessionMemory, intent: string): void {}
+  addFleetcoreFeature(memory: SessionMemory, name: string, explanation: string, index: number): void {}
+  addVesselEntity(memory: SessionMemory, name: string, details: any): void {}
+  addConnection(memory: SessionMemory, from: string, to: string, relationship: string, index: number): void {}
+  addModeTransition(memory: SessionMemory, mode: string, query: string, context: string, entities: string[]): void {}
+  updateConversationSummary(memory: SessionMemory): SessionMemory { return memory; }
+  addMessage(memory: SessionMemory, role: string, content: string): void {}
+};
+const SessionMemoryManager = SessionMemoryManagerClass;
+
+// Other function stubs
+const batchAnalyzeContent = async (sources: ContentSource[], query: string, depth: string): Promise<any[]> => [];
+const createEntityResolver = (vessels?: any, companies?: any): EntityResolver => ({} as any);
+const extractTopicFromMessages = (messages: BaseMessage[]): string => "";
 
 // Cloudflare Workers types
 declare global {
@@ -268,7 +303,7 @@ function initializeStateFromMemory(sessionMemory: SessionMemory | null): Partial
   
   // Extract entities from accumulated knowledge
   const vesselNames = Object.values(sessionMemory.accumulatedKnowledge.vesselEntities)
-    .map(v => v.name);
+    .map((v: any) => v.name);
   
   if (vesselNames.length > 0) {
     stateUpdate.maritimeEntities = vesselNames;
