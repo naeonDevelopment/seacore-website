@@ -43,39 +43,14 @@ export function extractMaritimeEntities(text: string): string[] {
   const equipmentMatch = text.match(/\b([A-Z][a-z]+\s+\d+[A-Z0-9-]+)\b/g);
   if (equipmentMatch) entities.push(...equipmentMatch);
   
-  // Pattern 4: Vessel names with numbers - "Dynamic 17", "Stanford Bateleur", etc.
-  // Approach A: Capitalized vessel names with numbers
-  const capitalizedVesselMatch = text.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\s+\d+)\b/g);
-  if (capitalizedVesselMatch) {
-    entities.push(...capitalizedVesselMatch);
-  }
-  
-  // Approach B: Vessel names after keywords (about/for/vessel/ship) - case insensitive
-  const contextualVesselMatch = text.match(/(?:about|for|vessel|ship|regarding|concerning)\s+([a-z]+(?:\s+[a-z]+){0,2}\s+\d+)\b/gi);
-  if (contextualVesselMatch) {
-    entities.push(...contextualVesselMatch.map(v => {
-      // Remove the keyword prefix and capitalize
-      const name = v.replace(/^(?:about|for|vessel|ship|regarding|concerning)\s+/i, '').trim();
-      return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-    }));
-  }
-  
-  // Approach C: AGGRESSIVE - Any word sequence ending with number (case-insensitive)
-  // This catches "dynamic 17", "bateleur 5", etc. even without keywords
-  const aggressiveNumberMatch = text.match(/\b([a-zA-Z]+(?:\s+[a-zA-Z]+){0,2}\s+\d+)\b/g);
-  if (aggressiveNumberMatch) {
-    // Filter to only include patterns that look like vessel names (not dates, versions, etc.)
-    const filtered = aggressiveNumberMatch.filter(match => {
-      // Skip common false positives
-      const lower = match.toLowerCase();
-      if (/\b(version|chapter|page|section|article|rule|item|step)\s+\d+/i.test(lower)) return false;
-      if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d+/i.test(lower)) return false;
-      if (/\b\d+\s+(years?|months?|days?|hours?)/i.test(lower)) return false;
-      return true;
-    });
-    
-    entities.push(...filtered.map(name => 
-      name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')
+  // Pattern 4: Vessel names with numbers (case-insensitive) - "dynamic 17", "ever given", etc.
+  // Matches word(s) followed by number, capturing the full name
+  // CRITICAL: Use /gi flag for case-insensitive matching (users type lowercase!)
+  const vesselWithNumberMatch = text.match(/\b([a-z]+(?:\s+[a-z]+)*\s+\d+)\b/gi);
+  if (vesselWithNumberMatch) {
+    // Capitalize each word for consistency
+    entities.push(...vesselWithNumberMatch.map(v => 
+      v.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')
     ));
   }
   
