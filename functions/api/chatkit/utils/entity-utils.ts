@@ -51,13 +51,32 @@ export function extractMaritimeEntities(text: string): string[] {
   }
   
   // Approach B: Vessel names after keywords (about/for/vessel/ship) - case insensitive
-  const contextualVesselMatch = text.match(/(?:about|for|vessel|ship)\s+([a-z]+(?:\s+[a-z]+){0,2}\s+\d+)\b/gi);
+  const contextualVesselMatch = text.match(/(?:about|for|vessel|ship|regarding|concerning)\s+([a-z]+(?:\s+[a-z]+){0,2}\s+\d+)\b/gi);
   if (contextualVesselMatch) {
     entities.push(...contextualVesselMatch.map(v => {
       // Remove the keyword prefix and capitalize
-      const name = v.replace(/^(?:about|for|vessel|ship)\s+/i, '').trim();
+      const name = v.replace(/^(?:about|for|vessel|ship|regarding|concerning)\s+/i, '').trim();
       return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
     }));
+  }
+  
+  // Approach C: AGGRESSIVE - Any word sequence ending with number (case-insensitive)
+  // This catches "dynamic 17", "bateleur 5", etc. even without keywords
+  const aggressiveNumberMatch = text.match(/\b([a-zA-Z]+(?:\s+[a-zA-Z]+){0,2}\s+\d+)\b/g);
+  if (aggressiveNumberMatch) {
+    // Filter to only include patterns that look like vessel names (not dates, versions, etc.)
+    const filtered = aggressiveNumberMatch.filter(match => {
+      // Skip common false positives
+      const lower = match.toLowerCase();
+      if (/\b(version|chapter|page|section|article|rule|item|step)\s+\d+/i.test(lower)) return false;
+      if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d+/i.test(lower)) return false;
+      if (/\b\d+\s+(years?|months?|days?|hours?)/i.test(lower)) return false;
+      return true;
+    });
+    
+    entities.push(...filtered.map(name => 
+      name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')
+    ));
   }
   
   return [...new Set(entities)];

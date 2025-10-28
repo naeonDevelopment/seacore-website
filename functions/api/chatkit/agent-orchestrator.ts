@@ -41,7 +41,14 @@ import {
   compressOldTurns,
   logSummarization
 } from './conversation-summarization';
-import { verifyAndAnswer as verificationPipeline } from './verification-system';
+import { 
+  verifyAndAnswer as verificationPipeline,
+  extractEntities,
+  normalizeData,
+  performComparativeAnalysis,
+  extractClaims,
+  verifyClaims
+} from './verification-system';
 import { generateFollowUps, trackFollowUpUsage, type FollowUpSuggestion } from './follow-up-generator';
 import { calculateConfidenceIndicator, assessSourceQuality, getConfidenceMessage, type QualityMetrics, type ConfidenceIndicator } from './confidence-indicators';
 
@@ -429,7 +436,7 @@ DO NOT suggest using external research - provide detailed information directly.`
     return { messages: [new AIMessage(fullContent)] };
   }
   
-  // MODE: VERIFICATION - Synthesize from Gemini answer
+  // MODE: VERIFICATION - Synthesize from Gemini answer with optional verification pipeline
   if (state.mode === 'verification') {
     // Check if we have research context from Gemini
     if (!state.researchContext) {
@@ -453,6 +460,101 @@ If you don't have specific information, be honest and suggest the user enable on
     
     console.log(`   🔮 Synthesizing VERIFICATION mode from Gemini result`);
     
+    // OPTIONAL: Run verification pipeline for high-value queries (comparative, multi-entity)
+    const shouldRunVerificationPipeline = 
+      state.sources.length >= 3 && // Multiple sources available
+      (userQuery.match(/\b(largest|biggest|smallest|compare|versus|vs|which|best)\b/i) || // Comparative query
+       state.sources.length >= 5); // Rich source set
+    
+    if (shouldRunVerificationPipeline) {
+      console.log(`   🔬 Running verification pipeline (${state.sources.length} sources)`);
+      
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'thinking',
+          step: 'verification_pipeline',
+          content: 'Extracting entities and claims...'
+        });
+      }
+      
+      try {
+        // Stage 1: Entity extraction
+        const entities = await extractEntities(userQuery, state.sources, env.OPENAI_API_KEY);
+        console.log(`   ✓ Extracted ${entities.length} entities`);
+        
+        if (statusEmitter && entities.length > 0) {
+          statusEmitter({
+            type: 'thinking',
+            step: 'entity_extraction',
+            content: `Found ${entities.length} entities: ${entities.slice(0, 3).map(e => e.name).join(', ')}`
+          });
+        }
+        
+        // Stage 2: Data normalization
+        const normalizedData = await normalizeData(userQuery, state.sources, entities, env.OPENAI_API_KEY);
+        console.log(`   ✓ Normalized ${normalizedData.length} data points`);
+        
+        if (statusEmitter && normalizedData.length > 0) {
+          statusEmitter({
+            type: 'thinking',
+            step: 'data_normalization',
+            content: `Normalized ${normalizedData.length} specifications`
+          });
+        }
+        
+        // Stage 3: Comparative analysis (if applicable)
+        const comparativeAnalysis = await performComparativeAnalysis(
+          userQuery,
+          normalizedData,
+          entities,
+          env.OPENAI_API_KEY
+        );
+        
+        if (comparativeAnalysis && statusEmitter) {
+          statusEmitter({
+            type: 'thinking',
+            step: 'comparative_analysis',
+            content: `Winner: ${comparativeAnalysis.winner?.entity || 'Analyzing...'}`
+          });
+        }
+        
+        // Stage 4: Claim extraction
+        const claims = await extractClaims(userQuery, state.sources, normalizedData, env.OPENAI_API_KEY);
+        console.log(`   ✓ Extracted ${claims.length} verifiable claims`);
+        
+        if (statusEmitter && claims.length > 0) {
+          statusEmitter({
+            type: 'thinking',
+            step: 'claim_extraction',
+            content: `Extracted ${claims.length} verifiable claims`
+          });
+        }
+        
+        // Stage 5: Verification
+        const verification = verifyClaims(claims, 'high', comparativeAnalysis);
+        console.log(`   ✓ Verification: ${verification.verified ? 'PASSED' : 'FAILED'} (${verification.confidence.toFixed(0)}%)`);
+        
+        if (statusEmitter) {
+          const status = verification.verified ? '✓ Verified' : '⚠ Needs review';
+          statusEmitter({
+            type: 'thinking',
+            step: 'verification_result',
+            content: `${status} - Confidence: ${verification.confidence.toFixed(0)}%`
+          });
+        }
+        
+        // Enhance research context with verification metadata
+        console.log(`   📊 Verification complete: ${claims.length} claims, ${entities.length} entities, ${normalizedData.length} data points`);
+        
+      } catch (error: any) {
+        console.error(`   ❌ Verification pipeline error:`, error.message);
+        // Continue with standard synthesis if pipeline fails
+      }
+    }
+    
+    // Build source URL mapping for clickable citations
+    const sourceUrlMapping = state.sources.map((s, i) => `[${i + 1}]: ${s.url}`).join('\n');
+    
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
 
 ${state.researchContext}
@@ -460,60 +562,56 @@ ${state.researchContext}
 === SYNTHESIS INSTRUCTIONS FOR MARITIME EXPERTS ===
 
 AUDIENCE: Technical officers, captains, marine superintendents, and maritime professionals
-REQUIREMENT: Deliver precise, technical, actionable intelligence
+REQUIREMENT: Deliver precise, technical, actionable intelligence with CLICKABLE source citations
 
-STRUCTURE YOUR RESPONSE:
+**CITATION FORMAT (CRITICAL):**
+- Cite sources as CLICKABLE LINKS: [[1]](${state.sources[0]?.url || 'url'}), [[2]](url), [[3]](url), etc.
+- Every technical specification MUST have a citation
+- Example: "The vessel measures 87m LOA × 20m beam [[1]](url)"
+- Example: "Built by Vard Søviknes in Norway with IMO 9758246 [[2]](url)"
 
-**VESSEL IDENTIFICATION** (if applicable)
-- Vessel name, IMO number, MMSI
-- Flag state, port of registry
-- Classification society, class notation
-- Build year, shipyard, current status
+**REQUIRED STRUCTURE & FORMATTING:**
 
-**TECHNICAL SPECIFICATIONS**
-- Vessel type and design classification
-- Principal dimensions (LOA, Beam, Draft, Depth)
-- Tonnage (GRT, NRT, DWT) and cargo capacity
-- Propulsion system (engine type, power output, speed)
-- Notable equipment or systems
+**1. EXECUTIVE SUMMARY** (2 sentences)
+   - Entity classification, operator, primary identification
+   - Example: "Stanford Bateleur is a DP2 platform supply vessel operated by Stanford Marine, registered in Singapore with IMO 9758246 [[1]](url). Built in 2015, the vessel serves offshore operations in Southeast Asia [[2]](url)."
 
-**OWNERSHIP & MANAGEMENT**
-- Registered owner (legal entity, country of incorporation)
-- Beneficial owner (ultimate parent company if different)
-- Technical manager (responsible for vessel operations)
-- Commercial manager/operator (if different from owner)
-- ISM Code Document of Compliance (DOC) company
-- Bareboat charter arrangements (if applicable)
-- Management agreements and duration
+**2. TECHNICAL SPECIFICATIONS** (bullet points - concise)
+   • **Dimensions:** 87m LOA × 20m beam [[X]](url)
+   • **Capacity:** DWT 5,145t [[X]](url)
+   • **Propulsion:** Diesel-electric, DP2 capability [[X]](url)
+   • **Flag & Class:** Singapore registry, DNV class [[X]](url)
 
-**OPERATIONAL DATA** (if available)
-- Current employment/trade route
-- Charter type (spot, time charter, bareboat, owned fleet)
-- Notable operational history or incidents
-- Port state control (PSC) inspection record
-- Vetting inspection status (SIRE, CDI, RightShip)
-- Regulatory compliance status (ISM, ISPS)
+**3. OPERATIONAL STATUS** (2-3 sentences if available)
+   - Current employment/charter
+   - Recent operational history
+   - Example: "Currently engaged in long-term charter supporting offshore drilling operations [[X]](url)."
 
-**COMPARATIVE ANALYSIS** (when relevant)
-- How this compares to similar vessels
-- Industry context and significance
-- Technical advantages or limitations
+**4. TECHNICAL ANALYSIS** (1 short paragraph, 3-4 sentences)
+   - Maritime context and industry significance
+   - Technical capabilities and features
+   - Operational advantages
 
-**SOURCE ATTRIBUTION** (CRITICAL)
-- Cite sources inline with [1][2][3] notation after EVERY factual statement
-- DO NOT add a "Sources:" section at the end - sources are shown in the research panel
-- Example: "The vessel has an IMO number of 9562752 [1] and was built in 2009 [2]."
+**SOURCE URLS FOR CITATIONS:**
+${sourceUrlMapping}
 
-CRITICAL REQUIREMENTS:
-- Use precise maritime terminology (not simplified)
-- Include all numerical data with proper units (m, kW, DWT, TEU, etc.)
-- **CITE EVERY FACT with [1][2][3] inline citations**
-- Cite classification society standards when relevant (DNV, ABS, Lloyd's)
-- Reference IMO/SOLAS/MARPOL regulations when applicable
-- Be factual and technical - avoid marketing language
-- If data is unavailable, state it clearly rather than speculating
+**FORMATTING REQUIREMENTS:**
+✅ Use **bold** for section headers
+✅ Use bullet points (•) for specifications - keep concise
+✅ Short paragraphs (2-4 sentences) for analysis sections
+✅ Cite sources after EVERY fact: [[1]](url), [[2]](url)
+✅ Use precise maritime terminology (LOA, DWT, DP2, etc.)
+✅ Include all numerical data with proper units (m, kW, DWT, TEU, etc.)
+❌ NO generic filler, speculation, or verbose explanations
+❌ NO information without citations
+❌ NO unnecessary details - focus on key facts only
+❌ DO NOT add a separate "Sources:" section at the end
 
-Synthesize a professional technical brief with inline citations based on the Gemini results above.`;
+**TARGET:** 400-500 words maximum, professional structure, all facts cited
+
+💡 **Need comprehensive analysis?** User can enable 'Online research' toggle for detailed multi-source intelligence.
+
+Synthesize a professional technical brief with clickable citations based on the Gemini results above.`;
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     

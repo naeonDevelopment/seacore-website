@@ -280,9 +280,16 @@ export function classifyQuery(
   // Use resolved query for classification (contains actual entity names)
   const queryForClassification = resolvedQuery.resolvedQuery;
   
+  console.log(`\n🎯 === MODE CLASSIFICATION START ===`);
+  console.log(`   Original Query: "${query}"`);
+  console.log(`   Resolved Query: "${queryForClassification}"`);
+  console.log(`   Enable Browsing: ${enableBrowsing}`);
+  
   // PRIORITY 1: User explicitly enabled online research toggle → research mode
   if (enableBrowsing) {
+    console.log(`   ✅ PRIORITY 1: Research toggle enabled`);
     console.log(`   🔬 RESEARCH MODE: User enabled browsing (Tavily deep research)`);
+    console.log(`   === MODE CLASSIFICATION END: RESEARCH ===\n`);
     return {
       mode: 'research',
       preserveFleetcoreContext: true,
@@ -294,6 +301,9 @@ export function classifyQuery(
   
   // PRIORITY 2: System organization queries → knowledge mode (LLM training data)
   if (isSystemOrganizationQuery(queryForClassification)) {
+    console.log(`   ✅ PRIORITY 2: System organization query detected`);
+    console.log(`   🎯 KNOWLEDGE MODE: Training data (system organization)`);
+    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
     return {
       mode: 'none',
       preserveFleetcoreContext: false,
@@ -305,6 +315,9 @@ export function classifyQuery(
   
   // PRIORITY 3: "How to" queries → knowledge mode (LLM training data)
   if (isHowToQuery(queryForClassification)) {
+    console.log(`   ✅ PRIORITY 3: How-to query detected`);
+    console.log(`   🎯 KNOWLEDGE MODE: Training data (how-to)`);
+    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
     return {
       mode: 'none',
       preserveFleetcoreContext: false,
@@ -319,8 +332,15 @@ export function classifyQuery(
   const isPlatform = isPlatformQuery(queryForClassification);
   const hasEntity = hasEntityMention(queryForClassification) || resolvedQuery.hasContext;
   
+  console.log(`   🔍 PRIORITY 4: Platform/Entity Detection`);
+  console.log(`      Platform Query: ${isPlatform}`);
+  console.log(`      Has Entity: ${hasEntity}`);
+  
   // Pure platform query without entities → knowledge mode
   if (isPlatform && !hasEntity) {
+    console.log(`   ✅ Pure platform query (no entities)`);
+    console.log(`   🎯 KNOWLEDGE MODE: Training data (platform only)`);
+    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
     return {
       mode: 'none',
       preserveFleetcoreContext: false,
@@ -333,6 +353,9 @@ export function classifyQuery(
   // HYBRID MODE: Platform + entity → verification with context injection
   // Example: "How can fleetcore PMS support vessel Dynamic 17?"
   if (isPlatform && hasEntity) {
+    console.log(`   ✅ HYBRID QUERY: Platform + Entity detected`);
+    console.log(`   🔮 VERIFICATION MODE: Gemini grounding (hybrid - will inject fleetcore context)`);
+    console.log(`   === MODE CLASSIFICATION END: VERIFICATION (HYBRID) ===\n`);
     return {
       mode: 'verification',
       preserveFleetcoreContext: true,
@@ -346,6 +369,9 @@ export function classifyQuery(
   const isEvaluationIntent = sessionMemory?.userIntent?.includes('evaluating fleetcore') || false;
   
   if (isEvaluationIntent && hasEntity) {
+    console.log(`   ✅ Evaluation intent detected with entity`);
+    console.log(`   🔮 VERIFICATION MODE: Gemini grounding (evaluation context)`);
+    console.log(`   === MODE CLASSIFICATION END: VERIFICATION (EVALUATION) ===\n`);
     return {
       mode: 'verification',
       preserveFleetcoreContext: true,
@@ -359,8 +385,11 @@ export function classifyQuery(
   // Check if conversation already has fleetcore context
   const hasFleetcoreContext = (sessionMemory?.accumulatedKnowledge?.fleetcoreFeatures?.length || 0) > 0;
   
+  console.log(`   ✅ DEFAULT: Entity query (no platform keywords)`);
   console.log(`   🔮 VERIFICATION MODE: Default for entity queries (Gemini grounding)`);
   console.log(`   Fleetcore context available: ${hasFleetcoreContext}`);
+  console.log(`   Will preserve context: ${hasFleetcoreContext}`);
+  console.log(`   === MODE CLASSIFICATION END: VERIFICATION (DEFAULT) ===\n`);
   
   return {
     mode: 'verification',

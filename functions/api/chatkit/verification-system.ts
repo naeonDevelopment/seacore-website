@@ -22,7 +22,7 @@ interface SearchResult {
   snippet?: string;
 }
 
-interface ExtractedEntity {
+export interface ExtractedEntity {
   name: string;
   type: 'vessel' | 'company' | 'equipment' | 'location' | 'person' | 'other';
   aliases: string[]; // Alternative names found in sources
@@ -30,7 +30,7 @@ interface ExtractedEntity {
   sources: number[];
 }
 
-interface NormalizedData {
+export interface NormalizedData {
   entity: string;
   attribute: string; // e.g., "length", "deadweight", "owner", "built_year"
   value: string | number;
@@ -40,7 +40,7 @@ interface NormalizedData {
   confidence: number;
 }
 
-interface ExtractedClaim {
+export interface ExtractedClaim {
   claim: string;
   claimType: 'factual' | 'numerical' | 'date' | 'entity' | 'opinion';
   sources: number[];
