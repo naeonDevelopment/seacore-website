@@ -2787,9 +2787,14 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
       sessionMemoryManager = new SessionMemoryManager(env.CHAT_SESSIONS);
       sessionMemory = await sessionMemoryManager.load(sessionId);
       
+      // CRITICAL: Generate conversation summary from accumulated knowledge
+      // This makes the summary available for the current turn
+      sessionMemory = sessionMemoryManager.updateConversationSummary(sessionMemory);
+      
       console.log(`📦 Session Memory Loaded:`);
       console.log(`   Topic: ${sessionMemory.conversationTopic || 'none'}`);
       console.log(`   Intent: ${sessionMemory.userIntent || 'none'}`);
+      console.log(`   Summary: ${sessionMemory.conversationSummary ? sessionMemory.conversationSummary.substring(0, 100) + '...' : 'none'}`);
       console.log(`   Fleetcore features: ${sessionMemory.accumulatedKnowledge.fleetcoreFeatures.length}`);
       console.log(`   Vessel entities: ${Object.keys(sessionMemory.accumulatedKnowledge.vesselEntities).length}`);
       console.log(`   Mode history: ${sessionMemory.modeHistory.length}`);
@@ -3195,9 +3200,12 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
               console.log(`🔄 Syncing final state to session memory`);
               syncStateToMemory(finalState, sessionMemory, sessionMemoryManager);
               
-              // Validate context acknowledgment in final answer
+              // Add assistant's response to recent messages
               const lastMessage = finalState.messages[finalState.messages.length - 1];
               if (lastMessage && typeof lastMessage.content === 'string') {
+                sessionMemoryManager.addMessage(sessionMemory, 'assistant', lastMessage.content);
+                
+                // Validate context acknowledgment in final answer
                 const validation = await validateContextAcknowledgment(lastMessage.content, finalState);
                 
                 if (!validation.valid) {
