@@ -33,10 +33,11 @@ export async function routeChatRequest(
   console.log(`   TAVILY_API_KEY present: ${!!env.TAVILY_API_KEY}`);
   console.log(`   GEMINI_API_KEY present: ${!!env.GEMINI_API_KEY}`);
   console.log(`   LANGSMITH_API_KEY present: ${!!env.LANGSMITH_API_KEY}`);
+  console.log(`   CHAT_SESSIONS KV present: ${!!env.CHAT_SESSIONS}`);
   
   if (useLangGraph) {
     // Use new LangGraph agent with Gemini + Tavily hybrid
-    console.log(`   ✅ Routing to LangGraph agent (Gemini + Tavily)`);
+    console.log(`   ✅ Routing to LangGraph agent (Gemini + Tavily + KV Session Memory)`);
     try {
       const stream = await handleChatWithLangGraph({
         messages,
@@ -47,6 +48,7 @@ export async function routeChatRequest(
           TAVILY_API_KEY: env.TAVILY_API_KEY,
           GEMINI_API_KEY: env.GEMINI_API_KEY,
           LANGSMITH_API_KEY: env.LANGSMITH_API_KEY,
+          CHAT_SESSIONS: env.CHAT_SESSIONS,
         }
       });
       

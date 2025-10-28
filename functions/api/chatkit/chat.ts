@@ -5,12 +5,22 @@
 
 import { routeChatRequest, getAgentStatus } from './agent-router';
 
+// Cloudflare Workers types
+declare global {
+  interface KVNamespace {
+    get(key: string, type?: 'text' | 'json' | 'arrayBuffer' | 'stream'): Promise<any>;
+    put(key: string, value: string | ArrayBuffer | ReadableStream, options?: { expirationTtl?: number }): Promise<void>;
+    delete(key: string): Promise<void>;
+  }
+}
+
 interface Env {
   OPENAI_API_KEY: string;
   TAVILY_API_KEY: string;
   GEMINI_API_KEY: string;
+  LANGSMITH_API_KEY?: string;
   USE_LANGGRAPH?: string;
-  // CHAT_SESSIONS not needed - LangGraph uses built-in MemorySaver
+  CHAT_SESSIONS: KVNamespace; // Cloudflare KV for persistent session memory
 }
 
 export async function onRequestPost(context: { request: Request; env: Env }) {

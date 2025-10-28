@@ -12,6 +12,49 @@ import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/
 import { z } from "zod";
 import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { analyzeContentIntelligence, batchAnalyzeContent, type ContentSource, type ContentIntelligence } from './content-intelligence';
+import { SessionMemoryManager, extractTopicFromMessages, type SessionMemory } from './session-memory';
+
+// Cloudflare Workers types
+declare global {
+  interface KVNamespace {
+    get(key: string, type?: 'text' | 'json' | 'arrayBuffer' | 'stream'): Promise<any>;
+    put(key: string, value: string | ArrayBuffer | ReadableStream, options?: { expirationTtl?: number }): Promise<void>;
+    delete(key: string): Promise<void>;
+  }
+}
+
+// =====================
+// CONFIGURATION CONSTANTS
+// =====================
+
+/** Session memory TTL in seconds (7 days) */
+const SESSION_MEMORY_TTL = 86400 * 7;
+
+/** Maximum number of mode transitions to keep in history */
+const MAX_MODE_HISTORY = 5;
+
+/** Maximum number of recent messages to store in session */
+const MAX_RECENT_MESSAGES = 10;
+
+/** Source selection limits */
+const SOURCES_LIMIT_BASIC = 10;
+const SOURCES_LIMIT_ADVANCED = 15;
+
+/** Response length requirements */
+const MIN_RESPONSE_LENGTH_COMPREHENSIVE = 2000;
+const MAX_RESPONSE_LENGTH_COMPREHENSIVE = 3000;
+
+/** SSE streaming configuration */
+const SSE_CHUNK_SIZE = 50;
+const SSE_THROTTLE_INTERVAL_MS = 10;
+const SSE_THROTTLE_EVERY_N_CHUNKS = 5;
+
+/** Confidence thresholds */
+const CONFIDENCE_THRESHOLD_LOW = 0.7;
+const CONFIDENCE_THRESHOLD_MIN_SOURCES = 5;
+
+/** Multi-query orchestration limits */
+const MAX_MULTI_QUERIES = 5;
 
 // =====================
 // TYPES & INTERFACES
@@ -49,7 +92,7 @@ const MaritimeAgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => false,
   }),
-  // NEW: Track which mode the agent is operating in
+  /** Agent operation mode: verification (Gemini), research (Tavily), or system intelligence */
   researchMode: Annotation<'verification' | 'research' | 'none'>({
     reducer: (_, next) => next,
     default: () => 'none',
@@ -74,7 +117,7 @@ const MaritimeAgentState = Annotation.Root({
     reducer: (current, update) => [...new Set([...current, ...update])],
     default: () => [],
   }),
-  // NEW: Persistent entity memory across conversation
+  /** Persistent entity memory: stores mentioned vessels, companies across conversation */
   conversationEntities: Annotation<Record<string, string>>({
     reducer: (current, update) => ({ ...current, ...update }),
     default: () => ({}),
@@ -82,6 +125,103 @@ const MaritimeAgentState = Annotation.Root({
   needsRefinement: Annotation<boolean>({
     reducer: (_, next) => next,
     default: () => false,
+  }),
+  
+  // ========================================
+  // UNIVERSAL CONTEXT MANAGEMENT
+  // Persistent conversation state across all modes
+  // ========================================
+  
+  /** 
+   * Conversation topic evolution tracker
+   * Example: "PMS" → "PMS + scheduling" → "PMS for vessel Dynamic 17"
+   */
+  conversationTopic: Annotation<string>({
+    reducer: (current, update) => {
+      if (!update) return current;
+      if (!current) return update;
+      // Merge topics intelligently
+      if (current.includes(update)) return current;
+      return `${current} → ${update}`;
+    },
+    default: () => "",
+  }),
+  
+  /** 
+   * User intent detection: high-level goal inferred from conversation
+   * Example: "evaluating PMS for vessel", "learning about regulations"
+   */
+  userIntent: Annotation<string>({
+    reducer: (_, next) => next || "", // Replace with new intent
+    default: () => "",
+  }),
+  
+  /**
+   * Accumulated knowledge: persistent facts discovered during conversation
+   * Structured storage of fleetcore features, vessel specs, connections
+   * Never cleared - only extended
+   */
+  accumulatedKnowledge: Annotation<Record<string, any>>({
+    reducer: (current, update) => {
+      // Deep merge knowledge domains
+      const merged = { ...current };
+      
+      // Merge arrays by domain
+      if (update.fleetcoreFeatures) {
+        merged.fleetcoreFeatures = [
+          ...(merged.fleetcoreFeatures || []),
+          ...update.fleetcoreFeatures
+        ];
+      }
+      
+      if (update.vesselEntities) {
+        merged.vesselEntities = {
+          ...(merged.vesselEntities || {}),
+          ...update.vesselEntities
+        };
+      }
+      
+      if (update.connections) {
+        merged.connections = [
+          ...(merged.connections || []),
+          ...update.connections
+        ];
+      }
+      
+      if (update.discussedTopics) {
+        merged.discussedTopics = [
+          ...new Set([
+            ...(merged.discussedTopics || []),
+            ...update.discussedTopics
+          ])
+        ];
+      }
+      
+      return merged;
+    },
+    default: () => ({
+      fleetcoreFeatures: [],
+      vesselEntities: {},
+      connections: [],
+      discussedTopics: [],
+    }),
+  }),
+  
+  /**
+   * Mode transition history for context-aware routing
+   * Keeps last 5 mode switches with context snapshots
+   */
+  modeHistory: Annotation<Array<{
+    mode: 'verification' | 'research' | 'none';
+    query: string;
+    timestamp: number;
+    entities: string[];
+  }>>({
+    reducer: (current, update) => {
+      const history = [...current, ...update];
+      return history.slice(-MAX_MODE_HISTORY);
+    },
+    default: () => [],
   }),
 });
 
@@ -95,6 +235,137 @@ type AgentState = typeof MaritimeAgentState.State;
 // =====================
 // HELPER FUNCTIONS
 // =====================
+
+/**
+ * Initialize LangGraph state from persistent session memory
+ * Converts KV-stored session data into agent state format
+ * @param sessionMemory - Session memory from Cloudflare KV or null for new sessions
+ * @returns Partial state update with conversation context and accumulated knowledge
+ */
+function initializeStateFromMemory(sessionMemory: SessionMemory | null): Partial<AgentState> {
+  if (!sessionMemory) {
+    return {};
+  }
+  
+  console.log(`📋 Initializing state from session memory`);
+  
+  // Convert session memory to state format
+  const stateUpdate: Partial<AgentState> = {
+    conversationTopic: sessionMemory.conversationTopic,
+    userIntent: sessionMemory.userIntent,
+    accumulatedKnowledge: sessionMemory.accumulatedKnowledge,
+    modeHistory: sessionMemory.modeHistory.map(m => ({
+      mode: m.mode,
+      query: m.query,
+      timestamp: m.timestamp,
+      entities: m.entitiesDiscussed,
+    })),
+  };
+  
+  // Extract entities from accumulated knowledge
+  const vesselNames = Object.values(sessionMemory.accumulatedKnowledge.vesselEntities)
+    .map(v => v.name);
+  
+  if (vesselNames.length > 0) {
+    stateUpdate.maritimeEntities = vesselNames;
+    stateUpdate.conversationEntities = vesselNames.reduce((acc, name) => {
+      acc[name.toLowerCase()] = name;
+      return acc;
+    }, {} as Record<string, string>);
+  }
+  
+  console.log(`   Topic: ${stateUpdate.conversationTopic}`);
+  console.log(`   Intent: ${stateUpdate.userIntent}`);
+  console.log(`   Fleetcore features: ${sessionMemory.accumulatedKnowledge.fleetcoreFeatures.length}`);
+  console.log(`   Vessels: ${vesselNames.length}`);
+  
+  return stateUpdate;
+}
+
+/**
+ * Synchronize agent state back to session memory for persistence
+ * Extracts new knowledge, features, and entities discovered during conversation
+ * @param state - Current LangGraph agent state
+ * @param sessionMemory - Session memory object to update
+ * @param manager - Session memory manager for structured updates
+ * @returns Updated session memory (mutated in place)
+ */
+function syncStateToMemory(
+  state: AgentState,
+  sessionMemory: SessionMemory,
+  manager: SessionMemoryManager
+): SessionMemory {
+  console.log(`🔄 Syncing state to session memory`);
+  
+  // Update topic if changed
+  if (state.conversationTopic && state.conversationTopic !== sessionMemory.conversationTopic) {
+    manager.updateTopic(sessionMemory, state.conversationTopic);
+  }
+  
+  // Update intent if changed
+  if (state.userIntent && state.userIntent !== sessionMemory.userIntent) {
+    manager.updateIntent(sessionMemory, state.userIntent);
+  }
+  
+  // Sync accumulated knowledge
+  if (state.accumulatedKnowledge) {
+    const knowledge = state.accumulatedKnowledge;
+    
+    // Add fleetcore features
+    if (knowledge.fleetcoreFeatures && Array.isArray(knowledge.fleetcoreFeatures)) {
+      knowledge.fleetcoreFeatures.forEach((feature: any) => {
+        if (feature.name && feature.explanation) {
+          manager.addFleetcoreFeature(
+            sessionMemory,
+            feature.name,
+            feature.explanation,
+            feature.messageIndex || 0
+          );
+        }
+      });
+    }
+    
+    // Add vessel entities
+    if (knowledge.vesselEntities && typeof knowledge.vesselEntities === 'object') {
+      Object.entries(knowledge.vesselEntities).forEach(([key, vessel]: [string, any]) => {
+        manager.addVesselEntity(sessionMemory, vessel.name || key, vessel);
+      });
+    }
+    
+    // Add connections
+    if (knowledge.connections && Array.isArray(knowledge.connections)) {
+      knowledge.connections.forEach((conn: any) => {
+        if (conn.from && conn.to && conn.relationship) {
+          manager.addConnection(
+            sessionMemory,
+            conn.from,
+            conn.to,
+            conn.relationship,
+            conn.messageIndex || 0
+          );
+        }
+      });
+    }
+  }
+  
+  // Add mode transition
+  if (state.researchMode) {
+    const lastMessage = state.messages[state.messages.length - 1];
+    const query = typeof lastMessage?.content === 'string' ? lastMessage.content : '';
+    
+    manager.addModeTransition(
+      sessionMemory,
+      state.researchMode,
+      query,
+      state.researchContext || '',
+      state.maritimeEntities || []
+    );
+  }
+  
+  console.log(`   ✅ State synced to memory`);
+  
+  return sessionMemory;
+}
 
 /**
  * Extract maritime entities from query
@@ -191,23 +462,80 @@ function isFollowUpQuery(query: string, previousMessages: BaseMessage[], entitie
 }
 
 /**
- * Detect if query needs VERIFICATION (fast fact-check) vs RESEARCH (deep intelligence)
- * 
- * SIMPLIFIED LOGIC (2025):
- * 1. User enabled browsing → RESEARCH (deep multi-source intelligence)
- * 2. Fleetcore platform queries → NONE (answer from training data)
- * 3. EVERYTHING ELSE → VERIFICATION (Gemini grounding with Google Search)
- * 
- * This ensures we always provide real-time, accurate information for maritime queries
- * while keeping platform feature explanations in expert mode.
+ * Detect user intent from conversation context
+ * Infers high-level goal using accumulated knowledge and topic history
+ * @returns Intent string like "evaluating fleetcore for specific entity", "learning about maintenance"
  */
-function detectQueryMode(query: string, enableBrowsing: boolean): 'verification' | 'research' | 'none' {
+function detectUserIntent(
+  query: string,
+  conversationTopic: string,
+  accumulatedKnowledge: Record<string, any>,
+  modeHistory: Array<any>
+): string {
+  const queryLower = query.toLowerCase();
+  
+  // Pattern 1: Evaluation intent
+  // User discussed fleetcore features, then asks about specific vessel/company
+  const hasFleetcoreKnowledge = accumulatedKnowledge.fleetcoreFeatures?.length > 0;
+  const hasVesselQuery = /vessel|ship|fleet|company/i.test(query);
+  
+  if (hasFleetcoreKnowledge && hasVesselQuery) {
+    return "evaluating fleetcore for specific entity";
+  }
+  
+  // Pattern 2: Learning intent
+  // Sequential questions about same topic without entities
+  if (conversationTopic && !hasVesselQuery) {
+    const topicWords = conversationTopic.toLowerCase().split(/\s*→\s*/);
+    if (topicWords.length >= 2) {
+      return `learning about ${topicWords[topicWords.length - 1]}`;
+    }
+  }
+  
+  // Pattern 3: Research intent
+  // Multiple specific entity queries
+  const vesselCount = Object.keys(accumulatedKnowledge.vesselEntities || {}).length;
+  if (vesselCount >= 2) {
+    return "researching multiple entities";
+  }
+  
+  // Pattern 4: Comparison intent
+  if (/compare|versus|vs|difference|better|best|largest|biggest/i.test(query)) {
+    return "comparing entities or options";
+  }
+  
+  // Default: Exploratory
+  return "exploring topic";
+}
+
+/**
+ * Context-aware query mode detection with intelligent routing
+ * 
+ * Routing Logic:
+ * - User enabled browsing → RESEARCH (deep Tavily multi-source intelligence)
+ * - Pure fleetcore platform queries → NONE (system intelligence from training)
+ * - Fleetcore + entity query → VERIFICATION with context injection
+ * - Everything else → VERIFICATION (Gemini grounding)
+ * 
+ * @returns Object with mode, preserveFleetcoreContext flag, and enriched query
+ */
+function detectQueryMode(
+  query: string,
+  enableBrowsing: boolean,
+  conversationTopic: string,
+  userIntent: string,
+  accumulatedKnowledge: Record<string, any>
+): {
+  mode: 'verification' | 'research' | 'none';
+  preserveFleetcoreContext: boolean;
+  enrichQuery: boolean;
+} {
   const queryLower = query.toLowerCase();
   
   // PRIORITY 1: User explicitly enabled online research toggle
   if (enableBrowsing) {
     console.log(`   Mode: RESEARCH (user enabled browsing - deep multi-source research)`);
-    return 'research';
+    return { mode: 'research', preserveFleetcoreContext: true, enrichQuery: true };
   }
   
   // PRIORITY 2: Fleetcore platform/system queries (ONLY exclusion)
@@ -250,16 +578,45 @@ function detectQueryMode(query: string, enableBrowsing: boolean): 'verification'
     }
   });
   
-  if (isPlatformQuery) {
-    console.log(`   Mode: NONE (Fleetcore platform query - training data)`);
-    return 'none';
+  // Check if query mentions specific entity (vessel, company, equipment)
+  const hasEntityMention = /vessel|ship|fleet|company|equipment|manufacturer/i.test(query) ||
+                          extractMaritimeEntities(query).length > 0;
+  
+  // HYBRID MODE: Platform knowledge + entity lookup
+  // Example: "How can fleetcore PMS support vessel Dynamic 17?"
+  if (isPlatformQuery && hasEntityMention) {
+    console.log(`   Mode: VERIFICATION (hybrid - platform + entity lookup)`);
+    console.log(`   Will inject fleetcore context into verification`);
+    return { mode: 'verification', preserveFleetcoreContext: true, enrichQuery: true };
   }
   
-  // PRIORITY 3: DEFAULT TO VERIFICATION
+  // Pure platform query without entities
+  if (isPlatformQuery) {
+    console.log(`   Mode: NONE (Pure fleetcore platform query - training data)`);
+    return { mode: 'none', preserveFleetcoreContext: false, enrichQuery: false };
+  }
+  
+  // Check if user is evaluating fleetcore for a specific entity
+  const isEvaluationIntent = userIntent.includes('evaluating fleetcore');
+  
+  if (isEvaluationIntent && hasEntityMention) {
+    console.log(`   Mode: VERIFICATION (evaluation context - preserve fleetcore knowledge)`);
+    return { mode: 'verification', preserveFleetcoreContext: true, enrichQuery: true };
+  }
+  
+  // DEFAULT TO VERIFICATION for real-time data
   // All maritime queries, vessel lookups, regulations, companies, equipment, etc.
   // Use Gemini grounding for fresh, accurate information
+  const hasFleetcoreContext = accumulatedKnowledge.fleetcoreFeatures?.length > 0;
+  
   console.log(`   Mode: VERIFICATION (default - Gemini grounding for real-time data)`);
-  return 'verification';
+  console.log(`   Fleetcore context available: ${hasFleetcoreContext}`);
+  
+  return {
+    mode: 'verification',
+    preserveFleetcoreContext: hasFleetcoreContext,
+    enrichQuery: hasFleetcoreContext && hasEntityMention
+  };
 }
 
 /**
@@ -619,8 +976,18 @@ Returns: 2-3 authoritative sources + Tavily AI fact summary`,
 );
 
 /**
- * TOOL 3: Deep Research - Comprehensive maritime intelligence with multi-query orchestration
- * Features: Parallel searches, quality filtering, iterative refinement, raw content extraction (Tavily-powered)
+ * Deep Research Tool - Comprehensive maritime intelligence with context-aware multi-query orchestration
+ * 
+ * Powered by Tavily Search API with advanced features:
+ * - Parallel multi-query execution for comprehensive coverage
+ * - Context-aware query generation (includes fleetcore-specific variants)
+ * - Multi-tiered content intelligence analysis
+ * - Raw content extraction for deep analysis
+ * - Quality filtering with authority scoring
+ * 
+ * @param query - Main search query
+ * @param search_depth - 'basic' (10 sources) or 'advanced' (15 sources with full content)
+ * @param use_multi_query - Enable multi-query orchestration for complex research
  */
 const deepResearchTool = tool(
   async ({ 
@@ -637,13 +1004,20 @@ const deepResearchTool = tool(
       throw new Error('TAVILY_API_KEY not configured');
     }
     
+    // Extract conversation context from session memory
+    const sessionMemory = (config?.configurable as any)?.sessionMemory;
+    const preserveFleetcoreContext = sessionMemory?.accumulatedKnowledge?.fleetcoreFeatures?.length > 0;
+    const accumulatedKnowledge = sessionMemory?.accumulatedKnowledge || {};
+    
     console.log(`🔬 Deep Research: "${query}" (${search_depth}, multi-query: ${use_multi_query})`);
+    if (preserveFleetcoreContext) {
+      console.log(`   🎯 Fleetcore context available: ${accumulatedKnowledge.fleetcoreFeatures?.length || 0} features`);
+    }
     
     try {
-      // PHASE 3: Multi-Query Orchestration
-      // For complex queries, generate multiple search angles
+      // Multi-Query Orchestration: Generate multiple search angles including context-aware variants
       const queries = use_multi_query && search_depth === 'advanced' 
-        ? generateMultipleQueries(query)
+        ? generateMultipleQueries(query, preserveFleetcoreContext, accumulatedKnowledge)
         : [query];
       
       console.log(`   🔍 Executing ${queries.length} parallel searches`);
@@ -676,7 +1050,7 @@ const deepResearchTool = tool(
       const analysisDepth = search_depth === 'advanced' ? 'deep' : 'standard';
       const { selected, rejected } = await selectBestSources(
         allResults,
-        search_depth === 'advanced' ? 15 : 10,
+        search_depth === 'advanced' ? SOURCES_LIMIT_ADVANCED : SOURCES_LIMIT_BASIC,
         query,
         analysisDepth
       );
@@ -693,7 +1067,7 @@ const deepResearchTool = tool(
         confidence,
         mode: 'research',
         queries_executed: queries.length,
-        needs_refinement: confidence < 0.7 && selected.length < 5,
+        needs_refinement: confidence < CONFIDENCE_THRESHOLD_LOW && selected.length < CONFIDENCE_THRESHOLD_MIN_SOURCES,
       };
     } catch (error: any) {
       console.error('❌ Deep research error:', error.message);
@@ -733,15 +1107,31 @@ Parameters:
 );
 
 /**
- * PHASE 3 & 4: Multi-query generation for comprehensive research
- * Generates multiple search angles for complex queries
+ * Multi-query generation for comprehensive research
+ * Generates multiple search angles for complex queries to ensure comprehensive coverage
+ * 
+ * Query Generation Strategy:
+ * - Always includes original query
+ * - Adds technical specifications variant for vessels
+ * - Adds operational/owner variant for entities
+ * - Context-aware: includes maintenance system queries if fleetcore context exists
+ * - Handles superlatives with comparison data queries
+ * 
+ * @param originalQuery - User's original search query
+ * @param preserveFleetcoreContext - Whether to include fleetcore-specific query variants
+ * @param accumulatedKnowledge - Session accumulated knowledge for context
+ * @returns Array of search queries (typically 2-5 queries)
  */
-function generateMultipleQueries(originalQuery: string): string[] {
+function generateMultipleQueries(
+  originalQuery: string,
+  preserveFleetcoreContext: boolean = false,
+  accumulatedKnowledge: Record<string, any> = {}
+): string[] {
   const queries: string[] = [originalQuery]; // Always include original
   
   const queryLower = originalQuery.toLowerCase();
   
-  // SUPERLATIVES: biggest, largest, best, fastest (need comparison data)
+  // Superlatives (biggest, largest, best) require comparison data
   if (/\b(biggest|largest|best|fastest|smallest|most|top|leading)\b/i.test(originalQuery)) {
     // Extract the subject (ship, fleet, company, etc.)
     const subject = originalQuery.match(/\b(ship|vessel|fleet|company|operator|port|container|tanker|bulk carrier)\b/i)?.[0] || 'vessel';
@@ -757,6 +1147,11 @@ function generateMultipleQueries(originalQuery: string): string[] {
     if (vesselName) {
       queries.push(`${vesselName} vessel specifications technical details`);
       queries.push(`${vesselName} ship owner operator fleet`);
+      
+      // Context-aware: Add maintenance system query if user is evaluating fleetcore
+      if (preserveFleetcoreContext && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+        queries.push(`${vesselName} vessel maintenance system requirements`);
+      }
     }
   }
   
@@ -778,8 +1173,28 @@ function generateMultipleQueries(originalQuery: string): string[] {
     queries.push(`${originalQuery} port state control inspection`);
   }
   
-  // Limit to 3 queries max to avoid excessive API calls
-  return queries.slice(0, 3);
+  // PHASE 4: Add context-aware query variant if fleetcore context exists
+  if (preserveFleetcoreContext && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+    // Extract entity from query
+    const entities = extractMaritimeEntities(originalQuery);
+    
+    if (entities.length > 0) {
+      const mainEntity = entities[0];
+      
+      // Check if this is a vessel/ship query
+      if (/vessel|ship|fleet/i.test(originalQuery)) {
+        queries.push(`maritime maintenance management systems for ${mainEntity} type vessels`);
+      }
+      
+      // Check if asking about specific vessel
+      if (entities.some(e => /\d/.test(e))) { // Has number in entity name
+        queries.push(`${mainEntity} maintenance requirements and operational systems`);
+      }
+    }
+  }
+  
+  // Limit to 4 queries max (increased from 3 to accommodate context queries)
+  return queries.slice(0, 4);
 }
 
 /**
@@ -866,127 +1281,206 @@ const tools = [geminiGroundingTool, smartVerificationTool, deepResearchTool, mar
 const toolNode = new ToolNode(tools);
 
 // =====================
-// AGENT NODES
+// ROUTER MODE HANDLERS
 // =====================
 
 /**
- * Router Node - Decides if research is needed and which tools to use
+ * Extract fleetcore features mentioned in query for accumulation
+ * Pattern-based extraction for common fleetcore PMS features
  */
-async function routerNode(state: AgentState, config?: any): Promise<Partial<AgentState>> {
-  const lastMessage = state.messages[state.messages.length - 1];
-  const userQuery = lastMessage.content as string;
+function extractFleetcoreFeatures(userQuery: string, messageIndex: number): Array<{name: string; explanation: string; messageIndex: number}> {
+  const features: any[] = [];
   
-  console.log(`🎯 Router analyzing: "${userQuery.substring(0, 100)}..."`);
+  const featurePatterns = [
+    {
+      pattern: /schedule-specific hours|schedule specific hours/i,
+      name: "schedule-specific hours",
+      explanation: "Each maintenance schedule tracks its own working hours independently"
+    },
+    {
+      pattern: /dual-interval|dual interval/i,
+      name: "dual-interval logic",
+      explanation: "Supports both hours-based and time-based maintenance intervals"
+    },
+    {
+      pattern: /task management|task workflow/i,
+      name: "task management workflow",
+      explanation: "Tracks maintenance tasks from pending to completed with real-time updates"
+    },
+    {
+      pattern: /scheduling.*pms|pms.*scheduling|schedule connection|schedule integration/i,
+      name: "PMS-scheduling integration",
+      explanation: "Scheduling system drives maintenance timing and precision alerts"
+    },
+  ];
   
-  // Extract entities from current query
-  const entities = extractMaritimeEntities(userQuery);
-  
-  // Get ALL entities from conversation history (persistent memory)
-  const allConversationEntities = [...entities, ...state.maritimeEntities];
-  
-  // Check if follow-up (now considers all conversation entities)
-  const isFollowUp = isFollowUpQuery(userQuery, state.messages, allConversationEntities);
-  
-  // Detect query mode: verification, research, or none
-  const queryMode = detectQueryMode(userQuery, state.enableBrowsing);
-  
-  console.log(`   Entities: ${entities.length ? entities.join(', ') : 'none'}`);
-  console.log(`   Follow-up: ${isFollowUp}`);
-  console.log(`   User enabled browsing: ${state.enableBrowsing}`);
-  console.log(`   Detected mode: ${queryMode}`);
-  
-  // NEW: Build entity context for follow-up queries
-  let entityContext = '';
-  if (isFollowUp && allConversationEntities.length > 0) {
-    console.log(`📋 Follow-up query detected. Previous entities: ${allConversationEntities.join(', ')}`);
-    
-    // Extract the main entity being discussed
-    const mainEntity = allConversationEntities[allConversationEntities.length - 1];
-    
-    // If user asks for specific details (engines, specs, etc.) without entity name, add it to query
-    const needsEntityAddition = 
-      /\b(engine|propulsion|specification|system|equipment|details|list)\b/i.test(userQuery) &&
-      !allConversationEntities.some(e => userQuery.toLowerCase().includes(e.toLowerCase()));
-    
-    if (needsEntityAddition) {
-      entityContext = `\n\n**CONTEXT**: User is asking about ${mainEntity} from previous discussion. Focus your search on ${mainEntity} specifically.`;
-      console.log(`   🎯 Enriching query with entity context: ${mainEntity}`);
+  for (const { pattern, name, explanation } of featurePatterns) {
+    if (pattern.test(userQuery)) {
+      features.push({ name, explanation, messageIndex });
     }
   }
   
-  // If follow-up with existing research context but needs NEW specific info, DO research
-  // Example: Previous: "biggest vessel" → Now: "list engines" (needs technical deep dive)
-  if (isFollowUp && state.researchContext) {
-    const needsNewResearch = /\b(engine|propulsion|specification|technical|system|equipment|maintenance|oem)\b/i.test(userQuery);
+  return features;
+}
+
+/**
+ * Extract discussed topics from query for knowledge tracking
+ */
+function extractDiscussedTopics(userQuery: string): string[] {
+  const topicKeywords = ['PMS', 'maintenance', 'scheduling', 'fleetcore', 'compliance', 'inspection'];
+  return topicKeywords.filter(topic => new RegExp(`\\b${topic}\\b`, 'i').test(userQuery));
+}
+
+/**
+ * Handle System Intelligence mode (no external tools)
+ * Answers from maritime expertise and accumulates fleetcore features
+ */
+function handleSystemIntelligenceMode(
+  userQuery: string,
+  state: AgentState,
+  stateUpdates: Partial<AgentState>
+): Partial<AgentState> {
+  console.log(`💬 Expert mode: Answering from maritime expertise`);
+  
+  // Extract fleetcore features for knowledge accumulation
+  const fleetcoreFeatures = extractFleetcoreFeatures(userQuery, state.messages.length);
+  const discussedTopics = extractDiscussedTopics(userQuery);
+  
+  const knowledgeUpdate: any = {};
+  
+  if (fleetcoreFeatures.length > 0) {
+    console.log(`   ✨ Storing ${fleetcoreFeatures.length} fleetcore features`);
+    knowledgeUpdate.fleetcoreFeatures = fleetcoreFeatures;
+  }
+  
+  if (discussedTopics.length > 0) {
+    knowledgeUpdate.discussedTopics = discussedTopics;
+  }
+  
+  return {
+    ...stateUpdates,
+    accumulatedKnowledge: knowledgeUpdate,
+    researchMode: 'none',
+    messages: [
+      new AIMessage({ 
+        content: '', 
+        tool_calls: [], 
+      })
+    ],
+  };
+}
+
+/**
+ * Build fleetcore context section for verification/research modes
+ * Injects previously discussed features into research context
+ */
+function buildFleetcoreContextSection(
+  preserveFleetcoreContext: boolean,
+  accumulatedKnowledge: Record<string, any>,
+  detectedIntent: string,
+  conversationTopic: string
+): string {
+  if (!preserveFleetcoreContext || !accumulatedKnowledge.fleetcoreFeatures?.length) {
+    return '';
+  }
+  
+  console.log(`   ✨ Adding fleetcore context to research context`);
+  
+  const featuresList = accumulatedKnowledge.fleetcoreFeatures
+    .map((f: any, i: number) => `${i + 1}. **${f.name}**: ${f.explanation}`)
+    .join('\n');
+  
+  const connections = accumulatedKnowledge.connections || [];
+  const connectionsText = connections.length > 0
+    ? `\n\n**Previously Discussed Connections:**\n${connections.map((c: any) => `- ${c.from} → ${c.to}: ${c.relationship}`).join('\n')}`
+    : '';
+  
+  return `\n\n=== PREVIOUSLY DISCUSSED FLEETCORE CONTEXT ===
+
+**User Intent:** ${detectedIntent}
+**Conversation Topic:** ${conversationTopic}
+
+**Fleetcore PMS Features Already Discussed:**
+${featuresList}${connectionsText}
+
+**YOUR TASK:** Integrate vessel/entity information below with the fleetcore features above.
+Show how fleetcore's specific capabilities support this entity's requirements.
+
+=== END FLEETCORE CONTEXT ===\n\n`;
+}
+
+/**
+ * Handle Verification mode (Gemini grounding)
+ * Calls Gemini directly for real-time entity verification with context injection
+ */
+async function handleVerificationMode(
+  userQuery: string,
+  entityContext: string,
+  entities: string[],
+  preserveFleetcoreContext: boolean,
+  accumulatedKnowledge: Record<string, any>,
+  detectedIntent: string,
+  conversationTopic: string,
+  stateUpdates: Partial<AgentState>,
+  config: any
+): Promise<Partial<AgentState>> {
+  console.log(`🔮 VERIFICATION MODE: Calling Gemini directly`);
+  console.log(`   Query: "${userQuery}"`);
+  console.log(`   Entity context: "${entityContext}"`);
+  
+  // Build enriched query with fleetcore context
+  let enrichedQuery = userQuery + entityContext;
+  let fleetcoreContextPrefix = '';
+  
+  if (preserveFleetcoreContext && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+    console.log(`   🎯 ENRICHING QUERY with fleetcore context`);
     
-    if (!needsNewResearch) {
-      console.log(`✅ Using existing research context for follow-up`);
-      return {
-        maritimeEntities: entities,
-        researchMode: state.researchMode,
-        // Keep existing context
-      };
+    const features = accumulatedKnowledge.fleetcoreFeatures
+      .map((f: any) => f.name)
+      .slice(0, 5)
+      .join(', ');
+    
+    fleetcoreContextPrefix = `[CONTEXT: User is evaluating fleetcore PMS with features: ${features}] `;
+    console.log(`   Fleetcore features: ${features}`);
+  }
+  
+  const finalQuery = fleetcoreContextPrefix + enrichedQuery;
+  console.log(`   Full query to Gemini: "${finalQuery.substring(0, 150)}..."`);
+  
+  try {
+    // Call Gemini grounding tool directly
+    const geminiResult = await geminiGroundingTool.invoke({ query: finalQuery }, config);
+    
+    console.log(`   ✅ Gemini direct call complete`);
+    
+    // Parse the result
+    const parsed = typeof geminiResult === 'string' ? JSON.parse(geminiResult) : geminiResult;
+    
+    console.log(`   Sources count: ${parsed.sources?.length || 0}`);
+    console.log(`   Has answer: ${!!parsed.answer}`);
+    
+    if (parsed.sources?.length > 0) {
+      parsed.sources.forEach((s: any, i: number) => {
+        console.log(`      [${i+1}] ${s.title} - ${s.url}`);
+      });
     } else {
-      console.log(`🔄 Follow-up needs NEW technical research - clearing old context`);
-      // CRITICAL: Clear old research context for fresh query
-      // This will be replaced with new context from Gemini/Tavily
+      console.log(`   ⚠️ WARNING: Gemini returned 0 sources!`);
     }
-  }
-  
-  // Route based on detected mode
-  if (queryMode === 'none') {
-    // Expert mode - no external queries needed
-    console.log(`💬 Expert mode: Answering from maritime expertise`);
-    return {
-      maritimeEntities: entities,
-      researchMode: 'none',
-    };
-  }
-  
-  // VERIFICATION MODE: Direct Gemini call (bypasses tool_choice issues)
-  if (queryMode === 'verification') {
-    console.log(`🔮 VERIFICATION MODE: Calling Gemini directly (bypass tool_choice)`);
-    console.log(`   Query: "${userQuery}"`);
-    console.log(`   Entity context: "${entityContext}"`);
-    console.log(`   Full query to Gemini: "${userQuery + entityContext}"`);
     
-    try {
-      console.log(`   Calling geminiGroundingTool.invoke()...`);
-      
-      // Call Gemini grounding tool directly
-      const geminiResult = await geminiGroundingTool.invoke(
-        { query: userQuery + entityContext },
-        config
+    const sources = parsed.sources || [];
+    const geminiAnswer = parsed.answer || null;
+    
+    // Build research context with fleetcore integration
+    let researchContext = '';
+    if (sources.length > 0 || geminiAnswer) {
+      const fleetcoreContextSection = buildFleetcoreContextSection(
+        preserveFleetcoreContext,
+        accumulatedKnowledge,
+        detectedIntent,
+        conversationTopic
       );
       
-      console.log(`   ✅ Gemini direct call complete`);
-      console.log(`   Result type: ${typeof geminiResult}`);
-      console.log(`   Result preview: ${typeof geminiResult === 'string' ? geminiResult.substring(0, 200) : 'N/A'}`);
-      
-      // Parse the result
-      const parsed = typeof geminiResult === 'string' ? JSON.parse(geminiResult) : geminiResult;
-      
-      console.log(`   📊 Parsed result keys:`, Object.keys(parsed));
-      console.log(`   Sources count: ${parsed.sources?.length || 0}`);
-      console.log(`   Has answer: ${!!parsed.answer}`);
-      if (parsed.sources && parsed.sources.length > 0) {
-        console.log(`   ✅ Sources successfully extracted from Gemini:`);
-        parsed.sources.forEach((s: any, i: number) => {
-          console.log(`      [${i+1}] ${s.title} - ${s.url}`);
-        });
-      } else {
-        console.log(`   ⚠️ WARNING: Gemini returned 0 sources! This is why citations are missing.`);
-      }
-      
-      // Process the sources directly and build research context
-      const sources = parsed.sources || [];
-      const geminiAnswer = parsed.answer || null;
-      
-      // Build research context for synthesis
-      let researchContext = '';
-      if (sources.length > 0 || geminiAnswer) {
-        console.log(`   📝 Building research context with ${sources.length} sources`);
-        researchContext = `=== GEMINI GROUNDING RESULTS (Direct Call) ===
+      researchContext = `${fleetcoreContextSection}=== GEMINI GROUNDING RESULTS (Direct Call) ===
 
 ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.length > 0 ? `Google Sources (${sources.length}):\n\n${sources.map((s: any, i: number) => `[${i + 1}] ${s.title} (${new URL(s.url).hostname})
    ${s.content.substring(0, 300)}...`).join('\n\n')}` : 'Direct answer from Google\'s knowledge base'}
@@ -1046,43 +1540,224 @@ ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
 **Target:** 400-500 words maximum, professional structure, all facts cited
 
 💡 **Need comprehensive analysis?** Enable 'Online research' for detailed multi-source intelligence.`;
-        
-        console.log(`   📝 Research context built: ${researchContext.length} chars`);
-      } else {
-        console.log(`   ⚠️ No sources or answer from Gemini - this should not happen!`);
-      }
       
-      // Return state update to skip directly to synthesis
-      console.log(`   📤 Returning state with ${sources.length} verified sources`);
-      const stateUpdate = {
-        maritimeEntities: entities,
-        researchMode: 'verification' as const,
-        conversationEntities: entities.reduce((acc, e) => ({ ...acc, [e.toLowerCase()]: e }), {}),
-        researchContext,
-        verifiedSources: sources, // Will replace old sources via reducer
-        rejectedSources: [], // Clear rejected sources for fresh query
-        confidence: parsed.confidence || 0.9,
-      };
-      console.log(`   📊 State update verifiedSources length:`, stateUpdate.verifiedSources.length);
-      return stateUpdate;
-    } catch (error: any) {
-      console.error(`❌ Direct Gemini call failed:`, error.message);
-      console.error(`   Stack: ${error.stack?.substring(0, 300)}`);
-      // Fall back to expert mode
+      console.log(`   📝 Research context built: ${researchContext.length} chars`);
+    }
+    
+    // Return state update
+    return {
+      ...stateUpdates,
+      researchMode: 'verification' as const,
+      conversationEntities: entities.reduce((acc, e) => ({ ...acc, [e.toLowerCase()]: e }), {}),
+      researchContext,
+      verifiedSources: sources,
+      rejectedSources: [],
+      confidence: parsed.confidence || 0.9,
+      modeHistory: [{
+        mode: 'verification' as const,
+        query: userQuery,
+        timestamp: Date.now(),
+        entities: entities,
+      }],
+    };
+  } catch (error: any) {
+    console.error(`❌ Direct Gemini call failed:`, error.message);
+    // Fall back to expert mode
+    return {
+      maritimeEntities: entities,
+      researchMode: 'none',
+    };
+  }
+}
+
+// =====================
+// AGENT NODES
+// =====================
+
+/**
+ * Router Node - Intelligent query routing with context-aware mode selection
+ * 
+ * Routes queries to appropriate mode based on:
+ * - User intent (evaluation, learning, research)
+ * - Conversation context and topic history
+ * - Accumulated knowledge (fleetcore features, entities)
+ * - Query type (platform-specific vs entity lookup)
+ * 
+ * Responsibilities:
+ * - Extract and accumulate fleetcore features (System Intelligence mode)
+ * - Enrich queries with context for verification/research modes
+ * - Inject accumulated knowledge into tool contexts
+ * - Update conversation topic and intent
+ * - Track mode transitions
+ */
+async function routerNode(state: AgentState, config?: any): Promise<Partial<AgentState>> {
+  const lastMessage = state.messages[state.messages.length - 1];
+  const userQuery = lastMessage.content as string;
+  
+  console.log(`🎯 Router analyzing: "${userQuery.substring(0, 100)}..."`);
+  
+  // Extract conversation context from state
+  const conversationTopic = state.conversationTopic || "";
+  const userIntent = state.userIntent || "";
+  const accumulatedKnowledge = state.accumulatedKnowledge || { fleetcoreFeatures: [], vesselEntities: {}, connections: [], discussedTopics: [] };
+  const modeHistory = state.modeHistory || [];
+  
+  console.log(`📋 Conversation Context:`);
+  console.log(`   Topic: ${conversationTopic || 'none'}`);
+  console.log(`   Intent: ${userIntent || 'detecting...'}`);
+  console.log(`   Fleetcore features accumulated: ${accumulatedKnowledge.fleetcoreFeatures?.length || 0}`);
+  console.log(`   Vessel entities: ${Object.keys(accumulatedKnowledge.vesselEntities || {}).length}`);
+  
+  // Detect or update user intent
+  const detectedIntent = detectUserIntent(
+    userQuery,
+    conversationTopic,
+    accumulatedKnowledge,
+    modeHistory
+  );
+  
+  if (!userIntent || detectedIntent !== userIntent) {
+    console.log(`🎯 Intent detected: "${detectedIntent}"`);
+  }
+  
+  // Extract entities from current query
+  const entities = extractMaritimeEntities(userQuery);
+  
+  // Get ALL entities from conversation history (persistent memory)
+  const allConversationEntities = [...entities, ...state.maritimeEntities];
+  
+  // Check if follow-up (now considers all conversation entities)
+  const isFollowUp = isFollowUpQuery(userQuery, state.messages, allConversationEntities);
+  
+  // Context-aware mode detection
+  const modeDecision = detectQueryMode(
+    userQuery,
+    state.enableBrowsing,
+    conversationTopic,
+    detectedIntent,
+    accumulatedKnowledge
+  );
+  
+  const queryMode = modeDecision.mode;
+  const preserveFleetcoreContext = modeDecision.preserveFleetcoreContext;
+  const shouldEnrichQuery = modeDecision.enrichQuery;
+  
+  console.log(`   Entities: ${entities.length ? entities.join(', ') : 'none'}`);
+  console.log(`   Follow-up: ${isFollowUp}`);
+  console.log(`   User enabled browsing: ${state.enableBrowsing}`);
+  console.log(`   Detected mode: ${queryMode}`);
+  console.log(`   Preserve fleetcore context: ${preserveFleetcoreContext}`);
+  console.log(`   Enrich query: ${shouldEnrichQuery}`);
+  
+  // Prepare base state updates (before mode routing)
+  const stateUpdates: Partial<AgentState> = {
+    maritimeEntities: entities,
+    userIntent: detectedIntent,
+  };
+  
+  // Update topic if entities found
+  if (entities.length > 0) {
+    const newTopic = entities.join(', ');
+    stateUpdates.conversationTopic = conversationTopic ? `${conversationTopic} → ${newTopic}` : newTopic;
+  }
+  
+  // NEW: Build entity context for follow-up queries
+  let entityContext = '';
+  if (isFollowUp && allConversationEntities.length > 0) {
+    console.log(`📋 Follow-up query detected. Previous entities: ${allConversationEntities.join(', ')}`);
+    
+    // Extract the main entity being discussed
+    const mainEntity = allConversationEntities[allConversationEntities.length - 1];
+    
+    // If user asks for specific details (engines, specs, etc.) without entity name, add it to query
+    const needsEntityAddition = 
+      /\b(engine|propulsion|specification|system|equipment|details|list)\b/i.test(userQuery) &&
+      !allConversationEntities.some(e => userQuery.toLowerCase().includes(e.toLowerCase()));
+    
+    if (needsEntityAddition) {
+      entityContext = `\n\n**CONTEXT**: User is asking about ${mainEntity} from previous discussion. Focus your search on ${mainEntity} specifically.`;
+      console.log(`   🎯 Enriching query with entity context: ${mainEntity}`);
+    }
+  }
+  
+  // If follow-up with existing research context but needs NEW specific info, DO research
+  // Example: Previous: "biggest vessel" → Now: "list engines" (needs technical deep dive)
+  if (isFollowUp && state.researchContext) {
+    const needsNewResearch = /\b(engine|propulsion|specification|technical|system|equipment|maintenance|oem)\b/i.test(userQuery);
+    
+    if (!needsNewResearch) {
+      console.log(`✅ Using existing research context for follow-up`);
       return {
         maritimeEntities: entities,
-        researchMode: 'none',
+        researchMode: state.researchMode,
+        // Keep existing context
       };
+    } else {
+      console.log(`🔄 Follow-up needs NEW technical research - clearing old context`);
+      // CRITICAL: Clear old research context for fresh query
+      // This will be replaced with new context from Gemini/Tavily
     }
+  }
+  
+  // Route based on detected mode
+  if (queryMode === 'none') {
+    // Expert mode - no external queries needed
+    const systemModeResult = handleSystemIntelligenceMode(userQuery, state, stateUpdates);
+    
+    return {
+      ...systemModeResult,
+      modeHistory: [{
+        mode: 'none' as const,
+        query: userQuery,
+        timestamp: Date.now(),
+        entities: entities,
+      }],
+    };
+  }
+  
+  // VERIFICATION MODE: Direct Gemini call
+  if (queryMode === 'verification') {
+    return await handleVerificationMode(
+      userQuery,
+      entityContext,
+      entities,
+      preserveFleetcoreContext,
+      accumulatedKnowledge,
+      detectedIntent,
+      conversationTopic,
+      stateUpdates,
+      config
+    );
   }
   
   // RESEARCH MODE: Use deep_research tool via LangGraph
   console.log(`📋 Invoking research mode planner...`);
   
+  // Build context-aware planning prompt
+  let contextSection = '';
+  if (preserveFleetcoreContext && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+    console.log(`   🎯 Adding fleetcore context to research planning`);
+    
+    const features = accumulatedKnowledge.fleetcoreFeatures
+      .map((f: any) => f.name)
+      .slice(0, 5)
+      .join(', ');
+    
+    contextSection = `
+
+**CONVERSATION CONTEXT:**
+- User Intent: ${detectedIntent}
+- Topic: ${conversationTopic}
+- Fleetcore Features Discussed: ${features}
+
+**IMPORTANT:** User is evaluating fleetcore in context of this entity.
+Your research should find information that helps assess fleetcore's fit for this specific use case.`;
+  }
+  
   const planningPrompt = `You are a maritime intelligence researcher.
 
 User Query: "${userQuery}"
-Detected Entities: ${entities.join(', ')}
+Detected Entities: ${entities.join(', ')}${contextSection}
 
 Your task: Use the deep_research tool for comprehensive intelligence.
 - For COMPLEX queries (comparisons, analysis, multiple entities):
@@ -1092,6 +1767,8 @@ Your task: Use the deep_research tool for comprehensive intelligence.
   * Use search_depth='basic'
   * Keep use_multi_query=false
 - You can also use maritime_knowledge for internal fleetcore information
+
+${preserveFleetcoreContext ? `REMINDER: Consider how your research findings relate to the fleetcore features the user has been discussing.` : ''}
 
 Call deep_research now with appropriate parameters.`;
   
@@ -1285,6 +1962,9 @@ To get current, verified vessel data, please try enabling the 'Online research' 
     const isEquipmentQuery = /\b(equipment|system|machinery|generator|pump|boiler)\b/i.test(userQuery);
     const isMaintenanceQuery = /\b(maintenance|service|oem|inspection|interval)\b/i.test(userQuery);
     
+    // Check for fleetcore context
+    const hasFleetcoreContext = state.accumulatedKnowledge?.fleetcoreFeatures?.length > 0;
+    
     let focusInstructions = '';
     if (isEngineQuery) {
       focusInstructions = `
@@ -1329,7 +2009,41 @@ Cite sources [1][2][3] for every recommendation.`;
 - Include maritime context, strategic importance, and industry perspective for EVERY fact`;
     }
     
-    researchContext = `=== RESEARCH INTELLIGENCE ===
+    // PHASE 4: Add fleetcore context section if available
+    let fleetcoreContextSection = '';
+    if (hasFleetcoreContext) {
+      console.log(`   ✨ Adding fleetcore context to deep research results`);
+      
+      const features = state.accumulatedKnowledge.fleetcoreFeatures
+        .map((f: any, i: number) => `${i + 1}. **${f.name}**: ${f.explanation}`)
+        .join('\n');
+      
+      const connections = state.accumulatedKnowledge.connections || [];
+      const connectionsText = connections.length > 0
+        ? `\n\n**Previously Discussed Connections:**\n${connections.map((c: any) => `- ${c.from} → ${c.to}: ${c.relationship}`).join('\n')}`
+        : '';
+      
+      fleetcoreContextSection = `
+
+=== PREVIOUSLY DISCUSSED FLEETCORE CONTEXT ===
+
+**User Intent:** ${state.userIntent || 'exploring topic'}
+**Conversation Topic:** ${state.conversationTopic || 'maritime operations'}
+
+**Fleetcore PMS Features Already Discussed:**
+${features}${connectionsText}
+
+**YOUR TASK (IMPORTANT):** 
+After providing the comprehensive research findings below, add a section that shows:
+- How fleetcore's capabilities specifically support this entity's requirements
+- Which fleetcore features are most relevant to this entity type
+- How fleetcore addresses the specific operational needs identified
+
+=== END FLEETCORE CONTEXT ===
+`;
+    }
+    
+    researchContext = `=== RESEARCH INTELLIGENCE ===${fleetcoreContextSection}
 ${focusInstructions}
 
 Found ${allSources.length} verified sources (rejected ${allRejected.length} low-quality):
@@ -1372,13 +2086,35 @@ ${allSources.map((s, i) => `[${i + 1}] ${s.title}
 }
 
 /**
- * Synthesizer Node - Generate final answer with citations
+ * Synthesizer Node - Generate final answer with accumulated context integration
  */
 async function synthesizerNode(state: AgentState, config?: any): Promise<Partial<AgentState>> {
   console.log(`\n🎨 SYNTHESIZER NODE`);
   console.log(`   Sources: ${state.verifiedSources.length}`);
   console.log(`   Research context: ${state.researchContext ? 'YES' : 'NO'}`);
   console.log(`   Messages in state: ${state.messages.length}`);
+  
+  // PHASE 5: Extract accumulated knowledge from state
+  const conversationTopic = state.conversationTopic || "";
+  const userIntent = state.userIntent || "";
+  const accumulatedKnowledge = state.accumulatedKnowledge || {
+    fleetcoreFeatures: [],
+    vesselEntities: {},
+    connections: [],
+    discussedTopics: []
+  };
+  
+  const hasAccumulatedKnowledge = 
+    accumulatedKnowledge.fleetcoreFeatures?.length > 0 ||
+    Object.keys(accumulatedKnowledge.vesselEntities || {}).length > 0 ||
+    conversationTopic.length > 0;
+  
+  console.log(`   📋 Accumulated Context:`);
+  console.log(`      Topic: ${conversationTopic || 'none'}`);
+  console.log(`      Intent: ${userIntent || 'none'}`);
+  console.log(`      Fleetcore features: ${accumulatedKnowledge.fleetcoreFeatures?.length || 0}`);
+  console.log(`      Vessel entities: ${Object.keys(accumulatedKnowledge.vesselEntities || {}).length}`);
+  console.log(`      Has context: ${hasAccumulatedKnowledge}`);
   
   // CRITICAL: Use streaming: true to get token-by-token output
   const model = new ChatOpenAI({
@@ -1409,6 +2145,75 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
     if (!(msg as any).tool_calls && msg.constructor.name !== 'ToolMessage') {
       synthesisMessages.push(msg);
     }
+  }
+  
+  // Add accumulated context BEFORE research context
+  if (hasAccumulatedKnowledge) {
+    console.log(`   ✨ Injecting accumulated conversation context`);
+    
+    let accumulatedContextSection = `=== ACCUMULATED CONVERSATION CONTEXT ===\n\n`;
+    
+    // Add conversation topic
+    if (conversationTopic) {
+      accumulatedContextSection += `**Conversation Topic Evolution:**\n${conversationTopic}\n\n`;
+    }
+    
+    // Add user intent
+    if (userIntent) {
+      accumulatedContextSection += `**User Intent:** ${userIntent}\n\n`;
+    }
+    
+    // Add fleetcore features
+    if (accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+      accumulatedContextSection += `**Previously Discussed Fleetcore Features:**\n`;
+      accumulatedKnowledge.fleetcoreFeatures.forEach((f: any, i: number) => {
+        accumulatedContextSection += `${i + 1}. **${f.name}**: ${f.explanation}\n`;
+      });
+      accumulatedContextSection += '\n';
+    }
+    
+    // Add vessel entities
+    const vesselEntities = Object.values(accumulatedKnowledge.vesselEntities || {});
+    if (vesselEntities.length > 0) {
+      accumulatedContextSection += `**Vessels/Entities Previously Discussed:**\n`;
+      vesselEntities.forEach((v: any, i: number) => {
+        accumulatedContextSection += `${i + 1}. ${v.name}`;
+        if (v.type) accumulatedContextSection += ` (${v.type})`;
+        if (v.imo) accumulatedContextSection += ` - IMO: ${v.imo}`;
+        accumulatedContextSection += '\n';
+      });
+      accumulatedContextSection += '\n';
+    }
+    
+    // Add connections
+    if (accumulatedKnowledge.connections?.length > 0) {
+      accumulatedContextSection += `**Topic Connections Identified:**\n`;
+      accumulatedKnowledge.connections.forEach((c: any, i: number) => {
+        accumulatedContextSection += `${i + 1}. ${c.from} → ${c.to}: ${c.relationship}\n`;
+      });
+      accumulatedContextSection += '\n';
+    }
+    
+    accumulatedContextSection += `=== END ACCUMULATED CONTEXT ===\n\n`;
+    accumulatedContextSection += `**CRITICAL INSTRUCTION:**\n`;
+    accumulatedContextSection += `Your answer MUST acknowledge and integrate the accumulated context above.\n`;
+    
+    // If this is about a vessel and fleetcore features were discussed
+    if (accumulatedKnowledge.fleetcoreFeatures?.length > 0 && vesselEntities.length > 0) {
+      accumulatedContextSection += `The user has been learning about fleetcore PMS and now is asking about a specific entity.\n`;
+      accumulatedContextSection += `Your answer should naturally explain how fleetcore's features support this entity's needs.\n`;
+    }
+    
+    // If no research context, remind to use accumulated knowledge
+    if (!state.researchContext) {
+      accumulatedContextSection += `\nSince no external research was performed, use the accumulated context to provide a comprehensive answer.\n`;
+    }
+    
+    accumulatedContextSection += '\n';
+    
+    synthesisMessages.push(
+      new SystemMessage(accumulatedContextSection)
+    );
   }
   
   // Add research context if available
@@ -1443,8 +2248,8 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
   
   console.log(`✅ Synthesized ${fullContent.length} characters`);
   
-  if (state.researchContext && fullContent.length < 2000) {
-    console.warn(`⚠️ WARNING: Response is too short! Only ${fullContent.length} chars (target: 2000-3000)`);
+  if (state.researchContext && fullContent.length < MIN_RESPONSE_LENGTH_COMPREHENSIVE) {
+    console.warn(`⚠️ WARNING: Response is too short! Only ${fullContent.length} chars (target: ${MIN_RESPONSE_LENGTH_COMPREHENSIVE}-${MAX_RESPONSE_LENGTH_COMPREHENSIVE})`);
     console.warn(`   Sources available: ${state.verifiedSources.length}`);
     console.warn(`   This indicates the LLM is not following the comprehensive response requirement!`);
   } else if (state.researchContext) {
@@ -1454,6 +2259,61 @@ async function synthesizerNode(state: AgentState, config?: any): Promise<Partial
   return {
     messages: [new AIMessage(fullContent)],
   };
+}
+
+/**
+ * Validate conversation flow and context acknowledgment
+ */
+async function validateContextAcknowledgment(
+  answer: string,
+  state: AgentState
+): Promise<{ valid: boolean; reason?: string }> {
+  
+  const conversationTopic = state.conversationTopic || "";
+  const accumulatedKnowledge = state.accumulatedKnowledge || {
+    fleetcoreFeatures: [],
+    vesselEntities: {},
+    connections: [],
+    discussedTopics: []
+  };
+  
+  // If no accumulated context, validation passes
+  if (!conversationTopic && accumulatedKnowledge.fleetcoreFeatures?.length === 0) {
+    return { valid: true };
+  }
+  
+  // Check if answer acknowledges conversation topic
+  const hasTopicMention = conversationTopic.split('→').some(topic => 
+    answer.toLowerCase().includes(topic.trim().toLowerCase())
+  );
+  
+  // Check if answer mentions fleetcore when features were discussed
+  const hasFleetcoreMention = accumulatedKnowledge.fleetcoreFeatures?.length > 0
+    ? answer.toLowerCase().includes('fleetcore')
+    : true;
+  
+  // Check if answer integrates features
+  const mentionsFeatures = accumulatedKnowledge.fleetcoreFeatures?.some((f: any) =>
+    answer.toLowerCase().includes(f.name.toLowerCase().split(' ')[0])
+  ) || accumulatedKnowledge.fleetcoreFeatures?.length === 0;
+  
+  // Validation logic
+  if (!hasFleetcoreMention && accumulatedKnowledge.fleetcoreFeatures?.length > 0) {
+    return {
+      valid: false,
+      reason: "Answer doesn't mention fleetcore despite features being discussed"
+    };
+  }
+  
+  if (!hasTopicMention && conversationTopic.length > 10) {
+    return {
+      valid: false,
+      reason: `Answer doesn't acknowledge conversation topic: ${conversationTopic}`
+    };
+  }
+  
+  // Passes all checks
+  return { valid: true };
 }
 
 // =====================
@@ -1481,9 +2341,9 @@ function shouldContinue(state: AgentState): string {
     return "tools";
   }
   
-  // PHASE 3: Iterative Refinement - If confidence is low and we haven't refined yet, go back to router
+  // Iterative Refinement - If confidence is low and we haven't refined yet, go back to router
   // This enables automatic follow-up queries to improve results
-  if (state.needsRefinement && state.confidence < 0.7 && state.verifiedSources.length > 0 && state.verifiedSources.length < 5) {
+  if (state.needsRefinement && state.confidence < CONFIDENCE_THRESHOLD_LOW && state.verifiedSources.length > 0 && state.verifiedSources.length < CONFIDENCE_THRESHOLD_MIN_SOURCES) {
     console.log(`→ Routing to: router (ITERATIVE REFINEMENT - low confidence ${state.confidence.toFixed(2)})`);
     // TODO: In router, detect this and generate a refinement query
     // For now, proceed to synthesis with what we have
@@ -1568,6 +2428,7 @@ export interface ChatRequest {
     TAVILY_API_KEY: string;
     GEMINI_API_KEY: string;
     LANGSMITH_API_KEY?: string; // Optional for tracing/debugging
+    CHAT_SESSIONS?: KVNamespace; // Cloudflare KV for persistent session memory
   };
 }
 
@@ -1579,6 +2440,29 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
   const { messages, sessionId, enableBrowsing, env } = request;
   
   console.log(`\n🚀 LangGraph Agent Request | Session: ${sessionId} | Browsing: ${enableBrowsing}`);
+  
+  // Initialize Session Memory Manager with Cloudflare KV
+  let sessionMemoryManager: SessionMemoryManager | null = null;
+  let sessionMemory: SessionMemory | null = null;
+  
+  if (env.CHAT_SESSIONS) {
+    try {
+      sessionMemoryManager = new SessionMemoryManager(env.CHAT_SESSIONS);
+      sessionMemory = await sessionMemoryManager.load(sessionId);
+      
+      console.log(`📦 Session Memory Loaded:`);
+      console.log(`   Topic: ${sessionMemory.conversationTopic || 'none'}`);
+      console.log(`   Intent: ${sessionMemory.userIntent || 'none'}`);
+      console.log(`   Fleetcore features: ${sessionMemory.accumulatedKnowledge.fleetcoreFeatures.length}`);
+      console.log(`   Vessel entities: ${Object.keys(sessionMemory.accumulatedKnowledge.vesselEntities).length}`);
+      console.log(`   Mode history: ${sessionMemory.modeHistory.length}`);
+    } catch (error) {
+      console.error(`❌ Failed to load session memory:`, error);
+      // Continue without session memory
+    }
+  } else {
+    console.warn(`⚠️ CHAT_SESSIONS KV not available - session memory disabled`);
+  }
   
   // Configure LangSmith tracing if API key is available
   if (env.LANGSMITH_API_KEY) {
@@ -1614,12 +2498,15 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
     configurable: {
       thread_id: sessionId,
       env,
+      sessionMemory, // Pass session memory to nodes
+      sessionMemoryManager, // Pass manager for saving
     },
     // Add metadata for LangSmith tracing
     metadata: {
       session_id: sessionId,
       enable_browsing: enableBrowsing,
       user_query: messages[messages.length - 1]?.content?.substring(0, 100),
+      has_session_memory: !!sessionMemory,
     },
     // Add tags for easier filtering in LangSmith
     tags: ['maritime-agent', enableBrowsing ? 'research-mode' : 'verification-mode'],
@@ -1651,6 +2538,9 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           throw new Error('TAVILY_API_KEY not configured but browsing is enabled');
         }
         
+        // Initialize state from session memory
+        const initialState = initializeStateFromMemory(sessionMemory);
+        
         // Stream events from agent
         // Use "messages" mode to get token-by-token streaming
         let stream;
@@ -1660,6 +2550,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
               messages: baseMessages,
               sessionId,
               enableBrowsing,
+              ...initialState, // Inject session memory into initial state
             },
             {
               ...config,
@@ -1667,6 +2558,7 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
             }
           );
           console.log(`📡 SSE Stream: Agent stream created successfully`);
+          console.log(`   Initial state loaded from session memory`);
         } catch (streamError: any) {
           console.error(`❌ Failed to create agent stream:`, streamError);
           throw new Error(`Agent stream creation failed: ${streamError.message}`);
@@ -1679,6 +2571,9 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         
         let hasStreamedContent = false;
         let hasError = false;
+        
+        // Track final state for syncing back to session memory
+        let finalState: AgentState | null = null;
         
         try {
           for await (const [streamType, event] of stream) {
@@ -1705,6 +2600,15 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
           // Handle node-level updates from "updates" mode
           const eventKey = Object.keys(event || {})[0];
           console.log(`   Event structure:`, JSON.stringify(event, null, 2).substring(0, 500));
+          
+          // PHASE 2: Capture state updates for syncing
+          if (event && typeof event === 'object') {
+            const stateUpdate = event[eventKey];
+            if (stateUpdate && typeof stateUpdate === 'object') {
+              // Merge state updates
+              finalState = { ...finalState, ...stateUpdate } as AgentState;
+            }
+          }
           
           // Emit thinking process - Mode-specific messages
           if (event.router) {
@@ -1855,14 +2759,14 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
                 console.log(`   ✅ Answer found: ${content?.length || 0} chars`);
                 
                 if (content && content.length > 0) {
-                  const chunkSize = 50;
-                  for (let i = 0; i < content.length; i += chunkSize) {
-                    const chunk = content.slice(i, i + chunkSize);
+                  for (let i = 0; i < content.length; i += SSE_CHUNK_SIZE) {
+                    const chunk = content.slice(i, i + SSE_CHUNK_SIZE);
                     controller.enqueue(encoder.encode(
                       `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
                     ));
-                    if ((i / chunkSize) % 5 === 0) {
-                      await new Promise(resolve => setTimeout(resolve, 10));
+                    // Throttle to prevent overwhelming client
+                    if ((i / SSE_CHUNK_SIZE) % SSE_THROTTLE_EVERY_N_CHUNKS === 0) {
+                      await new Promise(resolve => setTimeout(resolve, SSE_THROTTLE_INTERVAL_MS));
                     }
                   }
                 }
@@ -1908,6 +2812,49 @@ export async function handleChatWithLangGraph(request: ChatRequest): Promise<Rea
         controller.close();
         
         console.log(`✅ LangGraph stream complete (${eventCount} events)\n`);
+        
+        // Sync state to session memory and save to KV
+        if (sessionMemoryManager && sessionMemory) {
+          try {
+            // Add this conversation to recent messages
+            const userMessage = messages[messages.length - 1];
+            if (userMessage) {
+              sessionMemoryManager.addMessage(sessionMemory, userMessage.role, userMessage.content);
+            }
+            
+            // Extract and update topic from conversation
+            const extractedTopic = extractTopicFromMessages(baseMessages);
+            if (extractedTopic) {
+              sessionMemoryManager.updateTopic(sessionMemory, extractedTopic);
+            }
+            
+            // Sync final state back to session memory
+            if (finalState) {
+              console.log(`🔄 Syncing final state to session memory`);
+              syncStateToMemory(finalState, sessionMemory, sessionMemoryManager);
+              
+              // Validate context acknowledgment in final answer
+              const lastMessage = finalState.messages[finalState.messages.length - 1];
+              if (lastMessage && typeof lastMessage.content === 'string') {
+                const validation = await validateContextAcknowledgment(lastMessage.content, finalState);
+                
+                if (!validation.valid) {
+                  console.warn(`⚠️ PHASE 6: Context validation failed - ${validation.reason}`);
+                  console.warn(`   This indicates the synthesizer didn't properly integrate accumulated context.`);
+                  console.warn(`   Consider: Re-running with explicit context injection or adjusting synthesis prompts.`);
+                } else {
+                  console.log(`✅ PHASE 6: Context validation passed - answer acknowledges previous discussion`);
+                }
+              }
+            }
+            
+            // Save to KV
+            await sessionMemoryManager.save(sessionId, sessionMemory);
+            console.log(`💾 Session memory saved successfully`);
+          } catch (error) {
+            console.error(`❌ Failed to save session memory:`, error);
+          }
+        }
         
       } catch (error: any) {
         console.error(`❌ LangGraph error:`, error);
