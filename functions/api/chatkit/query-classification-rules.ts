@@ -9,6 +9,8 @@
  * Research Mode: Complex queries requiring multi-source research (enabled by user toggle)
  */
 
+import { extractMaritimeEntities } from './utils/entity-utils';
+
 // =====================
 // PLATFORM KEYWORDS
 // =====================
@@ -142,6 +144,7 @@ export function isPlatformQuery(query: string): boolean {
 
 /**
  * Detect if query mentions specific maritime entities
+ * Uses comprehensive entity extraction to detect vessel names, companies, etc.
  * 
  * @param query - User query string
  * @returns true if query mentions entities like vessels, companies, equipment
@@ -160,7 +163,16 @@ export function hasEntityMention(query: string): boolean {
   // Check for IMO/MMSI patterns
   const hasIdentifierPattern = /\b(IMO|MMSI)[\s:]?\d+/i.test(query);
   
-  return hasEntityKeyword || hasVesselPattern || hasIdentifierPattern;
+  // CRITICAL: Use comprehensive entity extraction
+  // This catches patterns like "Dynamic 17", "MSC Michel Cappellini", "Ever Given", etc.
+  const extractedEntities = extractMaritimeEntities(query);
+  const hasExtractedEntity = extractedEntities.length > 0;
+  
+  if (hasExtractedEntity) {
+    console.log(`   🔍 Detected entities: ${extractedEntities.join(', ')}`);
+  }
+  
+  return hasEntityKeyword || hasVesselPattern || hasIdentifierPattern || hasExtractedEntity;
 }
 
 /**
