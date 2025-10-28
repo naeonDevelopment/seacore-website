@@ -570,7 +570,7 @@ This is **specialized maritime search** – not general web search. Get precise,
               try {
                 const parsed = JSON.parse(jsonStr);
                 
-                // Handle research_start event - show research loading state
+                  // Handle research_start event - show research loading state
                 if (parsed?.type === 'research_start') {
                   console.log('🔬 [Research Started]', { mode: parsed.mode, browsing: useBrowsing });
                   // Only show research indicator if browsing is enabled
@@ -688,16 +688,17 @@ This is **specialized maritime search** – not general web search. Get precise,
                     // Clear any remaining loading states (research state already cleared by source events)
                     setIsLoading(false);
                     
-                    // Create assistant message IMMEDIATELY and SYNCHRONOUSLY
+                    // Create assistant message IMMEDIATELY - NO NESTED STATE UPDATES
                     // This MUST happen before throttling to prevent race conditions
                     if (streamingIndexRef.current === null) {
-                      // Use synchronous state update to ensure message exists immediately
-                      let messageCreated = false;
+                      let newMessageIndex: number = -1;
+                      let assistantMessageId: string = '';
                       
+                      // STEP 1: Create message synchronously WITHOUT nested state updates
                       setMessages((prev) => {
                         const updated = [...prev];
-                        const idx = updated.length;
-                        streamingIndexRef.current = idx;
+                        newMessageIndex = updated.length;
+                        streamingIndexRef.current = newMessageIndex;
                         
                         const assistantMessage = {
                           role: 'assistant' as const,
@@ -708,44 +709,38 @@ This is **specialized maritime search** – not general web search. Get precise,
                           isStreaming: true,
                           isThinking: false,
                         };
+                        assistantMessageId = assistantMessage.timestamp.getTime().toString();
                         updated.push(assistantMessage);
                         
-                        console.log(`💬 [ChatInterface] Assistant message created BEFORE throttling (idx: ${idx})`);
-                        messageCreated = true;
-                        
-                        // Link research session if browsing enabled
-                        if (useBrowsing && activeResearchIdRef.current) {
-                          const assistantMessageId = assistantMessage.timestamp.getTime().toString();
-                          const pendingId = activeResearchIdRef.current;
-                          
-                          setResearchSessions((prev) => {
-                            const updated = new Map(prev);
-                            const pendingSession = updated.get(pendingId);
-                            
-                            if (pendingSession) {
-                              const newSession = {
-                                ...pendingSession,
-                                messageId: assistantMessageId,
-                              };
-                              updated.set(assistantMessageId, newSession);
-                            }
-                            
-                            return updated;
-                          });
-                          
-                          setExpandedSources((prev) => {
-                            const ns = new Set(prev);
-                            ns.add(idx);
-                            return ns;
-                          });
-                        }
-                        
+                        console.log(`💬 [ChatInterface] Assistant message created (idx: ${newMessageIndex})`);
                         return updated;
                       });
                       
-                      // Verify message was created
-                      if (!messageCreated) {
-                        console.error('❌ [ChatInterface] Failed to create assistant message!');
+                      // STEP 2: Link research session AFTER message is created (separate state update)
+                      if (useBrowsing && activeResearchIdRef.current && assistantMessageId) {
+                        const pendingId = activeResearchIdRef.current;
+                        
+                        setResearchSessions((prev) => {
+                          const updated = new Map(prev);
+                          const pendingSession = updated.get(pendingId);
+                          
+                          if (pendingSession) {
+                            const newSession = {
+                              ...pendingSession,
+                              messageId: assistantMessageId,
+                            };
+                            updated.set(assistantMessageId, newSession);
+                          }
+                          
+                          return updated;
+                        });
+                        
+                        // STEP 3: Expand sources panel (separate state update)
+                        setExpandedSources((prev) => {
+                          const ns = new Set(prev);
+                          ns.add(newMessageIndex);
+                          return ns;
+                        });
                       }
                     }
                     
