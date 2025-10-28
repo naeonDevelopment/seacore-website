@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, FileText, Sparkles } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, FileText, Sparkles, Square } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -94,6 +94,7 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResearching, setIsResearching] = useState(false); // NEW: Track research phase
+  const [isStreaming, setIsStreaming] = useState(false); // Track active streaming
   // modelName removed (unused)
   const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
   // Gate chain-of-thought behind Online research
@@ -103,6 +104,7 @@ This is **specialized maritime search** – not general web search. Get precise,
   const inputAreaRef = useRef<HTMLDivElement>(null);
   const streamingIndexRef = useRef<number | null>(null);
   const lastMessageCountRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [, setCurrentThinkingStep] = useState<number>(0); // kept for future CoT animations
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const thinkingStartTimeRef = useRef<number | null>(null);
@@ -147,7 +149,56 @@ This is **specialized maritime search** – not general web search. Get precise,
     }, 100);
   };
 
+  const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+    setIsResearching(false);
+    setIsStreaming(false);
+    isResearchingRef.current = false;
+    
+    // Finalize any streaming message with a note that it was stopped
+    setMessages((prev) => {
+      const updated = [...prev];
+      let idx = streamingIndexRef.current ?? updated.length - 1;
+      
+      if (idx >= 0 && idx < updated.length && updated[idx]?.role === 'assistant' && updated[idx]?.isStreaming) {
+        updated[idx] = {
+          ...updated[idx],
+          isStreaming: false,
+          isThinking: false,
+        };
+      }
+      
+      return updated;
+    });
+    
+    streamingIndexRef.current = null;
+    thinkingStartTimeRef.current = null;
+    firstContentTimeRef.current = null;
+    
+    // Mark active research session as stopped
+    if (activeResearchIdRef.current) {
+      setResearchSessions((prev) => {
+        const updated = new Map(prev);
+        const session = updated.get(activeResearchIdRef.current!);
+        if (session) {
+          session.isActive = false;
+          updated.set(activeResearchIdRef.current!, session);
+        }
+        return updated;
+      });
+    }
+  };
+
   const resetChat = () => {
+    // Stop any ongoing generation first
+    if (isStreaming || isLoading) {
+      stopGeneration();
+    }
+    
     setMessages([
       {
         role: 'assistant',
@@ -392,6 +443,10 @@ This is **specialized maritime search** – not general web search. Get precise,
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setIsStreaming(true);
+    
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
     
     // CRITICAL FIX: Create research session IMMEDIATELY if browsing enabled
     // This ensures events arriving before assistant message are captured
@@ -450,6 +505,7 @@ This is **specialized maritime search** – not general web search. Get precise,
           researchComplexity: 'simple',
           sessionId, // Include session ID for cache management
         }),
+        signal: abortControllerRef.current?.signal, // Add abort signal
       });
 
       if (!response.ok) throw new Error('Failed to send message');
@@ -911,6 +967,13 @@ This is **specialized maritime search** – not general web search. Get precise,
         setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (error) {
+      // Check if the error is due to abort
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request aborted by user');
+        // Don't show error message, just stop gracefully
+        return;
+      }
+      
       console.error('Chat error:', error);
       const errorMessage: Message = {
         role: 'assistant',
@@ -921,7 +984,9 @@ This is **specialized maritime search** – not general web search. Get precise,
     } finally {
       setIsLoading(false);
       setIsResearching(false); // Clear research state on completion or error
+      setIsStreaming(false);
       isResearchingRef.current = false; // Sync ref
+      abortControllerRef.current = null;
     }
   };
 
@@ -1540,10 +1605,10 @@ This is **specialized maritime search** – not general web search. Get precise,
         </div>
       </div>
 
-      {/* Input Area */}
+      {/* Input Area - Sticky */}
       <div 
         ref={inputAreaRef}
-        className="px-3 pt-3 pb-3 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 flex-shrink-0"
+        className="sticky bottom-0 px-3 pt-3 pb-3 md:p-5 lg:p-6 border-t border-white/20 dark:border-slate-700/30 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 flex-shrink-0 z-10"
       >
         <div className="flex gap-2 md:gap-3 max-w-5xl mx-auto">
           <input
@@ -1566,17 +1631,27 @@ This is **specialized maritime search** – not general web search. Get precise,
               WebkitTapHighlightColor: 'transparent'
             }}
           />
-          <button
-            onClick={sendMessage}
-            disabled={!input.trim() || isLoading}
-            className="px-3 md:px-5 lg:px-7 py-2.5 md:py-3 lg:py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl lg:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[50px] md:min-w-[60px] lg:min-w-[70px] group"
-          >
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-0.5 transition-transform" />
-            )}
-          </button>
+          {isStreaming ? (
+            <button
+              onClick={stopGeneration}
+              className="px-3 md:px-5 lg:px-7 py-2.5 md:py-3 lg:py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl lg:rounded-2xl transition-all transform hover:scale-105 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[50px] md:min-w-[60px] lg:min-w-[70px] group"
+              title="Stop generation"
+            >
+              <Square className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+            </button>
+          ) : (
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim() || isLoading}
+              className="px-3 md:px-5 lg:px-7 py-2.5 md:py-3 lg:py-4 bg-gradient-to-r from-maritime-600 via-blue-600 to-indigo-600 hover:from-maritime-700 hover:via-blue-700 hover:to-indigo-700 text-white rounded-xl lg:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 shadow-lg flex items-center justify-center min-w-[50px] md:min-w-[60px] lg:min-w-[70px] group"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-0.5 transition-transform" />
+              )}
+            </button>
+          )}
         </div>
         <div className="flex items-center justify-between mt-2 md:mt-3 lg:mt-4 gap-2 md:gap-3 max-w-5xl mx-auto">
           <div className="flex items-center gap-2">
