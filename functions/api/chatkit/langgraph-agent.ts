@@ -991,23 +991,28 @@ ${geminiAnswer ? `Google-verified Answer:\n${geminiAnswer}\n\n` : ''}${sources.l
 
 === END GEMINI GROUNDING ===
 
-**CRITICAL INSTRUCTIONS:**
-- Write a COMPREHENSIVE, DETAILED response of 400-600 words
-- Cite sources as CLICKABLE LINKS using markdown format after EVERY fact
-- Citation format: "The vessel is 400m long [[1]](URL_HERE) and has 24,346 TEU capacity [[2]](URL_HERE)"
-- Use ALL sources provided - weave information from all sources into your answer
-- Structure: Introduction (1-2 sentences) → Main Details (3-4 paragraphs) → Maritime Context (1 paragraph)
-- Each paragraph should be 3-4 sentences with multiple source citations
-- Use the Google-verified information above to answer the user's query
-- Add the disclaimer about deep research for comprehensive analysis at the end
+**CRITICAL INSTRUCTIONS - MARITIME EXPERT BRIEFING:**
+- Write a CONCISE, TECHNICAL response of 150-250 words maximum
+- Cite sources as CLICKABLE LINKS: "The vessel is 399m LOA [[1]](URL_HERE)"
+- Focus on HARD FACTS: IMO, MMSI, dimensions, tonnage, capacity, operator, location, status
+- Use MARITIME TERMINOLOGY: LOA/LBP, DWT, GT, TEU, flag state, class society
+- Structure: Key ID (1 sentence) → Technical Specs (2-3 sentences) → Current Status/News (1-2 sentences)
+- NO generic industry commentary or filler - ONLY specific facts about this entity
+- Include latest news, position, or operational updates if available
+- Every technical specification MUST have a citation [[X]](URL)
 
 **Source URLs for Citations:**
 ${sources.map((s: any, i: number) => `[${i + 1}]: ${s.url}`).join('\n')}
 
-**CRITICAL - Answer Focus:**
-- User query: "${userQuery}"
-- Answer comprehensively - provide context, details, and maritime significance
-- Target: 400-600 words with citations throughout`;
+**Response Format:**
+[Entity Type & Operator in 1 sentence with citations]
+[Technical specifications: dimensions, capacity, tonnage with citations]
+[Latest news, position, or operational status with citations]
+
+💡 **Need comprehensive analysis?** Enable 'Online research' for detailed multi-source intelligence.
+
+**User Query:** "${userQuery}"
+**Target:** 150-250 words, technical precision, all facts cited`;
         
         console.log(`   📝 Research context built: ${researchContext.length} chars`);
       } else {
