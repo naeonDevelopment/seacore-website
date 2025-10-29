@@ -74,13 +74,13 @@ export default function CookieConsentModal({ onConsentGiven }: CookieConsentModa
       {/* Simple Banner (Layer 1) */}
       {!showSettings && (
         <div 
-          className="fixed bottom-0 left-0 right-0 z-[99999] animate-slide-up"
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:items-end sm:p-0 animate-fade-in"
           role="dialog"
           aria-labelledby="cookie-banner-title"
           aria-describedby="cookie-banner-description"
         >
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-6">
-            <div className="rounded-2xl border border-border bg-background/95 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
+          <div className="mx-auto max-w-2xl w-full sm:max-w-7xl sm:px-4 sm:pb-6">
+            <div className="rounded-2xl border border-border bg-background/95 backdrop-blur-xl shadow-2xl p-6 sm:p-8 animate-slide-up">
               <div className="flex items-start gap-4">
                 {/* Icon */}
                 <div className="flex-shrink-0 mt-1">

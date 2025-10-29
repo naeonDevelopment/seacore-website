@@ -189,7 +189,7 @@ html {
 /* Cookie Consent Modal Animations */
 @keyframes slide-up {
   from {
-    transform: translateY(100%);
+    transform: translateY(20px);
     opacity: 0;
   }
   to {
