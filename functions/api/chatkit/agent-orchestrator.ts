@@ -51,6 +51,12 @@ import {
 } from './verification-system';
 import { generateFollowUps, trackFollowUpUsage, type FollowUpSuggestion } from './follow-up-generator';
 import { calculateConfidenceIndicator, assessSourceQuality, getConfidenceMessage, type QualityMetrics, type ConfidenceIndicator } from './confidence-indicators';
+import { 
+  generateFleetcoreMapping, 
+  formatMappingAsMarkdown,
+  type FleetcoreApplicationMapping 
+} from './fleetcore-entity-mapper';
+import { extractMaritimeEntities } from './utils/entity-utils';
 
 // Cloudflare Workers types
 declare global {
@@ -145,6 +151,11 @@ const AgentState = Annotation.Root({
   followUpSuggestions: Annotation<any[]>({
     reducer: (_, next) => next,
     default: () => [],
+  }),
+  // ENHANCEMENT: Fleetcore entity mapping
+  fleetcoreMapping: Annotation<FleetcoreApplicationMapping | null>({
+    reducer: (_, next) => next,
+    default: () => null,
   }),
 });
 
@@ -794,9 +805,27 @@ ${technicalDepthFlag}
       statusEmitter
     );
     
+    // ENHANCEMENT: Generate individualized fleetcore mapping for entities
+    // This is the KEY ADDITION - automatically append entity-specific fleetcore applications
+    const fleetcoreMapping = await generateEntityFleetcoreMapping(
+      userQuery,
+      fullContent,
+      sessionMemory,
+      statusEmitter
+    );
+    
+    // If we generated a mapping, append it to the response
+    let finalContent = fullContent;
+    if (fleetcoreMapping) {
+      const mappingMarkdown = formatMappingAsMarkdown(fleetcoreMapping);
+      finalContent = fullContent + mappingMarkdown;
+      console.log(`   ✨ Added fleetcore mapping for ${fleetcoreMapping.entityName} (${fleetcoreMapping.features.length} features)`);
+    }
+    
     return { 
-      messages: [new AIMessage(fullContent)],
-      ...updates
+      messages: [new AIMessage(finalContent)],
+      ...updates,
+      fleetcoreMapping
     };
   }
   
@@ -843,13 +872,147 @@ ${technicalDepthFlag}
       statusEmitter
     );
     
+    // ENHANCEMENT: Generate fleetcore mapping for research mode too
+    const fleetcoreMapping = await generateEntityFleetcoreMapping(
+      userQuery,
+      fullContent,
+      sessionMemory,
+      statusEmitter
+    );
+    
+    // If we generated a mapping, append it to the response
+    let finalContent = fullContent;
+    if (fleetcoreMapping && response) {
+      const mappingMarkdown = formatMappingAsMarkdown(fleetcoreMapping);
+      finalContent = fullContent + mappingMarkdown;
+      response.content = finalContent;
+      console.log(`   ✨ Added fleetcore mapping to research response for ${fleetcoreMapping.entityName}`);
+    }
+    
     return { 
       messages: [response!],
-      ...updates
+      ...updates,
+      fleetcoreMapping
     };
   }
   
   return { messages: [response!] };
+}
+
+/**
+ * ENHANCEMENT: Generate individualized fleetcore mapping for discussed entities
+ * This is the magic - automatically map entities to specific fleetcore features
+ */
+async function generateEntityFleetcoreMapping(
+  query: string,
+  answer: string,
+  sessionMemory: SessionMemory | null,
+  statusEmitter: any
+): Promise<FleetcoreApplicationMapping | null> {
+  console.log(`\n🎯 CHECKING FOR FLEETCORE MAPPING OPPORTUNITY`);
+  
+  // STEP 1: Check if this is appropriate for fleetcore mapping
+  // Don't add mapping for pure platform queries (user already knows about fleetcore)
+  const isPurePlatformQuery = /\b(fleetcore|pms|maintenance system|how does|what is|tell me about)\b.*\b(fleetcore|pms|system|platform|features?)\b/i.test(query);
+  
+  if (isPurePlatformQuery) {
+    console.log(`   ⏭️  Skipping: Pure platform query (user asking about fleetcore itself)`);
+    return null;
+  }
+  
+  // STEP 2: Extract entities from the query and answer
+  const queryEntities = extractMaritimeEntities(query);
+  const answerEntities = extractMaritimeEntities(answer);
+  const allEntities = [...new Set([...queryEntities, ...answerEntities])];
+  
+  if (allEntities.length === 0) {
+    console.log(`   ⏭️  Skipping: No entities detected`);
+    return null;
+  }
+  
+  console.log(`   🔍 Found ${allEntities.length} entities: ${allEntities.join(', ')}`);
+  
+  // STEP 3: Determine the primary entity to map
+  // Priority: entities in query > entities in answer > most recent entity in session memory
+  let primaryEntity = allEntities[0];
+  
+  // Check session memory for most recently discussed entity
+  if (sessionMemory) {
+    const vessels = Object.keys(sessionMemory.accumulatedKnowledge.vesselEntities);
+    const companies = Object.keys(sessionMemory.accumulatedKnowledge.companyEntities);
+    
+    // If query entity exists in memory, use it (it's the active context)
+    if (queryEntities.length > 0) {
+      for (const entity of queryEntities) {
+        if (vessels.includes(entity.toLowerCase()) || companies.includes(entity.toLowerCase())) {
+          primaryEntity = entity;
+          break;
+        }
+      }
+    }
+  }
+  
+  console.log(`   🎯 Primary entity: ${primaryEntity}`);
+  
+  // STEP 4: Check if answer is substantial enough to warrant mapping
+  // We want technical/informational answers, not simple acknowledgments
+  if (answer.length < 200) {
+    console.log(`   ⏭️  Skipping: Answer too short (${answer.length} chars)`);
+    return null;
+  }
+  
+  // STEP 5: Check if we've already provided a mapping for this entity recently
+  // Avoid repetitive mappings in the same conversation
+  const recentMessages = sessionMemory?.recentMessages.slice(-4) || [];
+  const hasRecentMapping = recentMessages.some(m => 
+    m.content.includes('🎯 How fleetcore Applies to') && 
+    m.content.includes(primaryEntity)
+  );
+  
+  if (hasRecentMapping) {
+    console.log(`   ⏭️  Skipping: Already provided mapping for ${primaryEntity} recently`);
+    return null;
+  }
+  
+  // STEP 6: Generate the mapping!
+  if (statusEmitter) {
+    statusEmitter({
+      type: 'thinking',
+      step: 'fleetcore_mapping',
+      content: `Analyzing how fleetcore applies to ${primaryEntity}...`
+    });
+  }
+  
+  try {
+    // Combine query + answer as context for entity analysis
+    const contextText = `${query}\n\n${answer}`;
+    
+    const mapping = generateFleetcoreMapping(
+      primaryEntity,
+      'auto', // Auto-detect entity type
+      sessionMemory,
+      contextText
+    );
+    
+    if (mapping) {
+      console.log(`   ✅ Generated mapping: ${mapping.features.length} features, ${mapping.useCases.length} use cases`);
+      
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'thinking',
+          step: 'fleetcore_mapping_complete',
+          content: `✓ Mapped ${mapping.features.length} fleetcore features to ${primaryEntity}`
+        });
+      }
+    } else {
+      console.log(`   ⚠️  Mapping generation returned null`);
+    }
+    
+    return mapping;
+  } catch (error: any) {
+    console.error(`   ❌ Error generating mapping:`, error.message);
+    return null;
+  }
 }
 
 /**
