@@ -117,6 +117,85 @@ export const ENTITY_KEYWORDS = [
 ];
 
 // =====================
+// TECHNICAL DEPTH KEYWORDS
+// =====================
+
+/**
+ * Keywords that indicate a query requires TECHNICAL DEPTH (not generic overview)
+ * These queries should trigger deep research for detailed maintenance, OEM specs, real-world data
+ */
+export const TECHNICAL_DEPTH_KEYWORDS = [
+  // Maintenance-specific
+  'maintenance', 'service', 'overhaul', 'inspection', 'service interval',
+  'maintenance schedule', 'maintenance interval', 'service schedule',
+  'pm schedule', 'preventive maintenance', 'corrective maintenance',
+  
+  // Equipment technical details
+  'engine', 'engines', 'propulsion', 'generator', 'auxiliary',
+  'pump', 'compressor', 'separator', 'purifier',
+  'specifications', 'specs', 'technical data', 'technical details',
+  'model number', 'part number', 'serial number',
+  
+  // OEM and manufacturer
+  'oem', 'manufacturer', 'caterpillar', 'wartsila', 'man', 'cummins',
+  'oem recommendation', 'manufacturer recommendation',
+  'factory specs', 'technical manual', 'service manual',
+  
+  // Real-world operational data
+  'failure', 'breakdown', 'malfunction', 'issue', 'problem',
+  'common issues', 'known issues', 'failure modes', 'failure rate',
+  'wear', 'degradation', 'performance', 'efficiency',
+  'operating hours', 'running hours', 'service life',
+  
+  // Reports and documentation
+  'report', 'reports', 'data', 'history', 'records',
+  'inspection report', 'survey report', 'condition report',
+  'performance data', 'operational data', 'maintenance history',
+  
+  // Technical procedures
+  'procedure', 'procedures', 'protocol', 'checklist',
+  'how to maintain', 'how to service', 'maintenance procedure',
+  'troubleshooting', 'diagnostics', 'testing',
+  
+  // Specific technical requests
+  'oil change', 'filter change', 'bearing inspection', 'valve adjustment',
+  'fuel consumption', 'oil consumption', 'coolant', 'lubrication',
+  'overhaul interval', 'rebuild', 'replacement parts',
+  
+  // Warnings and tips
+  'warning', 'caution', 'critical', 'alert',
+  'recommendation', 'tip', 'best practice', 'avoid',
+  'watch out', 'pay attention', 'monitor',
+  
+  // Depth indicators
+  'more details', 'detailed', 'comprehensive', 'in-depth', 'specifics',
+  'tell me more', 'give me more', 'elaborate', 'explain in detail',
+  'deep dive', 'technical analysis', 'full specifications',
+  
+  // Real-world scenarios
+  'scenario', 'case study', 'example', 'real-world',
+  'actual', 'practical', 'operational experience', 'field data',
+];
+
+/**
+ * Phrases that explicitly request deeper technical information
+ */
+export const TECHNICAL_DEPTH_PHRASES = [
+  /more\s+(details|information|info|data|specifics)/i,
+  /tell\s+me\s+more/i,
+  /give\s+me\s+more/i,
+  /elaborate\s+on/i,
+  /explain\s+in\s+detail/i,
+  /detailed\s+(information|analysis|breakdown)/i,
+  /technical\s+(details|specifications|data)/i,
+  /maintenance\s+(recommendations|procedures|schedule)/i,
+  /oem\s+(recommendations|specs|requirements)/i,
+  /real[\s-]world\s+(scenarios?|data|examples)/i,
+  /common\s+(issues?|problems?|failures?)/i,
+  /service\s+(intervals?|schedules?|procedures?)/i,
+];
+
+// =====================
 // DETECTION FUNCTIONS
 // =====================
 
@@ -227,8 +306,64 @@ export function isSystemOrganizationQuery(query: string): boolean {
 }
 
 /**
+ * Detect if query requires TECHNICAL DEPTH (not generic overview)
+ * These queries should trigger deep research for maintenance data, OEM specs, real-world scenarios
+ * 
+ * CRITICAL: This is the key to acting as the world's best vertical maritime expert
+ * 
+ * @param query - User query string
+ * @returns true if query requires detailed technical response
+ */
+export function requiresTechnicalDepth(query: string): boolean {
+  const queryLower = query.toLowerCase().trim();
+  
+  // Check for explicit depth request phrases
+  const hasDepthPhrase = TECHNICAL_DEPTH_PHRASES.some(pattern => pattern.test(query));
+  if (hasDepthPhrase) {
+    console.log(`   🔬 TECHNICAL DEPTH: Explicit depth phrase detected`);
+    return true;
+  }
+  
+  // Check for technical depth keywords
+  const technicalKeywordCount = TECHNICAL_DEPTH_KEYWORDS.filter(keyword => {
+    const words = keyword.split(' ');
+    
+    if (words.length === 1) {
+      // Single word - require word boundary
+      return new RegExp(`\\b${keyword}\\b`, 'i').test(query);
+    } else {
+      // Multi-word phrase
+      return queryLower.includes(keyword.toLowerCase());
+    }
+  }).length;
+  
+  // Require at least 2 technical keywords for technical depth
+  // Example: "engines" + "maintenance" = technical depth
+  // But just "engines" alone = generic overview
+  if (technicalKeywordCount >= 2) {
+    console.log(`   🔬 TECHNICAL DEPTH: ${technicalKeywordCount} technical keywords detected`);
+    return true;
+  }
+  
+  // Special case: Follow-up queries that reference previous entity context
+  // Example: "ok tell me more details about the engines"
+  // This should be treated as technical depth when entity context exists
+  const isFollowUpTechnical = (
+    /^(ok|okay|yes|right|sure|alright),?\s+(tell|give|show)/i.test(query) &&
+    (queryLower.includes('detail') || queryLower.includes('more') || queryLower.includes('specific'))
+  );
+  
+  if (isFollowUpTechnical) {
+    console.log(`   🔬 TECHNICAL DEPTH: Follow-up technical query detected`);
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Query classification result with mode and context metadata
- * ENHANCED: Now includes resolved query information
+ * ENHANCED: Now includes resolved query information AND technical depth detection
  */
 export interface QueryClassification {
   mode: 'none' | 'verification' | 'research';
@@ -237,6 +372,10 @@ export interface QueryClassification {
   isHybrid: boolean;
   /** Resolved query information (original, resolved, context) */
   resolvedQuery: ResolvedQuery;
+  /** Technical depth requirement - triggers detailed maintenance/OEM analysis */
+  requiresTechnicalDepth: boolean;
+  /** Technical depth score (0-10) - higher = more technical detail needed */
+  technicalDepthScore: number;
 }
 
 /**
@@ -280,10 +419,35 @@ export function classifyQuery(
   // Use resolved query for classification (contains actual entity names)
   const queryForClassification = resolvedQuery.resolvedQuery;
   
+  // STEP 2: Detect technical depth requirement
+  const needsTechnicalDepth = requiresTechnicalDepth(queryForClassification);
+  
+  // Calculate technical depth score (0-10)
+  let technicalDepthScore = 0;
+  if (needsTechnicalDepth) {
+    // Count technical keywords
+    const keywordMatches = TECHNICAL_DEPTH_KEYWORDS.filter(keyword => {
+      const words = keyword.split(' ');
+      if (words.length === 1) {
+        return new RegExp(`\\b${keyword}\\b`, 'i').test(queryForClassification);
+      }
+      return queryForClassification.toLowerCase().includes(keyword.toLowerCase());
+    }).length;
+    
+    // Count depth phrases
+    const phraseMatches = TECHNICAL_DEPTH_PHRASES.filter(pattern => 
+      pattern.test(queryForClassification)
+    ).length;
+    
+    // Score: 2 points per keyword (max 6), 4 points per phrase (max 4)
+    technicalDepthScore = Math.min(10, (keywordMatches * 2) + (phraseMatches * 4));
+  }
+  
   console.log(`\n🎯 === MODE CLASSIFICATION START ===`);
   console.log(`   Original Query: "${query}"`);
   console.log(`   Resolved Query: "${queryForClassification}"`);
   console.log(`   Enable Browsing: ${enableBrowsing}`);
+  console.log(`   Technical Depth Required: ${needsTechnicalDepth} (score: ${technicalDepthScore}/10)`);
   
   // PRIORITY 1: User explicitly enabled online research toggle → research mode
   if (enableBrowsing) {
@@ -295,7 +459,9 @@ export function classifyQuery(
       preserveFleetcoreContext: true,
       enrichQuery: true,
       isHybrid: false,
-      resolvedQuery
+      resolvedQuery,
+      requiresTechnicalDepth: needsTechnicalDepth,
+      technicalDepthScore
     };
   }
   
@@ -309,7 +475,9 @@ export function classifyQuery(
       preserveFleetcoreContext: false,
       enrichQuery: false,
       isHybrid: false,
-      resolvedQuery
+      resolvedQuery,
+      requiresTechnicalDepth: false,
+      technicalDepthScore: 0
     };
   }
   
@@ -323,7 +491,9 @@ export function classifyQuery(
       preserveFleetcoreContext: false,
       enrichQuery: false,
       isHybrid: false,
-      resolvedQuery
+      resolvedQuery,
+      requiresTechnicalDepth: false,
+      technicalDepthScore: 0
     };
   }
   
@@ -346,7 +516,26 @@ export function classifyQuery(
       preserveFleetcoreContext: false,
       enrichQuery: false,
       isHybrid: false,
-      resolvedQuery
+      resolvedQuery,
+      requiresTechnicalDepth: false,
+      technicalDepthScore: 0
+    };
+  }
+  
+  // CRITICAL: Technical depth + entity → Consider forcing research mode for comprehensive analysis
+  // Example: "tell me more details about the engines - maintenance, reports and specifics"
+  if (needsTechnicalDepth && hasEntity && technicalDepthScore >= 6) {
+    console.log(`   ✅ HIGH TECHNICAL DEPTH with entity (score: ${technicalDepthScore}/10)`);
+    console.log(`   🔬 FORCING RESEARCH MODE: Technical depth requires comprehensive analysis`);
+    console.log(`   === MODE CLASSIFICATION END: RESEARCH (TECHNICAL DEPTH) ===\n`);
+    return {
+      mode: 'research',
+      preserveFleetcoreContext: true,
+      enrichQuery: true,
+      isHybrid: false,
+      resolvedQuery,
+      requiresTechnicalDepth: true,
+      technicalDepthScore
     };
   }
   
@@ -361,7 +550,9 @@ export function classifyQuery(
       preserveFleetcoreContext: true,
       enrichQuery: true,
       isHybrid: true,
-      resolvedQuery
+      resolvedQuery,
+      requiresTechnicalDepth: needsTechnicalDepth,
+      technicalDepthScore
     };
   }
   
@@ -377,7 +568,9 @@ export function classifyQuery(
       preserveFleetcoreContext: true,
       enrichQuery: true,
       isHybrid: true,
-      resolvedQuery
+      resolvedQuery,
+      requiresTechnicalDepth: needsTechnicalDepth,
+      technicalDepthScore
     };
   }
   
@@ -389,6 +582,7 @@ export function classifyQuery(
   console.log(`   🔮 VERIFICATION MODE: Default for entity queries (Gemini grounding)`);
   console.log(`   Fleetcore context available: ${hasFleetcoreContext}`);
   console.log(`   Will preserve context: ${hasFleetcoreContext}`);
+  console.log(`   Technical depth: ${needsTechnicalDepth} (score: ${technicalDepthScore}/10)`);
   console.log(`   === MODE CLASSIFICATION END: VERIFICATION (DEFAULT) ===\n`);
   
   return {
@@ -396,7 +590,9 @@ export function classifyQuery(
     preserveFleetcoreContext: hasFleetcoreContext,
     enrichQuery: hasFleetcoreContext && hasEntity,
     isHybrid: false,
-    resolvedQuery
+    resolvedQuery,
+    requiresTechnicalDepth: needsTechnicalDepth,
+    technicalDepthScore
   };
 }
 

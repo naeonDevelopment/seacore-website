@@ -113,6 +113,16 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => 'none',
   }),
+  // Technical depth requirement (for detailed maintenance/OEM analysis)
+  requiresTechnicalDepth: Annotation<boolean>({
+    reducer: (_, next) => next,
+    default: () => false,
+  }),
+  // Technical depth score (0-10)
+  technicalDepthScore: Annotation<number>({
+    reducer: (_, next) => next,
+    default: () => 0,
+  }),
   // Research context - populated after tool execution
   researchContext: Annotation<string | null>({
     reducer: (_, next) => next,
@@ -216,6 +226,15 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
     });
   }
   
+  // Chain of Thought - ALWAYS emit technical depth detection (if applicable)
+  if (classification.requiresTechnicalDepth && statusEmitter) {
+    statusEmitter({
+      type: 'thinking',
+      step: 'technical_depth',
+      content: `Technical depth required (score: ${classification.technicalDepthScore}/10) - Detailed analysis`
+    });
+  }
+  
   // Chain of Thought - ALWAYS emit mode selection
   if (statusEmitter) {
     const modeDescription = {
@@ -225,10 +244,11 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
     };
     const modeText = modeDescription[classification.mode];
     const hybridText = classification.isHybrid ? ' + platform context' : '';
+    const technicalText = classification.requiresTechnicalDepth ? ' (technical depth)' : '';
     statusEmitter({
       type: 'thinking',
       step: 'mode_selection',
-      content: `${modeText}${hybridText}`
+      content: `${modeText}${hybridText}${technicalText}`
     });
   }
   
@@ -276,38 +296,108 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      // Call Gemini tool directly (not via LLM) with timeout
-      const GEMINI_TIMEOUT = 45000; // 45 seconds (increased from 30s for reliability)
-      let timeoutId: any;
-      const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => {
-          console.error(`   ⏰ Gemini timeout triggered after ${GEMINI_TIMEOUT}ms`);
-          reject(new Error('GEMINI_TIMEOUT'));
-        }, GEMINI_TIMEOUT);
-      });
+      // Call Gemini tool with retry logic for transient failures
+      const GEMINI_TIMEOUT = 45000; // 45 seconds
+      const MAX_RETRIES = 1; // Single retry for transient failures
+      const RETRY_DELAY = 2000; // 2 second delay before retry
       
-      let result: any;
-      try {
-        result = await Promise.race([
-          geminiTool.invoke({ 
-            query: queryToSend,
-            entityContext: entityContext || undefined
-          }, config),
-          timeoutPromise
-        ]);
-        
-        // Clear timeout if successful
-        clearTimeout(timeoutId);
-        console.log(`   ✅ Gemini completed within timeout`);
-      } catch (raceError: any) {
-        clearTimeout(timeoutId);
-        
-        // Differentiate between timeout and other errors
-        if (raceError.message === 'GEMINI_TIMEOUT') {
-          console.error(`   ❌ Gemini timed out after ${GEMINI_TIMEOUT}ms`);
-          throw new Error('Gemini search timed out. Please try again or enable deep research for comprehensive results.');
+      let result: any = null;
+      let lastError: any = null;
+      
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+          console.log(`   🔄 Retry attempt ${attempt}/${MAX_RETRIES} after ${RETRY_DELAY}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          
+          if (statusEmitter) {
+            statusEmitter({
+              type: 'status',
+              stage: 'searching',
+              content: '🔄 Retrying search...',
+              progress: 25
+            });
+          }
         }
-        throw raceError;
+        
+        let timeoutId: any;
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            console.error(`   ⏰ Gemini timeout triggered after ${GEMINI_TIMEOUT}ms`);
+            reject(new Error('GEMINI_TIMEOUT'));
+          }, GEMINI_TIMEOUT);
+        });
+        
+        try {
+          result = await Promise.race([
+            geminiTool.invoke({ 
+              query: queryToSend,
+              entityContext: entityContext || undefined
+            }, config),
+            timeoutPromise
+          ]);
+          
+          clearTimeout(timeoutId);
+          
+          // Parse and validate result
+          const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+          
+          // Check if we got meaningful data (not empty grounding)
+          const hasData = (parsed.answer && parsed.answer.length > 50) || (parsed.sources && parsed.sources.length > 0);
+          
+          if (hasData) {
+            console.log(`   ✅ Gemini completed successfully on attempt ${attempt + 1}`);
+            break; // Success - exit retry loop
+          } else if (attempt < MAX_RETRIES) {
+            // Empty grounding result - retry
+            console.warn(`   ⚠️ Gemini returned empty grounding (attempt ${attempt + 1}), will retry...`);
+            lastError = new Error('EMPTY_GROUNDING');
+            result = null;
+            continue;
+          } else {
+            // Final attempt also returned empty
+            console.error(`   ❌ Gemini returned empty grounding after all retries`);
+            lastError = new Error('EMPTY_GROUNDING_ALL_RETRIES');
+            break;
+          }
+          
+        } catch (raceError: any) {
+          clearTimeout(timeoutId);
+          lastError = raceError;
+          
+          // Timeout - don't retry
+          if (raceError.message === 'GEMINI_TIMEOUT') {
+            console.error(`   ❌ Gemini timed out after ${GEMINI_TIMEOUT}ms`);
+            throw new Error('Gemini search timed out. Please try again or enable deep research for comprehensive results.');
+          }
+          
+          // Other errors - retry once
+          if (attempt < MAX_RETRIES) {
+            console.warn(`   ⚠️ Gemini error on attempt ${attempt + 1}: ${raceError.message}`);
+            continue;
+          } else {
+            throw raceError; // Final attempt failed
+          }
+        }
+      }
+      
+      // Check if we have a valid result after retries
+      if (!result && lastError) {
+        if (lastError.message === 'EMPTY_GROUNDING_ALL_RETRIES') {
+          // Google Search grounding returned empty - provide helpful fallback
+          console.warn(`   ⚠️ Google Search grounding unavailable - using fallback`);
+          const fallbackContext = `=== SEARCH UNAVAILABLE ===\n\nGoogle Search grounding is temporarily unavailable. This is likely due to:\n- Google Search API rate limits\n- Temporary service issues\n- Geographic restrictions\n\nPlease provide a helpful response about "${queryToSend}" from your maritime knowledge base.\n\nIMPORTANT: Inform the user that real-time search is temporarily unavailable and suggest:\n1. Trying again in a few moments\n2. Enabling "Online research" toggle for comprehensive multi-source intelligence\n3. Asking about fleetcore platform features (always available)`;
+          
+          return { 
+            mode: classification.mode,
+            geminiAnswer: null,
+            sources: [],
+            researchContext: fallbackContext,
+            requiresTechnicalDepth: classification.requiresTechnicalDepth,
+            technicalDepthScore: classification.technicalDepthScore,
+          };
+        } else {
+          throw lastError; // Unexpected error
+        }
       }
       
       // Emit status AFTER Gemini completes
@@ -394,11 +484,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         
         console.log(`   ✅ Research context built: ${researchContext.length} chars`);
       } else {
-        // Only trigger fallback if Gemini truly returned nothing
-        console.warn(`   ⚠️ Gemini returned no sources AND no answer`);
+        // This should rarely happen now due to retry logic, but handle gracefully
+        console.warn(`   ⚠️ Gemini returned no sources AND no answer (shouldn't reach here with retry)`);
         console.warn(`   📊 Parsed response:`, JSON.stringify(parsed));
-        console.warn(`   🔑 Check if GEMINI_API_KEY is set correctly in environment`);
-        researchContext = `=== GEMINI GROUNDING RESULTS ===\n\nNo specific information found. Please answer from general maritime knowledge or suggest enabling deep research.`;
+        researchContext = `=== SEARCH RESULTS LIMITED ===\n\nGoogle Search returned minimal information for this query.\n\nPlease provide what you know about "${queryToSend}" from your maritime expertise, and clearly indicate:\n1. This is based on general maritime knowledge (not real-time data)\n2. For comprehensive, verified information, the user should enable "Online research" toggle\n3. For platform questions, ask about fleetcore features directly`;
       }
       
       return {
@@ -406,6 +495,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         geminiAnswer: parsed.answer || null,
         sources,
         researchContext,
+        requiresTechnicalDepth: classification.requiresTechnicalDepth,
+        technicalDepthScore: classification.technicalDepthScore,
       };
     } catch (error: any) {
       console.error(`   ❌ Gemini failed:`, error.message);
@@ -418,12 +509,18 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         geminiAnswer: null,
         sources: [],
         researchContext: fallbackContext,
+        requiresTechnicalDepth: classification.requiresTechnicalDepth,
+        technicalDepthScore: classification.technicalDepthScore,
       };
     }
   }
   
-  // Other modes (none/research) just set the mode
-  return { mode: classification.mode };
+  // Other modes (none/research) just set the mode and technical depth
+  return { 
+    mode: classification.mode,
+    requiresTechnicalDepth: classification.requiresTechnicalDepth,
+    technicalDepthScore: classification.technicalDepthScore,
+  };
 }
 
 /**
@@ -438,6 +535,7 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
   console.log(`\n🎨 SYNTHESIZER NODE`);
   console.log(`   Mode: ${state.mode}`);
   console.log(`   Has Gemini answer: ${!!state.geminiAnswer}`);
+  console.log(`   Technical Depth Required: ${state.requiresTechnicalDepth} (score: ${state.technicalDepthScore}/10)`);
   
   // Get user query for Phase C follow-ups
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
@@ -479,10 +577,7 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
     
     const platformContext = `\n\n=== PLATFORM QUERY ===
 Answer comprehensively from your training knowledge about fleetcore.
-DO NOT suggest using external research - provide detailed information directly.
-
-**DEBUG INFO (REMOVE IN PRODUCTION):** Add this line at the very end of your response:
-"_[Mode: KNOWLEDGE | Training data only]_"`;
+DO NOT suggest using external research - provide detailed information directly.`;
     
     const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
     
@@ -640,10 +735,30 @@ If you don't have specific information, be honest and suggest the user enable on
       }
     }
     
-    // SIMPLIFIED synthesis prompt matching legacy pattern
+    // SIMPLIFIED synthesis prompt matching legacy pattern with technical depth flag
+    const technicalDepthFlag = `**TECHNICAL DEPTH REQUIRED: ${state.requiresTechnicalDepth ? 'TRUE' : 'FALSE'}** (Score: ${state.technicalDepthScore}/10)
+
+${state.requiresTechnicalDepth ? `
+**IMPORTANT: This is a TECHNICAL DEPTH query - user needs detailed analysis:**
+- Provide comprehensive maintenance schedules and OEM recommendations
+- Include specific part numbers, service intervals, common failure modes
+- Add warnings, tips, and operational best practices from real-world experience
+- Write as a Chief Engineer / Technical Superintendent (hands-on expert level)
+- Target length: 600-800 words minimum with exhaustive technical detail
+- Use format: Executive Summary, Technical Specs, Operational Status, **MAINTENANCE ANALYSIS**, **OPERATIONAL RECOMMENDATIONS**, **REAL-WORLD SCENARIOS**, Maritime Context
+` : `
+**This is an OVERVIEW query - user needs executive summary:**
+- Provide concise high-level information
+- Write as a Technical Director (strategic level)
+- Target length: 400-500 words
+- Use format: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
+`}`;
+
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
 
 ${state.researchContext}
+
+${technicalDepthFlag}
 
 **USER QUERY**: ${userQuery}
 
@@ -651,11 +766,8 @@ ${state.researchContext}
 - Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
 - The ANSWER section contains Google-grounded information - use it as your primary source
 - Cite all facts using [[1]](url), [[2]](url) format from the SOURCES section
-- Format as: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
-- Keep response concise (400-500 words) with proper structure
-- Be confident - this is Google-verified information
-
-_[Mode: VERIFICATION | Sources: ${state.sources.length} | Gemini 2.5 Pro]_`;
+- Follow the format specified in the TECHNICAL DEPTH flag above
+- Be confident - this is Google-verified information`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
