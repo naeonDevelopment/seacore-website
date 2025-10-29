@@ -91,7 +91,7 @@ export const PLATFORM_KEYWORDS = [
   
   // Workflow & processes
   'workflow', 'process', 'automation',
-  'task management', 'scheduling',
+  'task management', 'tasks', 'task', 'scheduling',
   'approval process', 'review process',
   
   // Data & analytics
@@ -449,13 +449,15 @@ export function classifyQuery(
   console.log(`   Enable Browsing: ${enableBrowsing}`);
   console.log(`   Technical Depth Required: ${needsTechnicalDepth} (score: ${technicalDepthScore}/10)`);
   
-  // PRIORITY 1: User explicitly enabled online research toggle → research mode
+  // PRIORITY 1: User explicitly enabled online research toggle → verification mode
+  // NOTE: Deep research mode disabled - using verification mode instead
   if (enableBrowsing) {
     console.log(`   ✅ PRIORITY 1: Research toggle enabled`);
-    console.log(`   🔬 RESEARCH MODE: User enabled browsing (Tavily deep research)`);
-    console.log(`   === MODE CLASSIFICATION END: RESEARCH ===\n`);
+    console.log(`   🔍 VERIFICATION MODE: User enabled browsing (Gemini search)`);
+    console.log(`   📝 Note: Deep research mode disabled - using verification`);
+    console.log(`   === MODE CLASSIFICATION END: VERIFICATION ===\n`);
     return {
-      mode: 'research',
+      mode: 'verification',
       preserveFleetcoreContext: true,
       enrichQuery: true,
       isHybrid: false,
@@ -506,6 +508,35 @@ export function classifyQuery(
   console.log(`      Platform Query: ${isPlatform}`);
   console.log(`      Has Entity: ${hasEntity}`);
   
+  // CRITICAL FIX: Strengthen pure platform detection
+  // If query explicitly asks about fleetcore/PMS/system features without real entity context
+  // → treat as pure platform query even if session has entity context
+  const isPurePlatformRequest = (
+    isPlatform && (
+      // Explicit platform questions
+      /\b(what|tell|explain|describe)\s+(is|me about|us about)\s+(the\s+)?(fleetcore|pms|system|platform|features?)/i.test(queryForClassification) ||
+      // How-to platform questions
+      /\bhow\s+(do|does|can)\s+.*(fleetcore|pms|system|platform)/i.test(queryForClassification) ||
+      // Platform feature queries without entity names
+      (!hasEntityMention(queryForClassification) && queryForClassification.match(/\b(pms|system|platform|features?|dashboard|workflow)\b/i))
+    )
+  );
+  
+  if (isPurePlatformRequest) {
+    console.log(`   ✅ PURE PLATFORM REQUEST: Knowledge-only query (ignoring session entity context)`);
+    console.log(`   🎯 KNOWLEDGE MODE: Training data (platform focus)`);
+    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
+    return {
+      mode: 'none',
+      preserveFleetcoreContext: false,
+      enrichQuery: false,
+      isHybrid: false,
+      resolvedQuery,
+      requiresTechnicalDepth: false,
+      technicalDepthScore: 0
+    };
+  }
+  
   // Pure platform query without entities → knowledge mode
   if (isPlatform && !hasEntity) {
     console.log(`   ✅ Pure platform query (no entities)`);
@@ -522,14 +553,15 @@ export function classifyQuery(
     };
   }
   
-  // CRITICAL: Technical depth + entity → Consider forcing research mode for comprehensive analysis
+  // CRITICAL: Technical depth + entity → Use verification mode for comprehensive analysis
   // Example: "tell me more details about the engines - maintenance, reports and specifics"
-  if (needsTechnicalDepth && hasEntity && technicalDepthScore >= 6) {
+  // NOTE: Deep research mode disabled - using verification mode with Gemini instead
+  if (needsTechnicalDepth && hasEntity && technicalDepthScore >= 4) {
     console.log(`   ✅ HIGH TECHNICAL DEPTH with entity (score: ${technicalDepthScore}/10)`);
-    console.log(`   🔬 FORCING RESEARCH MODE: Technical depth requires comprehensive analysis`);
-    console.log(`   === MODE CLASSIFICATION END: RESEARCH (TECHNICAL DEPTH) ===\n`);
+    console.log(`   🔍 VERIFICATION MODE: Technical depth analysis (deep research disabled)`);
+    console.log(`   === MODE CLASSIFICATION END: VERIFICATION (TECHNICAL DEPTH) ===\n`);
     return {
-      mode: 'research',
+      mode: 'verification',
       preserveFleetcoreContext: true,
       enrichQuery: true,
       isHybrid: false,
@@ -724,7 +756,7 @@ export function generateClassificationLog(
   const modeDescription = {
     'none': 'KNOWLEDGE MODE - Training data',
     'verification': 'VERIFICATION MODE - Gemini grounding',
-    'research': 'RESEARCH MODE - Deep multi-source'
+    'research': 'RESEARCH MODE - Deep multi-source (DISABLED)'
   };
   
   let log = `\n${modeEmoji[classification.mode]} MODE CLASSIFICATION\n`;

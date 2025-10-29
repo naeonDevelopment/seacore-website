@@ -228,6 +228,15 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
   // INTELLIGENT MODE DETECTION (using centralized classification rules with session context)
   const classification = classifyQuery(userQuery, state.enableBrowsing, sessionMemory || undefined);
   
+  // DEBUG: Log classification results for debugging mode issues
+  console.log(`   🎯 CLASSIFICATION RESULT:`);
+  console.log(`      Mode: ${classification.mode}`);
+  console.log(`      Original Query: "${classification.resolvedQuery.originalQuery}"`);
+  console.log(`      Resolved Query: "${classification.resolvedQuery.resolvedQuery}"`);
+  console.log(`      Has Context: ${classification.resolvedQuery.hasContext}`);
+  console.log(`      Active Entity: ${classification.resolvedQuery.activeEntity?.name || 'none'}`);
+  console.log(`      Technical Depth: ${classification.requiresTechnicalDepth} (score: ${classification.technicalDepthScore}/10)`);
+  
   // Chain of Thought - ALWAYS emit entity resolution (if applicable)
   if (classification.resolvedQuery.hasContext && statusEmitter) {
     statusEmitter({
@@ -250,8 +259,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
   if (statusEmitter) {
     const modeDescription = {
       'none': 'Using knowledge base',
-      'verification': 'Verifying with Google Search',
-      'research': 'Deep research mode'
+      'verification': 'Verifying with web search',
+      'research': 'Deep research mode (disabled)' // Should not occur - research disabled
     };
     const modeText = modeDescription[classification.mode];
     const hybridText = classification.isHybrid ? ' + platform context' : '';
@@ -302,7 +311,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         statusEmitter({
           type: 'status',
           stage: 'searching',
-          content: `🔍 Searching Google for: ${queryToSend.substring(0, 60)}${queryToSend.length > 60 ? '...' : ''}`,
+          content: `🔍 Searching the web for: ${queryToSend.substring(0, 60)}${queryToSend.length > 60 ? '...' : ''}`,
           progress: 0
         });
       }
@@ -394,9 +403,9 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       // Check if we have a valid result after retries
       if (!result && lastError) {
         if (lastError.message === 'EMPTY_GROUNDING_ALL_RETRIES') {
-          // Google Search grounding returned empty - provide helpful fallback
-          console.warn(`   ⚠️ Google Search grounding unavailable - using fallback`);
-          const fallbackContext = `=== SEARCH UNAVAILABLE ===\n\nGoogle Search grounding is temporarily unavailable. This is likely due to:\n- Google Search API rate limits\n- Temporary service issues\n- Geographic restrictions\n\nPlease provide a helpful response about "${queryToSend}" from your maritime knowledge base.\n\nIMPORTANT: Inform the user that real-time search is temporarily unavailable and suggest:\n1. Trying again in a few moments\n2. Enabling "Online research" toggle for comprehensive multi-source intelligence\n3. Asking about fleetcore platform features (always available)`;
+          // Web search grounding returned empty - provide helpful fallback
+          console.warn(`   ⚠️ Web search grounding unavailable - using fallback`);
+          const fallbackContext = `=== SEARCH UNAVAILABLE ===\n\nWeb search is temporarily unavailable. This is likely due to:\n- Search API rate limits\n- Temporary service issues\n- Geographic restrictions\n\nPlease provide a helpful response about "${queryToSend}" from your maritime knowledge base.\n\nIMPORTANT: Inform the user that real-time search is temporarily unavailable and suggest:\n1. Trying again in a few moments\n2. Enabling "Online research" toggle for comprehensive multi-source intelligence\n3. Asking about fleetcore platform features (always available)`;
           
           return { 
             mode: classification.mode,
@@ -498,10 +507,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         // This should rarely happen now due to retry logic, but handle gracefully
         console.warn(`   ⚠️ Gemini returned no sources AND no answer (shouldn't reach here with retry)`);
         console.warn(`   📊 Parsed response:`, JSON.stringify(parsed));
-        researchContext = `=== SEARCH RESULTS LIMITED ===\n\nGoogle Search returned minimal information for this query.\n\nPlease provide what you know about "${queryToSend}" from your maritime expertise, and clearly indicate:\n1. This is based on general maritime knowledge (not real-time data)\n2. For comprehensive, verified information, the user should enable "Online research" toggle\n3. For platform questions, ask about fleetcore features directly`;
+        researchContext = `=== SEARCH RESULTS LIMITED ===\n\nWeb search returned minimal information for this query.\n\nPlease provide what you know about "${queryToSend}" from your maritime expertise, and clearly indicate:\n1. This is based on general maritime knowledge (not real-time data)\n2. For comprehensive, verified information, the user should enable "Online research" toggle\n3. For platform questions, ask about fleetcore features directly`;
       }
       
-      return {
+      const routerReturn = {
         mode: classification.mode,
         geminiAnswer: parsed.answer || null,
         sources,
@@ -509,6 +518,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         requiresTechnicalDepth: classification.requiresTechnicalDepth,
         technicalDepthScore: classification.technicalDepthScore,
       };
+      
+      console.log(`   🎯 ROUTER RETURNING: mode=${routerReturn.mode}, sources=${routerReturn.sources.length}, answer=${!!routerReturn.geminiAnswer}`);
+      
+      return routerReturn;
     } catch (error: any) {
       console.error(`   ❌ Gemini failed:`, error.message);
       
@@ -547,6 +560,20 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
   console.log(`   Mode: ${state.mode}`);
   console.log(`   Has Gemini answer: ${!!state.geminiAnswer}`);
   console.log(`   Technical Depth Required: ${state.requiresTechnicalDepth} (score: ${state.technicalDepthScore}/10)`);
+  
+  // CRITICAL FIX: Emit IMMEDIATE status before AI generation starts
+  // This eliminates the "dead silence" gap after sources are displayed
+  if (statusEmitter) {
+    statusEmitter({
+      type: 'status',
+      stage: 'synthesis_start',
+      content: state.sources.length > 0 
+        ? '🎯 Analyzing sources and formulating response...'
+        : '💭 Formulating response...',
+      progress: 0
+    });
+    console.log(`   📢 Emitted synthesis start status to frontend`);
+  }
   
   // Get user query for Phase C follow-ups
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
@@ -593,11 +620,41 @@ DO NOT suggest using external research - provide detailed information directly.`
     const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
     
     // CRITICAL: Use stream() and pass config for LangGraph callback system
-    // The for-await loop allows node to complete, but LangGraph intercepts chunks via callbacks
-    const stream = await llm.stream([systemMessage, ...state.messages], config);
-    let fullContent = '';
-    for await (const chunk of stream) {
-      fullContent += chunk.content;
+    // Add timeout protection to prevent infinite hangs
+    const LLM_TIMEOUT_MS = 45000; // 45 seconds max for LLM response
+    const streamPromise = (async () => {
+      const stream = await llm.stream([systemMessage, ...state.messages], config);
+      let fullContent = '';
+      let chunkCount = 0;
+      console.log(`   📡 Starting LLM stream (mode: none)`);
+      
+      for await (const chunk of stream) {
+        fullContent += chunk.content;
+        chunkCount++;
+        if (chunkCount === 1 || chunkCount % 20 === 0) {
+          console.log(`   💬 Streaming chunk #${chunkCount} (${fullContent.length} chars so far)`);
+        }
+      }
+      
+      console.log(`   ✅ Stream complete: ${chunkCount} chunks, ${fullContent.length} chars`);
+      return fullContent;
+    })();
+    
+    const timeoutPromise = new Promise<string>((_, reject) => 
+      setTimeout(() => reject(new Error('LLM_STREAM_TIMEOUT')), LLM_TIMEOUT_MS)
+    );
+    
+    let fullContent: string;
+    try {
+      fullContent = await Promise.race([streamPromise, timeoutPromise]);
+    } catch (error: any) {
+      if (error.message === 'LLM_STREAM_TIMEOUT') {
+        console.error(`   ❌ LLM stream timeout after ${LLM_TIMEOUT_MS}ms`);
+        fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again, or enable the "Online Research" toggle for comprehensive analysis.`;
+      } else {
+        console.error(`   ❌ LLM stream error:`, error);
+        throw error;
+      }
     }
     
     console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
@@ -631,10 +688,34 @@ Gemini search was unavailable. Answer from your maritime knowledge base.
 If you don't have specific information, be honest and suggest the user enable online research.`;
       
       const systemMessage = new SystemMessage(fallbackPrompt);
-      const stream = await llm.stream([systemMessage, ...state.messages], config);
-      let fullContent = '';
-      for await (const chunk of stream) {
-        fullContent += chunk.content;
+      
+      // Add timeout protection
+      const LLM_TIMEOUT_MS = 45000;
+      const streamPromise = (async () => {
+        const stream = await llm.stream([systemMessage, ...state.messages], config);
+        let fullContent = '';
+        console.log(`   📡 Starting fallback LLM stream`);
+        for await (const chunk of stream) {
+          fullContent += chunk.content;
+        }
+        console.log(`   ✅ Fallback stream complete: ${fullContent.length} chars`);
+        return fullContent;
+      })();
+      
+      const timeoutPromise = new Promise<string>((_, reject) => 
+        setTimeout(() => reject(new Error('LLM_STREAM_TIMEOUT')), LLM_TIMEOUT_MS)
+      );
+      
+      let fullContent: string;
+      try {
+        fullContent = await Promise.race([streamPromise, timeoutPromise]);
+      } catch (error: any) {
+        if (error.message === 'LLM_STREAM_TIMEOUT') {
+          console.error(`   ❌ Fallback LLM stream timeout`);
+          fullContent = `I apologize, but I'm experiencing technical difficulties. Please try again.`;
+        } else {
+          throw error;
+        }
       }
       
       console.log(`   ✅ Synthesized fallback (${fullContent.length} chars)`);
@@ -647,11 +728,19 @@ If you don't have specific information, be honest and suggest the user enable on
     
     // Emit status: Starting synthesis (BEFORE calling GPT-4o)
     if (statusEmitter) {
-      statusEmitter({
-        type: 'status',
-        step: 'synthesis_start',
-        content: `Formatting results...`
-      });
+      if (state.requiresTechnicalDepth) {
+        statusEmitter({
+          type: 'status',
+          stage: 'synthesis',
+          content: `📝 Preparing detailed technical analysis...`
+        });
+      } else {
+        statusEmitter({
+          type: 'status',
+          stage: 'synthesis',
+          content: `📝 Formatting results...`
+        });
+      }
     }
     
     // OPTIONAL: Run verification pipeline for high-value queries (comparative, multi-entity)
@@ -750,13 +839,24 @@ If you don't have specific information, be honest and suggest the user enable on
     const technicalDepthFlag = `**TECHNICAL DEPTH REQUIRED: ${state.requiresTechnicalDepth ? 'TRUE' : 'FALSE'}** (Score: ${state.technicalDepthScore}/10)
 
 ${state.requiresTechnicalDepth ? `
-**IMPORTANT: This is a TECHNICAL DEPTH query - user needs detailed analysis:**
-- Provide comprehensive maintenance schedules and OEM recommendations
-- Include specific part numbers, service intervals, common failure modes
-- Add warnings, tips, and operational best practices from real-world experience
-- Write as a Chief Engineer / Technical Superintendent (hands-on expert level)
-- Target length: 600-800 words minimum with exhaustive technical detail
-- Use format: Executive Summary, Technical Specs, Operational Status, **MAINTENANCE ANALYSIS**, **OPERATIONAL RECOMMENDATIONS**, **REAL-WORLD SCENARIOS**, Maritime Context
+**CRITICAL REQUIREMENT: This is a TECHNICAL DEPTH query - you MUST provide detailed analysis:**
+
+**MANDATORY SECTIONS (ALL REQUIRED):**
+1. Executive Summary (2-3 sentences)
+2. Technical Specifications (equipment specs, model numbers, ratings)
+3. **MAINTENANCE ANALYSIS** (REQUIRED - OEM intervals, service schedules, common failure modes)
+4. **OPERATIONAL RECOMMENDATIONS** (REQUIRED - performance optimization, warnings, best practices)
+5. **REAL-WORLD SCENARIOS** (REQUIRED - field experience, typical duty cycles, operational conditions)
+6. Maritime Context (regulatory/industry perspective)
+
+**WRITING STYLE:**
+- Write as a Chief Engineer with 20+ years hands-on experience
+- Include specific numbers: service intervals, temperatures, pressures, hours
+- Mention OEM manufacturers by name (Caterpillar, Wartsila, MAN, etc.)
+- Add practical warnings and tips from real operations
+- Target length: 600-800 words minimum
+
+**FAILURE TO INCLUDE MAINTENANCE ANALYSIS, OPERATIONAL RECOMMENDATIONS, AND REAL-WORLD SCENARIOS SECTIONS IS UNACCEPTABLE.**
 ` : `
 **This is an OVERVIEW query - user needs executive summary:**
 - Provide concise high-level information
@@ -785,14 +885,78 @@ ${technicalDepthFlag}
     
     const systemMessage = new SystemMessage(synthesisPrompt);
     
-    // CRITICAL: Use stream() and pass config for LangGraph callback system
-    const stream = await llm.stream([systemMessage, ...state.messages], config);
-    let fullContent = '';
-    for await (const chunk of stream) {
-      fullContent += chunk.content;
+    // Emit synthesis start status
+    if (statusEmitter) {
+      statusEmitter({
+        type: 'status',
+        stage: 'synthesis',
+        content: state.requiresTechnicalDepth 
+          ? `⚙️ Generating comprehensive technical analysis (600+ words)...`
+          : `⚙️ Generating response...`
+      });
     }
     
-    console.log(`   ✅ Synthesized (${fullContent.length} chars)`);
+    // CRITICAL: Use stream() and pass config for LangGraph callback system
+    // Add timeout protection to prevent infinite hangs
+    const LLM_TIMEOUT_MS = 45000; // 45 seconds max for LLM response
+    const TARGET_LENGTH = state.requiresTechnicalDepth ? 4000 : 2000; // chars
+    
+    const streamPromise = (async () => {
+      const stream = await llm.stream([systemMessage, ...state.messages], config);
+      let fullContent = '';
+      let chunkCount = 0;
+      console.log(`   📡 Starting LLM stream (mode: verification)`);
+      
+      for await (const chunk of stream) {
+        fullContent += chunk.content;
+        chunkCount++;
+        
+        if (chunkCount === 1) {
+          console.log(`   💬 First chunk received - streaming active`);
+        }
+        
+        // ENHANCED: Emit progress updates every 20 chunks (roughly every 0.5-1 second)
+        // More frequent updates = better user feedback during generation
+        if (statusEmitter && chunkCount % 20 === 0) {
+          const progress = Math.min(95, Math.floor((fullContent.length / TARGET_LENGTH) * 100));
+          console.log(`   💬 Progress: chunk #${chunkCount}, ${fullContent.length} chars (${progress}%)`);
+          statusEmitter({
+            type: 'status',
+            stage: 'synthesis',
+            content: state.requiresTechnicalDepth
+              ? `⚙️ Generating technical analysis... ${progress}%`
+              : `⚙️ Generating response... ${progress}%`,
+            progress: progress
+          });
+        }
+      }
+      
+      console.log(`   ✅ Stream complete: ${chunkCount} chunks, ${fullContent.length} chars`);
+      return { fullContent, chunkCount };
+    })();
+    
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('LLM_STREAM_TIMEOUT')), LLM_TIMEOUT_MS)
+    );
+    
+    let fullContent: string;
+    let chunkCount: number;
+    try {
+      const result = await Promise.race([streamPromise, timeoutPromise]);
+      fullContent = result.fullContent;
+      chunkCount = result.chunkCount;
+    } catch (error: any) {
+      if (error.message === 'LLM_STREAM_TIMEOUT') {
+        console.error(`   ❌ LLM stream timeout after ${LLM_TIMEOUT_MS}ms`);
+        fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again, or enable the "Online Research" toggle for comprehensive analysis.`;
+        chunkCount = 0;
+      } else {
+        console.error(`   ❌ LLM stream error:`, error);
+        throw error;
+      }
+    }
+    
+    console.log(`   ✅ Synthesized (${fullContent.length} chars, ${chunkCount} chunks)`);
     
     // Phase B & C: Calculate confidence and generate follow-ups
     const updates = await generateIntelligenceMetrics(
@@ -1357,6 +1521,11 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           if (streamType === 'updates') {
             const eventKey = Object.keys(event || {})[0];
             
+            // DEBUG: Log all node updates
+            if (eventCount <= 10) {
+              console.log(`   📦 Update event #${eventCount}: ${eventKey}`);
+            }
+            
             // Capture final state for fallback
             if (event.synthesizer) {
               finalState = event.synthesizer;
@@ -1365,6 +1534,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             // Capture sources from router node (Gemini results)
             if (event.router) {
               const routerState = event.router;
+              console.log(`   🔍 DEBUG: Router event received, has sources: ${!!routerState?.sources}, sources array: ${Array.isArray(routerState?.sources)}, length: ${routerState?.sources?.length || 0}`);
               
               // Check for sources from Gemini
               if (routerState?.sources && Array.isArray(routerState.sources) && routerState.sources.length > 0) {

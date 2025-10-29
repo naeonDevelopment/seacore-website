@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, FileText, Sparkles, Square } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -16,6 +16,18 @@ interface Message {
   memoryNarrative?: string; // Conversation context (disappears when content starts)
 }
 
+// Research event types (same as in useSessions)
+type ResearchEvent = { type: 'step' | 'tool' | 'source'; [key: string]: any };
+type ResearchSession = {
+  messageId: string;
+  userMessageId: string;
+  events: ResearchEvent[];
+  verifiedSources: ResearchEvent[];
+  transientAnalysis: string;
+  isActive: boolean;
+  timestamp: number;
+};
+
 interface ChatInterfaceProps {
   isFullscreen?: boolean;
   onClose?: () => void;
@@ -25,7 +37,101 @@ interface ChatInterfaceProps {
   onMessagesChange?: (messages: Message[]) => void;
   darkMode?: boolean;
   toggleDarkMode?: () => void;
+  // CRITICAL FIX: Accept research sessions from parent for persistence
+  researchSessions?: Map<string, ResearchSession>;
+  onResearchSessionsChange?: (sessions: Map<string, ResearchSession>) => void;
 }
+
+// Separate component for loading indicator to ensure proper reactivity
+const LoadingIndicator: React.FC<{
+  isResearching: boolean;
+  useBrowsing: boolean;
+  activeResearchId: string | null;
+  researchSessions: Map<string, ResearchSession>;
+}> = ({ isResearching, useBrowsing, activeResearchId, researchSessions }) => {
+  // Use useMemo to get status message reactively
+  const statusMessage = useMemo(() => {
+    if (!activeResearchId) return '';
+    const session = researchSessions.get(activeResearchId);
+    return session?.transientAnalysis || '';
+  }, [activeResearchId, researchSessions]);
+  
+  // Log status updates for debugging
+  useEffect(() => {
+    if (statusMessage) {
+      console.log('🔄 [LoadingIndicator] Status updated:', statusMessage);
+    }
+  }, [statusMessage]);
+  
+  return (
+    <motion.div
+      key={statusMessage} // Force re-animation when status changes
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex gap-2 sm:gap-4"
+    >
+      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+        <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+      </div>
+      <div className="backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg max-w-[80%]">
+        <div className="flex items-start gap-3">
+          <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-maritime-600 flex-shrink-0 mt-0.5" />
+          <div className="flex flex-col gap-1 min-w-0 flex-1">
+            <AnimatePresence mode="wait">
+              {statusMessage ? (
+                // Show the actual status from backend
+                <motion.div 
+                  key="status"
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="flex items-start gap-1.5"
+                >
+                  <span className="text-xs sm:text-sm text-maritime-700 dark:text-maritime-300 font-semibold leading-relaxed">
+                    {statusMessage}
+                  </span>
+                </motion.div>
+              ) : isResearching ? (
+                <motion.div 
+                  key="researching"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold"
+                >
+                  <Globe className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Researching maritime intelligence...</span>
+                </motion.div>
+              ) : useBrowsing ? (
+                <motion.div 
+                  key="preparing"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold"
+                >
+                  <Globe className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Preparing research...</span>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="thinking"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold"
+                >
+                  <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Thinking...</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   isFullscreen = false, 
@@ -35,18 +141,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages: externalMessages,
   onMessagesChange,
   darkMode,
-  toggleDarkMode
+  toggleDarkMode,
+  researchSessions: externalResearchSessions,
+  onResearchSessionsChange
 }) => {
   const [internalMessages, setInternalMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `# Welcome to Fleetcore's Maritime Intelligence Hub
+      content: `# Welcome to fleetcore's Maritime Intelligence Hub
 
 I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime intelligence from **100+ OEM manufacturers** and real-world fleet data.
 
 ## 💡 What Makes This Different:
 
-**Fleetcore Platform** • Agentic maintenance OS, vendor-neutral optimization, cross-fleet intelligence, and automation workflows
+**fleetcore Platform** • Agentic maintenance OS, vendor-neutral optimization, cross-fleet intelligence, and automation workflows
 
 **Maritime Compliance** • SOLAS, MARPOL, ISM Code, MLC compliance tracking, regulatory updates, and certification management
 
@@ -64,7 +172,9 @@ Enable **Online Research** below to access:
 
 This is **specialized maritime search** – not general web search. Get precise, industry-specific answers backed by authoritative sources.
 
-**What would you like to know?**`,
+**What would you like to know?**
+
+_Note: Online research uses fast verification mode with Gemini. Deep research mode with Tavily is coming soon._`,
       timestamp: new Date(),
     },
   ]);
@@ -96,9 +206,24 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [isResearching, setIsResearching] = useState(false); // NEW: Track research phase
   const [isStreaming, setIsStreaming] = useState(false); // Track active streaming
   // modelName removed (unused)
-  const [useBrowsing, setUseBrowsing] = useState<boolean>(false);
+  // Deep research disabled - toggle always off
+  const useBrowsing = false;
   // Gate chain-of-thought behind Online research
   const useChainOfThought = useBrowsing;
+  // Toast notification for deep research coming soon
+  const [showComingSoonToast, setShowComingSoonToast] = useState(false);
+  // Animation state for toggle bounce back
+  const [toggleBouncing, setToggleBouncing] = useState(false);
+  
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (showComingSoonToast) {
+      const timer = setTimeout(() => {
+        setShowComingSoonToast(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showComingSoonToast]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
@@ -109,20 +234,34 @@ This is **specialized maritime search** – not general web search. Get precise,
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const thinkingStartTimeRef = useRef<number | null>(null);
   const firstContentTimeRef = useRef<number | null>(null);
-  // Structured research timeline (server-emitted steps) - PER MESSAGE
-  type ResearchEvent = { type: 'step' | 'tool' | 'source'; [key: string]: any };
-  type ResearchSession = {
-    messageId: string; // Assistant message ID this research belongs to
-    userMessageId: string; // User message that triggered it
-    events: ResearchEvent[];
-    verifiedSources: ResearchEvent[];
-    transientAnalysis: string;
-    isActive: boolean; // Currently streaming
-    timestamp: number;
+  
+  // Tracking ref for source display logging (prevent log spam)
+  const lastSourceDisplayLogRef = useRef<{ count: number; filter: string; messageId: string } | null>(null);
+  
+  // CRITICAL FIX: Use external research sessions if provided, otherwise use internal state
+  const [internalResearchSessions, setInternalResearchSessions] = useState<Map<string, ResearchSession>>(new Map());
+  const researchSessions = externalResearchSessions || internalResearchSessions;
+  
+  // Keep a ref to the latest research sessions to avoid stale closures
+  const latestResearchSessionsRef = useRef<Map<string, ResearchSession>>(researchSessions);
+  useEffect(() => {
+    latestResearchSessionsRef.current = researchSessions;
+  }, [researchSessions]);
+  
+  // Setter function that delegates to parent if callback provided
+  const setResearchSessions = (newSessions: Map<string, ResearchSession> | ((prev: Map<string, ResearchSession>) => Map<string, ResearchSession>)) => {
+    if (onResearchSessionsChange) {
+      if (typeof newSessions === 'function') {
+        const updatedSessions = newSessions(latestResearchSessionsRef.current);
+        onResearchSessionsChange(updatedSessions);
+      } else {
+        onResearchSessionsChange(newSessions);
+      }
+    } else {
+      setInternalResearchSessions(newSessions as any);
+    }
   };
   
-  // Map of research sessions by assistant message ID
-  const [researchSessions, setResearchSessions] = useState<Map<string, ResearchSession>>(new Map());
   const activeResearchIdRef = useRef<string | null>(null); // Currently streaming research
   
   // Transient analysis line shown briefly, then auto-hidden
@@ -440,44 +579,49 @@ This is **specialized maritime search** – not general web search. Get precise,
     // Store the user message ID for linking to assistant response
     const userMessageId = userMessage.timestamp.getTime().toString();
 
+    // CRITICAL FIX: Add user message and wait for state to settle
+    // This ensures the message is persisted before any async operations
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    
+    // CRITICAL FIX: Force a synchronous flush to ensure message is saved
+    // Use a microtask to allow React to batch the state update and persist it
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
     setIsLoading(true);
     setIsStreaming(true);
     
     // Create new AbortController for this request
     abortControllerRef.current = new AbortController();
     
-    // CRITICAL FIX: Create research session IMMEDIATELY if browsing enabled
+    // CRITICAL FIX: Create research session for ALL queries (verification + research mode)
     // This ensures events arriving before assistant message are captured
-    if (useBrowsing) {
-      // Clean up any previous pending sessions
-      if (activeResearchIdRef.current && activeResearchIdRef.current.startsWith('pending-')) {
-        setResearchSessions((prev) => {
-          const updated = new Map(prev);
-          updated.delete(activeResearchIdRef.current!);
-          return updated;
-        });
-      }
-      
-      const pendingResearchId = `pending-${Date.now()}`;
-      activeResearchIdRef.current = pendingResearchId;
-      console.log('🌐 Online research enabled - creating pending research session:', pendingResearchId);
-      
+    // Clean up any previous pending sessions
+    if (activeResearchIdRef.current && activeResearchIdRef.current.startsWith('pending-')) {
       setResearchSessions((prev) => {
         const updated = new Map(prev);
-        updated.set(pendingResearchId, {
-          messageId: pendingResearchId, // Will be updated when assistant message created
-          userMessageId: userMessageId,
-          events: [],
-          verifiedSources: [],
-          transientAnalysis: '',
-          isActive: true,
-          timestamp: Date.now(),
-        });
+        updated.delete(activeResearchIdRef.current!);
         return updated;
       });
     }
+    
+    const pendingResearchId = `pending-${Date.now()}`;
+    activeResearchIdRef.current = pendingResearchId;
+    console.log('📊 Creating research session for query:', pendingResearchId, '| Browsing:', useBrowsing);
+    
+    setResearchSessions((prev) => {
+      const updated = new Map(prev);
+      updated.set(pendingResearchId, {
+        messageId: pendingResearchId, // Will be updated when assistant message created
+        userMessageId: userMessageId,
+        events: [],
+        verifiedSources: [],
+        transientAnalysis: '',
+        isActive: true,
+        timestamp: Date.now(),
+      });
+      return updated;
+    });
 
     try {
       
@@ -585,14 +729,13 @@ This is **specialized maritime search** – not general web search. Get precise,
                 
                 // Capture structured research events (server emitted)
                 if (parsed?.type === 'step' || parsed?.type === 'tool' || parsed?.type === 'source') {
-                  // Log source events
+                  // Log source events (grouped)
                   if (parsed?.type === 'source') {
-                    console.log('🔍 [Source Event Received]', {
-                      action: parsed.action,
-                      url: parsed.url,
-                      title: parsed.title?.substring(0, 50),
-                      hasActiveResearch: !!activeResearchIdRef.current
-                    });
+                    // Only log first and last few sources to avoid spam
+                    const sourceCount = (researchSessions.get(activeResearchIdRef.current!)?.events.filter(e => e.type === 'source').length || 0);
+                    if (sourceCount <= 2 || sourceCount % 5 === 0) {
+                      console.log(`🔍 [Source ${sourceCount}]`, parsed.action, parsed.url?.substring(0, 50));
+                    }
                     
                     // Once sources appear in research panel, hide loading indicator
                     // The research panel itself shows the research happening
@@ -604,7 +747,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                     }
                   }
                   
-                  if (useBrowsing && activeResearchIdRef.current) {
+                  // CRITICAL FIX: Accept sources from BOTH verification and research mode
+                  if (activeResearchIdRef.current) {
                     // Update the active research session
                     setResearchSessions((prev) => {
                       const updated = new Map(prev);
@@ -621,14 +765,12 @@ This is **specialized maritime search** – not general web search. Get precise,
                         }
                         updated.set(activeResearchIdRef.current!, session);
                         
-                        // DEBUG: Log session state after adding event
-                        if (parsed.type === 'source') {
-                          console.log('📊 [Session Updated]', {
-                            sessionId: activeResearchIdRef.current,
-                            totalEvents: session.events.length,
-                            totalSources: session.events.filter(e => e.type === 'source').length,
-                            verifiedSources: session.verifiedSources.length,
-                            lastAction: parsed.action
+                        // GROUPED LOGGING: Only log every 5th source event to reduce spam
+                        if (parsed.type === 'source' && session.events.filter(e => e.type === 'source').length % 5 === 0) {
+                          console.log('📊 [Session Update]', {
+                            sources: session.events.filter(e => e.type === 'source').length,
+                            verified: session.verifiedSources.length,
+                            browsing: useBrowsing
                           });
                         }
                       } else {
@@ -638,7 +780,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                     });
                   } else {
                     if (parsed?.type === 'source') {
-                      console.warn('⚠️ Source received but no active research:', { useBrowsing, activeResearchIdRef: activeResearchIdRef.current });
+                      console.warn('⚠️ Source received but no activeResearchIdRef:', { useBrowsing, activeResearchIdRef: activeResearchIdRef.current });
                     }
                   }
                   // Do not treat as content/thinking; continue
@@ -650,45 +792,42 @@ This is **specialized maritime search** – not general web search. Get precise,
                   console.log('📖 [ChatInterface] Memory narrative received:', memoryNarrative.substring(0, 100));
                 } else if (parsed.type === 'status') {
                   // PHASE A1: Handle status events (tool execution progress)
-                  if (useBrowsing) {
-                    streamedThinking += '\n' + parsed.content;
-                    if (activeResearchIdRef.current) {
+                  // CRITICAL FIX: Show status for ALL modes (verification + research)
+                  streamedThinking += '\n' + parsed.content;
+                  if (activeResearchIdRef.current) {
+                    setResearchSessions((prev) => {
+                      const updated = new Map(prev);
+                      const session = updated.get(activeResearchIdRef.current!);
+                      if (session) {
+                        session.transientAnalysis = parsed.content;
+                        updated.set(activeResearchIdRef.current!, session);
+                      }
+                      return updated;
+                    });
+                  }
+                } else if (parsed.type === 'thinking') {
+                  // CRITICAL FIX: Show thinking for ALL modes (verification + research)
+                  streamedThinking += parsed.content;
+                  if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
+                    thinkingStartTimeRef.current = Date.now();
+                  }
+                  // Update transient analysis in active research session
+                  if (activeResearchIdRef.current) {
+                    const snippet = String(parsed.content || '')
+                      .replace(/\*\*THINKING:\*\*/i, '')
+                      .split(/\n|\.\s/)[0]
+                      .trim()
+                      .slice(0, 240);
+                    if (snippet) {
                       setResearchSessions((prev) => {
                         const updated = new Map(prev);
                         const session = updated.get(activeResearchIdRef.current!);
-                        if (session) {
-                          session.transientAnalysis = parsed.content;
+                        if (session && !session.transientAnalysis) {
+                          session.transientAnalysis = snippet;
                           updated.set(activeResearchIdRef.current!, session);
                         }
                         return updated;
                       });
-                    }
-                  }
-                } else if (parsed.type === 'thinking') {
-                  // Only accumulate thinking when online research is enabled
-                  if (useBrowsing) {
-                    streamedThinking += parsed.content;
-                    if (!thinkingStartTimeRef.current && streamedThinking.length > 0) {
-                      thinkingStartTimeRef.current = Date.now();
-                    }
-                    // Update transient analysis in active research session
-                    if (activeResearchIdRef.current) {
-                      const snippet = String(parsed.content || '')
-                        .replace(/\*\*THINKING:\*\*/i, '')
-                        .split(/\n|\.\s/)[0]
-                        .trim()
-                        .slice(0, 240);
-                      if (snippet) {
-                        setResearchSessions((prev) => {
-                          const updated = new Map(prev);
-                          const session = updated.get(activeResearchIdRef.current!);
-                          if (session && !session.transientAnalysis) {
-                            session.transientAnalysis = snippet;
-                            updated.set(activeResearchIdRef.current!, session);
-                          }
-                          return updated;
-                        });
-                      }
                     }
                   }
                 } else if (parsed.type === 'content') {
@@ -700,6 +839,19 @@ This is **specialized maritime search** – not general web search. Get precise,
                     
                     // CLEAR MEMORY NARRATIVE when content starts (user only sees it briefly)
                     memoryNarrative = '';
+                    
+                    // CRITICAL FIX: Clear transient analysis status when content starts streaming
+                    if (activeResearchIdRef.current) {
+                      setResearchSessions((prev) => {
+                        const updated = new Map(prev);
+                        const session = updated.get(activeResearchIdRef.current!);
+                        if (session) {
+                          session.transientAnalysis = ''; // Clear stuck status
+                          updated.set(activeResearchIdRef.current!, session);
+                        }
+                        return updated;
+                      });
+                    }
                     
                     // Clear any remaining loading states (research state already cleared by source events)
                     setIsLoading(false);
@@ -719,7 +871,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                         const assistantMessage = {
                           role: 'assistant' as const,
                           content: '',
-                          thinkingContent: useBrowsing ? streamedThinking : '',
+                          thinkingContent: streamedThinking, // CRITICAL FIX: Show thinking for all modes
                           memoryNarrative: memoryNarrative || '',
                           timestamp: new Date(),
                           isStreaming: true,
@@ -733,7 +885,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                       });
                       
                       // STEP 2: Link research session AFTER message is created (separate state update)
-                      if (useBrowsing && activeResearchIdRef.current && assistantMessageId) {
+                      // CRITICAL FIX: Link for ALL modes (verification + research)
+                      if (activeResearchIdRef.current && assistantMessageId) {
                         const pendingId = activeResearchIdRef.current;
                         
                         setResearchSessions((prev) => {
@@ -766,20 +919,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                       answerReadyToShow = true;
                     }, 1000);
                     
-                    // Keep transient analysis visible longer (3 seconds instead of 1.2)
-                    if (activeResearchIdRef.current) {
-                      setTimeout(() => {
-                        setResearchSessions((prev) => {
-                          const updated = new Map(prev);
-                          const session = updated.get(activeResearchIdRef.current!);
-                          if (session) {
-                            session.transientAnalysis = ''; // Clear after delay
-                            updated.set(activeResearchIdRef.current!, session);
-                          }
-                          return updated;
-                        });
-                      }, 3000); // Increased from 1200ms to 3000ms
-                    }
+                    // NOTE: transientAnalysis is now cleared immediately above (line 707)
+                    // No need for delayed clearing - status disappears when content starts
                   }
                   
                   // Accumulate content
@@ -802,7 +943,8 @@ This is **specialized maritime search** – not general web search. Get precise,
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
                 const hasThinking = streamedThinking.length > 0;
                 const overlapActive = firstContentTimeRef.current ? (Date.now() - firstContentTimeRef.current) < OVERLAP_AFTER_CONTENT : false;
-                const shouldShowThinking = useBrowsing && hasThinking && (
+                // CRITICAL FIX: Show thinking for ALL modes (not just browsing)
+                const shouldShowThinking = hasThinking && (
                   (!answerReadyToShow && thinkingElapsedTime < MINIMUM_THINKING_TIME) || (answerReadyToShow && overlapActive)
                 );
 
@@ -823,7 +965,7 @@ This is **specialized maritime search** – not general web search. Get precise,
                   updated[idx] = {
                     ...updated[idx],
                     content: streamedContent,
-                    thinkingContent: useBrowsing ? streamedThinking : '',
+                    thinkingContent: streamedThinking, // CRITICAL FIX: Show for all modes
                     isStreaming: true,
                     isThinking: shouldShowThinking,
                   };
@@ -842,7 +984,8 @@ This is **specialized maritime search** – not general web search. Get precise,
         const MINIMUM_THINKING_TIME = 800;
         const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : MINIMUM_THINKING_TIME;
         const remainingThinkingTime = Math.max(0, MINIMUM_THINKING_TIME - thinkingElapsedTime);
-        if (remainingThinkingTime > 0 && streamedThinking && useBrowsing) {
+        // CRITICAL FIX: Show thinking for ALL modes
+        if (remainingThinkingTime > 0 && streamedThinking) {
           await new Promise(resolve => setTimeout(resolve, remainingThinkingTime));
         }
         
@@ -878,7 +1021,7 @@ This is **specialized maritime search** – not general web search. Get precise,
             return [...prev, {
               role: 'assistant',
               content: streamedContent || "I received a response but couldn't display it correctly. Please try again.",
-              thinkingContent: useBrowsing ? streamedThinking : '',
+              thinkingContent: streamedThinking, // CRITICAL FIX: Show for all modes
               memoryNarrative: '', // Memory already cleared by this point
               timestamp: new Date(),
               isStreaming: false,
@@ -890,7 +1033,7 @@ This is **specialized maritime search** – not general web search. Get precise,
           updated[idx] = {
             ...updated[idx],
             content: streamedContent,
-            thinkingContent: useBrowsing ? streamedThinking : '',
+            thinkingContent: streamedThinking, // CRITICAL FIX: Show for all modes
             memoryNarrative: '', // Memory already cleared by this point
             isStreaming: false,
             isThinking: false,
@@ -1086,7 +1229,14 @@ This is **specialized maritime search** – not general web search. Get precise,
             // Get research session for this message if it's an assistant message
             const messageId = message.timestamp?.getTime?.()?.toString() || '';
             const researchSession = message.role === 'assistant' ? researchSessions.get(messageId) : null;
-            const hasResearch = researchSession && (researchSession.events.length > 0 || researchSession.isActive);
+            
+            // CRITICAL FIX: Show research panel if there are actual sources/events OR if actively researching
+            // Previous logic was too restrictive - don't hide panel just because sources haven't arrived yet
+            const hasActualResearch = researchSession && (
+              researchSession.events.length > 0 || // Has any events (step/tool/source)
+              researchSession.verifiedSources.length > 0 || // Has verified sources
+              researchSession.isActive // Active research in progress (sources may arrive later)
+            );
             
             return (
             <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
@@ -1115,7 +1265,7 @@ This is **specialized maritime search** – not general web search. Get precise,
               )}
               
               {/* Research Panel - positioned between user and assistant */}
-              {hasResearch && message.role === 'assistant' && (
+              {hasActualResearch && message.role === 'assistant' && (
                 <motion.div 
                   key={`research-${messageId}`}
                   initial={{ opacity: 0, y: 10 }}
@@ -1279,20 +1429,26 @@ This is **specialized maritime search** – not general web search. Get precise,
                                   // Selected sources come FIRST, so slice(-20) was hiding them!
                                   const recentSources = allSources; // Show all sources
                                   
-                                  // Log filtering with full source details
-                                  console.log('🎯 [Source Display]', {
-                                    totalSources: allSources.length,
-                                    recentSources: recentSources.length,
-                                    currentFilter: sourceFilter,
-                                    allActions: [...new Set(recentSources.map(s => s.action))],
-                                    selectedCount: recentSources.filter(s => s.action === 'selected').length,
-                                    rejectedCount: recentSources.filter(s => s.action === 'rejected').length,
-                                    sampleSources: recentSources.slice(0, 2).map(s => ({
-                                      action: s.action,
-                                      url: s.url?.substring(0, 30),
-                                      title: s.title?.substring(0, 30)
-                                    }))
-                                  });
+                                  // GROUPED LOGGING: Only log when source count or filter changes (prevents 60+ logs)
+                                  const currentLogKey = `${messageId}-${allSources.length}-${sourceFilter}`;
+                                  const lastLogKey = lastSourceDisplayLogRef.current 
+                                    ? `${lastSourceDisplayLogRef.current.messageId}-${lastSourceDisplayLogRef.current.count}-${lastSourceDisplayLogRef.current.filter}`
+                                    : null;
+                                  
+                                  if (currentLogKey !== lastLogKey && allSources.length > 0) {
+                                    console.log('🎯 [Source Display]', {
+                                      totalSources: allSources.length,
+                                      currentFilter: sourceFilter,
+                                      selectedCount: recentSources.filter(s => s.action === 'selected').length,
+                                      rejectedCount: recentSources.filter(s => s.action === 'rejected').length,
+                                      messageId: messageId.substring(0, 13) + '...'
+                                    });
+                                    lastSourceDisplayLogRef.current = { 
+                                      count: allSources.length, 
+                                      filter: sourceFilter,
+                                      messageId 
+                                    };
+                                  }
                                   
                                   // Filter based on selected filter
                                   const filteredSources = recentSources.filter(source => {
@@ -1578,36 +1734,12 @@ This is **specialized maritime search** – not general web search. Get precise,
           })}
           
           {(isLoading || isResearching) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex gap-2 sm:gap-4"
-            >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-maritime-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
-                <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div className="backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-maritime-600" />
-                  {isResearching ? (
-                    <div className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold">
-                      <Globe className="w-3.5 h-3.5 animate-pulse" />
-                      <span>Researching maritime intelligence...</span>
-                    </div>
-                  ) : useBrowsing ? (
-                    <div className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold">
-                      <Globe className="w-3.5 h-3.5 animate-pulse" />
-                      <span>Preparing research...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-xs text-maritime-600 dark:text-maritime-400 font-semibold">
-                      <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                      <span>Thinking...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
+            <LoadingIndicator 
+              isResearching={isResearching}
+              useBrowsing={useBrowsing}
+              activeResearchId={activeResearchIdRef.current}
+              researchSessions={researchSessions}
+            />
           )}
           
           <div ref={messagesEndRef} />
@@ -1664,31 +1796,70 @@ This is **specialized maritime search** – not general web search. Get precise,
         </div>
         <div className="flex items-center justify-between mt-2 md:mt-3 lg:mt-4 gap-2 md:gap-3 max-w-5xl mx-auto">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={useBrowsing}
-              onClick={() => setUseBrowsing((v) => !v)}
-              className={cn(
-                'group inline-flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl border transition-all flex-shrink-0',
-                useBrowsing
-                  ? 'bg-maritime-50 border-maritime-200 text-maritime-700'
-                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-              )}
-            >
-              <span className={cn(
-                'relative inline-flex h-6 w-11 md:h-7 md:w-12 items-center rounded-full transition-colors',
-                useBrowsing ? 'bg-maritime-600' : 'bg-slate-300 dark:bg-slate-700'
-              )}>
-                <span
-                  className={cn(
-                    'inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform',
-                    useBrowsing ? 'translate-x-5 md:translate-x-5' : 'translate-x-0.5 md:translate-x-0.5'
-                  )}
-                />
-              </span>
-              <span className="text-xs md:text-sm font-semibold whitespace-nowrap">Online research</span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={useBrowsing}
+                onClick={() => {
+                  // Don't allow toggle on - show coming soon message instead
+                  setToggleBouncing(true);
+                  setShowComingSoonToast(true);
+                  
+                  // Reset bounce animation
+                  setTimeout(() => {
+                    setToggleBouncing(false);
+                  }, 400);
+                }}
+                className={cn(
+                  'group inline-flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl border transition-all flex-shrink-0',
+                  'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                )}
+              >
+                <span className={cn(
+                  'relative inline-flex h-6 w-11 md:h-7 md:w-12 items-center rounded-full transition-colors',
+                  'bg-slate-300 dark:bg-slate-700'
+                )}>
+                  <span
+                    className={cn(
+                      'inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-all duration-200',
+                      toggleBouncing ? 'translate-x-3 md:translate-x-3' : 'translate-x-0.5 md:translate-x-0.5'
+                    )}
+                  />
+                </span>
+                <span className="text-xs md:text-sm font-semibold whitespace-nowrap">Online research</span>
+              </button>
+              
+              {/* Deep Research Coming Soon notification - positioned near toggle */}
+              <AnimatePresence>
+                {showComingSoonToast && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[9999] w-[280px] md:w-[320px]"
+                  >
+                    <div className="rounded-xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50/95 dark:bg-blue-900/90 backdrop-blur-sm shadow-lg p-3 flex items-start gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-200">
+                          🔬 <strong>Deep research mode coming soon!</strong> 
+                          <br />
+                          <span className="text-blue-700 dark:text-blue-300">Currently using fast verification mode with Gemini.</span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowComingSoonToast(false)}
+                        className="flex-shrink-0 p-1 rounded-lg hover:bg-blue-200/50 dark:hover:bg-blue-800/50 transition-colors text-blue-800 dark:text-blue-200"
+                        aria-label="Close notification"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             
             {toggleDarkMode && (
               <button
