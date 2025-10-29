@@ -10,6 +10,8 @@ import AboutPage from '@/pages/AboutPage'
 import ContactPage from '@/pages/ContactPage'
 import AssistantPage from '@/pages/AssistantPage'
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage'
+import CookieConsentModal from '@/components/ui/CookieConsentModal'
+import { initializeConsent } from '@/utils/cookieConsent'
 import '@/styles/globals.css'
 import { Helmet } from 'react-helmet-async'
 
@@ -74,6 +76,11 @@ function AppLayout({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDark
 function App() {
   const [darkMode, setDarkMode] = useState(false)
 
+  // Initialize cookie consent system
+  useEffect(() => {
+    initializeConsent();
+  }, []);
+
   // Initialize theme from localStorage (default to light mode)
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -134,6 +141,9 @@ function App() {
       </Helmet>
       <ScrollToTop />
       <AppLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      
+      {/* Cookie Consent Modal - Shows automatically if no consent given */}
+      <CookieConsentModal />
     </Router>
   )
 }

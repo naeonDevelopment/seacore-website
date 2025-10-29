@@ -231,14 +231,14 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
           subtitle: 'Third-Party Tracking',
           text: 'We integrate with third-party services that may use their own cookies:',
           list: [
+            'Google Tag Manager & Analytics: Website traffic analysis, user behavior tracking, and conversion measurement',
             'Calendly: Scheduling and meeting management',
-            'Analytics providers: Website traffic and usage analysis',
             'Performance monitoring: System health and error tracking'
           ]
         },
         {
           subtitle: 'Your Cookie Choices',
-          text: 'You can control cookies through your browser settings. Note that disabling essential cookies may impact platform functionality.'
+          text: 'You have full control over which cookies we use. Use our Cookie Consent Modal to manage your preferences at any time. You can also control cookies through your browser settings. Note that disabling essential cookies may impact platform functionality. To update your preferences, click "Cookie Settings" in the footer or clear your browser data to see the consent modal again.'
         }
       ]
     },
@@ -252,9 +252,9 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
           text: 'fleetcore integrates with third-party services to enhance functionality:',
           list: [
             'Supabase: Backend infrastructure, database, authentication, real-time sync',
+            'Google Tag Manager & Analytics: Website analytics, conversion tracking, and user behavior analysis',
             'Calendly: Meeting scheduling and calendar management',
-            'Email providers: Transactional emails and notifications',
-            'Analytics platforms: Website usage and performance tracking'
+            'Email providers: Transactional emails and notifications'
           ]
         },
         {
@@ -262,6 +262,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
           text: 'Each integrated service has its own privacy policy. We encourage you to review:',
           list: [
             'Supabase Privacy Policy: https://supabase.com/privacy',
+            'Google Privacy Policy: https://policies.google.com/privacy',
             'Calendly Privacy Policy: https://calendly.com/privacy',
             'Our service providers process data on our behalf under strict contractual obligations'
           ]

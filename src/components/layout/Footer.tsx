@@ -5,6 +5,7 @@ import {
   Linkedin
 } from 'lucide-react'
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo'
+import CookieSettingsButton from '@/components/ui/CookieSettingsButton'
 
 interface FooterProps {}
 
@@ -99,8 +100,10 @@ export const Footer: React.FC<FooterProps> = () => {
 
         {/* Bottom Bar */}
         <div className="py-6 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-slate-400 text-sm text-center md:text-left">
-            © {currentYear} fleetcore. All rights reserved. Maritime Intelligence Platform.
+          <div className="flex flex-col md:flex-row items-center gap-4 text-slate-400 text-sm text-center md:text-left">
+            <span>© {currentYear} fleetcore. All rights reserved. Maritime Intelligence Platform.</span>
+            <span className="hidden md:inline text-slate-600">•</span>
+            <CookieSettingsButton />
           </div>
 
           {/* Social Links */}
