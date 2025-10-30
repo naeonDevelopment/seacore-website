@@ -1244,13 +1244,9 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
             const messageId = message.timestamp?.getTime?.()?.toString() || '';
             const researchSession = message.role === 'assistant' ? researchSessions.get(messageId) : null;
             
-            // CRITICAL FIX: Show research panel if there are actual sources/events OR if actively researching
-            // Previous logic was too restrictive - don't hide panel just because sources haven't arrived yet
-            const hasActualResearch = researchSession && (
-              researchSession.events.length > 0 || // Has any events (step/tool/source)
-              researchSession.verifiedSources.length > 0 || // Has verified sources
-              researchSession.isActive // Active research in progress (sources may arrive later)
-            );
+            // PHASE 3 FIX: Only show research panel when we have actual sources loaded
+            // Don't show it just because research is active - prevents empty panel flash
+            const hasActualResearch = researchSession && researchSession.verifiedSources.length > 0;
             
             return (
             <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
