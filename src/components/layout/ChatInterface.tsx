@@ -885,19 +885,36 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     });
                   }
                 } else if (parsed.type === 'content') {
-                  // CRITICAL: Filter out JSON query plans from content (but don't block legitimate content)
-                  let contentText = parsed.content || '';
+                  // CRITICAL: Aggressive JSON filtering BEFORE any state updates or accumulation
+                  let contentText = String(parsed.content || '').trim();
                   
-                  // Only filter if the ENTIRE chunk is a JSON query plan (not mixed content)
-                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(contentText.trim());
+                  // FIRST: Check if entire chunk is pure JSON query plan (most common case)
+                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/s.test(contentText);
                   if (isOnlyJsonPlan) {
-                    console.log('⚠️ [ChatInterface] Filtered out pure JSON query plan chunk from content');
-                    continue; // Skip pure JSON chunks, but allow mixed content
+                    console.log('⚠️ [ChatInterface] Filtered out pure JSON query plan chunk - NOT creating message');
+                    continue; // Skip entirely - don't create message bubble for JSON
                   }
                   
-                  // Remove embedded JSON query plans from mixed content (but keep the rest)
-                  const jsonPlanPattern = /\{[^{]*"strategy"\s*:\s*"[^"]*"\s*,\s*"subQueries"\s*:\s*\[[^\]]*\][^}]*\}/g;
-                  contentText = contentText.replace(jsonPlanPattern, '');
+                  // SECOND: Remove embedded JSON query plans from mixed content (in case LLM mixes it)
+                  const jsonPlanPattern = /\{[^{]*"strategy"[\s\S]*?"subQueries"[\s\S]*?\}/gs;
+                  contentText = contentText.replace(jsonPlanPattern, '').trim();
+                  
+                  // THIRD: If after cleaning the content is empty or too short, skip it
+                  if (!contentText || contentText.length < 5) {
+                    console.log('⚠️ [ChatInterface] Content became empty after JSON removal - skipping chunk');
+                    continue;
+                  }
+                  
+                  // FOURTH: Additional check for any remaining JSON artifacts
+                  if (contentText.includes('"strategy"') || contentText.includes('"subQueries"')) {
+                    console.warn('⚠️ [ChatInterface] Remaining JSON artifacts detected - aggressive cleaning');
+                    contentText = contentText.replace(/"strategy"[\s\S]*?"subQueries"[\s\S]*?}/g, '').trim();
+                    if (!contentText || contentText.length < 5) {
+                      continue; // Still empty after aggressive cleaning
+                    }
+                  }
+                  
+                  // Content is now clean - proceed with normal flow
                   
                   // CRITICAL FIX: Create assistant message BEFORE any throttling (even if we filtered some content)
                   // This ensures message exists before any updates try to modify it

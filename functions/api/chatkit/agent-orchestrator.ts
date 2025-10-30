@@ -890,11 +890,14 @@ ${technicalDepthFlag}
 
 **USER QUERY**: ${userQuery}
 
-**CRITICAL: DO NOT INCLUDE SEARCH PLAN DETAILS IN YOUR RESPONSE**
-- The search strategy and sub-queries are internal processing steps only
-- Users see these steps automatically in the thinking interface
-- Your response should be the final answer with citations, NOT the search plan
-- Focus on synthesizing the source information into a comprehensive answer
+**CRITICAL: ABSOLUTELY DO NOT INCLUDE SEARCH PLAN OR JSON IN YOUR RESPONSE**
+- **NEVER** output JSON structures with "strategy" or "subQueries" fields
+- **NEVER** show the search plan details - they are internal processing only
+- Users already see thinking steps automatically - you don't need to show them
+- **ONLY** provide the final synthesized answer with citations
+- **DO NOT** echo back the search strategy or query structure
+- If you see JSON structures in the context, ignore them completely - they are not for user display
+- Start directly with your answer: "EXECUTIVE SUMMARY" or "TECHNICAL SPECIFICATIONS" - never with JSON
 
 **CRITICAL CITATION REQUIREMENTS:**
 1. **MANDATORY**: Add inline citations after EVERY factual claim using [[N]](url) format
@@ -1650,7 +1653,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   continue;
                 }
 
-                const text = extractTextContent(msg);
+                let text = extractTextContent(msg);
                 if (!text) {
                   continue;
                 }
@@ -1705,15 +1708,36 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   }
                 }
                 
-                // Also check current text for JSON patterns (defensive - catch any that slipped through)
+                // CRITICAL: Aggressive JSON filtering - catch ANY JSON that might be in LLM response
+                // Check for JSON patterns even in non-bracketed text (might be in middle of response)
+                const containsJsonPlan = trimmed.includes('"strategy"') && trimmed.includes('"subQueries"');
+                if (containsJsonPlan) {
+                  console.warn(`⚠️ [Backend] Detected JSON query plan in LLM response: "${text.substring(0, 100)}..."`);
+                  // Remove JSON patterns from the text before emitting
+                  const jsonPlanPattern = /\{[^{]*"strategy"[\s\S]*?"subQueries"[\s\S]*?\}/g;
+                  text = text.replace(jsonPlanPattern, '');
+                  
+                  // If after removal the text is empty or just whitespace, skip this chunk
+                  if (!text.trim() || text.trim().length < 10) {
+                    continue;
+                  }
+                  
+                  // Emit the cleaned text (without JSON)
+                  console.log(`   ✓ Cleaned JSON from chunk, emitting ${text.length} chars`);
+                }
+                
+                // Also check if starting with JSON bracket - buffer for complete JSON detection
                 if (trimmed.startsWith('{') && (trimmed.includes('"strategy"') || trimmed.includes('"subQueries"'))) {
-                  console.warn(`⚠️ [Backend] Filtered out potential JSON query plan from stream: "${text.substring(0, 50)}..."`);
-                  // Don't emit potentially raw JSON - buffer it or discard
+                  console.warn(`⚠️ [Backend] Filtered out JSON query plan starting chunk from stream`);
                   if (pendingPlanBuffer === null) {
                     pendingPlanBuffer = text;
                   } else {
                     const combined: string = pendingPlanBuffer + text;
                     pendingPlanBuffer = combined;
+                    // Try to parse the combined buffer
+                    if (tryEmitPlan(combined)) {
+                      continue; // Successfully filtered
+                    }
                   }
                   continue;
                 }
