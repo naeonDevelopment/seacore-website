@@ -38,6 +38,10 @@ import {
   setCachedResult,
   getCacheStats
 } from './kv-cache';
+import { 
+  enforceCitations,
+  validateCitations
+} from './citation-enforcer';
 import { accumulateKnowledge } from './memory-accumulation';
 import { 
   detectConversationState, 
@@ -948,6 +952,24 @@ ${technicalDepthFlag}
     }
     
     console.log(`   ✅ Synthesized (${fullContent.length} chars, ${chunkCount} chunks)`);
+    
+    // PHASE 4: Citation Enforcement - Ensure inline citations are present
+    const citationResult = enforceCitations(fullContent, state.sources);
+    if (citationResult.wasEnforced) {
+      console.log(`   📎 Citation enforcement: added ${citationResult.citationsAdded} citations (${citationResult.citationsFound}→${citationResult.citationsFound + citationResult.citationsAdded})`);
+      fullContent = citationResult.enforcedContent;
+    } else {
+      console.log(`   ✅ Citations sufficient: ${citationResult.citationsFound}/${citationResult.citationsRequired}`);
+    }
+    
+    // Validate citations are well-formed
+    const validation = validateCitations(fullContent, state.sources);
+    if (!validation.valid) {
+      console.warn(`   ⚠️ Citation validation warnings:`, validation.warnings);
+      if (validation.errors.length > 0) {
+        console.error(`   ❌ Citation validation errors:`, validation.errors);
+      }
+    }
     
     // Phase B & C: Calculate confidence and generate follow-ups
     const updates = await generateIntelligenceMetrics(

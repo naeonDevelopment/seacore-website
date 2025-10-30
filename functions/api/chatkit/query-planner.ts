@@ -80,11 +80,6 @@ export async function planQuery(
   
   console.log(`   Strategy: ${strategy}`);
   
-  // Detect if this is a technical depth query (requires OEM specs, model numbers, maintenance data)
-  const isTechnicalQuery = /(detail|specification|spec|maintenance|OEM|model|manufacturer|engine|equipment)/i.test(query) ||
-                          /(give|tell|show|provide).*more.*detail/i.test(query) ||
-                          /give.*details.*(about|on|of)/i.test(query);
-  
   const planningPrompt = `You are a maritime intelligence query planner. Decompose this query into 3-6 targeted sub-queries.
 
 MAIN QUERY: "${query}"
@@ -93,26 +88,17 @@ ${entityContext ? `CONTEXT: ${entityContext}` : ''}
 STRATEGY: ${strategy}
 ${isVesselQuery ? '- Focus on vessel specifications, ownership, operations' : ''}
 ${isCompanyQuery ? '- Focus on company fleet, operations, ownership structure' : ''}
-${isEquipmentQuery || isTechnicalQuery ? '- Focus on equipment specs, OEM details, maintenance, model numbers, manufacturer information' : ''}
+${isEquipmentQuery ? '- Focus on equipment specs, OEM details, maintenance' : ''}
 ${isComparative ? '- Focus on comparative attributes and verification' : ''}
-
-${isTechnicalQuery ? `CRITICAL: This is a TECHNICAL DEPTH query requiring precise technical information:
-- Include sub-queries for: OEM/manufacturer names, model numbers, exact specifications (power ratings, dimensions, capacities)
-- Include sub-queries for: Maintenance schedules, service intervals, technical documentation
-- Include sub-queries for: Real-world operational data, typical duty cycles, performance characteristics
-- Prioritize HIGH for: Manufacturer/OEM info, model numbers, technical specifications` : ''}
 
 RULES:
 1. Generate 3-6 sub-queries (depending on complexity)
-   ${isTechnicalQuery ? '- For technical queries: Generate 4-6 sub-queries to ensure comprehensive coverage' : ''}
 2. Each sub-query should target a specific aspect
 3. Prioritize sub-queries by importance (high/medium/low)
-   ${isTechnicalQuery ? '- HIGH priority: OEM, model numbers, exact technical specs' : ''}
 4. For vessel queries: owner, specs, classification, current status
 5. For company queries: fleet size, operations, ownership, reputation
-6. For equipment/technical queries: OEM, model, specifications, maintenance data, operational history
-7. For comparative queries: attribute for each entity + verification sources
-8. Keep sub-queries concise and searchable
+6. For comparative queries: attribute for each entity + verification sources
+7. Keep sub-queries concise and searchable
 
 Return JSON:
 {
@@ -393,27 +379,18 @@ export function aggregateAndRank(sources: Source[]): Source[] {
     return (a.title || '').localeCompare(b.title || '');
   });
   
-  // Step 5: Dynamic source limit based on query complexity
-  // For technical queries, return more sources (up to 15) for better cross-verification
-  const isTechnicalQuery = sorted.some(s => 
-    s.content?.toLowerCase().includes('oem') ||
-    s.content?.toLowerCase().includes('maintenance') ||
-    s.content?.toLowerCase().includes('specification') ||
-    s.title?.toLowerCase().includes('technical')
-  );
-  
-  const maxSources = isTechnicalQuery ? 15 : 10; // More sources for technical queries
-  const selected = sorted.slice(0, maxSources);
+  // Step 5: Top 10
+  const top10 = sorted.slice(0, 10);
   
   // Count by tier
-  const tierCounts = selected.reduce((acc, s) => {
+  const tierCounts = top10.reduce((acc, s) => {
     if (s.tier) acc[s.tier] = (acc[s.tier] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-
-  console.log(`   🏆 Top ${maxSources} selected: T1=${tierCounts.T1 || 0}, T2=${tierCounts.T2 || 0}, T3=${tierCounts.T3 || 0}`);
-
-  return selected;
+  
+  console.log(`   🏆 Top 10 selected: T1=${tierCounts.T1 || 0}, T2=${tierCounts.T2 || 0}, T3=${tierCounts.T3 || 0}`);
+  
+  return top10;
 }
 
 /**
