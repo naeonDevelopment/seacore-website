@@ -868,10 +868,19 @@ ${state.requiresTechnicalDepth ? `
 
 **WRITING STYLE:**
 - Write as a Chief Engineer with 20+ years hands-on experience
-- Include specific numbers: service intervals, temperatures, pressures, hours
-- Mention OEM manufacturers by name (Caterpillar, Wartsila, MAN, etc.)
+- Include specific numbers: service intervals, temperatures, pressures, hours, model numbers
+- **MANDATORY**: Mention OEM manufacturers by name (Caterpillar, Wartsila, MAN, etc.) - look for this in sources
+- **MANDATORY**: Include exact model numbers, power ratings, specifications when available in sources
+- **MANDATORY**: Cross-reference multiple sources - if one source says "3,000 kW" and another says different, mention both
 - Add practical warnings and tips from real operations
 - Target length: 600-800 words minimum
+
+**SOURCE UTILIZATION FOR TECHNICAL QUERIES:**
+- You have ${state.sources.length} sources available - USE MULTIPLE SOURCES
+- Different sources may have different technical details - synthesize information from multiple sources
+- If Source [1] mentions "twin diesel engines" and Source [2] mentions "Caterpillar C32", combine them: "twin Caterpillar C32 diesel engines"
+- Don't rely on just one source - cross-verify specifications across sources
+- If sources conflict, mention the conflict and cite both sources
 
 **FAILURE TO INCLUDE MAINTENANCE ANALYSIS, OPERATIONAL RECOMMENDATIONS, AND REAL-WORLD SCENARIOS SECTIONS IS UNACCEPTABLE.**
 ` : `
@@ -901,8 +910,14 @@ ${technicalDepthFlag}
 
 **CRITICAL CITATION REQUIREMENTS:**
 1. **MANDATORY**: Add inline citations after EVERY factual claim using [[N]](url) format
-2. **MINIMUM**: Include at least ${Math.min(3, state.sources.length)} citations in your answer
+2. **MINIMUM CITATIONS**: 
+   ${state.requiresTechnicalDepth ? 
+     `- Technical queries: Include citations from AT LEAST ${Math.min(5, state.sources.length)} different sources
+   - Cross-verify technical specifications (manufacturer, model, ratings) across multiple sources
+   - If you have ${state.sources.length} sources available, use ${Math.min(5, state.sources.length)}-${Math.min(8, state.sources.length)} of them` :
+     `- Standard queries: Include at least ${Math.min(3, state.sources.length)} citations`}
 3. **FORMAT**: Use the source numbers from the SOURCES list above
+4. **TECHNICAL QUERIES**: Different sections should cite different sources when possible
    - Example: "The vessel is 250 meters long [[1]](${state.sources[0]?.url || 'url'})"
    - Example: "Operated by Maersk [[2]](${state.sources[1]?.url || 'url'})"
 4. **FREQUENCY**: Add citations after:
