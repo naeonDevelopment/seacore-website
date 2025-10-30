@@ -1478,6 +1478,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+      let pendingPlanBuffer: string | null = null;
 
       const chunkHasToolCalls = (msg: any): boolean => {
         if (!msg) return false;
@@ -1608,8 +1609,10 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   continue;
                 }
 
-                const queryPlan = parseQueryPlan(text);
-                if (queryPlan) {
+                const tryEmitPlan = (raw: string) => {
+                  const queryPlan = parseQueryPlan(raw);
+                  if (!queryPlan) return false;
+
                   const formattedPlan = formatQueryPlanForDisplay(queryPlan);
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: formattedPlan })}\n\n`));
                   statusEmitter?.({
@@ -1617,6 +1620,23 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     step: 'query_plan_detail',
                     content: `${queryPlan.subQueries.length}-step ${queryPlan.strategy} strategy prepared`
                   });
+                  pendingPlanBuffer = null;
+                  return true;
+                };
+
+                if (pendingPlanBuffer !== null) {
+                  pendingPlanBuffer += text;
+                  if (tryEmitPlan(pendingPlanBuffer)) {
+                    continue;
+                  }
+                  continue;
+                }
+
+                const trimmed = text.trimStart();
+                const looksLikePlanStart = trimmed.startsWith('{') && trimmed.includes('subQueries');
+
+                if (looksLikePlanStart && !tryEmitPlan(text)) {
+                  pendingPlanBuffer = text;
                   continue;
                 }
 
