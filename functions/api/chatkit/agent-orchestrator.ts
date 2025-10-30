@@ -395,11 +395,23 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       const queryPlan = await planQuery(queryToSend, entityContext, env.OPENAI_API_KEY);
       
       if (statusEmitter) {
+        // ENHANCED: Emit detailed query plan breakdown as chain of thought
         statusEmitter({
           type: 'thinking',
           step: 'query_planning',
-          content: `Planned ${queryPlan.subQueries.length} targeted searches`
+          content: `Planning search strategy: ${queryPlan.strategy}`
         });
+        
+        // Emit each sub-query as a separate thinking step for visual clarity
+        queryPlan.subQueries.forEach((subQuery, index) => {
+          const priorityIcon = subQuery.priority === 'high' ? '🔴' : subQuery.priority === 'medium' ? '🟡' : '🟢';
+          statusEmitter({
+            type: 'thinking',
+            step: `subquery_${index + 1}`,
+            content: `${priorityIcon} ${subQuery.purpose || 'Searching'}: "${subQuery.query}"`
+          });
+        });
+        
         statusEmitter({
           type: 'status',
           stage: 'searching',
@@ -444,11 +456,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      // Build research context
+      // Build research context (CRITICAL: No raw JSON - only human-readable summary)
       let researchContext = `=== GEMINI GROUNDING RESULTS (PARALLEL SEARCH) ===\n\n`;
-      researchContext += `SEARCH STRATEGY: ${queryPlan.strategy}\n`;
-      researchContext += `SUB-QUERIES: ${queryPlan.subQueries.length}\n`;
-      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked)\n\n`;
+      researchContext += `SEARCH STRATEGY: ${queryPlan.strategy} (${queryPlan.subQueries.length} targeted searches)\n`;
+      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked by authority)\n\n`;
       
       if (rankedSources.length > 0) {
         researchContext += `SOURCES (ranked by authority):\n`;
@@ -867,6 +878,12 @@ ${state.researchContext}
 ${technicalDepthFlag}
 
 **USER QUERY**: ${userQuery}
+
+**CRITICAL: DO NOT INCLUDE SEARCH PLAN DETAILS IN YOUR RESPONSE**
+- The search strategy and sub-queries are internal processing steps only
+- Users see these steps automatically in the thinking interface
+- Your response should be the final answer with citations, NOT the search plan
+- Focus on synthesizing the source information into a comprehensive answer
 
 **CRITICAL CITATION REQUIREMENTS:**
 1. **MANDATORY**: Add inline citations after EVERY factual claim using [[N]](url) format
@@ -1478,7 +1495,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-      let pendingPlanBuffer: string | null = null;
+      let pendingPlanBuffer: string | null = null; // Buffer for JSON query plans that arrive in multiple chunks
 
       const chunkHasToolCalls = (msg: any): boolean => {
         if (!msg) return false;
@@ -1635,8 +1652,38 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 const trimmed = text.trimStart();
                 const looksLikePlanStart = trimmed.startsWith('{') && trimmed.includes('subQueries');
 
-                if (looksLikePlanStart && !tryEmitPlan(text)) {
-                  pendingPlanBuffer = text;
+                if (looksLikePlanStart) {
+                  // Try to parse and format as thinking step
+                  if (!tryEmitPlan(text)) {
+                    // If parsing failed, buffer it for potential multi-chunk JSON
+                    pendingPlanBuffer = text;
+                    continue;
+                  }
+                  // If parsing succeeded, the formatted plan was already emitted as thinking
+                  // Don't emit the raw JSON as content
+                  continue;
+                }
+
+                // CRITICAL: Filter out any remaining JSON query plan artifacts
+                // Check if text is still a JSON query plan (even if incomplete)
+                if (pendingPlanBuffer !== null) {
+                  const combined = pendingPlanBuffer + text;
+                  if (tryEmitPlan(combined)) {
+                    // Successfully parsed combined buffer, don't emit raw JSON
+                    continue;
+                  }
+                }
+                
+                // Also check current text for JSON patterns (defensive - catch any that slipped through)
+                if (trimmed.startsWith('{') && (trimmed.includes('"strategy"') || trimmed.includes('"subQueries"'))) {
+                  console.warn(`⚠️ [Backend] Filtered out potential JSON query plan from stream: "${text.substring(0, 50)}..."`);
+                  // Don't emit potentially raw JSON - buffer it or discard
+                  if (pendingPlanBuffer === null) {
+                    pendingPlanBuffer = text;
+                  } else {
+                    const combined: string = pendingPlanBuffer + text;
+                    pendingPlanBuffer = combined;
+                  }
                   continue;
                 }
 

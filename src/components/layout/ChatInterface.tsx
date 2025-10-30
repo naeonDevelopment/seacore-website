@@ -422,6 +422,12 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
   const sanitizeAssistantContent = (raw: string | undefined): string => {
     if (!raw) return '';
     let s = String(raw);
+    
+    // CRITICAL: Remove raw JSON query plans that might leak through
+    // Match patterns like: { "strategy": "...", "subQueries": [...] }
+    const jsonPlanPattern = /\{[^{]*"strategy"\s*:\s*"[^"]*"\s*,\s*"subQueries"\s*:\s*\[[^\]]*\][^}]*\}/g;
+    s = s.replace(jsonPlanPattern, '');
+    
     // Remove any THINKING → ANSWER preface blocks if present
     const removeCotBlock = (text: string): string => {
       const lower = text.toLowerCase();
@@ -455,6 +461,12 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
     // Remove "Sources:" section at end since research panel shows them
     // Match variations: **Sources:**, Sources:, ## Sources, ### Sources
     s = s.replace(/\n\s*(#{1,3}\s*)?(\*\*)?Sources:?(\*\*)?\s*[\s\S]*$/i, '');
+    
+    // Remove any remaining JSON artifacts (standalone JSON objects)
+    const standaloneJsonPattern = /^\s*\{[\s\S]*"strategy"[\s\S]*\}\s*$/;
+    if (standaloneJsonPattern.test(s.trim())) {
+      s = ''; // If entire message is just JSON, clear it
+    }
     
     return s.trim();
   };
@@ -812,18 +824,47 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     thinkingStartTimeRef.current = Date.now();
                   }
                   // Update transient analysis in active research session
+                  // Track thinking steps for better UX
                   if (activeResearchIdRef.current) {
-                    const snippet = String(parsed.content || '')
+                    const contentStr = String(parsed.content || '');
+                    const step = parsed.step || '';
+                    
+                    // Use step-based display for query planning steps
+                    let displayContent = contentStr;
+                    if (step.startsWith('subquery_')) {
+                      // Format sub-query steps nicely
+                      displayContent = contentStr;
+                    } else if (step === 'query_planning') {
+                      displayContent = `🔍 ${contentStr}`;
+                    }
+                    
+                    const snippet = displayContent
                       .replace(/\*\*THINKING:\*\*/i, '')
-                      .split(/\n|\.\s/)[0]
                       .trim()
                       .slice(0, 240);
+                    
                     if (snippet) {
                       setResearchSessions((prev) => {
                         const updated = new Map(prev);
                         const session = updated.get(activeResearchIdRef.current!);
-                        if (session && !session.transientAnalysis) {
+                        if (session) {
+                          // Always update transient analysis to show latest thinking step
                           session.transientAnalysis = snippet;
+                          
+                          // Also track thinking steps in events for timeline display
+                          if (!session.events.some(e => 
+                            e.type === 'step' && 
+                            e.id === step &&
+                            e.title === snippet
+                          )) {
+                            session.events.push({
+                              type: 'step',
+                              id: step || 'thinking',
+                              title: snippet,
+                              status: 'processing'
+                            });
+                          }
+                          
                           updated.set(activeResearchIdRef.current!, session);
                         }
                         return updated;
@@ -845,9 +886,23 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     });
                   }
                 } else if (parsed.type === 'content') {
-                  // CRITICAL FIX: Create assistant message BEFORE any throttling
+                  // CRITICAL: Filter out JSON query plans from content (but don't block legitimate content)
+                  let contentText = parsed.content || '';
+                  
+                  // Only filter if the ENTIRE chunk is a JSON query plan (not mixed content)
+                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(contentText.trim());
+                  if (isOnlyJsonPlan) {
+                    console.log('⚠️ [ChatInterface] Filtered out pure JSON query plan chunk from content');
+                    continue; // Skip pure JSON chunks, but allow mixed content
+                  }
+                  
+                  // Remove embedded JSON query plans from mixed content (but keep the rest)
+                  const jsonPlanPattern = /\{[^{]*"strategy"\s*:\s*"[^"]*"\s*,\s*"subQueries"\s*:\s*\[[^\]]*\][^}]*\}/g;
+                  contentText = contentText.replace(jsonPlanPattern, '');
+                  
+                  // CRITICAL FIX: Create assistant message BEFORE any throttling (even if we filtered some content)
                   // This ensures message exists before any updates try to modify it
-                  if (!hasReceivedContent) {
+                  if (!hasReceivedContent && contentText.trim().length > 0) {
                     hasReceivedContent = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
                     
@@ -937,8 +992,8 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     // No need for delayed clearing - status disappears when content starts
                   }
                   
-                  // Accumulate content
-                  streamedContent += parsed.content;
+                  // Accumulate filtered content (JSON plans already filtered above)
+                  streamedContent += contentText;
                 }
 
                 // Throttle UI updates to ~100ms AFTER message creation
