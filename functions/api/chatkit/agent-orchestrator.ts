@@ -447,9 +447,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       // Build research context
       let researchContext = `=== GEMINI GROUNDING RESULTS (PARALLEL SEARCH) ===\n\n`;
-      researchContext += `SEARCH STRATEGY: ${queryPlan.strategy}\n`;
-      researchContext += `SUB-QUERIES: ${queryPlan.subQueries.length}\n`;
-      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked)\n\n`;
+      // Note: DO NOT include queryPlan details here - GPT-4o might echo them back
+      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked by authority)\n\n`;
       
       if (rankedSources.length > 0) {
         researchContext += `SOURCES (ranked by authority):\n`;
