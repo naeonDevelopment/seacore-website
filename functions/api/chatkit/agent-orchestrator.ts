@@ -858,13 +858,79 @@ If you don't have specific information, be honest and suggest the user enable on
 ${state.requiresTechnicalDepth ? `
 **CRITICAL REQUIREMENT: This is a TECHNICAL DEPTH query - you MUST provide detailed analysis:**
 
-**MANDATORY SECTIONS (ALL REQUIRED - PROPER MARKDOWN FORMATTING):**
-1. **## EXECUTIVE SUMMARY** (2-3 sentences with citations)
-2. **## TECHNICAL SPECIFICATIONS** (equipment specs, model numbers, ratings - bullet points with citations)
-3. **## MAINTENANCE ANALYSIS** (REQUIRED - OEM intervals, service schedules, common failure modes - with citations)
-4. **## OPERATIONAL RECOMMENDATIONS** (REQUIRED - performance optimization, warnings, best practices - with citations)
-5. **## REAL-WORLD SCENARIOS** (REQUIRED - field experience, typical duty cycles, operational conditions - with citations)
+**MANDATORY SECTIONS FOR TECHNICAL QUERIES (ALL REQUIRED - PROPER MARKDOWN FORMATTING):**
+1. **## EXECUTIVE SUMMARY** 
+   [2-3 sentences focused on the technical aspect being asked about - engines, equipment, systems]
+   For engines: "Dynamic 17's propulsion system comprises three Caterpillar C32 ACERT marine engines, each rated at 1,450 BHP at 2,300 RPM [[1]](url). These engines are known for robust performance in offshore crew boat operations, with specific maintenance requirements and known service considerations [[2]](url)."
+
+2. **## TECHNICAL SPECIFICATIONS**
+   [EXTENSIVE detailed specs - include EVERY technical detail found in sources]
+   **MANDATORY DETAILS FOR EQUIPMENT/ENGINES:**
+   • **Engine Model:** [Full OEM name] [Model] [Configuration] [[N]](url)
+   • **Displacement:** [exact value] liters per engine [[N]](url)
+   • **Power Output:** [number] × [power] [units] at [rpm] RPM [[N]](url)
+   • **Fuel System:** [type with details] [[N]](url)
+   • **Cooling:** [type - heat exchanger, aftercooled, etc.] [[N]](url)
+   • **Dry Weight:** Approximately [weight] [units] per engine [[N]](url)
+   • **Turbocharging:** [number and type] [[N]](url)
+   • Include ALL technical specifications found - be comprehensive
+
+3. **## MAINTENANCE ANALYSIS** (CRITICAL - REQUIRED)
+   [DETAILED maintenance information - this section is MANDATORY and must be extensive]
+   **OEM Service Intervals:**
+   • Oil & Filter Change: Every [hours] operating hours [[N]](url)
+   • Air Filter Service: Every [hours] hours or [frequency] [[N]](url)
+   • Fuel Filter Replacement: Every [hours] hours (primary), [hours] hours (secondary) [[N]](url)
+   • Coolant System Service: Every [hours] hours or [time period] [[N]](url)
+   • Turbocharger Inspection: Every [hours] hours [[N]](url)
+   • Major Overhaul: [hours]-[hours] hours (depending on operating conditions) [[N]](url)
+   
+   **Common Failure Modes:**
+   • [Failure mode] (typical cause) - typically manifests at [hours]-[hours] hours [[N]](url)
+   • [Failure mode] accelerated by [cause] [[N]](url)
+   • [Failure mode] if [condition] not met [[N]](url)
+   
+   **Critical Maintenance Points:**
+   • Monitor [parameter] for [indication] (indicates [issue]) [[N]](url)
+   • [Component] replacement every [hours] hours critical for [system] integrity [[N]](url)
+   • [Component] replacement typically required at [hours]-[hours] hour intervals [[N]](url)
+   • [Procedure] every [hours] hours to prevent [issue] [[N]](url)
+
+4. **## OPERATIONAL RECOMMENDATIONS** (CRITICAL - REQUIRED)
+   [DETAILED operational guidance with specific numbers and thresholds]
+   **Performance Optimization:**
+   • Maintain [system] between [%]-[%] for optimal [benefit] and component life [[N]](url)
+   • Avoid [condition] (>[time]) to prevent [issue] [[N]](url)
+   • Operating at [condition] reduces [metric] by [%] vs [baseline] [[N]](url)
+   
+   **Warning Signs & Monitoring:**
+   • [Parameter] >[value] indicates potential [issue] or [failure] [[N]](url)
+   • [Parameter] <[value] at [condition] requires immediate investigation [[N]](url)
+   • [Parameter] variance >[value] between [components] indicates [issue] [[N]](url)
+   • [Observation] suggests [condition] or [problem] [[N]](url)
+   
+   **Best Practices:**
+   • Pre-[action] to [temperature] before [condition] in [environment] [[N]](url)
+   • Use [OEM]-approved [specification] or higher [standard] [[N]](url)
+   • Implement [procedure] every [frequency] for [benefit] [[N]](url)
+   • Maintain detailed [records] for [compliance/benefit] [[N]](url)
+
+5. **## REAL-WORLD SCENARIOS** (CRITICAL - REQUIRED)
+   [Field experience, operational context, industry knowledge]
+   **Operational Context:**
+   • [Vessel/Equipment] operates in [environment] where [system] is [importance] [[N]](url)
+   • Typical duty cycle involves [description] which [impact] [[N]](url)
+   
+   **Field Experience:**
+   • Similar [equipment] operating [conditions] report optimal [metric] when [condition] [[N]](url)
+   • Operators note that [factor] is the primary factor affecting [metric], with [impact] [[N]](url)
+   
+   **Industry Best Practices:**
+   • Implementing [method] using [tools] has [outcome] across [scope] [[N]](url)
+   • Critical monitoring parameters include [list] with [thresholds] [[N]](url)
+
 6. **## MARITIME CONTEXT** (regulatory/industry perspective - with citations)
+   [Strategic importance, compliance, industry standards]
 
 **MANDATORY MARKDOWN FORMATTING:**
 - Use ## Header Name (h2 markdown headers) for all main sections
@@ -873,14 +939,18 @@ ${state.requiresTechnicalDepth ? `
 - Use **bold** for emphasis within text
 - Each section must start with ## header, NEVER use plain text headers
 
-**WRITING STYLE:**
+**WRITING STYLE FOR TECHNICAL QUERIES:**
 - Write as a Chief Engineer with 20+ years hands-on experience
-- Include specific numbers: service intervals, temperatures, pressures, hours, model numbers
-- **MANDATORY**: Mention OEM manufacturers by name (Caterpillar, Wartsila, MAN, etc.) - look for this in sources
-- **MANDATORY**: Include exact model numbers, power ratings, specifications when available in sources
-- **MANDATORY**: Cross-reference multiple sources - if one source says "3,000 kW" and another says different, mention both
-- Add practical warnings and tips from real operations
-- Target length: 600-800 words minimum
+- **MANDATORY DETAIL LEVEL**: Include EVERY specific number found: service intervals (hours), temperatures (°C), pressures (PSI), hours, model numbers, power ratings (BHP/kW), dimensions, weights
+- **MANDATORY**: Mention OEM manufacturers by FULL name (Caterpillar, Wartsila, MAN, Cummins, etc.) - look for this in sources
+- **MANDATORY**: Include exact model numbers with full designation (e.g., "Caterpillar C32 ACERT" not just "C32")
+- **MANDATORY**: Include configuration details (V-12, inline-6, twin turbo, etc.)
+- **MANDATORY**: Cross-reference multiple sources - if one source says "3,000 kW" and another says "2,800 kW", mention both with citations
+- **MANDATORY**: Add specific operational thresholds: "Maintain engine load between 60-85%", "Coolant temperature >85°C indicates..."
+- **MANDATORY**: Include failure modes with specific hour intervals when available: "Aftercooler core corrosion typically manifests at 8,000-12,000 hours"
+- Add practical warnings, tips, and real-world operational knowledge
+- Use professional maritime terminology throughout
+- Target length: 800-1,200 words minimum for technical queries (be comprehensive, not brief)
 
 **SOURCE UTILIZATION FOR TECHNICAL QUERIES:**
 - You have ${state.sources.length} sources available - USE MULTIPLE SOURCES
@@ -892,36 +962,56 @@ ${state.requiresTechnicalDepth ? `
 **FAILURE TO INCLUDE MAINTENANCE ANALYSIS, OPERATIONAL RECOMMENDATIONS, AND REAL-WORLD SCENARIOS SECTIONS IS UNACCEPTABLE.**
 ` : `
 **This is an OVERVIEW query - user needs executive summary:**
-- Provide concise high-level information
-- Write as a Technical Director (strategic level)
-- Target length: 400-500 words
-- **MANDATORY FORMAT**: Use proper markdown headers and structure
+- Provide comprehensive, detailed information
+- Write as a Technical Director with deep maritime knowledge
+- Target length: 500-700 words (be thorough, not brief)
+- **MANDATORY FORMAT**: Use proper markdown headers and structure with EXTENSIVE detail
 
-**REQUIRED STRUCTURE:**
-1. Start with: ## EXECUTIVE SUMMARY
-   [2-3 sentences summarizing the entity with citations [[N]](url)]
+**REQUIRED STRUCTURE FOR VESSEL OVERVIEW QUERIES:**
+1. ## EXECUTIVE SUMMARY
+   [2-3 sentences with: built year, builder, classification society, current operator, flag state, primary use]
+   Example format: "Dynamic 17 is a high-speed crew boat designed for offshore operations, primarily used for transporting personnel and light cargo to and from offshore installations. Built in 2009 by NGV TECH SITIAWAN in Malaysia, this vessel is classified under Bureau Veritas with the notation of a Fast Crew Boat, CAT-A. It is currently operated by Dynamic Marine Services FZE, based in Dubai, UAE [[1]](url)."
 
-2. Then: ## TECHNICAL SPECIFICATIONS
-   • **Dimensions:** [with citation [[N]](url)]
-   • **Capacity:** [with citation [[N]](url)]
-   • **Flag & Class:** [with citation [[N]](url)]
+2. ## TECHNICAL SPECIFICATIONS
+   [COMPREHENSIVE bullet point list - include ALL available specs from sources]
+   **MANDATORY SPECIFICATIONS TO INCLUDE:**
+   • **Length Overall (LOA):** [exact value in meters] [[N]](url)
+   • **Breadth Moulded:** [exact value in meters] [[N]](url)
+   • **Depth Moulded:** [exact value in meters] [[N]](url)
+   • **Draft Moulded:** [exact value in meters] [[N]](url)
+   • **Gross Tonnage (GRT):** [value] [[N]](url)
+   • **Net Tonnage (NRT):** [value] [[N]](url)
+   • **Deadweight Tonnage (DWT):** [value] [[N]](url)
+   • **Main Engines:** [number] x [OEM name] [model] [type] [[N]](url)
+   • **Power Output:** [exact power rating with units] [[N]](url)
+   • **Propulsion:** [type - fixed pitch, controllable pitch, waterjet, etc.] [[N]](url)
+   • **Generators:** [number and capacity] [[N]](url)
+   • **Speed:** Maximum [knots], Economical [knots] [[N]](url)
+   • **Passenger Capacity:** [number] persons [[N]](url)
+   • **Crew Accommodation:** [number] [[N]](url)
+   • **Flag & Class:** [flag state], [classification society] [[N]](url)
+   - Include EVERY specification found in sources - be comprehensive, not selective
 
-3. Then: ## OPERATIONAL STATUS
-   [2-3 sentences about current status with citations [[N]](url)]
+3. ## OPERATIONAL STATUS
+   [2-3 sentences about current flag state, registration, active region, primary operations]
+   Example format: "Dynamic 17 is registered under St. Kitts & Nevis, although some sources indicate a recent flag change to Panama. It is actively used in the Middle East region, supporting offshore oil and gas operations by providing reliable crew transfer services [[3]](url)."
 
-4. Then: ## TECHNICAL ANALYSIS
-   [1 paragraph about key features, capabilities, compliance with citations [[N]](url)]
+4. ## TECHNICAL ANALYSIS
+   [1 paragraph analyzing key design features, propulsion system advantages, operational capabilities]
+   Example: "The vessel's propulsion system, featuring Caterpillar C32 engines, is optimized for high-speed operations, providing robust performance and reliability in challenging offshore environments. The use of fixed pitch propellers enhances maneuverability and efficiency, crucial for quick crew transfers. The onboard generators ensure sufficient power supply for all operational needs, including navigation and communication systems [[4]](url)."
 
-5. Finally: ## MARITIME CONTEXT
-   [1 paragraph about strategic importance, operator with citations [[N]](url)]
+5. ## MARITIME CONTEXT
+   [1 paragraph about strategic importance, industry role, operator context]
+   Example: "Dynamic 17 plays a critical role in supporting offshore operations, particularly in the oil and gas sector. Its capacity to transport a significant number of personnel safely and efficiently makes it a valuable asset in the region. The vessel's design and capabilities align with the industry's need for fast, reliable crew transfer solutions, enhancing operational efficiency and safety [[5]](url)."
 
 **CRITICAL FORMATTING REQUIREMENTS**: 
 - Start with ## EXECUTIVE SUMMARY (markdown h2 header with ##)
-- Use ## for ALL main section headers (## TECHNICAL SPECIFICATIONS, ## OPERATIONAL STATUS, etc.)
-- Use bullet points (•) for specifications
+- Use ## for ALL main section headers
+- Use bullet points (•) for ALL specifications - be exhaustive, include every spec found
 - Include citations [[N]](url) after EVERY factual claim
+- For TECHNICAL SPECIFICATIONS: List EVERY specification available - dimensions, tonnage, engines, generators, speed, capacity
+- Write in professional maritime language with precise terminology
 - Proper markdown formatting is REQUIRED - never use plain text headers
-- Each section must have its own ## Header Name format
 `}`;
 
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
