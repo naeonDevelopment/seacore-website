@@ -25,6 +25,17 @@ import {
   buildFleetcoreContext,
   type QueryClassification
 } from './query-classification-rules';
+import { 
+  planQuery,
+  executeParallelQueries,
+  aggregateAndRank,
+  type QueryPlan
+} from './query-planner';
+import { 
+  getCachedResult,
+  setCachedResult,
+  getCacheStats
+} from './kv-cache';
 import { accumulateKnowledge } from './memory-accumulation';
 import { 
   detectConversationState, 
@@ -311,254 +322,186 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         console.log(`      Context length: ${entityContext.length} chars`);
       }
       
-      // Emit status BEFORE calling Gemini (fixes 30s silence!)
+      // PHASE 2: Query Planning + Parallel Execution + KV Cache
+      try {
+        const kvStore = env.CHAT_SESSIONS;
+        const cachedResult = await getCachedResult(kvStore, queryToSend, entityContext);
+        
+        if (cachedResult) {
+        const stats = getCacheStats(cachedResult);
+        console.log(`   ⚡ CACHE HIT (age: ${stats.age}s, ttl: ${stats.ttl}s)`);
+        
+        if (statusEmitter) {
+          statusEmitter({
+            type: 'thinking',
+            step: 'cache_hit',
+            content: `✓ Using cached results (${stats.age}s old)`
+          });
+        }
+        
+        // Build research context from cache
+        let researchContext = `=== GEMINI GROUNDING RESULTS (CACHED) ===\n\n`;
+        if (cachedResult.answer) researchContext += `ANSWER:\n${cachedResult.answer}\n\n`;
+        if (cachedResult.sources.length > 0) {
+          researchContext += `SOURCES (${cachedResult.sources.length}):\n`;
+          cachedResult.sources.forEach((s: any, idx: number) => {
+            researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
+          });
+        }
+        if (classification.preserveFleetcoreContext) {
+          const fleetcoreContext = buildFleetcoreContext(sessionMemory || undefined);
+          if (fleetcoreContext) researchContext += fleetcoreContext;
+        }
+        
+        return {
+          mode: classification.mode,
+          geminiAnswer: cachedResult.answer,
+          sources: cachedResult.sources,
+          researchContext,
+          requiresTechnicalDepth: classification.requiresTechnicalDepth,
+          technicalDepthScore: classification.technicalDepthScore,
+          safetyOverride: classification.safetyOverride || false,
+        };
+      }
+      
+      // PHASE 2: Cache miss - proceed with query planning + parallel execution
+      console.log(`   ❌ CACHE MISS - executing query planning`);
+      
       if (statusEmitter) {
         statusEmitter({
           type: 'status',
           stage: 'searching',
-          content: `🔍 Searching the web for: ${queryToSend.substring(0, 60)}${queryToSend.length > 60 ? '...' : ''}`,
+          content: `🔍 Planning comprehensive search strategy...`,
           progress: 0
         });
       }
       
-      // Call Gemini tool with retry logic for transient failures
-      const GEMINI_TIMEOUT = 45000; // 45 seconds
-      const MAX_RETRIES = 1; // Single retry for transient failures
-      const RETRY_DELAY = 2000; // 2 second delay before retry
+      // Query Planning
+      const queryPlan = await planQuery(queryToSend, entityContext, env.OPENAI_API_KEY);
       
-      let result: any = null;
-      let lastError: any = null;
-      
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (attempt > 0) {
-          console.log(`   🔄 Retry attempt ${attempt}/${MAX_RETRIES} after ${RETRY_DELAY}ms delay...`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-          
-          if (statusEmitter) {
-            statusEmitter({
-              type: 'status',
-              stage: 'searching',
-              content: '🔄 Retrying search...',
-              progress: 25
-            });
-          }
-        }
-        
-        let timeoutId: any;
-        const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => {
-            console.error(`   ⏰ Gemini timeout triggered after ${GEMINI_TIMEOUT}ms`);
-            reject(new Error('GEMINI_TIMEOUT'));
-          }, GEMINI_TIMEOUT);
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'thinking',
+          step: 'query_planning',
+          content: `Planned ${queryPlan.subQueries.length} targeted searches`
         });
-        
-        try {
-          result = await Promise.race([
-            geminiTool.invoke({ 
-              query: queryToSend,
-              entityContext: entityContext || undefined
-            }, config),
-            timeoutPromise
-          ]);
-          
-          clearTimeout(timeoutId);
-          
-          // Parse and validate result
-          const parsed = typeof result === 'string' ? JSON.parse(result) : result;
-          
-          // Check if we got meaningful data (not empty grounding)
-          const hasData = (parsed.answer && parsed.answer.length > 50) || (parsed.sources && parsed.sources.length > 0);
-          
-          if (hasData) {
-            console.log(`   ✅ Gemini completed successfully on attempt ${attempt + 1}`);
-            break; // Success - exit retry loop
-          } else if (attempt < MAX_RETRIES) {
-            // Empty grounding result - retry
-            console.warn(`   ⚠️ Gemini returned empty grounding (attempt ${attempt + 1}), will retry...`);
-            lastError = new Error('EMPTY_GROUNDING');
-            result = null;
-            continue;
-          } else {
-            // Final attempt also returned empty
-            console.error(`   ❌ Gemini returned empty grounding after all retries`);
-            lastError = new Error('EMPTY_GROUNDING_ALL_RETRIES');
-            break;
-          }
-          
-        } catch (raceError: any) {
-          clearTimeout(timeoutId);
-          lastError = raceError;
-          
-          // Timeout - don't retry
-          if (raceError.message === 'GEMINI_TIMEOUT') {
-            console.error(`   ❌ Gemini timed out after ${GEMINI_TIMEOUT}ms`);
-            throw new Error('Gemini search timed out. Please try again or enable deep research for comprehensive results.');
-          }
-          
-          // Other errors - retry once
-          if (attempt < MAX_RETRIES) {
-            console.warn(`   ⚠️ Gemini error on attempt ${attempt + 1}: ${raceError.message}`);
-            continue;
-          } else {
-            throw raceError; // Final attempt failed
-          }
-        }
+        statusEmitter({
+          type: 'status',
+          stage: 'searching',
+          content: `⚡ Executing ${queryPlan.subQueries.length} parallel searches...`,
+          progress: 25
+        });
       }
       
-      // Check if we have a valid result after retries
-      if (!result && lastError) {
-        if (lastError.message === 'EMPTY_GROUNDING_ALL_RETRIES') {
-          // Web search grounding returned empty - provide helpful fallback
-          console.warn(`   ⚠️ Web search grounding unavailable - using fallback`);
-          const fallbackContext = `=== SEARCH UNAVAILABLE ===\n\nWeb search is temporarily unavailable. This is likely due to:\n- Search API rate limits\n- Temporary service issues\n- Geographic restrictions\n\nPlease provide a helpful response about "${queryToSend}" from your maritime knowledge base.\n\nIMPORTANT: Inform the user that real-time search is temporarily unavailable and suggest:\n1. Trying again in a few moments\n2. Enabling "Online research" toggle for comprehensive multi-source intelligence\n3. Asking about fleetcore platform features (always available)`;
-          
-          return { 
-            mode: classification.mode,
-            geminiAnswer: null,
-            sources: [],
-            researchContext: fallbackContext,
-            requiresTechnicalDepth: classification.requiresTechnicalDepth,
-            technicalDepthScore: classification.technicalDepthScore,
-            safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
-          };
-        } else {
-          throw lastError; // Unexpected error
-        }
-      }
+      // Parallel Execution
+      const allSources = await executeParallelQueries(
+        queryPlan.subQueries,
+        env.GEMINI_API_KEY,
+        entityContext,
+        statusEmitter
+      );
       
-      // Emit status AFTER Gemini completes
+      // Aggregate + Rank
       if (statusEmitter) {
         statusEmitter({
           type: 'status',
           stage: 'analyzing',
-          content: '✓ Search complete, analyzing results...',
+          content: `📊 Ranking ${allSources.length} sources by authority...`,
           progress: 50
         });
       }
       
-      // Parse Gemini result
-      let parsed: any;
-      try {
-        parsed = typeof result === 'string' ? JSON.parse(result) : result;
-      } catch (parseError: any) {
-        console.error(`   ❌ Failed to parse Gemini result:`, parseError.message);
-        console.error(`   Result type:`, typeof result);
-        console.error(`   Result preview:`, String(result).substring(0, 200));
-        throw new Error('Failed to parse Gemini response');
-      }
+      const rankedSources = aggregateAndRank(allSources);
       
-      console.log(`   ✅ Gemini complete: ${parsed.sources?.length || 0} sources, answer: ${parsed.answer ? 'YES' : 'NO'}`);
-      console.log(`   📊 Raw Gemini response:`, JSON.stringify(parsed, null, 2).substring(0, 500));
-      console.log(`   📊 Answer length: ${parsed.answer?.length || 0} chars`);
-      
-      // CRITICAL: Check for Gemini errors (quota, API issues)
-      if (parsed.error || parsed.fallback_needed) {
-        console.error(`   ❌ Gemini returned error:`, parsed.error || 'fallback_needed flag set');
-        if (parsed.quotaMessage) {
-          console.error(`   💰 Quota message:`, parsed.quotaMessage);
-        }
-        throw new Error(parsed.userMessage || parsed.error || 'Gemini search failed');
-      }
-      
-      // Extract sources
-      const sources = (parsed.sources || []).map((s: any) => ({
-        title: s.title || '',
-        url: s.url || '',
-        content: s.content || '',
-        score: s.score || 0.5,
-      }));
-      
-      if (parsed.sources?.length > 0) {
-        parsed.sources.forEach((s: any, i: number) => {
-          console.log(`      [${i+1}] ${s.title?.substring(0, 60)}`);
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'thinking',
+          step: 'source_ranking',
+          content: `✓ Selected top ${rankedSources.length} authoritative sources`
         });
       }
       
-      // Build research context from Gemini answer
-      let researchContext = '';
+      // Build research context
+      let researchContext = `=== GEMINI GROUNDING RESULTS (PARALLEL SEARCH) ===\n\n`;
+      researchContext += `SEARCH STRATEGY: ${queryPlan.strategy}\n`;
+      researchContext += `SUB-QUERIES: ${queryPlan.subQueries.length}\n`;
+      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked)\n\n`;
       
-      // CRITICAL FIX: Always build research context if we got a response from Gemini
-      // The presence of parsed.answer OR sources means Gemini succeeded
-      const hasGeminiData = parsed.answer || sources.length > 0;
-      
-      if (hasGeminiData) {
-        console.log(`   ✅ Building research context - Answer: ${!!parsed.answer} (${parsed.answer?.length || 0} chars), Sources: ${sources.length}`);
-        
-        researchContext = `=== GEMINI GROUNDING RESULTS ===\n\n`;
-        
-        // ALWAYS include the answer if present (this is the Google-grounded response)
-        if (parsed.answer) {
-          researchContext += `ANSWER:\n${parsed.answer}\n\n`;
-        }
-        
-        // Include sources if available
-        if (sources.length > 0) {
-          researchContext += `SOURCES (${sources.length}):\n`;
-          sources.forEach((s: any, idx: number) => {
-            researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
-          });
-        }
-        
-        // Add fleetcore context if hybrid query or context preservation is enabled
-        if (classification.preserveFleetcoreContext) {
-          const fleetcoreContext = buildFleetcoreContext(sessionMemory || undefined);
-          if (fleetcoreContext) {
-            researchContext += fleetcoreContext;
-            console.log(`   ✨ Added fleetcore context to research`);
-          }
-        }
-        
-        console.log(`   ✅ Research context built: ${researchContext.length} chars`);
-      } else {
-        // This should rarely happen now due to retry logic, but handle gracefully
-        console.warn(`   ⚠️ Gemini returned no sources AND no answer (shouldn't reach here with retry)`);
-        console.warn(`   📊 Parsed response:`, JSON.stringify(parsed));
-        researchContext = `=== SEARCH RESULTS LIMITED ===\n\nWeb search returned minimal information for this query.\n\nPlease provide what you know about "${queryToSend}" from your maritime expertise, and clearly indicate:\n1. This is based on general maritime knowledge (not real-time data)\n2. For comprehensive, verified information, the user should enable "Online research" toggle\n3. For platform questions, ask about fleetcore features directly`;
+      if (rankedSources.length > 0) {
+        researchContext += `SOURCES (ranked by authority):\n`;
+        rankedSources.forEach((s: any, idx: number) => {
+          researchContext += `[${idx + 1}] [${s.tier}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
+        });
       }
       
-      const routerReturn = {
-        mode: classification.mode,
-        geminiAnswer: parsed.answer || null,
-        sources,
-        researchContext,
-        requiresTechnicalDepth: classification.requiresTechnicalDepth,
-        technicalDepthScore: classification.technicalDepthScore,
-        safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
-      };
+      if (classification.preserveFleetcoreContext) {
+        const fleetcoreContext = buildFleetcoreContext(sessionMemory || undefined);
+        if (fleetcoreContext) researchContext += fleetcoreContext;
+      }
       
-      console.log(`   🎯 ROUTER RETURNING: mode=${routerReturn.mode}, sources=${routerReturn.sources.length}, answer=${!!routerReturn.geminiAnswer}, safetyOverride=${routerReturn.safetyOverride}`);
+      // Cache results
+      await setCachedResult(kvStore, queryToSend, entityContext, {
+        sources: rankedSources,
+        answer: null,
+        diagnostics: {
+          sourcesByTier: rankedSources.reduce((acc, s) => {
+            if (s.tier) acc[s.tier] = (acc[s.tier] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>),
+          totalSources: rankedSources.length,
+          hasAnswer: false,
+          answerLength: 0
+        }
+      }, 900);
       
-      return routerReturn;
+        return {
+          mode: classification.mode,
+          geminiAnswer: null,
+          sources: rankedSources,
+          researchContext,
+          requiresTechnicalDepth: classification.requiresTechnicalDepth,
+          technicalDepthScore: classification.technicalDepthScore,
+          safetyOverride: classification.safetyOverride || false,
+        };
+      } catch (error: any) {
+        console.error(`   ❌ Phase 2 pipeline failed:`, error.message);
+        
+        // Fallback: Create error context
+        const fallbackContext = `=== SEARCH ERROR ===\n\nSearch encountered an error: ${error.message}\n\nPlease answer from general maritime knowledge or suggest the user try again.`;
+        
+        return { 
+          mode: classification.mode,
+          geminiAnswer: null,
+          sources: [],
+          researchContext: fallbackContext,
+          requiresTechnicalDepth: classification.requiresTechnicalDepth,
+          technicalDepthScore: classification.technicalDepthScore,
+          safetyOverride: classification.safetyOverride || false,
+        };
+      }
     } catch (error: any) {
-      console.error(`   ❌ Gemini failed:`, error.message);
-      
-      // Create fallback research context indicating the error
-      const fallbackContext = `=== GEMINI GROUNDING RESULTS ===\n\nGemini search encountered an error: ${error.message}\n\nPlease answer from general maritime knowledge or suggest the user enable online research for comprehensive information.`;
-      
-      return { 
-        mode: classification.mode, // Keep verification mode
-        geminiAnswer: null,
+      console.error(`   ❌ Router node error:`, error);
+      return {
+        mode: 'none',
         sources: [],
-        researchContext: fallbackContext,
-        requiresTechnicalDepth: classification.requiresTechnicalDepth,
-        technicalDepthScore: classification.technicalDepthScore,
-        safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
+        requiresTechnicalDepth: false,
+        technicalDepthScore: 0,
+        safetyOverride: false,
       };
     }
   }
   
-  // Other modes (none/research) just set the mode and technical depth
+  // Other modes (none/research) just set the mode
   return { 
     mode: classification.mode,
     requiresTechnicalDepth: classification.requiresTechnicalDepth,
     technicalDepthScore: classification.technicalDepthScore,
-    safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
+    safetyOverride: classification.safetyOverride || false,
   };
 }
 
 /**
  * Synthesizer Node - Streams answer based on mode
- * Replicated from legacy agent architecture
  */
 async function synthesizerNode(state: State, config: any): Promise<Partial<State>> {
   const env = config.configurable?.env;
@@ -567,11 +510,22 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
   
   console.log(`\n🎨 SYNTHESIZER NODE`);
   console.log(`   Mode: ${state.mode}`);
-  console.log(`   Has Gemini answer: ${!!state.geminiAnswer}`);
+  console.log(`   Has researchContext: ${!!state.researchContext}`);
   console.log(`   Technical Depth Required: ${state.requiresTechnicalDepth} (score: ${state.technicalDepthScore}/10)`);
   
-  // CRITICAL FIX: Emit IMMEDIATE status before AI generation starts
-  // This eliminates the "dead silence" gap after sources are displayed
+  // Emit IMMEDIATE status before AI generation
+  if (statusEmitter) {
+    statusEmitter({
+      type: 'status',
+      stage: 'synthesis_start',
+      content: state.sources && state.sources.length > 0 
+        ? '🎯 Analyzing sources and formulating response...'
+        : '💭 Formulating response...',
+      progress: 0
+    });
+    console.log(`   📢 Emitted synthesis start status to frontend`);
+  }
+
   if (statusEmitter) {
     statusEmitter({
       type: 'status',
