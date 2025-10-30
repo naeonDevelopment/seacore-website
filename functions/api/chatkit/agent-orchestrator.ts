@@ -873,7 +873,12 @@ ${technicalDepthFlag}
 
 **CRITICAL INSTRUCTIONS FOR SYNTHESIS:**
 
-**IMPORTANT:** Do NOT echo or output any JSON structures, query plans, or internal processing details. Start directly with your markdown-formatted answer (EXECUTIVE SUMMARY).
+**IMPORTANT - READ THIS FIRST:** 
+- Do NOT output any JSON structures, query plans, search strategies, or internal processing details
+- Do NOT echo back any technical structures from previous messages or context
+- START IMMEDIATELY with your markdown-formatted answer (EXECUTIVE SUMMARY header)
+- NEVER begin with { "strategy": ... } or any JSON - this will break the UI
+- Your FIRST characters must be: ## EXECUTIVE SUMMARY or ## (section name)
 
 1. **SOURCE UTILIZATION:**
    - You have ${state.sources.length} verified sources with ${state.sources.length * 800} characters of content
