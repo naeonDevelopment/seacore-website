@@ -641,12 +641,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
       const sessionId = (window as any).__activeSessionId || 'default-session';
       
       // Log what we're sending to backend
-      console.log('📤 [Sending to Backend]', {
-        enableBrowsing: useBrowsing,
-        enableChainOfThought: useChainOfThought,
-        messageCount: messages.length + 1,
-        query: userMessage.content.substring(0, 100)
-      });
+      // Sending to backend silently
       
       const response = await fetch('/api/chatkit/chat', {
         method: 'POST',
@@ -871,7 +866,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                 } else if (parsed.type === 'confidence') {
                   // PHASE 3: Handle confidence indicator
                   if (activeResearchIdRef.current && parsed.data) {
-                    console.log('📊 [ChatInterface] Confidence received:', parsed.data);
+                    // Confidence received silently
                     setResearchSessions((prev) => {
                       const updated = new Map(prev);
                       const session = updated.get(activeResearchIdRef.current!);
@@ -896,8 +891,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                   const repeatedQueryPurposePattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
                   
                   if (queryPlanPattern.test(contentText) || concatenatedPlanPattern.test(contentText) || repeatedQueryPurposePattern.test(contentText)) {
-                    console.error('❌ [ChatInterface] Detected QUERY PLAN pattern (with/without spaces) - REJECTING ENTIRE CHUNK');
-                    console.error(`   Sample: "${contentText.substring(0, 150)}..."`);
+                    // Detected query plan pattern - rejecting silently
                     continue; // Skip entirely - this is definitely query plan leakage
                   }
                   
@@ -915,15 +909,14 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                       !contentText.includes('## EXECUTIVE') &&
                       !contentText.includes('## TECHNICAL')) {
                     // Multiple indicators of query plan structure
-                    console.error('❌ [ChatInterface] Detected query plan keywords in suspicious sequence - REJECTING');
-                    console.error(`   Content: "${contentText.substring(0, 200)}..."`);
+                    // Detected query plan keywords in suspicious sequence - rejecting silently
                     continue;
                   }
                   
                   // FIRST: Check if entire chunk is pure JSON query plan (most common case)
                   const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/s.test(contentText);
                   if (isOnlyJsonPlan) {
-                    console.log('⚠️ [ChatInterface] Filtered out pure JSON query plan chunk - NOT creating message');
+                    // Filtered out pure JSON query plan chunk silently
                     continue; // Skip entirely - don't create message bubble for JSON
                   }
                   
@@ -939,7 +932,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                   
                   // FOURTH: Additional check for any remaining JSON artifacts
                   if (contentText.includes('"strategy"') || contentText.includes('"subQueries"')) {
-                    console.warn('⚠️ [ChatInterface] Remaining JSON artifacts detected - aggressive cleaning');
+                    // Remaining JSON artifacts detected - cleaning silently
                     contentText = contentText.replace(/"strategy"[\s\S]*?"subQueries"[\s\S]*?}/g, '').trim();
                     if (!contentText || contentText.length < 5) {
                       continue; // Still empty after aggressive cleaning
@@ -1162,7 +1155,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
           
           // If still invalid but we have content, create new message
           if (idx < 0 || idx >= updated.length || updated[idx]?.role !== 'assistant') {
-            console.warn('⚠️ [ChatInterface] No streaming message found, creating new assistant message');
+            // No streaming message found, creating new assistant message silently
             return [...prev, {
               role: 'assistant',
               content: streamedContent || "I received a response but couldn't display it correctly. Please try again.",
@@ -1183,7 +1176,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
             isStreaming: false,
             isThinking: false,
           };
-          console.log('🏁 [ChatInterface] finalize', { idx, contentLen: streamedContent.length, thinkingLen: streamedThinking.length });
+          // Finalizing silently
           return updated;
         });
         
