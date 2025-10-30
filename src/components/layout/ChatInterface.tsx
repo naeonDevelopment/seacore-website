@@ -697,11 +697,9 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
             // Check timeouts
             const nowTs = Date.now();
             if (nowTs - streamStartTime > STREAM_TIMEOUT) {
-              console.error('❌ [ChatInterface] Stream timeout (2m)');
               throw new Error('Stream timeout');
             }
             if (nowTs - lastChunkTime > CHUNK_TIMEOUT) {
-              console.error('❌ [ChatInterface] Chunk timeout (30s)');
               throw new Error('Stream stalled');
             }
             const { done, value } = await reader.read();
