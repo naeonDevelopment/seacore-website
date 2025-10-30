@@ -157,6 +157,11 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => null,
   }),
+  // PHASE 1: Safety override flag for entity queries without browsing
+  safetyOverride: Annotation<boolean>({
+    reducer: (_, next) => next,
+    default: () => false,
+  }),
 });
 
 type State = typeof AgentState.State;
@@ -414,6 +419,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
             researchContext: fallbackContext,
             requiresTechnicalDepth: classification.requiresTechnicalDepth,
             technicalDepthScore: classification.technicalDepthScore,
+            safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
           };
         } else {
           throw lastError; // Unexpected error
@@ -517,9 +523,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         researchContext,
         requiresTechnicalDepth: classification.requiresTechnicalDepth,
         technicalDepthScore: classification.technicalDepthScore,
+        safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
       };
       
-      console.log(`   🎯 ROUTER RETURNING: mode=${routerReturn.mode}, sources=${routerReturn.sources.length}, answer=${!!routerReturn.geminiAnswer}`);
+      console.log(`   🎯 ROUTER RETURNING: mode=${routerReturn.mode}, sources=${routerReturn.sources.length}, answer=${!!routerReturn.geminiAnswer}, safetyOverride=${routerReturn.safetyOverride}`);
       
       return routerReturn;
     } catch (error: any) {
@@ -535,6 +542,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         researchContext: fallbackContext,
         requiresTechnicalDepth: classification.requiresTechnicalDepth,
         technicalDepthScore: classification.technicalDepthScore,
+        safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
       };
     }
   }
@@ -544,6 +552,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
     mode: classification.mode,
     requiresTechnicalDepth: classification.requiresTechnicalDepth,
     technicalDepthScore: classification.technicalDepthScore,
+    safetyOverride: classification.safetyOverride || false,  // PHASE 1: Pass safety flag
   };
 }
 
@@ -602,12 +611,20 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
   }
   
   // CRITICAL: streaming: true enables token-by-token output via LangGraph callbacks
+  // PHASE 1: Deterministic settings for verification mode (temperature=0)
+  const temperature = state.mode === 'verification' 
+    ? 0.0  // DETERMINISTIC: Verification mode uses grounded sources, must be consistent
+    : 0.3; // CREATIVE: Knowledge mode can vary slightly for natural language
+  
   const llm = new ChatOpenAI({
     modelName: "gpt-4o",
-    temperature: state.researchContext ? 0.4 : 0.3,
+    temperature,
+    topP: 1.0,  // PHASE 1: Explicit top_p for deterministic sampling
     openAIApiKey: env.OPENAI_API_KEY,
     streaming: true, // Enable token streaming for all modes
   });
+  
+  console.log(`   ⚙️ LLM settings: temperature=${temperature}, topP=1.0, mode=${state.mode}`);
   
   // MODE: NONE - Answer from training data
   if (state.mode === 'none') {

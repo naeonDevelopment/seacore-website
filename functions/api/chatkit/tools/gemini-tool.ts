@@ -65,6 +65,17 @@ export const geminiTool = tool(
       // Speed: Slower but delivers complete vessel data with operator/owner info
       // Pricing: $1.25/M input, $10/M output
       // PROVEN: Best for comprehensive vessel queries with full operational context
+      
+      // PHASE 1: Deterministic configuration for stable outputs
+      const generationConfig = {
+        temperature: 0.0,  // DETERMINISTIC: Ensures consistent results for same query
+        topP: 1.0,         // STABLE: No nucleus sampling variance
+        topK: 1,           // DETERMINISTIC: Always pick highest probability token
+        maxOutputTokens: 2048,
+      };
+      
+      console.log(`   🔧 Gemini config: temp=0.0, topP=1.0, topK=1 (deterministic mode)`);
+      
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
         method: 'POST',
         headers: {
@@ -75,6 +86,7 @@ export const geminiTool = tool(
           contents: [{
             parts: [{ text: enrichedQuery }]
           }],
+          generationConfig,  // PHASE 1: Add deterministic config
           systemInstruction: {
             parts: [{
               text: `You are a maritime intelligence expert serving technical officers, captains, and marine superintendents.
@@ -245,15 +257,47 @@ CONTEXT HANDLING:
         console.warn(`   Raw metadata:`, JSON.stringify(groundingMetadata, null, 2));
       }
       
+      // PHASE 1: Add source quality assessment for observability
+      const sourceQualityAnalysis = sources.map(s => {
+        const url = s.url?.toLowerCase() || '';
+        let tier: 'T1' | 'T2' | 'T3' = 'T3';
+        
+        // T1: Authoritative (gov, IMO, classification societies, OEMs)
+        if (url.includes('.gov') || url.includes('imo.org') || url.includes('iacs.org.uk') || 
+            url.includes('classnk') || url.includes('dnv.com') || url.includes('lr.org') || 
+            url.includes('abs.org') || url.includes('.edu')) {
+          tier = 'T1';
+        }
+        // T2: Industry publications and maritime-specific sources
+        else if (url.includes('maritime') || url.includes('shipping') || url.includes('vessel') ||
+                 url.includes('gcaptain') || url.includes('tradewinds') || url.includes('splash247')) {
+          tier = 'T2';
+        }
+        
+        return { ...s, tier };
+      });
+      
+      const tierCounts = sourceQualityAnalysis.reduce((acc, s) => {
+        acc[s.tier] = (acc[s.tier] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
       console.log(`✅ Gemini complete: ${sources.length} sources, answer: ${answer ? 'YES' : 'NO'}`);
+      console.log(`   📊 Source quality: T1=${tierCounts.T1 || 0} (auth), T2=${tierCounts.T2 || 0} (industry), T3=${tierCounts.T3 || 0} (general)`);
       
       return JSON.stringify({
-        sources,
+        sources: sourceQualityAnalysis,  // PHASE 1: Include tier information
         answer,
         searchQueries: groundingMetadata?.searchQueries || [],
         citations: groundingMetadata?.citations || [],
         confidence: sources.length >= 3 ? 0.95 : (sources.length >= 2 ? 0.85 : 0.7),
-        mode: 'gemini'
+        mode: 'gemini',
+        diagnostics: {  // PHASE 1: Add diagnostics for observability
+          sourcesByTier: tierCounts,
+          totalSources: sources.length,
+          hasAnswer: !!answer,
+          answerLength: answer?.length || 0
+        }
       });
     } catch (error: any) {
       console.error('❌ Gemini error:', error.message);

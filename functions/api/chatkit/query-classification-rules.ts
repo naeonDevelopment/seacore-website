@@ -363,7 +363,8 @@ export function requiresTechnicalDepth(query: string): boolean {
 
 /**
  * Query classification result with mode and context metadata
- * ENHANCED: Now includes resolved query information AND technical depth detection
+ * Now includes resolved query information AND technical depth detection
+ * Added safety override flag for entity queries without browsing
  */
 export interface QueryClassification {
   mode: 'none' | 'verification' | 'research';
@@ -376,6 +377,8 @@ export interface QueryClassification {
   requiresTechnicalDepth: boolean;
   /** Technical depth score (0-10) - higher = more technical detail needed */
   technicalDepthScore: number;
+  /** Safety override - entity query forced to verification to prevent hallucination */
+  safetyOverride?: boolean;
 }
 
 /**
@@ -383,6 +386,7 @@ export interface QueryClassification {
  * Determines the appropriate mode and context preservation strategy
  * 
  * NOW CONTEXT-AWARE: Resolves pronouns and entity references before classification
+ * Common-sense routing for sloppy users + precision for technical queries
  * 
  * @param query - User query string
  * @param enableBrowsing - Whether user enabled online research toggle
@@ -449,21 +453,95 @@ export function classifyQuery(
   console.log(`   Enable Browsing: ${enableBrowsing}`);
   console.log(`   Technical Depth Required: ${needsTechnicalDepth} (score: ${technicalDepthScore}/10)`);
   
-  // PRIORITY 1: User explicitly enabled online research toggle → verification mode
-  // NOTE: Deep research mode disabled - using verification mode instead
-  if (enableBrowsing) {
-    console.log(`   ✅ PRIORITY 1: Research toggle enabled`);
-    console.log(`   🔍 VERIFICATION MODE: User enabled browsing (Gemini search)`);
-    console.log(`   📝 Note: Deep research mode disabled - using verification`);
+  // COMMON-SENSE DETERMINATION
+  // Check for pure platform queries FIRST, even if browsing enabled
+  const isPlatform = isPlatformQuery(queryForClassification);
+  const hasEntity = hasEntityMention(queryForClassification) || resolvedQuery.hasContext;
+  
+  // Pure platform queries → ALWAYS knowledge mode (sloppy user protection)
+  // Even with browsing enabled, these should use training data
+  const isPurePlatformRequest = (
+    isPlatform && !hasEntity && (
+      // Explicit platform questions
+      /\b(what|tell|explain|describe)\s+(is|me about|us about)\s+(the\s+)?(fleetcore|pms|system|platform|features?)/i.test(queryForClassification) ||
+      // How-to platform questions
+      /\bhow\s+(do|does|can)\s+.*(fleetcore|pms|system|platform)/i.test(queryForClassification) ||
+      // Generic system organization questions (no specific entity)
+      /\bhow\s+(is|are)\s+.*(organized|organised|structured|managed)/i.test(queryForClassification) ||
+      // Feature questions without entity context
+      /\bwhat\s+(is|are)\s+the\s+(features?|capabilities?|benefits?)/i.test(queryForClassification)
+    )
+  );
+  
+  if (isPurePlatformRequest) {
+    console.log(`   ✅ PRIORITY 0: Pure platform query (common-sense override)`);
+    console.log(`   🎯 KNOWLEDGE MODE: Training data (ignoring browsing toggle)`);
+    console.log(`   📝 Rationale: User asking about fleetcore itself, not external entities`);
+    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
+    return {
+      mode: 'none',
+      preserveFleetcoreContext: false,
+      enrichQuery: false,
+      isHybrid: false,
+      resolvedQuery,
+      requiresTechnicalDepth: false,
+      technicalDepthScore: 0
+    };
+  }
+  
+  // Technical/business queries with browsing enabled → verification mode
+  // These queries benefit from real-time Gemini data
+  if (enableBrowsing && (hasEntity || needsTechnicalDepth)) {
+    console.log(`   ✅ PRIORITY 1: Research toggle enabled + entity/technical query`);
+    console.log(`   🔍 VERIFICATION MODE: Gemini search for detailed information`);
+    console.log(`   📝 Entity detected: ${hasEntity}, Technical depth: ${needsTechnicalDepth}`);
     console.log(`   === MODE CLASSIFICATION END: VERIFICATION ===\n`);
     return {
       mode: 'verification',
       preserveFleetcoreContext: true,
       enrichQuery: true,
-      isHybrid: false,
+      isHybrid: isPlatform && hasEntity,  // Hybrid if both platform + entity
       resolvedQuery,
       requiresTechnicalDepth: needsTechnicalDepth,
       technicalDepthScore
+    };
+  }
+  
+  // Browsing enabled but vague/general query → knowledge mode (sloppy user protection)
+  // Example: "tell me about maintenance" with browsing on but no entity
+  if (enableBrowsing && !hasEntity && !needsTechnicalDepth) {
+    console.log(`   ✅ PRIORITY 1b: Browsing enabled but query too vague`);
+    console.log(`   🎯 KNOWLEDGE MODE: Defaulting to training data (common-sense protection)`);
+    console.log(`   📝 Rationale: No entity or technical depth detected - user likely wants general info`);
+    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
+    return {
+      mode: 'none',
+      preserveFleetcoreContext: false,
+      enrichQuery: false,
+      isHybrid: false,
+      resolvedQuery,
+      requiresTechnicalDepth: false,
+      technicalDepthScore: 0
+    };
+  }
+  
+  // Entity queries without browsing enabled
+  // MUST NOT allow GPT-4o to hallucinate vessel/company data
+  // Example: "tell me about Dynamic 17" with browsing OFF
+  if (!enableBrowsing && hasEntity) {
+    console.log(`   ⚠️ SAFETY CHECK: Entity query without browsing enabled`);
+    console.log(`   🔍 FORCING VERIFICATION MODE: Cannot allow hallucination of entity data`);
+    console.log(`   📝 Entity: ${resolvedQuery.activeEntity?.name || 'detected in query'}`);
+    console.log(`   === MODE CLASSIFICATION END: VERIFICATION (SAFETY OVERRIDE) ===\n`);
+    return {
+      mode: 'verification',
+      preserveFleetcoreContext: false,
+      enrichQuery: false,
+      isHybrid: false,
+      resolvedQuery,
+      requiresTechnicalDepth: needsTechnicalDepth,
+      technicalDepthScore,
+      safetyOverride: true  // PHASE 1: Forced to verification to prevent hallucination
     };
   }
   
@@ -499,45 +577,12 @@ export function classifyQuery(
     };
   }
   
-  // PRIORITY 4: Check for platform vs entity queries
-  // CRITICAL: Use resolved query AND check if we have entity context from memory
-  const isPlatform = isPlatformQuery(queryForClassification);
-  const hasEntity = hasEntityMention(queryForClassification) || resolvedQuery.hasContext;
-  
+  // Pure platform query without entities → knowledge mode
+  // Note: isPlatform, hasEntity, and isPurePlatformRequest already defined above in PHASE 1
   console.log(`   🔍 PRIORITY 4: Platform/Entity Detection`);
   console.log(`      Platform Query: ${isPlatform}`);
   console.log(`      Has Entity: ${hasEntity}`);
   
-  // CRITICAL FIX: Strengthen pure platform detection
-  // If query explicitly asks about fleetcore/PMS/system features without real entity context
-  // → treat as pure platform query even if session has entity context
-  const isPurePlatformRequest = (
-    isPlatform && (
-      // Explicit platform questions
-      /\b(what|tell|explain|describe)\s+(is|me about|us about)\s+(the\s+)?(fleetcore|pms|system|platform|features?)/i.test(queryForClassification) ||
-      // How-to platform questions
-      /\bhow\s+(do|does|can)\s+.*(fleetcore|pms|system|platform)/i.test(queryForClassification) ||
-      // Platform feature queries without entity names
-      (!hasEntityMention(queryForClassification) && queryForClassification.match(/\b(pms|system|platform|features?|dashboard|workflow)\b/i))
-    )
-  );
-  
-  if (isPurePlatformRequest) {
-    console.log(`   ✅ PURE PLATFORM REQUEST: Knowledge-only query (ignoring session entity context)`);
-    console.log(`   🎯 KNOWLEDGE MODE: Training data (platform focus)`);
-    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
-    return {
-      mode: 'none',
-      preserveFleetcoreContext: false,
-      enrichQuery: false,
-      isHybrid: false,
-      resolvedQuery,
-      requiresTechnicalDepth: false,
-      technicalDepthScore: 0
-    };
-  }
-  
-  // Pure platform query without entities → knowledge mode
   if (isPlatform && !hasEntity) {
     console.log(`   ✅ Pure platform query (no entities)`);
     console.log(`   🎯 KNOWLEDGE MODE: Training data (platform only)`);
