@@ -408,7 +408,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "WebPage",
+            "@type": ["WebPage", "FAQPage"],
             "name": "fleetcore Platform",
             "url": "https://fleetcore.ai/platform",
             "breadcrumb": {
@@ -418,21 +418,18 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
                 { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://fleetcore.ai/platform" }
               ]
             },
-            "mainEntity": {
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "What are fleetcore’s core pillars?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Modern cloud architecture, intelligent automation, and maritime-specific design with built-in compliance." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "Which modules are included?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "PMS Core, Equipment Registry, Parts & Procurement, Compliance Manager, Analytics & Reporting, and User Management." }
-                }
-              ]
-            }
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What are fleetcore’s core pillars?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Modern cloud architecture, intelligent automation, and maritime-specific design with built-in compliance." }
+              },
+              {
+                "@type": "Question",
+                "name": "Which modules are included?",
+                "acceptedAnswer": { "@type": "Answer", "text": "PMS Core, Equipment Registry, Parts & Procurement, Compliance Manager, Analytics & Reporting, and User Management." }
+              }
+            ]
           })}
         </script>
         <meta name="twitter:card" content="summary_large_image" />

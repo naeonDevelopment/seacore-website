@@ -246,7 +246,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "ContactPage",
+            "@type": ["ContactPage", "FAQPage"],
             "name": "Contact fleetcore",
             "url": "https://fleetcore.ai/contact",
             "breadcrumb": {
@@ -256,21 +256,18 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 { "@type": "ListItem", "position": 2, "name": "Contact", "item": "https://fleetcore.ai/contact" }
               ]
             },
-            "mainEntity": {
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "How can I schedule a demo?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Use the Calendly widget on this page or email hello@fleetcore.ai to book a session." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "What is the best contact method?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Email hello@fleetcore.ai or call +961 3 905 100 for sales and enterprise inquiries." }
-                }
-              ]
-            }
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How can I schedule a demo?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Use the Calendly widget on this page or email hello@fleetcore.ai to book a session." }
+              },
+              {
+                "@type": "Question",
+                "name": "What is the best contact method?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Email hello@fleetcore.ai or call +961 3 905 100 for sales and enterprise inquiries." }
+              }
+            ]
           })}
         </script>
         <meta name="twitter:card" content="summary_large_image" />

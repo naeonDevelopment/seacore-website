@@ -236,7 +236,7 @@ const SolutionsPage: React.FC = () => {
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "WebPage",
+            "@type": ["WebPage", "FAQPage"],
             "name": "Solutions",
             "url": "https://fleetcore.ai/solutions",
             "breadcrumb": {
@@ -246,21 +246,18 @@ const SolutionsPage: React.FC = () => {
                 { "@type": "ListItem", "position": 2, "name": "Solutions", "item": "https://fleetcore.ai/solutions" }
               ]
             },
-            "mainEntity": {
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "How does fleetcore differ from CMMS?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "It’s an AI operating system that predicts failures, automates scheduling, and embeds compliance—going beyond work-order tracking." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "What outcomes can we expect?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "30–40% efficiency gains, 90%+ task auto-generation, and automated SOLAS/MARPOL tracking across fleets." }
-                }
-              ]
-            }
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How does fleetcore differ from CMMS?",
+                "acceptedAnswer": { "@type": "Answer", "text": "It’s an AI operating system that predicts failures, automates scheduling, and embeds compliance—going beyond work-order tracking." }
+              },
+              {
+                "@type": "Question",
+                "name": "What outcomes can we expect?",
+                "acceptedAnswer": { "@type": "Answer", "text": "30–40% efficiency gains, 90%+ task auto-generation, and automated SOLAS/MARPOL tracking across fleets." }
+              }
+            ]
           })}
         </script>
         <meta name="twitter:card" content="summary_large_image" />

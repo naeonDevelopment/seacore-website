@@ -341,24 +341,21 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "PrivacyPolicy",
+            "@type": ["PrivacyPolicy", "FAQPage"],
             "name": "fleetcore Privacy Policy",
             "url": "https://fleetcore.ai/privacy-policy",
-            "mainEntity": {
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "What personal data do you collect?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Contact details, usage data, and operational data necessary to provide our services, as described on this page." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "How can I contact fleetcore about privacy?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Email hello@fleetcore.ai. We respond to privacy requests within 30 days." }
-                }
-              ]
-            }
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What personal data do you collect?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Contact details, usage data, and operational data necessary to provide our services, as described on this page." }
+              },
+              {
+                "@type": "Question",
+                "name": "How can I contact fleetcore about privacy?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Email hello@fleetcore.ai. We respond to privacy requests within 30 days." }
+              }
+            ]
           })}
         </script>
         <meta name="twitter:card" content="summary_large_image" />

@@ -868,12 +868,25 @@ ${technicalDepthFlag}
 
 **USER QUERY**: ${userQuery}
 
+**CRITICAL CITATION REQUIREMENTS:**
+1. **MANDATORY**: Add inline citations after EVERY factual claim using [[N]](url) format
+2. **MINIMUM**: Include at least ${Math.min(3, state.sources.length)} citations in your answer
+3. **FORMAT**: Use the source numbers from the SOURCES list above
+   - Example: "The vessel is 250 meters long [[1]](${state.sources[0]?.url || 'url'})"
+   - Example: "Operated by Maersk [[2]](${state.sources[1]?.url || 'url'})"
+4. **FREQUENCY**: Add citations after:
+   - Technical specifications (dimensions, tonnage, speed)
+   - Company/operator names
+   - IMO numbers and classifications
+   - Current status and locations
+   - Historical facts and dates
+
 **INSTRUCTIONS:**
 - Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
 - The ANSWER section contains Google-grounded information - use it as your primary source
-- Cite all facts using [[1]](url), [[2]](url) format from the SOURCES section
 - Follow the format specified in the TECHNICAL DEPTH flag above
-- Be confident - this is Google-verified information`;
+- Be confident - this is Google-verified information
+- **DO NOT FORGET THE CITATIONS** - they are mandatory for verification mode`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);

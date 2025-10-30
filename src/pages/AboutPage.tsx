@@ -242,7 +242,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "AboutPage",
+            "@type": ["AboutPage", "FAQPage"],
             "name": "About fleetcore",
             "url": "https://fleetcore.ai/about",
             "breadcrumb": {
@@ -252,21 +252,18 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
                 { "@type": "ListItem", "position": 2, "name": "About", "item": "https://fleetcore.ai/about" }
               ]
             },
-            "mainEntity": {
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "Where is fleetcore based?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Dubai, United Arab Emirates, serving maritime operators globally." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "What’s fleetcore’s mission?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "To build the first truly intelligent preventive maintenance system for maritime fleets." }
-                }
-              ]
-            }
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Where is fleetcore based?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Dubai, United Arab Emirates, serving maritime operators globally." }
+              },
+              {
+                "@type": "Question",
+                "name": "What’s fleetcore’s mission?",
+                "acceptedAnswer": { "@type": "Answer", "text": "To build the first truly intelligent preventive maintenance system for maritime fleets." }
+              }
+            ]
           })}
         </script>
         <meta name="twitter:card" content="summary_large_image" />
