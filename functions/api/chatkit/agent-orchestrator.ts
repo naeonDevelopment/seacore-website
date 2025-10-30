@@ -1589,10 +1589,33 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         }
 
         if (Array.isArray(content)) {
-          return content
+          // CRITICAL: Join array content intelligently to preserve word boundaries
+          // LLM may return content as array of tokens that need proper spacing
+          const textParts = content
             .filter((part: any) => part && part.type === 'text' && typeof part.text === 'string')
-            .map((part: any) => part.text)
-            .join('');
+            .map((part: any) => part.text);
+          
+          if (textParts.length === 0) return '';
+          
+          // Smart join: add space only when needed (if parts don't already have spacing)
+          let result = textParts[0];
+          for (let i = 1; i < textParts.length; i++) {
+            const prevPart = textParts[i - 1];
+            const currPart = textParts[i];
+            
+            // Check if space is needed (both parts are alphanumeric and no existing space/punctuation)
+            const needsSpace = (
+              prevPart.length > 0 && currPart.length > 0 &&
+              /[a-zA-Z0-9]$/.test(prevPart) &&
+              /^[a-zA-Z0-9]/.test(currPart) &&
+              !prevPart.endsWith(' ') &&
+              !currPart.startsWith(' ')
+            );
+            
+            result += (needsSpace ? ' ' : '') + currPart;
+          }
+          
+          return result;
         }
 
         return '';

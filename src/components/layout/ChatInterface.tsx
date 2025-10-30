@@ -1026,6 +1026,30 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     // No need for delayed clearing - status disappears when content starts
                   }
                   
+                  // CRITICAL FIX: Restore spaces that may have been lost during chunking
+                  // The backend may emit chunks where word boundaries are lost
+                  // We need to intelligently add spaces between chunks when needed
+                  if (streamedContent.length > 0 && contentText.length > 0) {
+                    const lastChar = streamedContent[streamedContent.length - 1];
+                    const firstChar = contentText[0];
+                    
+                    // Add space if:
+                    // 1. Both are alphanumeric (two words being joined)
+                    // 2. Last char is lowercase/uppercase letter and first is uppercase (word boundary)
+                    // 3. Last char is letter/number and first is letter/number (word continuation)
+                    const needsSpace = (
+                      (lastChar && /[a-zA-Z0-9]/.test(lastChar) && /[a-zA-Z0-9]/.test(firstChar)) &&
+                      (lastChar !== ' ' && lastChar !== '\n' && lastChar !== '\t') &&
+                      // Don't add space if already has punctuation or is URL/email pattern
+                      !/[:\/@.]$/.test(streamedContent.slice(-5)) &&
+                      !/^[:\/@.]/.test(contentText.slice(0, 5))
+                    );
+                    
+                    if (needsSpace) {
+                      streamedContent += ' ';
+                    }
+                  }
+                  
                   // Accumulate filtered content (JSON plans already filtered above)
                   streamedContent += contentText;
                 }
