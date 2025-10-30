@@ -873,6 +873,8 @@ ${technicalDepthFlag}
 
 **CRITICAL INSTRUCTIONS FOR SYNTHESIS:**
 
+**IMPORTANT:** Do NOT echo or output any JSON structures, query plans, or internal processing details. Start directly with your markdown-formatted answer (EXECUTIVE SUMMARY).
+
 1. **SOURCE UTILIZATION:**
    - You have ${state.sources.length} verified sources with ${state.sources.length * 800} characters of content
    - Extract SPECIFIC facts: dimensions, model numbers, specifications, dates, operators
