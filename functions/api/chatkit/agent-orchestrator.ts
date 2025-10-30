@@ -881,13 +881,23 @@ ${technicalDepthFlag}
    - Cross-reference multiple sources for validation
    - Use manufacturer names, exact specifications, and technical details from sources
 
-2. **MANDATORY CITATION FORMAT:**
-   - Add [[N]](url) citation after EVERY factual claim
+2. **MANDATORY CITATION FORMAT - THIS IS CRITICAL:**
+   - Add [[N]](url) citation after EVERY factual claim - NO EXCEPTIONS
    - Minimum citations: ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)} (you have ${state.sources.length} available)
-   - Example: "Dynamic 17 is a high-speed crew boat designed for offshore operations [[1]](url)."
-   - Example: "Length Overall (LOA): 34.00 meters [[2]](url)"
-   - Example: "Main Engines: 3 x Caterpillar C32 marine diesel engines [[3]](url)"
-   - DO NOT write generic statements without citations
+   
+   **CORRECT Citation Examples:**
+   - "Stanford Maya is an offshore support vessel operated by Stanford Marine [[1]](url)."
+   - "Length Overall: 50 meters [[2]](url)"
+   - "Main Engines: 2 x Caterpillar 3512C marine diesel engines [[3]](url)"
+   - "Built in 2008 by Vard Brevik in Norway [[4]](url)"
+   - "Currently operating in the Middle East region [[5]](url)"
+   
+   **WRONG - Generic statements without citations:**
+   - ❌ "The vessel is designed for offshore operations" (WHERE IS THE CITATION?)
+   - ❌ "Approximately 50 meters" (WHERE IS THE CITATION?)
+   - ❌ "Typically equipped with powerful marine engines" (WHERE IS THE CITATION?)
+   
+   **REMEMBER:** If you write a fact, it MUST have [[N]](url) immediately after it!
 
 3. **STRUCTURE & FORMATTING:**
    - Use proper markdown headers: EXECUTIVE SUMMARY, TECHNICAL SPECIFICATIONS, etc.
