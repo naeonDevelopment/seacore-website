@@ -1907,8 +1907,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 // Check if text is still a JSON query plan (even if incomplete)
                 if (pendingPlanBuffer !== null) {
                   const combined = pendingPlanBuffer + text;
-                  // Check combined buffer for concatenated pattern too
-                  if (concatenatedPlanPattern.test(combined)) {
+                  // Check combined buffer for concatenated/spaced pattern too
+                  if (earlyConcatenatedPattern.test(combined) || earlySpacedPattern.test(combined) || earlyRepeatedPattern.test(combined)) {
                     console.error(`❌ [Backend] Combined buffer contains concatenated query plan - REJECTING`);
                     pendingPlanBuffer = null; // Clear buffer and skip
                     continue;
