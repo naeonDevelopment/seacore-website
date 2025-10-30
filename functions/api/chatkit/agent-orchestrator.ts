@@ -1915,11 +1915,11 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 
                 // CRITICAL: Detect query plan patterns (with spaces OR concatenated)
                 // Pattern: "strategy focused Queries query ... purpose ... priority" (with spaces)
-                const spacedQueryPlanPattern = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
-                const concatenatedPlanPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
+                const spacedQueryPlanPattern2 = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
+                const concatenatedPlanPattern2 = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
                 const repeatedQueryPurposePattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
                 
-                if (spacedQueryPlanPattern.test(text) || concatenatedPlanPattern.test(text) || repeatedQueryPurposePattern.test(text)) {
+                if (spacedQueryPlanPattern2.test(text) || concatenatedPlanPattern2.test(text) || repeatedQueryPurposePattern.test(text)) {
                   console.error(`❌ [Backend] CRITICAL: Detected QUERY PLAN pattern (spaced/concatenated) in stream - REJECTING`);
                   console.error(`   Sample: "${text.substring(0, 150)}..."`);
                   continue; // Don't emit - it's definitely query plan leakage
