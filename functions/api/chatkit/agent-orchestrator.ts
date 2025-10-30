@@ -1498,6 +1498,40 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         return false;
       };
 
+      const parseQueryPlan = (text: string) => {
+        if (!text) return null;
+        const trimmed = text.trim();
+        if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (!parsed || typeof parsed !== 'object') return null;
+
+          const hasStrategy = typeof parsed.strategy === 'string';
+          const hasSubQueries = Array.isArray(parsed.subQueries);
+          if (hasStrategy && hasSubQueries) {
+            return parsed as { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> };
+          }
+        } catch (_) {
+          return null;
+        }
+
+        return null;
+      };
+
+      const formatQueryPlanForDisplay = (plan: { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> }) => {
+        const header = `Thinking — Search Plan (${plan.strategy})`;
+        const body = plan.subQueries
+          .map((sq, index) => {
+            const label = sq.priority ? sq.priority.toUpperCase() : 'UNRATED';
+            const purpose = sq.purpose ? ` — ${sq.purpose}` : '';
+            return `${index + 1}. [${label}] ${sq.query}${purpose}`;
+          })
+          .join('\n');
+
+        return `${header}\n${body}`;
+      };
+
       const extractTextContent = (msg: any): string => {
         if (!msg) return '';
 
@@ -1570,14 +1604,28 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 }
 
                 const text = extractTextContent(msg);
-                if (text) {
-                  hasStreamedContent = true;
-                  fullResponse += text;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
+                if (!text) {
+                  continue;
+                }
 
-                  if (eventCount <= 5) {
-                    console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
-                  }
+                const queryPlan = parseQueryPlan(text);
+                if (queryPlan) {
+                  const formattedPlan = formatQueryPlanForDisplay(queryPlan);
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: formattedPlan })}\n\n`));
+                  statusEmitter?.({
+                    type: 'thinking',
+                    step: 'query_plan_detail',
+                    content: `${queryPlan.subQueries.length}-step ${queryPlan.strategy} strategy prepared`
+                  });
+                  continue;
+                }
+
+                hasStreamedContent = true;
+                fullResponse += text;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
+
+                if (eventCount <= 5) {
+                  console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
                 }
               }
             }
@@ -1672,12 +1720,14 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             const lastMessageWithText = [...messagesUpdate].reverse().find((msg: any) => {
               if (!msg) return false;
               if (chunkHasToolCalls(msg)) return false;
-              return extractTextContent(msg).length > 0;
+              const text = extractTextContent(msg);
+              if (!text) return false;
+              return !parseQueryPlan(text);
             });
 
             const content = extractTextContent(lastMessageWithText);
 
-            if (content && content.length > 0) {
+            if (content && content.length > 0 && !parseQueryPlan(content)) {
               console.log(`   📦 Chunking ${content.length} chars in ${SSE_CHUNK_SIZE}-char chunks`);
 
               for (let i = 0; i < content.length; i += SSE_CHUNK_SIZE) {
