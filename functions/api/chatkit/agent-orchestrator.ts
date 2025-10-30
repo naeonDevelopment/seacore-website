@@ -882,22 +882,29 @@ ${technicalDepthFlag}
    - Use manufacturer names, exact specifications, and technical details from sources
 
 2. **MANDATORY CITATION FORMAT - THIS IS CRITICAL:**
-   - Add [[N]](url) citation after EVERY factual claim - NO EXCEPTIONS
+   - Add [[N]](ACTUAL_SOURCE_URL) citation after EVERY factual claim - NO EXCEPTIONS
+   - Use the ACTUAL URLs from the SOURCES list above - NOT the word "url"!
    - Minimum citations: ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)} (you have ${state.sources.length} available)
    
-   **CORRECT Citation Examples:**
-   - "Stanford Maya is an offshore support vessel operated by Stanford Marine [[1]](url)."
-   - "Length Overall: 50 meters [[2]](url)"
-   - "Main Engines: 2 x Caterpillar 3512C marine diesel engines [[3]](url)"
-   - "Built in 2008 by Vard Brevik in Norway [[4]](url)"
-   - "Currently operating in the Middle East region [[5]](url)"
+   **HOW TO CITE:**
+   1. Find the fact in Source [N] above
+   2. Copy the ACTUAL URL from that source
+   3. Format as: [[N]](ACTUAL_URL)
    
-   **WRONG - Generic statements without citations:**
-   - ❌ "The vessel is designed for offshore operations" (WHERE IS THE CITATION?)
-   - ❌ "Approximately 50 meters" (WHERE IS THE CITATION?)
-   - ❌ "Typically equipped with powerful marine engines" (WHERE IS THE CITATION?)
+   **CORRECT Citation Examples (with real URLs from sources):**
+   ${state.sources.slice(0, 3).map((s: any, i: number) => 
+     `   - "Fact from source ${i+1} [[${i+1}]](${s.url})"`
+   ).join('\n')}
    
-   **REMEMBER:** If you write a fact, it MUST have [[N]](url) immediately after it!
+   **WRONG - These will NOT work:**
+   - ❌ "Stanford Maya is an offshore support vessel [[1]](url)" - "url" is NOT a real URL!
+   - ❌ "Length Overall: 50 meters [2]" - Missing double brackets [[]] and URL!
+   - ❌ "Main Engines: Caterpillar 3512C" - Missing citation entirely!
+   
+   **REMEMBER:** 
+   - Use [[N]](ACTUAL_URL_FROM_SOURCE_LIST) NOT [[N]](url)
+   - Look up the real URL from the SOURCES section above!
+   - Every fact needs a citation with the real, working URL!
 
 3. **STRUCTURE & FORMATTING:**
    - Use proper markdown headers: EXECUTIVE SUMMARY, TECHNICAL SPECIFICATIONS, etc.
