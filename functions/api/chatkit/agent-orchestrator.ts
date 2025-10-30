@@ -1860,24 +1860,30 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
 
                 const trimmed = text.trimStart();
                 
-                // CRITICAL: Detect CONCATENATED query plan patterns FIRST (before JSON bracket check)
-                // This catches the broken streaming case where query plan leaks as concatenated text
-                // Pattern: "strategy" + "Queries" + "query" + [text] + "purpose" + [text] + "priority"
-                const concatenatedPlanPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
-                if (concatenatedPlanPattern.test(text)) {
-                  console.error(`❌ [Backend] CRITICAL: Detected CONCATENATED query plan in stream - REJECTING`);
+                // CRITICAL: Detect query plan patterns FIRST (before JSON bracket check)
+                // Catches both spaced and concatenated query plan leakage
+                // Pattern 1: "strategy focused Queries query ... purpose ... priority" (with spaces)
+                // Pattern 2: "strategyfocusedQueriesquery...purpose...priority" (concatenated)
+                // Pattern 3: Repeated "query ... purpose ... priority" sequences
+                const earlySpacedPattern = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
+                const earlyConcatenatedPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
+                const earlyRepeatedPattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
+                
+                if (earlySpacedPattern.test(text) || earlyConcatenatedPattern.test(text) || earlyRepeatedPattern.test(text)) {
+                  console.error(`❌ [Backend] CRITICAL: Detected query plan pattern (early check) - REJECTING`);
                   console.error(`   Sample: "${text.substring(0, 150)}..."`);
-                  // Don't emit this at all - it's definitely query plan leakage
                   continue;
                 }
                 
-                // Also detect query plan structure keywords in suspicious context
-                const hasPlanKeywords = /strategy/i.test(text) && 
-                                      (/Queries|subQueries/i.test(text) || /query\w+.*?purpose/i.test(text));
-                if (hasPlanKeywords && text.length < 500 && 
+                // Also detect query plan structure keywords in suspicious context (handle spaces)
+                const hasStrategyQueriesEarly = /strategy\s+(focused\s+)?(Queries|queries)/i.test(text);
+                const hasQueryPurposeEarly = /query\s+\w+\s+purpose\s+\w+/i.test(text) || /query\w+.*?purpose/i.test(text);
+                const hasPlanKeywords = /strategy/i.test(text) && hasQueryPurposeEarly;
+                
+                if (hasPlanKeywords && text.length < 600 &&
                     !text.includes('EXECUTIVE') && !text.includes('TECHNICAL') && 
-                    !text.includes('Summary') && !text.includes('Specifications')) {
-                  // Short text with query plan keywords and no legitimate content markers = reject
+                    !text.includes('Summary') && !text.includes('Specifications') &&
+                    !text.includes('## EXECUTIVE') && !text.includes('## TECHNICAL')) {
                   console.error(`❌ [Backend] Detected query plan keywords in suspicious short chunk - REJECTING`);
                   console.error(`   Content: "${text.substring(0, 200)}..."`);
                   continue;
