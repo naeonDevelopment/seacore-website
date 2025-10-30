@@ -858,13 +858,20 @@ If you don't have specific information, be honest and suggest the user enable on
 ${state.requiresTechnicalDepth ? `
 **CRITICAL REQUIREMENT: This is a TECHNICAL DEPTH query - you MUST provide detailed analysis:**
 
-**MANDATORY SECTIONS (ALL REQUIRED):**
-1. Executive Summary (2-3 sentences)
-2. Technical Specifications (equipment specs, model numbers, ratings)
-3. **MAINTENANCE ANALYSIS** (REQUIRED - OEM intervals, service schedules, common failure modes)
-4. **OPERATIONAL RECOMMENDATIONS** (REQUIRED - performance optimization, warnings, best practices)
-5. **REAL-WORLD SCENARIOS** (REQUIRED - field experience, typical duty cycles, operational conditions)
-6. Maritime Context (regulatory/industry perspective)
+**MANDATORY SECTIONS (ALL REQUIRED - PROPER MARKDOWN FORMATTING):**
+1. **## EXECUTIVE SUMMARY** (2-3 sentences with citations)
+2. **## TECHNICAL SPECIFICATIONS** (equipment specs, model numbers, ratings - bullet points with citations)
+3. **## MAINTENANCE ANALYSIS** (REQUIRED - OEM intervals, service schedules, common failure modes - with citations)
+4. **## OPERATIONAL RECOMMENDATIONS** (REQUIRED - performance optimization, warnings, best practices - with citations)
+5. **## REAL-WORLD SCENARIOS** (REQUIRED - field experience, typical duty cycles, operational conditions - with citations)
+6. **## MARITIME CONTEXT** (regulatory/industry perspective - with citations)
+
+**MANDATORY MARKDOWN FORMATTING:**
+- Use ## Header Name (h2 markdown headers) for all main sections
+- Use ### Subheader (h3 markdown headers) for subsections if needed
+- Use bullet points (•) for specifications and lists
+- Use **bold** for emphasis within text
+- Each section must start with ## header, NEVER use plain text headers
 
 **WRITING STYLE:**
 - Write as a Chief Engineer with 20+ years hands-on experience
@@ -888,7 +895,33 @@ ${state.requiresTechnicalDepth ? `
 - Provide concise high-level information
 - Write as a Technical Director (strategic level)
 - Target length: 400-500 words
-- Use format: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
+- **MANDATORY FORMAT**: Use proper markdown headers and structure
+
+**REQUIRED STRUCTURE:**
+1. Start with: ## EXECUTIVE SUMMARY
+   [2-3 sentences summarizing the entity with citations [[N]](url)]
+
+2. Then: ## TECHNICAL SPECIFICATIONS
+   • **Dimensions:** [with citation [[N]](url)]
+   • **Capacity:** [with citation [[N]](url)]
+   • **Flag & Class:** [with citation [[N]](url)]
+
+3. Then: ## OPERATIONAL STATUS
+   [2-3 sentences about current status with citations [[N]](url)]
+
+4. Then: ## TECHNICAL ANALYSIS
+   [1 paragraph about key features, capabilities, compliance with citations [[N]](url)]
+
+5. Finally: ## MARITIME CONTEXT
+   [1 paragraph about strategic importance, operator with citations [[N]](url)]
+
+**CRITICAL FORMATTING REQUIREMENTS**: 
+- Start with ## EXECUTIVE SUMMARY (markdown h2 header with ##)
+- Use ## for ALL main section headers (## TECHNICAL SPECIFICATIONS, ## OPERATIONAL STATUS, etc.)
+- Use bullet points (•) for specifications
+- Include citations [[N]](url) after EVERY factual claim
+- Proper markdown formatting is REQUIRED - never use plain text headers
+- Each section must have its own ## Header Name format
 `}`;
 
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
@@ -906,7 +939,10 @@ ${technicalDepthFlag}
 - **ONLY** provide the final synthesized answer with citations
 - **DO NOT** echo back the search strategy or query structure
 - If you see JSON structures in the context, ignore them completely - they are not for user display
-- Start directly with your answer: "EXECUTIVE SUMMARY" or "TECHNICAL SPECIFICATIONS" - never with JSON
+- Start directly with your answer using markdown header: ## EXECUTIVE SUMMARY or ## TECHNICAL SPECIFICATIONS
+- **NEVER** start with plain text like "SUMMARY" or "EXECUTIVE SUMMARY" without the ## markdown header
+- **NEVER** use plain text headers - ALWAYS use markdown ## Header Name format
+- Use proper markdown structure throughout your response
 
 **CRITICAL CITATION REQUIREMENTS:**
 1. **MANDATORY**: Add inline citations after EVERY factual claim using [[N]](url) format
@@ -916,11 +952,11 @@ ${technicalDepthFlag}
    - Cross-verify technical specifications (manufacturer, model, ratings) across multiple sources
    - If you have ${state.sources.length} sources available, use ${Math.min(5, state.sources.length)}-${Math.min(8, state.sources.length)} of them` :
      `- Standard queries: Include at least ${Math.min(3, state.sources.length)} citations`}
-3. **FORMAT**: Use the source numbers from the SOURCES list above
-4. **TECHNICAL QUERIES**: Different sections should cite different sources when possible
+3. **CITATION FORMAT**: Use exactly [[N]](url) where N is source number and url is the full URL
    - Example: "The vessel is 250 meters long [[1]](${state.sources[0]?.url || 'url'})"
    - Example: "Operated by Maersk [[2]](${state.sources[1]?.url || 'url'})"
-4. **FREQUENCY**: Add citations after:
+4. **TECHNICAL QUERIES**: Different sections should cite different sources when possible
+5. **FREQUENCY**: Add citations after:
    - Technical specifications (dimensions, tonnage, speed)
    - Company/operator names
    - IMO numbers and classifications
@@ -929,10 +965,16 @@ ${technicalDepthFlag}
 
 **INSTRUCTIONS:**
 - Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
-- The ANSWER section contains Google-grounded information - use it as your primary source
+- The SOURCES section contains Google-grounded information - use it as your primary source
 - Follow the format specified in the TECHNICAL DEPTH flag above
+- **MANDATORY FORMATTING**: 
+  - Use markdown headers: ## EXECUTIVE SUMMARY, ## TECHNICAL SPECIFICATIONS, etc.
+  - Use bullet points for specifications: • **Dimension:** value [[N]](url)
+  - Write in clear paragraphs with proper spacing
+  - Include citations [[N]](url) after EVERY factual claim
 - Be confident - this is Google-verified information
-- **DO NOT FORGET THE CITATIONS** - they are mandatory for verification mode`;
+- **DO NOT FORGET THE CITATIONS** - they are mandatory for verification mode
+- **DO NOT** include a "Sources:" section at the end - all citations should be inline`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
