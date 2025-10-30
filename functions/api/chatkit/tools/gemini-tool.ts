@@ -250,12 +250,20 @@ CONTEXT HANDLING:
       
       // PRIORITY 1: webResults (most detailed)
       if (groundingMetadata?.webResults && Array.isArray(groundingMetadata.webResults)) {
-        sources = groundingMetadata.webResults.map((result: any) => ({
-          url: result.url,
-          title: result.title || 'Untitled',
-          content: result.snippet || result.content || '',
-          score: 0.9,
-        }));
+        sources = groundingMetadata.webResults
+          .filter((result: any) => {
+            // Reject Google redirect/placeholder URLs
+            const url = result.url || '';
+            return !url.includes('vertexaisearch.cloud.google.com') && 
+                   !url.includes('/grounding-api-redirect/') &&
+                   url.length > 0;
+          })
+          .map((result: any) => ({
+            url: result.url,
+            title: result.title || 'Untitled',
+            content: result.snippet || result.content || '',
+            score: 0.9,
+          }));
         console.log(`   📚 Extracted ${sources.length} sources from webResults`);
       } 
       
@@ -263,11 +271,18 @@ CONTEXT HANDLING:
       if (sources.length === 0 && groundingMetadata?.groundingChunks && Array.isArray(groundingMetadata.groundingChunks)) {
         console.log(`   🔍 DEBUG: First chunk structure:`, JSON.stringify(groundingMetadata.groundingChunks[0], null, 2));
         sources = groundingMetadata.groundingChunks
-          .filter((chunk: any) => chunk.web)
+          .filter((chunk: any) => {
+            const url = chunk.web?.uri || '';
+            // Reject Google redirect URLs and empty URLs
+            return chunk.web && 
+                   !url.includes('vertexaisearch.cloud.google.com') &&
+                   !url.includes('/grounding-api-redirect/') &&
+                   url.length > 0;
+          })
           .map((chunk: any) => ({
-            url: chunk.web?.uri || '',
-            title: chunk.web?.title || 'Untitled',
-            content: chunk.web?.snippet || '',
+            url: chunk.web.uri,
+            title: chunk.web.title || 'Untitled',
+            content: chunk.web.snippet || '',
             score: 0.9,
           }));
         console.log(`   📚 Extracted ${sources.length} sources from groundingChunks`);
@@ -295,21 +310,39 @@ CONTEXT HANDLING:
         console.log(`   📚 Extracted ${sources.length} sources from groundingSupport`);
       }
       
-      // FALLBACK: searchEntryPoint (minimal)
+      // FALLBACK: searchEntryPoint (minimal) - REJECT and return error
       if (sources.length === 0 && groundingMetadata?.searchEntryPoint) {
-        console.warn(`   ⚠️ Only searchEntryPoint available - Gemini didn't return detailed sources`);
-        sources = [{
-          url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-          title: 'Google Search',
-          content: answer?.substring(0, 500) || '',
-          score: 0.6,
-        }];
+        console.error(`   ❌ CRITICAL: Gemini returned only searchEntryPoint (no real sources)`);
+        console.error(`   This means Gemini couldn't find relevant grounded information`);
+        console.error(`   Query: "${query}"`);
+        
+        // Return error - don't create fake sources
+        return JSON.stringify({
+          sources: [],
+          answer: null,
+          confidence: 0,
+          mode: 'gemini',
+          error: 'NO_REAL_SOURCES',
+          errorMessage: 'Gemini search found no authoritative sources for this query. Enable "Online research" toggle or try a more specific query.',
+          fallback_needed: true
+        });
       }
       
       // WARNING: No sources at all
       if (sources.length === 0) {
-        console.warn(`   ⚠️ ZERO sources returned by Gemini! This shouldn't happen with grounding enabled.`);
-        console.warn(`   Raw metadata:`, JSON.stringify(groundingMetadata, null, 2));
+        console.error(`   ❌ CRITICAL: ZERO sources returned by Gemini!`);
+        console.error(`   Raw metadata:`, JSON.stringify(groundingMetadata, null, 2));
+        console.error(`   Query: "${query}"`);
+        
+        return JSON.stringify({
+          sources: [],
+          answer: null,
+          confidence: 0,
+          mode: 'gemini',
+          error: 'NO_SOURCES_FOUND',
+          errorMessage: 'Could not find reliable sources for this query. Try enabling "Online research" toggle or rephrase your question.',
+          fallback_needed: true
+        });
       }
       
       // PHASE 1: Add source quality assessment for observability
