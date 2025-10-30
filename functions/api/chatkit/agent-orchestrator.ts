@@ -359,7 +359,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         if (cachedResult.sources.length > 0) {
           researchContext += `SOURCES (${cachedResult.sources.length}):\n`;
           cachedResult.sources.forEach((s: any, idx: number) => {
-            researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
+            // Include substantial content (800 chars) for proper citation generation
+            researchContext += `[${idx + 1}] ${s.title}\n${s.url}\n${s.content?.substring(0, 800) || 'No content'}...\n\n`;
           });
         }
         if (classification.preserveFleetcoreContext) {
@@ -453,7 +454,9 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       if (rankedSources.length > 0) {
         researchContext += `SOURCES (ranked by authority):\n`;
         rankedSources.forEach((s: any, idx: number) => {
-          researchContext += `[${idx + 1}] [${s.tier}] ${s.title}\n${s.url}\n${s.content?.substring(0, 200)}...\n\n`;
+          // CRITICAL: Include substantial content (800 chars) for LLM to generate detailed, cited answers
+          // 200 chars was too little - LLM couldn't find specific facts to cite
+          researchContext += `[${idx + 1}] [${s.tier}] ${s.title}\n${s.url}\n${s.content?.substring(0, 800) || 'No content'}...\n\n`;
         });
       }
       
@@ -1518,11 +1521,11 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 const text = typeof msg.content === 'string' ? msg.content : String(msg.content);
                 if (text) {
                   hasStreamedContent = true; // Mark that token streaming is working
-                  fullResponse += text;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
-                  
-                  if (eventCount <= 5) {
-                    console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
+                fullResponse += text;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
+
+                if (eventCount <= 5) {
+                  console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
                   }
                 }
               }
@@ -1622,19 +1625,19 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             
             if (content && content.length > 0) {
               console.log(`   📦 Chunking ${content.length} chars in ${SSE_CHUNK_SIZE}-char chunks`);
-              
+
               for (let i = 0; i < content.length; i += SSE_CHUNK_SIZE) {
                 const chunk = content.slice(i, i + SSE_CHUNK_SIZE);
                 controller.enqueue(encoder.encode(
                   `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
                 ));
-                
+
                 // Throttle to prevent overwhelming client
                 if ((i / SSE_CHUNK_SIZE) % SSE_THROTTLE_EVERY_N_CHUNKS === 0) {
                   await new Promise(resolve => setTimeout(resolve, SSE_THROTTLE_INTERVAL_MS));
                 }
               }
-              
+
               fullResponse = content;
               console.log(`   ✅ Fallback chunking complete: ${content.length} chars sent`);
             }
