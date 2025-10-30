@@ -879,6 +879,7 @@ ${technicalDepthFlag}
 - START IMMEDIATELY with your markdown-formatted answer (EXECUTIVE SUMMARY header)
 - NEVER begin with { "strategy": ... } or any JSON - this will break the UI
 - Your FIRST characters must be: ## EXECUTIVE SUMMARY or ## (section name)
+- DO NOT output "AI" or any label before your answer - start directly with ##
 
 1. **SOURCE UTILIZATION:**
    - You have ${state.sources.length} verified sources with ${state.sources.length * 800} characters of content
@@ -886,30 +887,42 @@ ${technicalDepthFlag}
    - Cross-reference multiple sources for validation
    - Use manufacturer names, exact specifications, and technical details from sources
 
-2. **MANDATORY CITATION FORMAT - THIS IS CRITICAL:**
-   - Add [[N]](ACTUAL_SOURCE_URL) citation after EVERY factual claim - NO EXCEPTIONS
-   - Use the ACTUAL URLs from the SOURCES list above - NOT the word "url"!
-   - Minimum citations: ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)} (you have ${state.sources.length} available)
+2. **MANDATORY CITATION FORMAT - THIS IS ABSOLUTELY CRITICAL:**
    
-   **HOW TO CITE:**
-   1. Find the fact in Source [N] above
-   2. Copy the ACTUAL URL from that source
-   3. Format as: [[N]](ACTUAL_URL)
+   ⚠️ **CITATION REQUIREMENT: You MUST include at least ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)} citations or your response will be REJECTED**
    
-   **CORRECT Citation Examples (with real URLs from sources):**
-   ${state.sources.slice(0, 3).map((s: any, i: number) => 
-     `   - "Fact from source ${i+1} [[${i+1}]](${s.url})"`
+   **CITATION FORMAT (NON-NEGOTIABLE):**
+   - Add [[N]](ACTUAL_SOURCE_URL) citation IMMEDIATELY after EVERY factual statement
+   - NO EXCEPTIONS - Every specification, dimension, name, date, or technical detail MUST be cited
+   - Use the ACTUAL URLs from the SOURCES list above
+   - DO NOT use placeholder text like "url" or omit the URL
+   
+   **STEP-BY-STEP CITATION PROCESS:**
+   1. Write a factual statement
+   2. Immediately look up which source [N] supports it
+   3. Copy the EXACT URL from that source
+   4. Add [[N]](EXACT_URL) right after the statement
+   5. Continue to next fact
+   
+   **YOUR AVAILABLE SOURCES WITH URLs:**
+   ${state.sources.slice(0, Math.min(5, state.sources.length)).map((s: any, i: number) => 
+     `   [${i+1}] ${s.url}`
    ).join('\n')}
    
-   **WRONG - These will NOT work:**
-   - ❌ "Stanford Maya is an offshore support vessel [[1]](url)" - "url" is NOT a real URL!
-   - ❌ "Length Overall: 50 meters [2]" - Missing double brackets [[]] and URL!
-   - ❌ "Main Engines: Caterpillar 3512C" - Missing citation entirely!
+   **CORRECT Citation Examples:**
+   - "Stanford Maya is an offshore support vessel [[1]](${state.sources[0]?.url || 'URL'})"
+   - "Length Overall: 34 meters [[2]](${state.sources[1]?.url || 'URL'})"
+   - "Equipped with Caterpillar engines [[3]](${state.sources[2]?.url || 'URL'})"
    
-   **REMEMBER:** 
-   - Use [[N]](ACTUAL_URL_FROM_SOURCE_LIST) NOT [[N]](url)
-   - Look up the real URL from the SOURCES section above!
-   - Every fact needs a citation with the real, working URL!
+   **WRONG - These will FAIL:**
+   - ❌ "Stanford Maya is an offshore support vessel [[1]](url)" 
+   - ❌ "Length Overall: 50 meters [2]"
+   - ❌ "Main Engines: Caterpillar 3512C" (no citation)
+   
+   **VALIDATION CHECK BEFORE RESPONDING:**
+   - Count your citations - you need at least ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)}
+   - Verify every [[N]](URL) has a real URL, not placeholder text
+   - Confirm every specification/dimension/name has a citation
 
 3. **STRUCTURE & FORMATTING:**
    - Use proper markdown headers: EXECUTIVE SUMMARY, TECHNICAL SPECIFICATIONS, etc.

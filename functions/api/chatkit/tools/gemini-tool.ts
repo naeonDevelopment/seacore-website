@@ -312,6 +312,25 @@ CONTEXT HANDLING:
         console.warn(`   Raw metadata:`, JSON.stringify(groundingMetadata, null, 2));
       }
       
+      // CRITICAL FIX: Vertex AI redirect URLs often have no snippets
+      // If sources have empty content but Gemini provided an answer, 
+      // distribute answer text across sources so GPT-4o can cite them
+      const sourcesWithoutContent = sources.filter(s => !s.content || s.content.trim().length === 0);
+      if (sourcesWithoutContent.length > 0 && answer && answer.length > 200) {
+        console.log(`   🔧 FIX: ${sourcesWithoutContent.length} sources have no content, distributing Gemini answer text`);
+        
+        // Split Gemini's answer into sentences
+        const sentences = answer.match(/[^.!?]+[.!?]+/g) || [answer];
+        
+        // Distribute sentences across sources without content
+        sourcesWithoutContent.forEach((source, idx) => {
+          const startIdx = Math.floor((idx / sourcesWithoutContent.length) * sentences.length);
+          const endIdx = Math.floor(((idx + 1) / sourcesWithoutContent.length) * sentences.length);
+          source.content = sentences.slice(startIdx, endIdx).join(' ').trim();
+          console.log(`   📝 Assigned ${source.content.length} chars to source ${idx + 1}`);
+        });
+      }
+      
       // PHASE 1: Add source quality assessment for observability
       const sourceQualityAnalysis = sources.map(s => {
         const url = s.url?.toLowerCase() || '';
