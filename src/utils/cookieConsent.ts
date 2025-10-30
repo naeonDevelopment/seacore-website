@@ -111,7 +111,7 @@ function updateGTMConsent(categories: CookieCategories): void {
       'personalization_storage': categories.marketing ? 'granted' : 'denied',
     });
     
-    // GTM consent updated silently
+    console.log('[CookieConsent] GTM consent updated:', categories);
   } catch (error) {
     console.error('Error updating GTM consent:', error);
   }
@@ -170,7 +170,7 @@ function loadCalendlyScript(): void {
   script.async = true;
   document.body.appendChild(script);
   
-  // Calendly script loaded silently
+  console.log('[CookieConsent] Calendly script loaded');
 }
 
 /**
@@ -247,7 +247,7 @@ export function savePreferences(categories: Partial<CookieCategories>): void {
 export function clearConsent(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    // Consent cleared silently
+    console.log('[CookieConsent] Consent cleared');
   } catch (error) {
     console.error('Error clearing consent:', error);
   }

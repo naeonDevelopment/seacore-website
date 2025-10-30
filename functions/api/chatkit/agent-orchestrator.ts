@@ -391,36 +391,15 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      // Query Planning (long operation - emit status to prevent QUIC timeout)
-      if (statusEmitter) {
-        statusEmitter({
-          type: 'status',
-          stage: 'planning',
-          content: `🔍 Analyzing query and planning search strategy...`,
-          progress: 5
-        });
-      }
-      
+      // Query Planning
       const queryPlan = await planQuery(queryToSend, entityContext, env.OPENAI_API_KEY);
       
       if (statusEmitter) {
-        // ENHANCED: Emit detailed query plan breakdown as chain of thought
         statusEmitter({
           type: 'thinking',
           step: 'query_planning',
-          content: `Planning search strategy: ${queryPlan.strategy}`
+          content: `Planned ${queryPlan.subQueries.length} targeted searches`
         });
-        
-        // Emit each sub-query as a separate thinking step for visual clarity
-        queryPlan.subQueries.forEach((subQuery, index) => {
-          const priorityIcon = subQuery.priority === 'high' ? '🔴' : subQuery.priority === 'medium' ? '🟡' : '🟢';
-          statusEmitter({
-            type: 'thinking',
-            step: `subquery_${index + 1}`,
-            content: `${priorityIcon} ${subQuery.purpose || 'Searching'}: "${subQuery.query}"`
-          });
-        });
-        
         statusEmitter({
           type: 'status',
           stage: 'searching',
@@ -429,9 +408,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      // Parallel Execution (long operation - statusEmitter sends periodic updates)
-      // The executeParallelQueries function already uses statusEmitter internally
-      // This ensures heartbeat messages during the search phase
+      // Parallel Execution
       const allSources = await executeParallelQueries(
         queryPlan.subQueries,
         env.GEMINI_API_KEY,
@@ -467,10 +444,11 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      // Build research context (CRITICAL: No raw JSON - only human-readable summary)
+      // Build research context
       let researchContext = `=== GEMINI GROUNDING RESULTS (PARALLEL SEARCH) ===\n\n`;
-      researchContext += `SEARCH STRATEGY: ${queryPlan.strategy} (${queryPlan.subQueries.length} targeted searches)\n`;
-      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked by authority)\n\n`;
+      researchContext += `SEARCH STRATEGY: ${queryPlan.strategy}\n`;
+      researchContext += `SUB-QUERIES: ${queryPlan.subQueries.length}\n`;
+      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked)\n\n`;
       
       if (rankedSources.length > 0) {
         researchContext += `SOURCES (ranked by authority):\n`;
@@ -858,160 +836,28 @@ If you don't have specific information, be honest and suggest the user enable on
 ${state.requiresTechnicalDepth ? `
 **CRITICAL REQUIREMENT: This is a TECHNICAL DEPTH query - you MUST provide detailed analysis:**
 
-**MANDATORY SECTIONS FOR TECHNICAL QUERIES (ALL REQUIRED - PROPER MARKDOWN FORMATTING):**
-1. **## EXECUTIVE SUMMARY** 
-   [2-3 sentences focused on the technical aspect being asked about - engines, equipment, systems]
-   For engines: "Dynamic 17's propulsion system comprises three Caterpillar C32 ACERT marine engines, each rated at 1,450 BHP at 2,300 RPM [[1]](url). These engines are known for robust performance in offshore crew boat operations, with specific maintenance requirements and known service considerations [[2]](url)."
+**MANDATORY SECTIONS (ALL REQUIRED):**
+1. Executive Summary (2-3 sentences)
+2. Technical Specifications (equipment specs, model numbers, ratings)
+3. **MAINTENANCE ANALYSIS** (REQUIRED - OEM intervals, service schedules, common failure modes)
+4. **OPERATIONAL RECOMMENDATIONS** (REQUIRED - performance optimization, warnings, best practices)
+5. **REAL-WORLD SCENARIOS** (REQUIRED - field experience, typical duty cycles, operational conditions)
+6. Maritime Context (regulatory/industry perspective)
 
-2. **## TECHNICAL SPECIFICATIONS**
-   [EXTENSIVE detailed specs - include EVERY technical detail found in sources]
-   **MANDATORY DETAILS FOR EQUIPMENT/ENGINES:**
-   • **Engine Model:** [Full OEM name] [Model] [Configuration] [[N]](url)
-   • **Displacement:** [exact value] liters per engine [[N]](url)
-   • **Power Output:** [number] × [power] [units] at [rpm] RPM [[N]](url)
-   • **Fuel System:** [type with details] [[N]](url)
-   • **Cooling:** [type - heat exchanger, aftercooled, etc.] [[N]](url)
-   • **Dry Weight:** Approximately [weight] [units] per engine [[N]](url)
-   • **Turbocharging:** [number and type] [[N]](url)
-   • Include ALL technical specifications found - be comprehensive
-
-3. **## MAINTENANCE ANALYSIS** (CRITICAL - REQUIRED)
-   [DETAILED maintenance information - this section is MANDATORY and must be extensive]
-   **OEM Service Intervals:**
-   • Oil & Filter Change: Every [hours] operating hours [[N]](url)
-   • Air Filter Service: Every [hours] hours or [frequency] [[N]](url)
-   • Fuel Filter Replacement: Every [hours] hours (primary), [hours] hours (secondary) [[N]](url)
-   • Coolant System Service: Every [hours] hours or [time period] [[N]](url)
-   • Turbocharger Inspection: Every [hours] hours [[N]](url)
-   • Major Overhaul: [hours]-[hours] hours (depending on operating conditions) [[N]](url)
-   
-   **Common Failure Modes:**
-   • [Failure mode] (typical cause) - typically manifests at [hours]-[hours] hours [[N]](url)
-   • [Failure mode] accelerated by [cause] [[N]](url)
-   • [Failure mode] if [condition] not met [[N]](url)
-   
-   **Critical Maintenance Points:**
-   • Monitor [parameter] for [indication] (indicates [issue]) [[N]](url)
-   • [Component] replacement every [hours] hours critical for [system] integrity [[N]](url)
-   • [Component] replacement typically required at [hours]-[hours] hour intervals [[N]](url)
-   • [Procedure] every [hours] hours to prevent [issue] [[N]](url)
-
-4. **## OPERATIONAL RECOMMENDATIONS** (CRITICAL - REQUIRED)
-   [DETAILED operational guidance with specific numbers and thresholds]
-   **Performance Optimization:**
-   • Maintain [system] between [%]-[%] for optimal [benefit] and component life [[N]](url)
-   • Avoid [condition] (>[time]) to prevent [issue] [[N]](url)
-   • Operating at [condition] reduces [metric] by [%] vs [baseline] [[N]](url)
-   
-   **Warning Signs & Monitoring:**
-   • [Parameter] >[value] indicates potential [issue] or [failure] [[N]](url)
-   • [Parameter] <[value] at [condition] requires immediate investigation [[N]](url)
-   • [Parameter] variance >[value] between [components] indicates [issue] [[N]](url)
-   • [Observation] suggests [condition] or [problem] [[N]](url)
-   
-   **Best Practices:**
-   • Pre-[action] to [temperature] before [condition] in [environment] [[N]](url)
-   • Use [OEM]-approved [specification] or higher [standard] [[N]](url)
-   • Implement [procedure] every [frequency] for [benefit] [[N]](url)
-   • Maintain detailed [records] for [compliance/benefit] [[N]](url)
-
-5. **## REAL-WORLD SCENARIOS** (CRITICAL - REQUIRED)
-   [Field experience, operational context, industry knowledge]
-   **Operational Context:**
-   • [Vessel/Equipment] operates in [environment] where [system] is [importance] [[N]](url)
-   • Typical duty cycle involves [description] which [impact] [[N]](url)
-   
-   **Field Experience:**
-   • Similar [equipment] operating [conditions] report optimal [metric] when [condition] [[N]](url)
-   • Operators note that [factor] is the primary factor affecting [metric], with [impact] [[N]](url)
-   
-   **Industry Best Practices:**
-   • Implementing [method] using [tools] has [outcome] across [scope] [[N]](url)
-   • Critical monitoring parameters include [list] with [thresholds] [[N]](url)
-
-6. **## MARITIME CONTEXT** (regulatory/industry perspective - with citations)
-   [Strategic importance, compliance, industry standards]
-
-**MANDATORY MARKDOWN FORMATTING:**
-- Use ## Header Name (h2 markdown headers) for all main sections
-- Use ### Subheader (h3 markdown headers) for subsections if needed
-- Use bullet points (•) for specifications and lists
-- Use **bold** for emphasis within text
-- Each section must start with ## header, NEVER use plain text headers
-
-**WRITING STYLE FOR TECHNICAL QUERIES:**
+**WRITING STYLE:**
 - Write as a Chief Engineer with 20+ years hands-on experience
-- **MANDATORY DETAIL LEVEL**: Include EVERY specific number found: service intervals (hours), temperatures (°C), pressures (PSI), hours, model numbers, power ratings (BHP/kW), dimensions, weights
-- **MANDATORY**: Mention OEM manufacturers by FULL name (Caterpillar, Wartsila, MAN, Cummins, etc.) - look for this in sources
-- **MANDATORY**: Include exact model numbers with full designation (e.g., "Caterpillar C32 ACERT" not just "C32")
-- **MANDATORY**: Include configuration details (V-12, inline-6, twin turbo, etc.)
-- **MANDATORY**: Cross-reference multiple sources - if one source says "3,000 kW" and another says "2,800 kW", mention both with citations
-- **MANDATORY**: Add specific operational thresholds: "Maintain engine load between 60-85%", "Coolant temperature >85°C indicates..."
-- **MANDATORY**: Include failure modes with specific hour intervals when available: "Aftercooler core corrosion typically manifests at 8,000-12,000 hours"
-- Add practical warnings, tips, and real-world operational knowledge
-- Use professional maritime terminology throughout
-- Target length: 800-1,200 words minimum for technical queries (be comprehensive, not brief)
-
-**SOURCE UTILIZATION FOR TECHNICAL QUERIES:**
-- You have ${state.sources.length} sources available - USE MULTIPLE SOURCES
-- Different sources may have different technical details - synthesize information from multiple sources
-- If Source [1] mentions "twin diesel engines" and Source [2] mentions "Caterpillar C32", combine them: "twin Caterpillar C32 diesel engines"
-- Don't rely on just one source - cross-verify specifications across sources
-- If sources conflict, mention the conflict and cite both sources
+- Include specific numbers: service intervals, temperatures, pressures, hours
+- Mention OEM manufacturers by name (Caterpillar, Wartsila, MAN, etc.)
+- Add practical warnings and tips from real operations
+- Target length: 600-800 words minimum
 
 **FAILURE TO INCLUDE MAINTENANCE ANALYSIS, OPERATIONAL RECOMMENDATIONS, AND REAL-WORLD SCENARIOS SECTIONS IS UNACCEPTABLE.**
 ` : `
 **This is an OVERVIEW query - user needs executive summary:**
-- Provide comprehensive, detailed information
-- Write as a Technical Director with deep maritime knowledge
-- Target length: 500-700 words (be thorough, not brief)
-- **MANDATORY FORMAT**: Use proper markdown headers and structure with EXTENSIVE detail
-
-**REQUIRED STRUCTURE FOR VESSEL OVERVIEW QUERIES:**
-1. ## EXECUTIVE SUMMARY
-   [2-3 sentences with: built year, builder, classification society, current operator, flag state, primary use]
-   Example format: "Dynamic 17 is a high-speed crew boat designed for offshore operations, primarily used for transporting personnel and light cargo to and from offshore installations. Built in 2009 by NGV TECH SITIAWAN in Malaysia, this vessel is classified under Bureau Veritas with the notation of a Fast Crew Boat, CAT-A. It is currently operated by Dynamic Marine Services FZE, based in Dubai, UAE [[1]](url)."
-
-2. ## TECHNICAL SPECIFICATIONS
-   [COMPREHENSIVE bullet point list - include ALL available specs from sources]
-   **MANDATORY SPECIFICATIONS TO INCLUDE:**
-   • **Length Overall (LOA):** [exact value in meters] [[N]](url)
-   • **Breadth Moulded:** [exact value in meters] [[N]](url)
-   • **Depth Moulded:** [exact value in meters] [[N]](url)
-   • **Draft Moulded:** [exact value in meters] [[N]](url)
-   • **Gross Tonnage (GRT):** [value] [[N]](url)
-   • **Net Tonnage (NRT):** [value] [[N]](url)
-   • **Deadweight Tonnage (DWT):** [value] [[N]](url)
-   • **Main Engines:** [number] x [OEM name] [model] [type] [[N]](url)
-   • **Power Output:** [exact power rating with units] [[N]](url)
-   • **Propulsion:** [type - fixed pitch, controllable pitch, waterjet, etc.] [[N]](url)
-   • **Generators:** [number and capacity] [[N]](url)
-   • **Speed:** Maximum [knots], Economical [knots] [[N]](url)
-   • **Passenger Capacity:** [number] persons [[N]](url)
-   • **Crew Accommodation:** [number] [[N]](url)
-   • **Flag & Class:** [flag state], [classification society] [[N]](url)
-   - Include EVERY specification found in sources - be comprehensive, not selective
-
-3. ## OPERATIONAL STATUS
-   [2-3 sentences about current flag state, registration, active region, primary operations]
-   Example format: "Dynamic 17 is registered under St. Kitts & Nevis, although some sources indicate a recent flag change to Panama. It is actively used in the Middle East region, supporting offshore oil and gas operations by providing reliable crew transfer services [[3]](url)."
-
-4. ## TECHNICAL ANALYSIS
-   [1 paragraph analyzing key design features, propulsion system advantages, operational capabilities]
-   Example: "The vessel's propulsion system, featuring Caterpillar C32 engines, is optimized for high-speed operations, providing robust performance and reliability in challenging offshore environments. The use of fixed pitch propellers enhances maneuverability and efficiency, crucial for quick crew transfers. The onboard generators ensure sufficient power supply for all operational needs, including navigation and communication systems [[4]](url)."
-
-5. ## MARITIME CONTEXT
-   [1 paragraph about strategic importance, industry role, operator context]
-   Example: "Dynamic 17 plays a critical role in supporting offshore operations, particularly in the oil and gas sector. Its capacity to transport a significant number of personnel safely and efficiently makes it a valuable asset in the region. The vessel's design and capabilities align with the industry's need for fast, reliable crew transfer solutions, enhancing operational efficiency and safety [[5]](url)."
-
-**CRITICAL FORMATTING REQUIREMENTS**: 
-- Start with ## EXECUTIVE SUMMARY (markdown h2 header with ##)
-- Use ## for ALL main section headers
-- Use bullet points (•) for ALL specifications - be exhaustive, include every spec found
-- Include citations [[N]](url) after EVERY factual claim
-- For TECHNICAL SPECIFICATIONS: List EVERY specification available - dimensions, tonnage, engines, generators, speed, capacity
-- Write in professional maritime language with precise terminology
-- Proper markdown formatting is REQUIRED - never use plain text headers
+- Provide concise high-level information
+- Write as a Technical Director (strategic level)
+- Target length: 400-500 words
+- Use format: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
 `}`;
 
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
@@ -1022,54 +868,25 @@ ${technicalDepthFlag}
 
 **USER QUERY**: ${userQuery}
 
-**CRITICAL: ABSOLUTELY DO NOT INCLUDE SEARCH PLAN OR JSON IN YOUR RESPONSE**
-- **NEVER** output JSON structures with "strategy" or "subQueries" fields
-- **NEVER** show the search plan details - they are internal processing only
-- Users already see thinking steps automatically - you don't need to show them
-- **ONLY** provide the final synthesized answer with citations
-- **DO NOT** echo back the search strategy or query structure
-- If you see JSON structures in the context, ignore them completely - they are not for user display
-- Start directly with your answer using markdown header: ## EXECUTIVE SUMMARY or ## TECHNICAL SPECIFICATIONS
-- **NEVER** start with plain text like "SUMMARY" or "EXECUTIVE SUMMARY" without the ## markdown header
-- **NEVER** use plain text headers - ALWAYS use markdown ## Header Name format
-- Use proper markdown structure throughout your response
-
 **CRITICAL CITATION REQUIREMENTS:**
 1. **MANDATORY**: Add inline citations after EVERY factual claim using [[N]](url) format
-2. **MINIMUM CITATIONS**: 
-   ${state.requiresTechnicalDepth ? 
-     `- Technical queries: Include citations from AT LEAST ${Math.min(5, state.sources.length)} different sources
-   - Cross-verify technical specifications (manufacturer, model, ratings) across multiple sources
-   - If you have ${state.sources.length} sources available, use ${Math.min(5, state.sources.length)}-${Math.min(8, state.sources.length)} of them` :
-     `- Standard queries: Include at least ${Math.min(3, state.sources.length)} citations`}
-3. **CITATION FORMAT**: Use exactly [[N]](url) where N is source number and url is the full URL
+2. **MINIMUM**: Include at least ${Math.min(3, state.sources.length)} citations in your answer
+3. **FORMAT**: Use the source numbers from the SOURCES list above
    - Example: "The vessel is 250 meters long [[1]](${state.sources[0]?.url || 'url'})"
    - Example: "Operated by Maersk [[2]](${state.sources[1]?.url || 'url'})"
-4. **TECHNICAL QUERIES**: Different sections should cite different sources when possible
-5. **FREQUENCY**: Add citations after:
-   - Technical specifications (dimensions, tonnage, speed, power, capacity)
-   - Engine/equipment model numbers and OEM names
-   - Service intervals and maintenance schedules
+4. **FREQUENCY**: Add citations after:
+   - Technical specifications (dimensions, tonnage, speed)
    - Company/operator names
    - IMO numbers and classifications
    - Current status and locations
    - Historical facts and dates
-   - Operational recommendations and thresholds
-   - Failure modes and warning signs
-   - Field experience and best practices
 
 **INSTRUCTIONS:**
 - Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
-- The SOURCES section contains Google-grounded information - use it as your primary source
+- The ANSWER section contains Google-grounded information - use it as your primary source
 - Follow the format specified in the TECHNICAL DEPTH flag above
-- **MANDATORY FORMATTING**: 
-  - Use markdown headers: ## EXECUTIVE SUMMARY, ## TECHNICAL SPECIFICATIONS, etc.
-  - Use bullet points for specifications: • **Dimension:** value [[N]](url)
-  - Write in clear paragraphs with proper spacing
-  - Include citations [[N]](url) after EVERY factual claim
 - Be confident - this is Google-verified information
-- **DO NOT FORGET THE CITATIONS** - they are mandatory for verification mode
-- **DO NOT** include a "Sources:" section at the end - all citations should be inline`;
+- **DO NOT FORGET THE CITATIONS** - they are mandatory for verification mode`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
@@ -1661,102 +1478,6 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-      let pendingPlanBuffer: string | null = null; // Buffer for JSON query plans that arrive in multiple chunks
-
-      const chunkHasToolCalls = (msg: any): boolean => {
-        if (!msg) return false;
-
-        const directToolCalls = Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0;
-        const additionalToolCalls = Array.isArray(msg?.additional_kwargs?.tool_calls) && msg.additional_kwargs.tool_calls.length > 0;
-        const additionalToolCallChunks = Array.isArray(msg?.additional_kwargs?.tool_call_chunks) && msg.additional_kwargs.tool_call_chunks.length > 0;
-
-        if (directToolCalls || additionalToolCalls || additionalToolCallChunks) {
-          return true;
-        }
-
-        if (Array.isArray(msg.content)) {
-          const nonTextParts = msg.content.some((part: any) => part && part.type && part.type !== 'text');
-          if (nonTextParts) return true;
-        }
-
-        return false;
-      };
-
-      const parseQueryPlan = (text: string) => {
-        if (!text) return null;
-        const trimmed = text.trim();
-        if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
-
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (!parsed || typeof parsed !== 'object') return null;
-
-          const hasStrategy = typeof parsed.strategy === 'string';
-          const hasSubQueries = Array.isArray(parsed.subQueries);
-          if (hasStrategy && hasSubQueries) {
-            return parsed as { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> };
-          }
-        } catch (_) {
-          return null;
-        }
-
-        return null;
-      };
-
-      const formatQueryPlanForDisplay = (plan: { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> }) => {
-        const header = `Thinking — Search Plan (${plan.strategy})`;
-        const body = plan.subQueries
-          .map((sq, index) => {
-            const label = sq.priority ? sq.priority.toUpperCase() : 'UNRATED';
-            const purpose = sq.purpose ? ` — ${sq.purpose}` : '';
-            return `${index + 1}. [${label}] ${sq.query}${purpose}`;
-          })
-          .join('\n');
-
-        return `${header}\n${body}`;
-      };
-
-      const extractTextContent = (msg: any): string => {
-        if (!msg) return '';
-
-        const content = msg.content;
-
-        if (typeof content === 'string') {
-          return content;
-        }
-
-        if (Array.isArray(content)) {
-          // CRITICAL: Join array content intelligently to preserve word boundaries
-          // LLM may return content as array of tokens that need proper spacing
-          const textParts = content
-            .filter((part: any) => part && part.type === 'text' && typeof part.text === 'string')
-            .map((part: any) => part.text);
-          
-          if (textParts.length === 0) return '';
-          
-          // Smart join: add space only when needed (if parts don't already have spacing)
-          let result = textParts[0];
-          for (let i = 1; i < textParts.length; i++) {
-            const prevPart = textParts[i - 1];
-            const currPart = textParts[i];
-            
-            // Check if space is needed (both parts are alphanumeric and no existing space/punctuation)
-            const needsSpace = (
-              prevPart.length > 0 && currPart.length > 0 &&
-              /[a-zA-Z0-9]$/.test(prevPart) &&
-              /^[a-zA-Z0-9]/.test(currPart) &&
-              !prevPart.endsWith(' ') &&
-              !currPart.startsWith(' ')
-            );
-            
-            result += (needsSpace ? ' ' : '') + currPart;
-          }
-          
-          return result;
-        }
-
-        return '';
-      };
       
       // PHASE A1 & A2: Create status/thinking emitter
       const statusEmitter = (event: { type: string; step?: string; stage?: string; content: string; progress?: number }) => {
@@ -1766,9 +1487,6 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           console.warn('⚠️ Status emit failed:', err);
         }
       };
-      
-      // CRITICAL: Declare keep-alive interval outside try-catch for cleanup
-      let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
       
       try {
         // CRITICAL: Use .stream() with streamMode (not .streamEvents())
@@ -1798,21 +1516,6 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         
         console.log(`📡 Agent stream created - entering event loop`);
         
-        // CRITICAL: Add keep-alive mechanism to prevent QUIC timeouts during long async operations
-        // QUIC may timeout if no data is sent for >30 seconds, so send heartbeat every 20 seconds
-        const KEEP_ALIVE_INTERVAL = 20000; // 20 seconds
-        keepAliveInterval = setInterval(() => {
-          try {
-            controller.enqueue(encoder.encode(`: heartbeat\n\n`)); // SSE comment (no-op but keeps connection alive)
-          } catch (e) {
-            // Connection may be closed, clear interval
-            if (keepAliveInterval) {
-              clearInterval(keepAliveInterval);
-              keepAliveInterval = null;
-            }
-          }
-        }, KEEP_ALIVE_INTERVAL);
-        
         // Stream events using [streamType, event] tuple pattern
         for await (const [streamType, event] of agentStream) {
           eventCount++;
@@ -1823,170 +1526,17 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             const messageArray = Array.isArray(messages) ? messages : [messages];
             
             for (const msg of messageArray) {
-              if (msg.constructor.name === 'AIMessageChunk') {
-                if (chunkHasToolCalls(msg)) {
-                  continue;
-                }
-
-                let text = extractTextContent(msg);
-                if (!text) {
-                  continue;
-                }
-
-                const tryEmitPlan = (raw: string) => {
-                  const queryPlan = parseQueryPlan(raw);
-                  if (!queryPlan) return false;
-
-                  // CRITICAL FIX: Don't emit query plan as content - it's already emitted as thinking steps
-                  // in router node. This prevents JSON from appearing in content stream.
-                  // If this code path is reached, it means JSON leaked through somehow - just filter it
-                  console.warn(`⚠️ [Backend] Filtered out JSON query plan that leaked to LLM stream`);
-                  statusEmitter?.({
-                    type: 'thinking',
-                    step: 'query_plan_filtered',
-                    content: `Filtered leaked query plan JSON`
-                  });
-                  pendingPlanBuffer = null;
-                  return true; // Return true so it doesn't get emitted as content
-                };
-
-                if (pendingPlanBuffer !== null) {
-                  pendingPlanBuffer += text;
-                  if (tryEmitPlan(pendingPlanBuffer)) {
-                    continue;
-                  }
-                  continue;
-                }
-
-                const trimmed = text.trimStart();
-                
-                // CRITICAL: Detect query plan patterns FIRST (before JSON bracket check)
-                // Catches both spaced and concatenated query plan leakage
-                // Pattern 1: "strategy focused Queries query ... purpose ... priority" (with spaces)
-                // Pattern 2: "strategyfocusedQueriesquery...purpose...priority" (concatenated)
-                // Pattern 3: Repeated "query ... purpose ... priority" sequences
-                const earlySpacedPattern = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
-                const earlyConcatenatedPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
-                const earlyRepeatedPattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
-                
-                if (earlySpacedPattern.test(text) || earlyConcatenatedPattern.test(text) || earlyRepeatedPattern.test(text)) {
-                  console.error(`❌ [Backend] CRITICAL: Detected query plan pattern (early check) - REJECTING`);
-                  console.error(`   Sample: "${text.substring(0, 150)}..."`);
-                  continue;
-                }
-                
-                // Also detect query plan structure keywords in suspicious context (handle spaces)
-                const hasStrategyQueriesEarly = /strategy\s+(focused\s+)?(Queries|queries)/i.test(text);
-                const hasQueryPurposeEarly = /query\s+\w+\s+purpose\s+\w+/i.test(text) || /query\w+.*?purpose/i.test(text);
-                const hasPlanKeywords = /strategy/i.test(text) && hasQueryPurposeEarly;
-                
-                if (hasPlanKeywords && text.length < 600 &&
-                    !text.includes('EXECUTIVE') && !text.includes('TECHNICAL') && 
-                    !text.includes('Summary') && !text.includes('Specifications') &&
-                    !text.includes('## EXECUTIVE') && !text.includes('## TECHNICAL')) {
-                  console.error(`❌ [Backend] Detected query plan keywords in suspicious short chunk - REJECTING`);
-                  console.error(`   Content: "${text.substring(0, 200)}..."`);
-                  continue;
-                }
-                
-                const looksLikePlanStart = trimmed.startsWith('{') && trimmed.includes('subQueries');
-
-                if (looksLikePlanStart) {
-                  // Try to parse and format as thinking step
-                  if (!tryEmitPlan(text)) {
-                    // If parsing failed, buffer it for potential multi-chunk JSON
-                    pendingPlanBuffer = text;
-                    continue;
-                  }
-                  // If parsing succeeded, the formatted plan was already emitted as thinking
-                  // Don't emit the raw JSON as content
-                  continue;
-                }
-
-                // CRITICAL: Filter out any remaining JSON query plan artifacts
-                // Check if text is still a JSON query plan (even if incomplete)
-                if (pendingPlanBuffer !== null) {
-                  const combined = pendingPlanBuffer + text;
-                  // Check combined buffer for concatenated/spaced pattern too
-                  if (earlyConcatenatedPattern.test(combined) || earlySpacedPattern.test(combined) || earlyRepeatedPattern.test(combined)) {
-                    console.error(`❌ [Backend] Combined buffer contains concatenated query plan - REJECTING`);
-                    pendingPlanBuffer = null; // Clear buffer and skip
-                    continue;
-                  }
-                  if (tryEmitPlan(combined)) {
-                    // Successfully parsed combined buffer, don't emit raw JSON
-                    continue;
-                  }
-                }
-                
-                // CRITICAL: Detect query plan patterns (with spaces OR concatenated)
-                // Pattern: "strategy focused Queries query ... purpose ... priority" (with spaces)
-                const spacedQueryPlanPattern2 = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
-                const concatenatedPlanPattern2 = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
-                const repeatedQueryPurposePattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
-                
-                if (spacedQueryPlanPattern2.test(text) || concatenatedPlanPattern2.test(text) || repeatedQueryPurposePattern.test(text)) {
-                  console.error(`❌ [Backend] CRITICAL: Detected QUERY PLAN pattern (spaced/concatenated) in stream - REJECTING`);
-                  console.error(`   Sample: "${text.substring(0, 150)}..."`);
-                  continue; // Don't emit - it's definitely query plan leakage
-                }
-                
-                // Also check for query plan structure keywords in sequence
-                const hasStrategyQueries = /strategy\s+(focused\s+)?(Queries|queries)/i.test(text);
-                const hasQueryPurpose = /query\s+\w+\s+purpose\s+\w+/i.test(text);
-                const hasQueryPriority = /query\s+\w+.*?priority/i.test(text);
-                
-                if ((hasStrategyQueries || hasQueryPurpose) && 
-                    (hasQueryPurpose || hasQueryPriority) &&
-                    text.length < 600 &&
-                    !text.includes('EXECUTIVE') && 
-                    !text.includes('TECHNICAL') &&
-                    !text.includes('## EXECUTIVE') &&
-                    !text.includes('## TECHNICAL')) {
-                  console.error(`❌ [Backend] Detected query plan keyword sequence - REJECTING`);
-                  console.error(`   Sample: "${text.substring(0, 200)}..."`);
-                  continue;
-                }
-                
-                // Check for JSON query plan patterns
-                const containsJsonPlan = trimmed.includes('"strategy"') && trimmed.includes('"subQueries"');
-                if (containsJsonPlan) {
-                  console.warn(`⚠️ [Backend] Detected JSON query plan in LLM response: "${text.substring(0, 100)}..."`);
-                  // Remove JSON patterns from the text before emitting
-                  const jsonPlanPattern = /\{[^{]*"strategy"[\s\S]*?"subQueries"[\s\S]*?\}/g;
-                  text = text.replace(jsonPlanPattern, '');
+              // Check for AIMessageChunk (streaming tokens)
+              if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
+                const text = typeof msg.content === 'string' ? msg.content : String(msg.content);
+                if (text) {
+                  hasStreamedContent = true; // Mark that token streaming is working
+                  fullResponse += text;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
                   
-                  // If after removal the text is empty or just whitespace, skip this chunk
-                  if (!text.trim() || text.trim().length < 10) {
-                    continue;
+                  if (eventCount <= 5) {
+                    console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
                   }
-                  
-                  // Emit the cleaned text (without JSON)
-                  console.log(`   ✓ Cleaned JSON from chunk, emitting ${text.length} chars`);
-                }
-                
-                // Also check if starting with JSON bracket - buffer for complete JSON detection
-                if (trimmed.startsWith('{') && (trimmed.includes('"strategy"') || trimmed.includes('"subQueries"'))) {
-                  console.warn(`⚠️ [Backend] Filtered out JSON query plan starting chunk from stream`);
-                  if (pendingPlanBuffer === null) {
-                    pendingPlanBuffer = text;
-                  } else {
-                    const combined: string = pendingPlanBuffer + text;
-                    pendingPlanBuffer = combined;
-                    // Try to parse the combined buffer
-                    if (tryEmitPlan(combined)) {
-                      continue; // Successfully filtered
-                    }
-                  }
-                  continue;
-                }
-
-                hasStreamedContent = true;
-                fullResponse += text;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
-
-                if (eventCount <= 5) {
-                  console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
                 }
               }
             }
@@ -2078,30 +1628,26 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           
           const messagesUpdate = finalState.messages;
           if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
-            const lastMessageWithText = [...messagesUpdate].reverse().find((msg: any) => {
-              if (!msg) return false;
-              if (chunkHasToolCalls(msg)) return false;
-              const text = extractTextContent(msg);
-              if (!text) return false;
-              return !parseQueryPlan(text);
-            });
-
-            const content = extractTextContent(lastMessageWithText);
-
-            if (content && content.length > 0 && !parseQueryPlan(content)) {
+            const lastMessage = messagesUpdate[messagesUpdate.length - 1];
+            const content = typeof lastMessage.content === 'string' 
+              ? lastMessage.content 
+              : JSON.stringify(lastMessage.content);
+            
+            if (content && content.length > 0) {
               console.log(`   📦 Chunking ${content.length} chars in ${SSE_CHUNK_SIZE}-char chunks`);
-
+              
               for (let i = 0; i < content.length; i += SSE_CHUNK_SIZE) {
                 const chunk = content.slice(i, i + SSE_CHUNK_SIZE);
                 controller.enqueue(encoder.encode(
                   `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
                 ));
-
+                
+                // Throttle to prevent overwhelming client
                 if ((i / SSE_CHUNK_SIZE) % SSE_THROTTLE_EVERY_N_CHUNKS === 0) {
                   await new Promise(resolve => setTimeout(resolve, SSE_THROTTLE_INTERVAL_MS));
                 }
               }
-
+              
               fullResponse = content;
               console.log(`   ✅ Fallback chunking complete: ${content.length} chars sent`);
             }
@@ -2184,24 +1730,11 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           console.log(`💾 Memory saved with accumulated knowledge`);
         }
         
-        // Clear keep-alive interval before closing
-        if (keepAliveInterval) {
-          clearInterval(keepAliveInterval);
-          keepAliveInterval = null;
-        }
-        
         // Done
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       } catch (error: any) {
         console.error('❌ Stream error:', error);
-        
-        // Clear keep-alive interval on error
-        if (keepAliveInterval) {
-          clearInterval(keepAliveInterval);
-          keepAliveInterval = null;
-        }
-        
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
           type: 'error', 
           content: error.message 

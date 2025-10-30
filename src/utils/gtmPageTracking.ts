@@ -24,7 +24,7 @@ export function trackPageView(path: string, title?: string): void {
       page_location: window.location.href,
     });
     
-    // Page view tracked silently
+    console.log('[GTM] Page view tracked:', path);
   } catch (error) {
     console.error('[GTM] Error tracking page view:', error);
   }
@@ -42,7 +42,7 @@ export function trackEvent(eventName: string, eventData?: Record<string, any>): 
       ...eventData,
     });
     
-    // Event tracked silently
+    console.log('[GTM] Event tracked:', eventName, eventData);
   } catch (error) {
     console.error('[GTM] Error tracking event:', error);
   }
