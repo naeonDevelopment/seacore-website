@@ -871,12 +871,48 @@ ${technicalDepthFlag}
 
 **USER QUERY**: ${userQuery}
 
-**INSTRUCTIONS:**
-- Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
-- The ANSWER section contains Google-grounded information - use it as your primary source
-- Cite all facts using [[1]](url), [[2]](url) format from the SOURCES section
-- Follow the format specified in the TECHNICAL DEPTH flag above
-- Be confident - this is Google-verified information`;
+**CRITICAL INSTRUCTIONS FOR SYNTHESIS:**
+
+1. **SOURCE UTILIZATION:**
+   - You have ${state.sources.length} verified sources with ${state.sources.length * 800} characters of content
+   - Extract SPECIFIC facts: dimensions, model numbers, specifications, dates, operators
+   - Cross-reference multiple sources for validation
+   - Use manufacturer names, exact specifications, and technical details from sources
+
+2. **MANDATORY CITATION FORMAT:**
+   - Add [[N]](url) citation after EVERY factual claim
+   - Minimum citations: ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)} (you have ${state.sources.length} available)
+   - Example: "Dynamic 17 is a high-speed crew boat designed for offshore operations [[1]](url)."
+   - Example: "Length Overall (LOA): 34.00 meters [[2]](url)"
+   - Example: "Main Engines: 3 x Caterpillar C32 marine diesel engines [[3]](url)"
+   - DO NOT write generic statements without citations
+
+3. **STRUCTURE & FORMATTING:**
+   - Use proper markdown headers: EXECUTIVE SUMMARY, TECHNICAL SPECIFICATIONS, etc.
+   - Use bullet points (•) for specifications
+   - Write in clear, professional paragraphs
+   - ${state.requiresTechnicalDepth ? 'Target: 600-800 words minimum with comprehensive technical detail' : 'Target: 400-500 words with concise overview'}
+
+4. **CONTENT QUALITY:**
+   - Extract and present SPECIFIC information from sources
+   - Include exact model numbers: "Caterpillar C32 ACERT" not "Caterpillar engines"
+   - Include precise specifications: "34.00 meters LOA" not "approximately 34 meters"
+   - Include actual operators: "Stanford Marine" not "a maritime company"
+   - Write as ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years experience' : 'Technical Director'}
+
+5. **WHAT TO AVOID:**
+   - ❌ Generic statements: "The vessel is designed for offshore operations"
+   - ❌ Vague descriptions: "approximately", "around", "roughly"
+   - ❌ Missing citations: Every fact needs [[N]](url)
+   - ❌ Missing specifications: "[dimensions not provided in sources]"
+   - ❌ Short responses: Must meet word count targets
+
+6. **CONFIDENCE:**
+   - This is Google-verified, authoritative information
+   - Write confidently and professionally
+   - Present as definitive facts (not "appears to be" or "seems to be")
+
+**Remember:** You are providing industry-leading maritime intelligence. Every fact should be specific, cited, and extracted from the provided sources.`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
