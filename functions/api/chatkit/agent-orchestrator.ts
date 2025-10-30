@@ -1478,6 +1478,44 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+
+      const chunkHasToolCalls = (msg: any): boolean => {
+        if (!msg) return false;
+
+        const directToolCalls = Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0;
+        const additionalToolCalls = Array.isArray(msg?.additional_kwargs?.tool_calls) && msg.additional_kwargs.tool_calls.length > 0;
+        const additionalToolCallChunks = Array.isArray(msg?.additional_kwargs?.tool_call_chunks) && msg.additional_kwargs.tool_call_chunks.length > 0;
+
+        if (directToolCalls || additionalToolCalls || additionalToolCallChunks) {
+          return true;
+        }
+
+        if (Array.isArray(msg.content)) {
+          const nonTextParts = msg.content.some((part: any) => part && part.type && part.type !== 'text');
+          if (nonTextParts) return true;
+        }
+
+        return false;
+      };
+
+      const extractTextContent = (msg: any): string => {
+        if (!msg) return '';
+
+        const content = msg.content;
+
+        if (typeof content === 'string') {
+          return content;
+        }
+
+        if (Array.isArray(content)) {
+          return content
+            .filter((part: any) => part && part.type === 'text' && typeof part.text === 'string')
+            .map((part: any) => part.text)
+            .join('');
+        }
+
+        return '';
+      };
       
       // PHASE A1 & A2: Create status/thinking emitter
       const statusEmitter = (event: { type: string; step?: string; stage?: string; content: string; progress?: number }) => {
@@ -1526,14 +1564,17 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             const messageArray = Array.isArray(messages) ? messages : [messages];
             
             for (const msg of messageArray) {
-              // Check for AIMessageChunk (streaming tokens)
-              if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
-                const text = typeof msg.content === 'string' ? msg.content : String(msg.content);
+              if (msg.constructor.name === 'AIMessageChunk') {
+                if (chunkHasToolCalls(msg)) {
+                  continue;
+                }
+
+                const text = extractTextContent(msg);
                 if (text) {
-                  hasStreamedContent = true; // Mark that token streaming is working
+                  hasStreamedContent = true;
                   fullResponse += text;
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
-                  
+
                   if (eventCount <= 5) {
                     console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
                   }
@@ -1628,26 +1669,28 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           
           const messagesUpdate = finalState.messages;
           if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
-            const lastMessage = messagesUpdate[messagesUpdate.length - 1];
-            const content = typeof lastMessage.content === 'string' 
-              ? lastMessage.content 
-              : JSON.stringify(lastMessage.content);
-            
+            const lastMessageWithText = [...messagesUpdate].reverse().find((msg: any) => {
+              if (!msg) return false;
+              if (chunkHasToolCalls(msg)) return false;
+              return extractTextContent(msg).length > 0;
+            });
+
+            const content = extractTextContent(lastMessageWithText);
+
             if (content && content.length > 0) {
               console.log(`   📦 Chunking ${content.length} chars in ${SSE_CHUNK_SIZE}-char chunks`);
-              
+
               for (let i = 0; i < content.length; i += SSE_CHUNK_SIZE) {
                 const chunk = content.slice(i, i + SSE_CHUNK_SIZE);
                 controller.enqueue(encoder.encode(
                   `data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`
                 ));
-                
-                // Throttle to prevent overwhelming client
+
                 if ((i / SSE_CHUNK_SIZE) % SSE_THROTTLE_EVERY_N_CHUNKS === 0) {
                   await new Promise(resolve => setTimeout(resolve, SSE_THROTTLE_INTERVAL_MS));
                 }
               }
-              
+
               fullResponse = content;
               console.log(`   ✅ Fallback chunking complete: ${content.length} chars sent`);
             }
