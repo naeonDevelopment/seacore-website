@@ -59,7 +59,7 @@ const LoadingIndicator: React.FC<{
   // Log status updates for debugging
   useEffect(() => {
     if (statusMessage) {
-      console.log('🔄 [LoadingIndicator] Status updated:', statusMessage);
+      // Status updated silently
     }
   }, [statusMessage]);
   
@@ -619,7 +619,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
     
     const pendingResearchId = `pending-${Date.now()}`;
     activeResearchIdRef.current = pendingResearchId;
-    console.log('📊 Creating research session for query:', pendingResearchId, '| Browsing:', useBrowsing);
+    // Creating research session silently
     
     setResearchSessions((prev) => {
       const updated = new Map(prev);
@@ -935,7 +935,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                   
                   // THIRD: If after cleaning the content is empty or too short, skip it
                   if (!contentText || contentText.length < 5) {
-                    console.log('⚠️ [ChatInterface] Content became empty after JSON removal - skipping chunk');
+                    // Content became empty after JSON removal - skipping chunk silently
                     continue;
                   }
                   
@@ -1000,7 +1000,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                         assistantMessageId = assistantMessage.timestamp.getTime().toString();
                         updated.push(assistantMessage);
                         
-                        console.log(`💬 [ChatInterface] Assistant message created (idx: ${newMessageIndex})`);
+                        // Assistant message created silently
                         return updated;
                       });
                       
