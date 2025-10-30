@@ -368,28 +368,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           if (fleetcoreContext) researchContext += fleetcoreContext;
         }
         
-        // CRITICAL: Validate cached sources aren't fake redirect URLs
-        const validSources = cachedResult.sources.filter((s: any) => {
-          const url = s.url || '';
-          return !url.includes('vertexaisearch.cloud.google.com') && 
-                 !url.includes('/grounding-api-redirect/');
-        });
-        
-        if (validSources.length === 0) {
-          console.error(`   ❌ CACHE HIT but sources are invalid (redirect URLs)`);
-          // Fall back to knowledge mode
-          return {
-            mode: 'none',
-            requiresTechnicalDepth: false,
-            technicalDepthScore: 0,
-            safetyOverride: false,
-          };
-        }
-        
         return {
           mode: classification.mode,
           geminiAnswer: cachedResult.answer,
-          sources: validSources,
+          sources: cachedResult.sources,
           researchContext,
           requiresTechnicalDepth: classification.requiresTechnicalDepth,
           technicalDepthScore: classification.technicalDepthScore,
@@ -447,40 +429,15 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       const rankedSources = aggregateAndRank(allSources);
       
-      // CRITICAL: Validate sources aren't fake redirect URLs
-      const validSources = rankedSources.filter(s => {
-        const url = s.url || '';
-        return !url.includes('vertexaisearch.cloud.google.com') && 
-               !url.includes('/grounding-api-redirect/');
-      });
-      
-      if (validSources.length === 0) {
-        console.error(`   ❌ PARALLEL SEARCH COMPLETE but ALL sources are invalid (redirect URLs)`);
-        console.error(`   Falling back to knowledge mode`);
-        
-        // Create error context
-        const fallbackContext = `=== RESEARCH FAILED ===\n\nGemini search couldn't find authoritative sources for this specific entity.\n\nPlease answer from general maritime knowledge if appropriate, or inform the user that specific details require enabling the "Online research" toggle for comprehensive web search.`;
-        
-        return { 
-          mode: 'none',  // Fall back to knowledge mode
-          geminiAnswer: null,
-          sources: [],
-          researchContext: fallbackContext,
-          requiresTechnicalDepth: classification.requiresTechnicalDepth,
-          technicalDepthScore: classification.technicalDepthScore,
-          safetyOverride: classification.safetyOverride || false,
-        };
-      }
-      
       // PHASE 3: Calculate confidence indicator
-      const confidence = calculateConfidence(validSources);
+      const confidence = calculateConfidence(rankedSources);
       console.log(`   📊 Confidence: ${confidence.label} (${confidence.score}/100) - ${confidence.reasoning}`);
       
       if (statusEmitter) {
         statusEmitter({
           type: 'thinking',
           step: 'source_ranking',
-          content: `✓ Selected top ${validSources.length} authoritative sources`
+          content: `✓ Selected top ${rankedSources.length} authoritative sources`
         });
         statusEmitter({
           type: 'confidence',
@@ -492,11 +449,11 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       let researchContext = `=== GEMINI GROUNDING RESULTS (PARALLEL SEARCH) ===\n\n`;
       researchContext += `SEARCH STRATEGY: ${queryPlan.strategy}\n`;
       researchContext += `SUB-QUERIES: ${queryPlan.subQueries.length}\n`;
-      researchContext += `SOURCES FOUND: ${allSources.length} → ${validSources.length} (ranked & validated)\n\n`;
+      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked)\n\n`;
       
-      if (validSources.length > 0) {
+      if (rankedSources.length > 0) {
         researchContext += `SOURCES (ranked by authority):\n`;
-        validSources.forEach((s: any, idx: number) => {
+        rankedSources.forEach((s: any, idx: number) => {
           // CRITICAL: Include substantial content (800 chars) for LLM to generate detailed, cited answers
           // 200 chars was too little - LLM couldn't find specific facts to cite
           researchContext += `[${idx + 1}] [${s.tier}] ${s.title}\n${s.url}\n${s.content?.substring(0, 800) || 'No content'}...\n\n`;
@@ -510,14 +467,14 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       // Cache results
       await setCachedResult(kvStore, queryToSend, entityContext, {
-        sources: validSources,
+        sources: rankedSources,
         answer: null,
         diagnostics: {
-          sourcesByTier: validSources.reduce((acc, s) => {
+          sourcesByTier: rankedSources.reduce((acc, s) => {
             if (s.tier) acc[s.tier] = (acc[s.tier] || 0) + 1;
             return acc;
           }, {} as Record<string, number>),
-          totalSources: validSources.length,
+          totalSources: rankedSources.length,
           hasAnswer: false,
           answerLength: 0
         }
@@ -526,7 +483,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         return {
           mode: classification.mode,
           geminiAnswer: null,
-          sources: validSources,
+          sources: rankedSources,
           researchContext,
           requiresTechnicalDepth: classification.requiresTechnicalDepth,
           technicalDepthScore: classification.technicalDepthScore,
