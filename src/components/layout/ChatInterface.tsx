@@ -422,12 +422,6 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
   const sanitizeAssistantContent = (raw: string | undefined): string => {
     if (!raw) return '';
     let s = String(raw);
-    
-    // CRITICAL: Remove raw JSON query plans that might leak through
-    // Match patterns like: { "strategy": "...", "subQueries": [...] }
-    const jsonPlanPattern = /\{[^{]*"strategy"\s*:\s*"[^"]*"\s*,\s*"subQueries"\s*:\s*\[[^\]]*\][^}]*\}/g;
-    s = s.replace(jsonPlanPattern, '');
-    
     // Remove any THINKING → ANSWER preface blocks if present
     const removeCotBlock = (text: string): string => {
       const lower = text.toLowerCase();
@@ -461,12 +455,6 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
     // Remove "Sources:" section at end since research panel shows them
     // Match variations: **Sources:**, Sources:, ## Sources, ### Sources
     s = s.replace(/\n\s*(#{1,3}\s*)?(\*\*)?Sources:?(\*\*)?\s*[\s\S]*$/i, '');
-    
-    // Remove any remaining JSON artifacts (standalone JSON objects)
-    const standaloneJsonPattern = /^\s*\{[\s\S]*"strategy"[\s\S]*\}\s*$/;
-    if (standaloneJsonPattern.test(s.trim())) {
-      s = ''; // If entire message is just JSON, clear it
-    }
     
     return s.trim();
   };
@@ -677,6 +665,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
         let streamedThinking = '';
         let memoryNarrative = ''; // Conversation context from session memory
         let hasReceivedContent = false;
+        let answerReadyToShow = false;
         
         streamingIndexRef.current = null;
         // Start thinking timer only when we actually receive thinking content
@@ -823,47 +812,18 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     thinkingStartTimeRef.current = Date.now();
                   }
                   // Update transient analysis in active research session
-                  // Track thinking steps for better UX
                   if (activeResearchIdRef.current) {
-                    const contentStr = String(parsed.content || '');
-                    const step = parsed.step || '';
-                    
-                    // Use step-based display for query planning steps
-                    let displayContent = contentStr;
-                    if (step.startsWith('subquery_')) {
-                      // Format sub-query steps nicely
-                      displayContent = contentStr;
-                    } else if (step === 'query_planning') {
-                      displayContent = `🔍 ${contentStr}`;
-                    }
-                    
-                    const snippet = displayContent
+                    const snippet = String(parsed.content || '')
                       .replace(/\*\*THINKING:\*\*/i, '')
+                      .split(/\n|\.\s/)[0]
                       .trim()
                       .slice(0, 240);
-                    
                     if (snippet) {
                       setResearchSessions((prev) => {
                         const updated = new Map(prev);
                         const session = updated.get(activeResearchIdRef.current!);
-                        if (session) {
-                          // Always update transient analysis to show latest thinking step
+                        if (session && !session.transientAnalysis) {
                           session.transientAnalysis = snippet;
-                          
-                          // Also track thinking steps in events for timeline display
-                          if (!session.events.some(e => 
-                            e.type === 'step' && 
-                            e.id === step &&
-                            e.title === snippet
-                          )) {
-                            session.events.push({
-                              type: 'step',
-                              id: step || 'thinking',
-                              title: snippet,
-                              status: 'processing'
-                            });
-                          }
-                          
                           updated.set(activeResearchIdRef.current!, session);
                         }
                         return updated;
@@ -885,74 +845,9 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     });
                   }
                 } else if (parsed.type === 'content') {
-                  // CRITICAL: Aggressive JSON filtering BEFORE any state updates or accumulation
-                  let contentText = String(parsed.content || '').trim();
-                  
-                  // ZERO: Detect query plan patterns (concatenated OR with spaces)
-                  // Pattern variations:
-                  // 1. "strategy focused Queries query ... purpose ... priority" (with spaces)
-                  // 2. "strategyfocusedQueriesquery...purpose...priority" (concatenated)
-                  // 3. "query ... purpose ... priority" repeated multiple times (strong indicator)
-                  const queryPlanPattern = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
-                  const concatenatedPlanPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
-                  const repeatedQueryPurposePattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
-                  
-                  if (queryPlanPattern.test(contentText) || concatenatedPlanPattern.test(contentText) || repeatedQueryPurposePattern.test(contentText)) {
-                    console.error('❌ [ChatInterface] Detected QUERY PLAN pattern (with/without spaces) - REJECTING ENTIRE CHUNK');
-                    console.error(`   Sample: "${contentText.substring(0, 150)}..."`);
-                    continue; // Skip entirely - this is definitely query plan leakage
-                  }
-                  
-                  // ALSO: Check for query plan structure keywords in sequence (more flexible with spaces)
-                  const hasStrategyAndQueries = /strategy\s+(focused\s+)?(Queries|queries)/i.test(contentText);
-                  const hasQueryPurposeSequence = /query\s+\w+\s+purpose\s+\w+/i.test(contentText);
-                  const hasQueryPrioritySequence = /query\s+\w+.*?priority/i.test(contentText);
-                  
-                  // If we have strategy+queries OR multiple query+purpose sequences, it's likely a query plan
-                  if ((hasStrategyAndQueries || hasQueryPurposeSequence) && 
-                      (hasQueryPurposeSequence || hasQueryPrioritySequence) &&
-                      contentText.length < 600 && 
-                      !contentText.includes('EXECUTIVE') && 
-                      !contentText.includes('TECHNICAL') &&
-                      !contentText.includes('## EXECUTIVE') &&
-                      !contentText.includes('## TECHNICAL')) {
-                    // Multiple indicators of query plan structure
-                    console.error('❌ [ChatInterface] Detected query plan keywords in suspicious sequence - REJECTING');
-                    console.error(`   Content: "${contentText.substring(0, 200)}..."`);
-                    continue;
-                  }
-                  
-                  // FIRST: Check if entire chunk is pure JSON query plan (most common case)
-                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/s.test(contentText);
-                  if (isOnlyJsonPlan) {
-                    console.log('⚠️ [ChatInterface] Filtered out pure JSON query plan chunk - NOT creating message');
-                    continue; // Skip entirely - don't create message bubble for JSON
-                  }
-                  
-                  // SECOND: Remove embedded JSON query plans from mixed content (in case LLM mixes it)
-                  const jsonPlanPattern = /\{[^{]*"strategy"[\s\S]*?"subQueries"[\s\S]*?\}/gs;
-                  contentText = contentText.replace(jsonPlanPattern, '').trim();
-                  
-                  // THIRD: If after cleaning the content is empty or too short, skip it
-                  if (!contentText || contentText.length < 5) {
-                    console.log('⚠️ [ChatInterface] Content became empty after JSON removal - skipping chunk');
-                    continue;
-                  }
-                  
-                  // FOURTH: Additional check for any remaining JSON artifacts
-                  if (contentText.includes('"strategy"') || contentText.includes('"subQueries"')) {
-                    console.warn('⚠️ [ChatInterface] Remaining JSON artifacts detected - aggressive cleaning');
-                    contentText = contentText.replace(/"strategy"[\s\S]*?"subQueries"[\s\S]*?}/g, '').trim();
-                    if (!contentText || contentText.length < 5) {
-                      continue; // Still empty after aggressive cleaning
-                    }
-                  }
-                  
-                  // Content is now clean - proceed with normal flow
-                  
-                  // CRITICAL FIX: Create assistant message BEFORE any throttling (even if we filtered some content)
+                  // CRITICAL FIX: Create assistant message BEFORE any throttling
                   // This ensures message exists before any updates try to modify it
-                  if (!hasReceivedContent && contentText.trim().length > 0) {
+                  if (!hasReceivedContent) {
                     hasReceivedContent = true;
                     if (!firstContentTimeRef.current) firstContentTimeRef.current = Date.now();
                     
@@ -994,8 +889,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                           memoryNarrative: memoryNarrative || '',
                           timestamp: new Date(),
                           isStreaming: true,
-                          // CRITICAL FIX: Show thinking if we have thinking content but no answer yet
-                          isThinking: streamedThinking.length > 0 && streamedContent.length === 0,
+                          isThinking: false,
                         };
                         assistantMessageId = assistantMessage.timestamp.getTime().toString();
                         updated.push(assistantMessage);
@@ -1033,39 +927,18 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                       }
                     }
                     
-                    // CRITICAL FIX: Content is ready immediately - no artificial delay
-                    // The research panel will show sources as they arrive, no need to wait
+                    // CRITICAL FIX: Delay showing answer to let sources display first
+                    // Give 1000ms for sources to render in the research panel before answer appears
+                    setTimeout(() => {
+                      answerReadyToShow = true;
+                    }, 1000);
                     
                     // NOTE: transientAnalysis is now cleared immediately above (line 707)
                     // No need for delayed clearing - status disappears when content starts
                   }
                   
-                  // CRITICAL FIX: Restore spaces that may have been lost during chunking
-                  // The backend may emit chunks where word boundaries are lost
-                  // We need to intelligently add spaces between chunks when needed
-                  if (streamedContent.length > 0 && contentText.length > 0) {
-                    const lastChar = streamedContent[streamedContent.length - 1];
-                    const firstChar = contentText[0];
-                    
-                    // Add space if:
-                    // 1. Both are alphanumeric (two words being joined)
-                    // 2. Last char is lowercase/uppercase letter and first is uppercase (word boundary)
-                    // 3. Last char is letter/number and first is letter/number (word continuation)
-                    const needsSpace = (
-                      (lastChar && /[a-zA-Z0-9]/.test(lastChar) && /[a-zA-Z0-9]/.test(firstChar)) &&
-                      (lastChar !== ' ' && lastChar !== '\n' && lastChar !== '\t') &&
-                      // Don't add space if already has punctuation or is URL/email pattern
-                      !/[:\/@.]$/.test(streamedContent.slice(-5)) &&
-                      !/^[:\/@.]/.test(contentText.slice(0, 5))
-                    );
-                    
-                    if (needsSpace) {
-                      streamedContent += ' ';
-                    }
-                  }
-                  
-                  // Accumulate filtered content (JSON plans already filtered above)
-                  streamedContent += contentText;
+                  // Accumulate content
+                  streamedContent += parsed.content;
                 }
 
                 // Throttle UI updates to ~100ms AFTER message creation
@@ -1078,21 +951,15 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                 }
                 lastStreamUpdateRef.current = now;
 
-                // CRITICAL FIX: Show thinking when we HAVE thinking content
-                // - Always show if we have thinking but no answer yet
-                // - Briefly show overlap when answer starts (for smooth transition)
-                const MINIMUM_THINKING_TIME = 800; // Minimum time to show thinking for smooth UX
+                // Brief thinking then a short overlap after answer starts
+                const MINIMUM_THINKING_TIME = 800;
                 const OVERLAP_AFTER_CONTENT = 1500; // keep steps visible briefly after answer begins
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
                 const hasThinking = streamedThinking.length > 0;
-                const hasContent = streamedContent.length > 0;
                 const overlapActive = firstContentTimeRef.current ? (Date.now() - firstContentTimeRef.current) < OVERLAP_AFTER_CONTENT : false;
-                
-                // Show thinking if:
-                // 1. We have thinking content AND no answer yet, OR
-                // 2. We have thinking AND answer just started (overlap period)
+                // CRITICAL FIX: Show thinking for ALL modes (not just browsing)
                 const shouldShowThinking = hasThinking && (
-                  (!hasContent) || (hasContent && overlapActive && thinkingElapsedTime < MINIMUM_THINKING_TIME + OVERLAP_AFTER_CONTENT)
+                  (!answerReadyToShow && thinkingElapsedTime < MINIMUM_THINKING_TIME) || (answerReadyToShow && overlapActive)
                 );
 
                 // Update the assistant message with new content
@@ -1377,9 +1244,13 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
             const messageId = message.timestamp?.getTime?.()?.toString() || '';
             const researchSession = message.role === 'assistant' ? researchSessions.get(messageId) : null;
             
-            // PHASE 3 FIX: Only show research panel when we have actual sources loaded
-            // Don't show it just because research is active - prevents empty panel flash
-            const hasActualResearch = researchSession && researchSession.verifiedSources.length > 0;
+            // CRITICAL FIX: Show research panel if there are actual sources/events OR if actively researching
+            // Previous logic was too restrictive - don't hide panel just because sources haven't arrived yet
+            const hasActualResearch = researchSession && (
+              researchSession.events.length > 0 || // Has any events (step/tool/source)
+              researchSession.verifiedSources.length > 0 || // Has verified sources
+              researchSession.isActive // Active research in progress (sources may arrive later)
+            );
             
             return (
             <div key={`${message.timestamp?.toString?.() || index}-${index}`}>
@@ -1764,41 +1635,18 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                 <div
                   className="max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto"
                 >
-                  {/* CRITICAL FIX: Show thinking when we HAVE thinkingContent, not when we DON'T */}
-                  {message.role === 'assistant' && message.isThinking && !message.content && message.thinkingContent && (
+                  {message.role === 'assistant' && message.isThinking && !message.content && !message.thinkingContent && (
                     <motion.div 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="mb-4 p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-l-4 border-blue-500"
+                      className="flex items-center gap-2"
                     >
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 space-y-1.5">
-                          {(() => {
-                            // Extract and display thinking steps nicely
-                            const steps = message.thinkingContent
-                              .split('\n')
-                              .filter(s => s.trim().length > 0)
-                              .slice(-5); // Show last 5 thinking steps
-                            
-                            return steps.length > 0 ? (
-                              steps.map((step, idx) => (
-                                <div key={idx} className="text-sm text-blue-900 dark:text-blue-100 font-medium flex items-start gap-2">
-                                  <span className="text-blue-500 mt-0.5">•</span>
-                                  <span>{step.replace(/\*\*/g, '').trim()}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-                                Thinking<motion.span
-                                  animate={{ opacity: [0, 1, 0] }}
-                                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                                >...</motion.span>
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </div>
+                      <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                        Thinking<motion.span
+                          animate={{ opacity: [0, 1, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        >...</motion.span>
+                      </span>
                     </motion.div>
                   )}
                 

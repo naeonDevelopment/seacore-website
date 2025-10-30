@@ -38,10 +38,6 @@ import {
   setCachedResult,
   getCacheStats
 } from './kv-cache';
-import { 
-  enforceCitations,
-  validateCitations
-} from './citation-enforcer';
 import { accumulateKnowledge } from './memory-accumulation';
 import { 
   detectConversationState, 
@@ -868,25 +864,12 @@ ${technicalDepthFlag}
 
 **USER QUERY**: ${userQuery}
 
-**CRITICAL CITATION REQUIREMENTS:**
-1. **MANDATORY**: Add inline citations after EVERY factual claim using [[N]](url) format
-2. **MINIMUM**: Include at least ${Math.min(3, state.sources.length)} citations in your answer
-3. **FORMAT**: Use the source numbers from the SOURCES list above
-   - Example: "The vessel is 250 meters long [[1]](${state.sources[0]?.url || 'url'})"
-   - Example: "Operated by Maersk [[2]](${state.sources[1]?.url || 'url'})"
-4. **FREQUENCY**: Add citations after:
-   - Technical specifications (dimensions, tonnage, speed)
-   - Company/operator names
-   - IMO numbers and classifications
-   - Current status and locations
-   - Historical facts and dates
-
 **INSTRUCTIONS:**
 - Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
 - The ANSWER section contains Google-grounded information - use it as your primary source
+- Cite all facts using [[1]](url), [[2]](url) format from the SOURCES section
 - Follow the format specified in the TECHNICAL DEPTH flag above
-- Be confident - this is Google-verified information
-- **DO NOT FORGET THE CITATIONS** - they are mandatory for verification mode`;
+- Be confident - this is Google-verified information`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
@@ -965,24 +948,6 @@ ${technicalDepthFlag}
     }
     
     console.log(`   ✅ Synthesized (${fullContent.length} chars, ${chunkCount} chunks)`);
-    
-    // PHASE 4: Citation Enforcement - Ensure inline citations are present
-    const citationResult = enforceCitations(fullContent, state.sources);
-    if (citationResult.wasEnforced) {
-      console.log(`   📎 Citation enforcement: added ${citationResult.citationsAdded} citations (${citationResult.citationsFound}→${citationResult.citationsFound + citationResult.citationsAdded})`);
-      fullContent = citationResult.enforcedContent;
-    } else {
-      console.log(`   ✅ Citations sufficient: ${citationResult.citationsFound}/${citationResult.citationsRequired}`);
-    }
-    
-    // Validate citations are well-formed
-    const validation = validateCitations(fullContent, state.sources);
-    if (!validation.valid) {
-      console.warn(`   ⚠️ Citation validation warnings:`, validation.warnings);
-      if (validation.errors.length > 0) {
-        console.error(`   ❌ Citation validation errors:`, validation.errors);
-      }
-    }
     
     // Phase B & C: Calculate confidence and generate follow-ups
     const updates = await generateIntelligenceMetrics(
