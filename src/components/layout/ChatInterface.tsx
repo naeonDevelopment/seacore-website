@@ -830,6 +830,20 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                       });
                     }
                   }
+                } else if (parsed.type === 'confidence') {
+                  // PHASE 3: Handle confidence indicator
+                  if (activeResearchIdRef.current && parsed.data) {
+                    console.log('📊 [ChatInterface] Confidence received:', parsed.data);
+                    setResearchSessions((prev) => {
+                      const updated = new Map(prev);
+                      const session = updated.get(activeResearchIdRef.current!);
+                      if (session) {
+                        (session as any).confidence = parsed.data;
+                        updated.set(activeResearchIdRef.current!, session);
+                      }
+                      return updated;
+                    });
+                  }
                 } else if (parsed.type === 'content') {
                   // CRITICAL FIX: Create assistant message BEFORE any throttling
                   // This ensures message exists before any updates try to modify it
@@ -1294,18 +1308,47 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                       )}
                     </button>
                     
-                    {researchSession && researchSession.verifiedSources.length > 0 && (
-                      <motion.div 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
-                      >
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                          {researchSession.verifiedSources.length} {researchSession.verifiedSources.length === 1 ? 'Source' : 'Sources'} Verified
-                        </span>
-                      </motion.div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {researchSession && researchSession.verifiedSources.length > 0 && (
+                        <motion.div 
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                            {researchSession.verifiedSources.length} {researchSession.verifiedSources.length === 1 ? 'Source' : 'Sources'} Verified
+                          </span>
+                        </motion.div>
+                      )}
+                      
+                      {/* PHASE 3: Confidence Indicator */}
+                      {researchSession && (researchSession as any).confidence && (
+                        <motion.div 
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border",
+                            (researchSession as any).confidence.label === 'high' && "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800",
+                            (researchSession as any).confidence.label === 'medium' && "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
+                            (researchSession as any).confidence.label === 'low' && "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
+                          )}
+                          title={(researchSession as any).confidence.reasoning}
+                        >
+                          <span className={cn(
+                            "text-xs font-bold uppercase tracking-wide",
+                            (researchSession as any).confidence.label === 'high' && "text-emerald-700 dark:text-emerald-300",
+                            (researchSession as any).confidence.label === 'medium' && "text-blue-700 dark:text-blue-300",
+                            (researchSession as any).confidence.label === 'low' && "text-amber-700 dark:text-amber-300"
+                          )}>
+                            {(researchSession as any).confidence.label} confidence
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                            ({(researchSession as any).confidence.score}/100)
+                          </span>
+                        </motion.div>
+                      )}
+                    </div>
                   </div>
 
                   <AnimatePresence>

@@ -29,7 +29,9 @@ import {
   planQuery,
   executeParallelQueries,
   aggregateAndRank,
-  type QueryPlan
+  calculateConfidence,
+  type QueryPlan,
+  type ConfidenceScore
 } from './query-planner';
 import { 
   getCachedResult,
@@ -331,11 +333,19 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         const stats = getCacheStats(cachedResult);
         console.log(`   ⚡ CACHE HIT (age: ${stats.age}s, ttl: ${stats.ttl}s)`);
         
+        // PHASE 3: Calculate confidence from cached sources
+        const confidence = calculateConfidence(cachedResult.sources);
+        console.log(`   📊 Confidence (cached): ${confidence.label} (${confidence.score}/100)`);
+        
         if (statusEmitter) {
           statusEmitter({
             type: 'thinking',
             step: 'cache_hit',
             content: `✓ Using cached results (${stats.age}s old)`
+          });
+          statusEmitter({
+            type: 'confidence',
+            data: confidence
           });
         }
         
@@ -361,6 +371,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           requiresTechnicalDepth: classification.requiresTechnicalDepth,
           technicalDepthScore: classification.technicalDepthScore,
           safetyOverride: classification.safetyOverride || false,
+          confidenceIndicator: confidence,  // PHASE 3: Include confidence score
         };
       }
       
@@ -413,11 +424,19 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       const rankedSources = aggregateAndRank(allSources);
       
+      // PHASE 3: Calculate confidence indicator
+      const confidence = calculateConfidence(rankedSources);
+      console.log(`   📊 Confidence: ${confidence.label} (${confidence.score}/100) - ${confidence.reasoning}`);
+      
       if (statusEmitter) {
         statusEmitter({
           type: 'thinking',
           step: 'source_ranking',
           content: `✓ Selected top ${rankedSources.length} authoritative sources`
+        });
+        statusEmitter({
+          type: 'confidence',
+          data: confidence
         });
       }
       
@@ -462,6 +481,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           requiresTechnicalDepth: classification.requiresTechnicalDepth,
           technicalDepthScore: classification.technicalDepthScore,
           safetyOverride: classification.safetyOverride || false,
+          confidenceIndicator: confidence,  // PHASE 3: Include confidence score
         };
       } catch (error: any) {
         console.error(`   ❌ Phase 2 pipeline failed:`, error.message);

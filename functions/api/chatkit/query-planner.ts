@@ -391,6 +391,125 @@ export function aggregateAndRank(sources: Source[]): Source[] {
 }
 
 /**
+ * Calculate confidence score based on source quality and corroboration
+ * Returns a score from 0-100 and a label (high/medium/low)
+ * 
+ * PHASE 3: Confidence indicator for UI display
+ */
+export interface ConfidenceScore {
+  score: number;         // 0-100
+  label: 'high' | 'medium' | 'low';
+  tier1Count: number;
+  tier2Count: number;
+  tier3Count: number;
+  totalSources: number;
+  reasoning: string;     // Human-readable explanation
+}
+
+export function calculateConfidence(sources: Source[]): ConfidenceScore {
+  const tierCounts = sources.reduce((acc, s) => {
+    if (s.tier) acc[s.tier] = (acc[s.tier] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const tier1Count = tierCounts.T1 || 0;
+  const tier2Count = tierCounts.T2 || 0;
+  const tier3Count = tierCounts.T3 || 0;
+  const totalSources = sources.length;
+  
+  // Confidence scoring algorithm:
+  // Base score: 50 (neutral)
+  // +40 for each T1 source (capped at +40 total, i.e., 1+ T1 sources)
+  // +20 for each T2 source (capped at +20 total)
+  // +10 for multiple sources (corroboration)
+  // -10 if only T3 sources
+  // -20 if < 3 total sources
+  
+  let score = 50; // Base neutral
+  
+  // T1 sources (authoritative) add significant confidence
+  if (tier1Count >= 1) {
+    score += 40; // At least one authoritative source = high confidence
+  }
+  
+  // T2 sources (industry publications) add moderate confidence
+  if (tier2Count >= 1) {
+    score += 20;
+  }
+  
+  // Corroboration (multiple sources) adds confidence
+  if (totalSources >= 5) {
+    score += 10; // Good corroboration
+  } else if (totalSources >= 3) {
+    score += 5; // Some corroboration
+  }
+  
+  // Penalties
+  if (tier1Count === 0 && tier2Count === 0 && tier3Count > 0) {
+    score -= 10; // Only general/blog sources
+  }
+  
+  if (totalSources < 3) {
+    score -= 20; // Limited sources
+  }
+  
+  // Clamp to 0-100
+  score = Math.max(0, Math.min(100, score));
+  
+  // Determine label
+  let label: 'high' | 'medium' | 'low';
+  if (score >= 80) label = 'high';
+  else if (score >= 50) label = 'medium';
+  else label = 'low';
+  
+  // Generate reasoning
+  const reasoning = generateConfidenceReasoning(tier1Count, tier2Count, tier3Count, totalSources, label);
+  
+  return {
+    score,
+    label,
+    tier1Count,
+    tier2Count,
+    tier3Count,
+    totalSources,
+    reasoning
+  };
+}
+
+/**
+ * Generate human-readable explanation for confidence score
+ */
+function generateConfidenceReasoning(
+  tier1: number, 
+  tier2: number, 
+  tier3: number, 
+  total: number,
+  label: 'high' | 'medium' | 'low'
+): string {
+  const parts: string[] = [];
+  
+  if (tier1 > 0) {
+    parts.push(`${tier1} authoritative source${tier1 > 1 ? 's' : ''}`);
+  }
+  if (tier2 > 0) {
+    parts.push(`${tier2} industry source${tier2 > 1 ? 's' : ''}`);
+  }
+  if (tier3 > 0) {
+    parts.push(`${tier3} general source${tier3 > 1 ? 's' : ''}`);
+  }
+  
+  const sourceBreakdown = parts.join(', ');
+  
+  if (label === 'high') {
+    return `High confidence based on ${sourceBreakdown} with strong corroboration (${total} total sources)`;
+  } else if (label === 'medium') {
+    return `Medium confidence from ${sourceBreakdown} (${total} total sources)`;
+  } else {
+    return `Limited confidence - ${sourceBreakdown} (${total} total sources). Consider enabling deeper research.`;
+  }
+}
+
+/**
  * Assign authority tier based on domain
  */
 function assignAuthorityTier(source: Source): Source {
