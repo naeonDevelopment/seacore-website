@@ -1047,11 +1047,16 @@ ${technicalDepthFlag}
    - Example: "Operated by Maersk [[2]](${state.sources[1]?.url || 'url'})"
 4. **TECHNICAL QUERIES**: Different sections should cite different sources when possible
 5. **FREQUENCY**: Add citations after:
-   - Technical specifications (dimensions, tonnage, speed)
+   - Technical specifications (dimensions, tonnage, speed, power, capacity)
+   - Engine/equipment model numbers and OEM names
+   - Service intervals and maintenance schedules
    - Company/operator names
    - IMO numbers and classifications
    - Current status and locations
    - Historical facts and dates
+   - Operational recommendations and thresholds
+   - Failure modes and warning signs
+   - Field experience and best practices
 
 **INSTRUCTIONS:**
 - Use the "=== GEMINI GROUNDING RESULTS ===" section above to answer the user's query
