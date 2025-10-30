@@ -391,7 +391,16 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      // Query Planning
+      // Query Planning (long operation - emit status to prevent QUIC timeout)
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'status',
+          stage: 'planning',
+          content: `🔍 Analyzing query and planning search strategy...`,
+          progress: 5
+        });
+      }
+      
       const queryPlan = await planQuery(queryToSend, entityContext, env.OPENAI_API_KEY);
       
       if (statusEmitter) {
@@ -420,7 +429,9 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      // Parallel Execution
+      // Parallel Execution (long operation - statusEmitter sends periodic updates)
+      // The executeParallelQueries function already uses statusEmitter internally
+      // This ensures heartbeat messages during the search phase
       const allSources = await executeParallelQueries(
         queryPlan.subQueries,
         env.GEMINI_API_KEY,
@@ -1578,6 +1589,9 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         }
       };
       
+      // CRITICAL: Declare keep-alive interval outside try-catch for cleanup
+      let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+      
       try {
         // CRITICAL: Use .stream() with streamMode (not .streamEvents())
         // This enables token-level streaming via AIMessageChunk
@@ -1605,6 +1619,21 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         let finalState: any = null; // Capture final state for fallback
         
         console.log(`📡 Agent stream created - entering event loop`);
+        
+        // CRITICAL: Add keep-alive mechanism to prevent QUIC timeouts during long async operations
+        // QUIC may timeout if no data is sent for >30 seconds, so send heartbeat every 20 seconds
+        const KEEP_ALIVE_INTERVAL = 20000; // 20 seconds
+        keepAliveInterval = setInterval(() => {
+          try {
+            controller.enqueue(encoder.encode(`: heartbeat\n\n`)); // SSE comment (no-op but keeps connection alive)
+          } catch (e) {
+            // Connection may be closed, clear interval
+            if (keepAliveInterval) {
+              clearInterval(keepAliveInterval);
+              keepAliveInterval = null;
+            }
+          }
+        }, KEEP_ALIVE_INTERVAL);
         
         // Stream events using [streamType, event] tuple pattern
         for await (const [streamType, event] of agentStream) {
@@ -1890,11 +1919,24 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           console.log(`💾 Memory saved with accumulated knowledge`);
         }
         
+        // Clear keep-alive interval before closing
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+          keepAliveInterval = null;
+        }
+        
         // Done
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       } catch (error: any) {
         console.error('❌ Stream error:', error);
+        
+        // Clear keep-alive interval on error
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+          keepAliveInterval = null;
+        }
+        
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
           type: 'error', 
           content: error.message 
