@@ -1659,15 +1659,17 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   const queryPlan = parseQueryPlan(raw);
                   if (!queryPlan) return false;
 
-                  const formattedPlan = formatQueryPlanForDisplay(queryPlan);
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: formattedPlan })}\n\n`));
+                  // CRITICAL FIX: Don't emit query plan as content - it's already emitted as thinking steps
+                  // in router node. This prevents JSON from appearing in content stream.
+                  // If this code path is reached, it means JSON leaked through somehow - just filter it
+                  console.warn(`⚠️ [Backend] Filtered out JSON query plan that leaked to LLM stream`);
                   statusEmitter?.({
                     type: 'thinking',
-                    step: 'query_plan_detail',
-                    content: `${queryPlan.subQueries.length}-step ${queryPlan.strategy} strategy prepared`
+                    step: 'query_plan_filtered',
+                    content: `Filtered leaked query plan JSON`
                   });
                   pendingPlanBuffer = null;
-                  return true;
+                  return true; // Return true so it doesn't get emitted as content
                 };
 
                 if (pendingPlanBuffer !== null) {

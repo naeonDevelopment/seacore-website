@@ -677,7 +677,6 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
         let streamedThinking = '';
         let memoryNarrative = ''; // Conversation context from session memory
         let hasReceivedContent = false;
-        let answerReadyToShow = false;
         
         streamingIndexRef.current = null;
         // Start thinking timer only when we actually receive thinking content
@@ -944,7 +943,8 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                           memoryNarrative: memoryNarrative || '',
                           timestamp: new Date(),
                           isStreaming: true,
-                          isThinking: false,
+                          // CRITICAL FIX: Show thinking if we have thinking content but no answer yet
+                          isThinking: streamedThinking.length > 0 && streamedContent.length === 0,
                         };
                         assistantMessageId = assistantMessage.timestamp.getTime().toString();
                         updated.push(assistantMessage);
@@ -982,11 +982,8 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                       }
                     }
                     
-                    // CRITICAL FIX: Delay showing answer to let sources display first
-                    // Give 1000ms for sources to render in the research panel before answer appears
-                    setTimeout(() => {
-                      answerReadyToShow = true;
-                    }, 1000);
+                    // CRITICAL FIX: Content is ready immediately - no artificial delay
+                    // The research panel will show sources as they arrive, no need to wait
                     
                     // NOTE: transientAnalysis is now cleared immediately above (line 707)
                     // No need for delayed clearing - status disappears when content starts
@@ -1006,15 +1003,21 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                 }
                 lastStreamUpdateRef.current = now;
 
-                // Brief thinking then a short overlap after answer starts
-                const MINIMUM_THINKING_TIME = 800;
+                // CRITICAL FIX: Show thinking when we HAVE thinking content
+                // - Always show if we have thinking but no answer yet
+                // - Briefly show overlap when answer starts (for smooth transition)
+                const MINIMUM_THINKING_TIME = 800; // Minimum time to show thinking for smooth UX
                 const OVERLAP_AFTER_CONTENT = 1500; // keep steps visible briefly after answer begins
                 const thinkingElapsedTime = thinkingStartTimeRef.current ? Date.now() - thinkingStartTimeRef.current : 0;
                 const hasThinking = streamedThinking.length > 0;
+                const hasContent = streamedContent.length > 0;
                 const overlapActive = firstContentTimeRef.current ? (Date.now() - firstContentTimeRef.current) < OVERLAP_AFTER_CONTENT : false;
-                // CRITICAL FIX: Show thinking for ALL modes (not just browsing)
+                
+                // Show thinking if:
+                // 1. We have thinking content AND no answer yet, OR
+                // 2. We have thinking AND answer just started (overlap period)
                 const shouldShowThinking = hasThinking && (
-                  (!answerReadyToShow && thinkingElapsedTime < MINIMUM_THINKING_TIME) || (answerReadyToShow && overlapActive)
+                  (!hasContent) || (hasContent && overlapActive && thinkingElapsedTime < MINIMUM_THINKING_TIME + OVERLAP_AFTER_CONTENT)
                 );
 
                 // Update the assistant message with new content
@@ -1686,18 +1689,41 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                 <div
                   className="max-w-[95%] sm:max-w-[90%] rounded-2xl sm:rounded-3xl px-4 sm:px-6 py-3 sm:py-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border border-white/20 dark:border-slate-700/30 text-slate-900 dark:text-slate-100 overflow-x-auto"
                 >
-                  {message.role === 'assistant' && message.isThinking && !message.content && !message.thinkingContent && (
+                  {/* CRITICAL FIX: Show thinking when we HAVE thinkingContent, not when we DON'T */}
+                  {message.role === 'assistant' && message.isThinking && !message.content && message.thinkingContent && (
                     <motion.div 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="flex items-center gap-2"
+                      exit={{ opacity: 0 }}
+                      className="mb-4 p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-l-4 border-blue-500"
                     >
-                      <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                        Thinking<motion.span
-                          animate={{ opacity: [0, 1, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        >...</motion.span>
-                      </span>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 space-y-1.5">
+                          {(() => {
+                            // Extract and display thinking steps nicely
+                            const steps = message.thinkingContent
+                              .split('\n')
+                              .filter(s => s.trim().length > 0)
+                              .slice(-5); // Show last 5 thinking steps
+                            
+                            return steps.length > 0 ? (
+                              steps.map((step, idx) => (
+                                <div key={idx} className="text-sm text-blue-900 dark:text-blue-100 font-medium flex items-start gap-2">
+                                  <span className="text-blue-500 mt-0.5">•</span>
+                                  <span>{step.replace(/\*\*/g, '').trim()}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+                                Thinking<motion.span
+                                  animate={{ opacity: [0, 1, 0] }}
+                                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                >...</motion.span>
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
                     </motion.div>
                   )}
                 
