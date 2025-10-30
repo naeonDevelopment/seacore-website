@@ -1699,6 +1699,30 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 }
 
                 const trimmed = text.trimStart();
+                
+                // CRITICAL: Detect CONCATENATED query plan patterns FIRST (before JSON bracket check)
+                // This catches the broken streaming case where query plan leaks as concatenated text
+                // Pattern: "strategy" + "Queries" + "query" + [text] + "purpose" + [text] + "priority"
+                const concatenatedPlanPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
+                if (concatenatedPlanPattern.test(text)) {
+                  console.error(`❌ [Backend] CRITICAL: Detected CONCATENATED query plan in stream - REJECTING`);
+                  console.error(`   Sample: "${text.substring(0, 150)}..."`);
+                  // Don't emit this at all - it's definitely query plan leakage
+                  continue;
+                }
+                
+                // Also detect query plan structure keywords in suspicious context
+                const hasPlanKeywords = /strategy/i.test(text) && 
+                                      (/Queries|subQueries/i.test(text) || /query\w+.*?purpose/i.test(text));
+                if (hasPlanKeywords && text.length < 500 && 
+                    !text.includes('EXECUTIVE') && !text.includes('TECHNICAL') && 
+                    !text.includes('Summary') && !text.includes('Specifications')) {
+                  // Short text with query plan keywords and no legitimate content markers = reject
+                  console.error(`❌ [Backend] Detected query plan keywords in suspicious short chunk - REJECTING`);
+                  console.error(`   Content: "${text.substring(0, 200)}..."`);
+                  continue;
+                }
+                
                 const looksLikePlanStart = trimmed.startsWith('{') && trimmed.includes('subQueries');
 
                 if (looksLikePlanStart) {
@@ -1717,6 +1741,12 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 // Check if text is still a JSON query plan (even if incomplete)
                 if (pendingPlanBuffer !== null) {
                   const combined = pendingPlanBuffer + text;
+                  // Check combined buffer for concatenated pattern too
+                  if (concatenatedPlanPattern.test(combined)) {
+                    console.error(`❌ [Backend] Combined buffer contains concatenated query plan - REJECTING`);
+                    pendingPlanBuffer = null; // Clear buffer and skip
+                    continue;
+                  }
                   if (tryEmitPlan(combined)) {
                     // Successfully parsed combined buffer, don't emit raw JSON
                     continue;

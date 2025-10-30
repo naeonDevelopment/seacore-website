@@ -888,6 +888,26 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                   // CRITICAL: Aggressive JSON filtering BEFORE any state updates or accumulation
                   let contentText = String(parsed.content || '').trim();
                   
+                  // ZERO: Detect CONCATENATED query plan patterns (the broken streaming case)
+                  // Pattern: "strategy" + "Queries" + "query" + [text] + "purpose" + [text] + "priority"
+                  // Example: "strategyfocusedQueriesquerycurrentstatusStanfordpurposeoperationalstatus..."
+                  const concatenatedPlanPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
+                  if (concatenatedPlanPattern.test(contentText)) {
+                    console.error('❌ [ChatInterface] Detected CONCATENATED query plan pattern - REJECTING ENTIRE CHUNK');
+                    console.error(`   Sample: "${contentText.substring(0, 100)}..."`);
+                    continue; // Skip entirely - this is definitely query plan leakage
+                  }
+                  
+                  // ALSO: Check for query plan structure keywords in sequence (without brackets)
+                  const hasPlanKeywords = /strategy/i.test(contentText) && 
+                                        (/Queries|subQueries/i.test(contentText) || /query\w+.*?purpose/i.test(contentText));
+                  if (hasPlanKeywords && contentText.length < 500 && !contentText.includes('EXECUTIVE') && !contentText.includes('TECHNICAL')) {
+                    // This looks like query plan leakage if it's short and has those keywords
+                    console.error('❌ [ChatInterface] Detected query plan keywords in suspicious context - REJECTING');
+                    console.error(`   Content: "${contentText.substring(0, 150)}..."`);
+                    continue;
+                  }
+                  
                   // FIRST: Check if entire chunk is pure JSON query plan (most common case)
                   const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/s.test(contentText);
                   if (isOnlyJsonPlan) {
