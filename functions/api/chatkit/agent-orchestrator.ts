@@ -1913,8 +1913,36 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   }
                 }
                 
-                // CRITICAL: Aggressive JSON filtering - catch ANY JSON that might be in LLM response
-                // Check for JSON patterns even in non-bracketed text (might be in middle of response)
+                // CRITICAL: Detect query plan patterns (with spaces OR concatenated)
+                // Pattern: "strategy focused Queries query ... purpose ... priority" (with spaces)
+                const spacedQueryPlanPattern = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
+                const concatenatedPlanPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
+                const repeatedQueryPurposePattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
+                
+                if (spacedQueryPlanPattern.test(text) || concatenatedPlanPattern.test(text) || repeatedQueryPurposePattern.test(text)) {
+                  console.error(`❌ [Backend] CRITICAL: Detected QUERY PLAN pattern (spaced/concatenated) in stream - REJECTING`);
+                  console.error(`   Sample: "${text.substring(0, 150)}..."`);
+                  continue; // Don't emit - it's definitely query plan leakage
+                }
+                
+                // Also check for query plan structure keywords in sequence
+                const hasStrategyQueries = /strategy\s+(focused\s+)?(Queries|queries)/i.test(text);
+                const hasQueryPurpose = /query\s+\w+\s+purpose\s+\w+/i.test(text);
+                const hasQueryPriority = /query\s+\w+.*?priority/i.test(text);
+                
+                if ((hasStrategyQueries || hasQueryPurpose) && 
+                    (hasQueryPurpose || hasQueryPriority) &&
+                    text.length < 600 &&
+                    !text.includes('EXECUTIVE') && 
+                    !text.includes('TECHNICAL') &&
+                    !text.includes('## EXECUTIVE') &&
+                    !text.includes('## TECHNICAL')) {
+                  console.error(`❌ [Backend] Detected query plan keyword sequence - REJECTING`);
+                  console.error(`   Sample: "${text.substring(0, 200)}..."`);
+                  continue;
+                }
+                
+                // Check for JSON query plan patterns
                 const containsJsonPlan = trimmed.includes('"strategy"') && trimmed.includes('"subQueries"');
                 if (containsJsonPlan) {
                   console.warn(`⚠️ [Backend] Detected JSON query plan in LLM response: "${text.substring(0, 100)}..."`);

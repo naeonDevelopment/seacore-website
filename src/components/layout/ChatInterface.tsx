@@ -888,23 +888,37 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                   // CRITICAL: Aggressive JSON filtering BEFORE any state updates or accumulation
                   let contentText = String(parsed.content || '').trim();
                   
-                  // ZERO: Detect CONCATENATED query plan patterns (the broken streaming case)
-                  // Pattern: "strategy" + "Queries" + "query" + [text] + "purpose" + [text] + "priority"
-                  // Example: "strategyfocusedQueriesquerycurrentstatusStanfordpurposeoperationalstatus..."
+                  // ZERO: Detect query plan patterns (concatenated OR with spaces)
+                  // Pattern variations:
+                  // 1. "strategy focused Queries query ... purpose ... priority" (with spaces)
+                  // 2. "strategyfocusedQueriesquery...purpose...priority" (concatenated)
+                  // 3. "query ... purpose ... priority" repeated multiple times (strong indicator)
+                  const queryPlanPattern = /strategy\s*(focused\s+)?Queries.*?query\s+\w+.*?purpose\s+\w+.*?priority/i;
                   const concatenatedPlanPattern = /strategy\w*Queries.*?query\w+.*?purpose\w+.*?priority/i;
-                  if (concatenatedPlanPattern.test(contentText)) {
-                    console.error('❌ [ChatInterface] Detected CONCATENATED query plan pattern - REJECTING ENTIRE CHUNK');
-                    console.error(`   Sample: "${contentText.substring(0, 100)}..."`);
+                  const repeatedQueryPurposePattern = /query\s+\w+.*?purpose\s+\w+.*?priority.*?query\s+\w+.*?purpose/i;
+                  
+                  if (queryPlanPattern.test(contentText) || concatenatedPlanPattern.test(contentText) || repeatedQueryPurposePattern.test(contentText)) {
+                    console.error('❌ [ChatInterface] Detected QUERY PLAN pattern (with/without spaces) - REJECTING ENTIRE CHUNK');
+                    console.error(`   Sample: "${contentText.substring(0, 150)}..."`);
                     continue; // Skip entirely - this is definitely query plan leakage
                   }
                   
-                  // ALSO: Check for query plan structure keywords in sequence (without brackets)
-                  const hasPlanKeywords = /strategy/i.test(contentText) && 
-                                        (/Queries|subQueries/i.test(contentText) || /query\w+.*?purpose/i.test(contentText));
-                  if (hasPlanKeywords && contentText.length < 500 && !contentText.includes('EXECUTIVE') && !contentText.includes('TECHNICAL')) {
-                    // This looks like query plan leakage if it's short and has those keywords
-                    console.error('❌ [ChatInterface] Detected query plan keywords in suspicious context - REJECTING');
-                    console.error(`   Content: "${contentText.substring(0, 150)}..."`);
+                  // ALSO: Check for query plan structure keywords in sequence (more flexible with spaces)
+                  const hasStrategyAndQueries = /strategy\s+(focused\s+)?(Queries|queries)/i.test(contentText);
+                  const hasQueryPurposeSequence = /query\s+\w+\s+purpose\s+\w+/i.test(contentText);
+                  const hasQueryPrioritySequence = /query\s+\w+.*?priority/i.test(contentText);
+                  
+                  // If we have strategy+queries OR multiple query+purpose sequences, it's likely a query plan
+                  if ((hasStrategyAndQueries || hasQueryPurposeSequence) && 
+                      (hasQueryPurposeSequence || hasQueryPrioritySequence) &&
+                      contentText.length < 600 && 
+                      !contentText.includes('EXECUTIVE') && 
+                      !contentText.includes('TECHNICAL') &&
+                      !contentText.includes('## EXECUTIVE') &&
+                      !contentText.includes('## TECHNICAL')) {
+                    // Multiple indicators of query plan structure
+                    console.error('❌ [ChatInterface] Detected query plan keywords in suspicious sequence - REJECTING');
+                    console.error(`   Content: "${contentText.substring(0, 200)}..."`);
                     continue;
                   }
                   
