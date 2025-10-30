@@ -80,7 +80,7 @@ export async function planQuery(
   
   console.log(`   Strategy: ${strategy}`);
   
-  const planningPrompt = `You are a maritime intelligence query planner. Decompose this query into 3-6 targeted sub-queries.
+  const planningPrompt = `You are a maritime intelligence query planner. Decompose this query into 3-6 targeted sub-queries that search SPECIFIC maritime sources.
 
 MAIN QUERY: "${query}"
 ${entityContext ? `CONTEXT: ${entityContext}` : ''}
@@ -88,25 +88,59 @@ ${entityContext ? `CONTEXT: ${entityContext}` : ''}
 STRATEGY: ${strategy}
 ${isVesselQuery ? '- Focus on vessel specifications, ownership, operations' : ''}
 ${isCompanyQuery ? '- Focus on company fleet, operations, ownership structure' : ''}
-${isEquipmentQuery ? '- Focus on equipment specs, OEM details, maintenance' : ''}
+${isEquipmentQuery ? '- Focus on equipment specs, OEM details, maintenance, REAL-WORLD OPERATIONAL DATA' : ''}
 ${isComparative ? '- Focus on comparative attributes and verification' : ''}
+
+CRITICAL: TARGET SPECIFIC MARITIME DATA SOURCES:
+
+**FOR EQUIPMENT/MAINTENANCE QUERIES - GENERATE THESE SUB-QUERY TYPES:**
+1. OEM Technical Documentation (HIGH PRIORITY):
+   - "site:cat.com filetype:pdf [equipment model] maintenance"
+   - "site:wartsila.com filetype:pdf [equipment] service bulletin"
+   - "site:man-es.com filetype:pdf [equipment] technical circular"
+
+2. Maritime Forums & Field Reports (for real-world scenarios):
+   - "site:gcaptain.com [equipment] maintenance problems OR failures OR experience"
+   - "site:marineinsight.com [equipment] common issues OR maintenance"
+   - "[equipment] chief engineer forum failure OR troubleshooting"
+
+3. Classification Society Standards:
+   - "site:dnv.com [equipment type] requirements"
+   - "site:lr.org [equipment type] guidance"
+
+4. General Equipment Information:
+   - "[equipment] specifications datasheet"
+   - "[equipment] operator manual"
+
+**FOR VESSEL QUERIES:**
+1. "site:vesselfinder.com OR site:marinetraffic.com [vessel name] IMO"
+2. "[vessel name] specifications owner operator"
+3. "[vessel name] shipyard built classification"
+4. "site:equasis.org [vessel name]"
+
+**FOR COMPANY QUERIES:**
+1. "[company] fleet list vessels"
+2. "[company] maritime operations areas"
+3. "site:linkedin.com [company] maritime"
 
 RULES:
 1. Generate 3-6 sub-queries (depending on complexity)
-2. Each sub-query should target a specific aspect
+2. Each sub-query should target a SPECIFIC source type
 3. Prioritize sub-queries by importance (high/medium/low)
-4. For vessel queries: owner, specs, classification, current status
-5. For company queries: fleet size, operations, ownership, reputation
-6. For comparative queries: attribute for each entity + verification sources
-7. Keep sub-queries concise and searchable
+4. For equipment queries: ALWAYS include at least one PDF search + one forum search
+5. For vessel queries: owner, specs, classification, current status
+6. For company queries: fleet size, operations, ownership, reputation
+7. For comparative queries: attribute for each entity + verification sources
+8. Use site: operators and filetype:pdf when targeting specific sources
+9. Keep sub-queries concise and searchable
 
 Return JSON:
 {
   "strategy": "${strategy}",
   "subQueries": [
     {
-      "query": "specific searchable query",
-      "purpose": "what this finds",
+      "query": "specific searchable query with site: or filetype: operators",
+      "purpose": "what this finds (e.g., OEM PDF manual, forum discussion, vessel registry)",
       "priority": "high|medium|low"
     }
   ]
@@ -174,7 +208,7 @@ function createFallbackPlan(query: string, strategy: string): QueryPlan {
     }
   ];
   
-  // Add context-specific sub-queries
+  // Add context-specific sub-queries with targeted source discovery
   if (/vessel|ship/i.test(query)) {
     subQueries.push({
       query: `${query} owner operator`,
@@ -190,6 +224,18 @@ function createFallbackPlan(query: string, strategy: string): QueryPlan {
     subQueries.push({
       query: `${query} fleet vessels`,
       purpose: 'fleet information',
+      priority: 'medium'
+    });
+  } else if (/engine|generator|equipment|machinery|maintenance/i.test(query)) {
+    // Equipment queries - add PDF and forum searches
+    subQueries.push({
+      query: `${query} filetype:pdf maintenance manual`,
+      purpose: 'OEM PDF documentation',
+      priority: 'high'
+    });
+    subQueries.push({
+      query: `site:gcaptain.com ${query} maintenance OR problems`,
+      purpose: 'forum operational experience',
       priority: 'medium'
     });
   }
@@ -513,24 +559,38 @@ function generateConfidenceReasoning(
 }
 
 /**
- * Assign authority tier based on domain
+ * Assign authority tier based on domain and content type
+ * Enhanced to recognize PDFs, forums, and maritime-specific sources
  */
 function assignAuthorityTier(source: Source): Source {
   const url = source.url?.toLowerCase() || '';
+  const title = source.title?.toLowerCase() || '';
+  const content = source.content?.toLowerCase() || '';
   
-  // T1: Authoritative (government, IMO, classification societies, OEMs, academia)
+  // Check if source is a PDF (high value for technical documentation)
+  const isPDF = url.includes('.pdf') || title.includes('.pdf') || content.includes('pdf');
+  
+  // T1: Authoritative (government, IMO, classification societies, OEMs, academia, PDF manuals)
   if (url.includes('.gov') || url.includes('imo.org') || url.includes('iacs.org.uk') || 
       url.includes('classnk') || url.includes('dnv.com') || url.includes('lr.org') || 
-      url.includes('abs.org') || url.includes('.edu') || url.includes('wartsila') ||
-      url.includes('caterpillar') || url.includes('man-es.com')) {
+      url.includes('abs.org') || url.includes('.edu') || 
+      url.includes('wartsila.com') || url.includes('cat.com') || url.includes('man-es.com') ||
+      url.includes('rolls-royce.com') || url.includes('abb.com') || url.includes('siemens.com') ||
+      url.includes('kongsberg.com') || url.includes('cummins.com') || url.includes('volvo.com') ||
+      (isPDF && (url.includes('wartsila') || url.includes('cat') || url.includes('man') || 
+                 url.includes('rolls') || url.includes('abb') || url.includes('cummins')))) {
     return { ...source, tier: 'T1' };
   }
   
-  // T2: Industry publications and maritime-specific sources
+  // T2: Industry publications, maritime forums, and maritime-specific sources
   if (url.includes('maritime') || url.includes('shipping') || url.includes('vessel') ||
-      url.includes('gcaptain') || url.includes('tradewinds') || url.includes('splash247') ||
+      url.includes('gcaptain.com') || url.includes('tradewinds') || url.includes('splash247') ||
       url.includes('maritime-executive') || url.includes('shippingwatch') ||
-      url.includes('marineinsight') || url.includes('seatrade')) {
+      url.includes('marineinsight.com') || url.includes('seatrade') ||
+      url.includes('marinelink') || url.includes('offshore-energy') ||
+      url.includes('vesselfinder') || url.includes('marinetraffic') || url.includes('equasis') ||
+      url.includes('iseaport') || url.includes('marineengineering') ||
+      (isPDF && url.includes('maritime'))) {
     return { ...source, tier: 'T2' };
   }
   
