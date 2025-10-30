@@ -115,12 +115,15 @@ Return JSON:
 Return ONLY the JSON:`;
 
   try {
+    // CRITICAL FIX: Use non-streaming LLM for internal planning (don't leak to UI)
     const llm = new ChatOpenAI({
       modelName: 'gpt-4o-mini',
       temperature: 0.0,  // Deterministic planning
       openAIApiKey: openaiKey,
+      streaming: false,  // CRITICAL: Disable streaming to prevent UI leak
     });
     
+    // CRITICAL: Call without config to prevent streaming callbacks from leaking planner output
     const response = await llm.invoke([
       { role: 'system', content: 'You are a precise query planning system. Return valid JSON only.' },
       { role: 'user', content: planningPrompt }

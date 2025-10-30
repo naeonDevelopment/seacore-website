@@ -326,7 +326,7 @@ const HomePage: React.FC = () => {
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "WebPage",
+            "@type": ["WebPage", "FAQPage"],
             "name": "fleetcore Home",
             "url": "https://fleetcore.ai/",
             "breadcrumb": {
@@ -335,21 +335,18 @@ const HomePage: React.FC = () => {
                 { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://fleetcore.ai/" }
               ]
             },
-            "mainEntity": {
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "What is fleetcore?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "An AI-powered maritime maintenance OS that automates scheduling, ensures SOLAS/MARPOL compliance, and delivers fleet-wide intelligence." }
-                },
-                {
-                  "@type": "Question",
-                  "name": "Who is fleetcore for?",
-                  "acceptedAnswer": { "@type": "Answer", "text": "Enterprise maritime operators—technical superintendents, chief engineers, and fleet operations teams managing multi-vessel fleets." }
-                }
-              ]
-            }
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is fleetcore?",
+                "acceptedAnswer": { "@type": "Answer", "text": "An AI-powered maritime maintenance OS that automates scheduling, ensures SOLAS/MARPOL compliance, and delivers fleet-wide intelligence." }
+              },
+              {
+                "@type": "Question",
+                "name": "Who is fleetcore for?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Enterprise maritime operators—technical superintendents, chief engineers, and fleet operations teams managing multi-vessel fleets." }
+              }
+            ]
           })}
         </script>
       </Helmet>
