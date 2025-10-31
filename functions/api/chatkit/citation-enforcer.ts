@@ -40,12 +40,16 @@ export interface CitationEnforcementResult {
  */
 export function enforceCitations(
   content: string,
-  sources: Source[]
+  sources: Source[],
+  options?: { technicalDepth?: boolean; minRequired?: number }
 ): CitationEnforcementResult {
   
   // Count existing citations
   const existingCitations = countCitations(content);
-  const minRequired = Math.min(3, sources.length);
+  const baseMin = options?.minRequired !== undefined
+    ? options.minRequired
+    : (options?.technicalDepth ? 5 : 3);
+  const minRequired = Math.min(baseMin, sources.length);
   
   console.log(`\n📎 CITATION ENFORCEMENT:`);
   console.log(`   Existing: ${existingCitations}, Required: ${minRequired}, Sources: ${sources.length}`);

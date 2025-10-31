@@ -162,19 +162,12 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
 
 ---
 
-## 🌐 **Unlock Specialized Maritime Intelligence**
+## 🔎 How research works
 
-Enable **Online Research** below to access:
-- **Real-time industry data** from maritime databases and technical repositories
-- **Manufacturer specifications** and OEM technical documentation  
-- **Regulatory updates** from IMO, classification societies, and flag states
-- **Global fleet insights** and maintenance best practices
+- For questions about fleetcore (features, how-to), I answer from platform knowledge.
+- For vessels, companies, and equipment, I automatically verify with trusted web sources and include citations.
 
-This is **specialized maritime search** – not general web search. Get precise, industry-specific answers backed by authoritative sources.
-
-**What would you like to know?**
-
-_Note: Online research uses fast verification mode with Gemini. Deep research mode with Tavily is coming soon._`,
+**What would you like to know?**`,
       timestamp: new Date(),
     },
   ]);
@@ -205,25 +198,29 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
   const [isLoading, setIsLoading] = useState(false);
   const [isResearching, setIsResearching] = useState(false); // NEW: Track research phase
   const [isStreaming, setIsStreaming] = useState(false); // Track active streaming
-  // modelName removed (unused)
-  // Deep research disabled - toggle always off
-  const useBrowsing = false;
-  // Gate chain-of-thought behind Online research
-  const useChainOfThought = useBrowsing;
-  // Toast notification for deep research coming soon
-  const [showComingSoonToast, setShowComingSoonToast] = useState(false);
-  // Animation state for toggle bounce back
-  const [toggleBouncing, setToggleBouncing] = useState(false);
+  // Context-aware browsing flag (computed per message)
+  const [currentUseBrowsing, setCurrentUseBrowsing] = useState<boolean>(false);
+  const currentUseBrowsingRef = useRef<boolean>(false);
   
-  // Auto-dismiss toast after 3 seconds
-  useEffect(() => {
-    if (showComingSoonToast) {
-      const timer = setTimeout(() => {
-        setShowComingSoonToast(false);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showComingSoonToast]);
+  // Helper: simple client-side platform query detection
+  const isPlatformQueryClient = (q: string) => {
+    const query = (q || '').toLowerCase();
+    const platformKeywords = [
+      'fleetcore', 'seacore', 'fleet core', 'sea core',
+      'system', 'systems', 'management', 'manager',
+      'pms', 'planned maintenance', 'work order', 'maintenance scheduling',
+      'inventory', 'spare parts', 'procurement', 'purchasing',
+      'crew management', 'compliance', 'safety management system', 'sms',
+      'budget', 'cost management', 'document management', 'dashboard',
+      'analytics', 'reporting', 'login', 'account', 'subscription',
+      'features', 'capabilities', 'integrations', 'mobile app', 'offline mode',
+      'api', 'integration', 'data export', 'architecture'
+    ];
+    return platformKeywords.some(k => query.includes(k));
+  };
+
+  // Compute browsing: platform → false (knowledge), otherwise true (verification)
+  const computeUseBrowsing = (q: string) => !isPlatformQueryClient(q);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputAreaRef = useRef<HTMLDivElement>(null);
@@ -578,6 +575,11 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
       content: input.trim(),
       timestamp: new Date(),
     };
+
+    // Compute context-aware browsing decision for this query
+    const computed = computeUseBrowsing(userMessage.content);
+    setCurrentUseBrowsing(computed);
+    currentUseBrowsingRef.current = computed;
     
     // Store the user message ID for linking to assistant response
     const userMessageId = userMessage.timestamp.getTime().toString();
@@ -610,7 +612,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
     
     const pendingResearchId = `pending-${Date.now()}`;
     activeResearchIdRef.current = pendingResearchId;
-    console.log('📊 Creating research session for query:', pendingResearchId, '| Browsing:', useBrowsing);
+    console.log('📊 Creating research session for query:', pendingResearchId, '| Browsing:', currentUseBrowsingRef.current);
     
     setResearchSessions((prev) => {
       const updated = new Map(prev);
@@ -633,8 +635,8 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
       
       // Log what we're sending to backend
       console.log('📤 [Sending to Backend]', {
-        enableBrowsing: useBrowsing,
-        enableChainOfThought: useChainOfThought,
+        enableBrowsing: currentUseBrowsingRef.current,
+        enableChainOfThought: false,
         messageCount: messages.length + 1,
         query: userMessage.content.substring(0, 100)
       });
@@ -647,8 +649,8 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
             role: m.role,
             content: m.content,
           })),
-          enableBrowsing: useBrowsing,
-          enableChainOfThought: useChainOfThought,
+          enableBrowsing: currentUseBrowsingRef.current,
+          enableChainOfThought: false,
           researchComplexity: 'simple',
           sessionId, // Include session ID for cache management
         }),
@@ -719,9 +721,9 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                 
                   // Handle research_start event - show research loading state
                 if (parsed?.type === 'research_start') {
-                  console.log('🔬 [Research Started]', { mode: parsed.mode, browsing: useBrowsing });
+                  console.log('🔬 [Research Started]', { mode: parsed.mode, browsing: currentUseBrowsingRef.current });
                   // Only show research indicator if browsing is enabled
-                  if (useBrowsing) {
+                  if (currentUseBrowsingRef.current) {
                     setIsLoading(false); // Hide general loading
                     setIsResearching(true); // Show research-specific loading
                     isResearchingRef.current = true; // Sync ref
@@ -773,7 +775,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                           console.log('📊 [Session Update]', {
                             sources: session.events.filter(e => e.type === 'source').length,
                             verified: session.verifiedSources.length,
-                            browsing: useBrowsing
+                            browsing: currentUseBrowsingRef.current
                           });
                         }
                       } else {
@@ -783,7 +785,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     });
                   } else {
                     if (parsed?.type === 'source') {
-                      console.warn('⚠️ Source received but no activeResearchIdRef:', { useBrowsing, activeResearchIdRef: activeResearchIdRef.current });
+                      console.warn('⚠️ Source received but no activeResearchIdRef:', { useBrowsing: currentUseBrowsingRef.current, activeResearchIdRef: activeResearchIdRef.current });
                     }
                   }
                   // Do not treat as content/thinking; continue
@@ -1784,7 +1786,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
           {(isLoading || isResearching) && (
             <LoadingIndicator 
               isResearching={isResearching}
-              useBrowsing={useBrowsing}
+              useBrowsing={currentUseBrowsing}
               activeResearchId={activeResearchIdRef.current}
               researchSessions={researchSessions}
             />
@@ -1844,71 +1846,7 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
         </div>
         <div className="flex items-center justify-between mt-2 md:mt-3 lg:mt-4 gap-2 md:gap-3 max-w-5xl mx-auto">
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={useBrowsing}
-                onClick={() => {
-                  // Don't allow toggle on - show coming soon message instead
-                  setToggleBouncing(true);
-                  setShowComingSoonToast(true);
-                  
-                  // Reset bounce animation
-                  setTimeout(() => {
-                    setToggleBouncing(false);
-                  }, 400);
-                }}
-                className={cn(
-                  'group inline-flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl border transition-all flex-shrink-0',
-                  'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                )}
-              >
-                <span className={cn(
-                  'relative inline-flex h-6 w-11 md:h-7 md:w-12 items-center rounded-full transition-colors',
-                  'bg-slate-300 dark:bg-slate-700'
-                )}>
-                  <span
-                    className={cn(
-                      'inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-all duration-200',
-                      toggleBouncing ? 'translate-x-3 md:translate-x-3' : 'translate-x-0.5 md:translate-x-0.5'
-                    )}
-                  />
-                </span>
-                <span className="text-xs md:text-sm font-semibold whitespace-nowrap">Online research</span>
-              </button>
-              
-              {/* Deep Research Coming Soon notification - positioned near toggle */}
-              <AnimatePresence>
-                {showComingSoonToast && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-[9999] w-[280px] md:w-[320px]"
-                  >
-                    <div className="rounded-xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50/95 dark:bg-blue-900/90 backdrop-blur-sm shadow-lg p-3 flex items-start gap-2">
-                      <div className="flex-1">
-                        <p className="text-xs md:text-sm font-medium text-blue-800 dark:text-blue-200">
-                          🔬 <strong>Deep research mode coming soon!</strong> 
-                          <br />
-                          <span className="text-blue-700 dark:text-blue-300">Currently using fast verification mode with Gemini.</span>
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setShowComingSoonToast(false)}
-                        className="flex-shrink-0 p-1 rounded-lg hover:bg-blue-200/50 dark:hover:bg-blue-800/50 transition-colors text-blue-800 dark:text-blue-200"
-                        aria-label="Close notification"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            
+            {/* Removed Online Research toggle; browsing is now context-aware */}
             {toggleDarkMode && (
               <button
                 type="button"

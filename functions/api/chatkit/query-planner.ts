@@ -173,11 +173,38 @@ Return ONLY the JSON:`;
     
     const plan = JSON.parse(jsonMatch[0]);
     
+    let subQueries: SubQuery[] = plan.subQueries || [];
+
+    // Ensure mandatory vessel sub-queries are present for comprehensive coverage
+    if (isVesselQuery) {
+      const ensure = (q: string, purpose: string, priority: 'high'|'medium'|'low'='high') => {
+        if (!subQueries.some(sq => (sq.query || '').toLowerCase() === q.toLowerCase())) {
+          subQueries.push({ query: q, purpose, priority });
+        }
+      };
+      // Registry and identity
+      ensure(`${query} IMO MMSI call sign`, 'registry identifiers (IMO/MMSI/Call sign)', 'high');
+      ensure(`site:equasis.org ${query}`, 'official registry profile', 'high');
+      // Ownership/management
+      ensure(`${query} owner operator manager`, 'ownership and management', 'high');
+      // Class and flag
+      ensure(`${query} class society classification notation`, 'class society and class notations', 'medium');
+      ensure(`${query} flag state registry`, 'flag and registry details', 'medium');
+      ensure(`${query} flag certificates PDF filetype:pdf`, 'flag certification documents (PDF)', 'low');
+      // Particulars
+      ensure(`${query} lightship gross tonnage deadweight length overall breadth depth`, 'principal particulars', 'medium');
+      ensure(`${query} keel lay date delivery date built shipyard`, 'build dates and shipyard', 'medium');
+      // Current status/location
+      ensure(`site:vesselfinder.com OR site:marinetraffic.com ${query} position AIS`, 'current location/status (AIS)', 'medium');
+      // Equipment (propulsion/auxiliaries)
+      ensure(`${query} propulsion engines generators auxiliaries specifications`, 'equipment (propulsion/auxiliaries)', 'medium');
+    }
+
     const queryPlan: QueryPlan = {
       mainQuery: query,
-      subQueries: plan.subQueries || [],
+      subQueries,
       strategy: plan.strategy || strategy,
-      estimatedExecutionTime: plan.subQueries.length * 3000,  // ~3s per sub-query
+      estimatedExecutionTime: subQueries.length * 3000,  // ~3s per sub-query
     };
     
     console.log(`   ✅ Generated ${queryPlan.subQueries.length} sub-queries`);

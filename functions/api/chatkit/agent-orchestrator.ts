@@ -741,10 +741,12 @@ If you don't have specific information, be honest and suggest the user enable on
     }
     
     // OPTIONAL: Run verification pipeline for high-value queries (comparative, multi-entity)
+    const isVesselQuery = /\b(vessel|ship|imo\s*\d{7}|call\s*sign)\b/i.test(userQuery);
     const shouldRunVerificationPipeline = 
-      state.sources.length >= 3 && // Multiple sources available
-      (userQuery.match(/\b(largest|biggest|smallest|compare|versus|vs|which|best)\b/i) || // Comparative query
-       state.sources.length >= 5); // Rich source set
+      (isVesselQuery && state.sources.length >= 3) ||
+      (state.sources.length >= 3 && // Multiple sources available
+       (userQuery.match(/\b(largest|biggest|smallest|compare|versus|vs|which|best)\b/i) || // Comparative query
+        state.sources.length >= 5)); // Rich source set
     
     if (shouldRunVerificationPipeline) {
       console.log(`   🔬 Running verification pipeline (${state.sources.length} sources)`);
@@ -862,11 +864,39 @@ ${state.requiresTechnicalDepth ? `
 - Use format: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
 `}`;
 
+    // Vessel field requirements (applies when vessel query detected)
+    const vesselRequirements = /\b(vessel|ship|imo\s*\d{7}|call\s*sign)\b/i.test(userQuery) ? `
+
+**VESSEL PROFILE - REQUIRED FIELDS:**
+Provide a structured profile with the following fields. For each factual entry, cite inline immediately. If a field is not found in the provided sources, write "Not found in sources" (do NOT guess):
+1. Management/Operator
+2. Owner
+3. Class Society and Class Notation
+4. Flag State
+5. Flag Certification Documents (link title if available)
+6. Lightship (t)
+7. Gross Tonnage (GT) and Net Tonnage (NT)
+8. Deadweight (DWT)
+9. Keel Lay Date
+10. Delivery/Build Date and Shipyard
+11. Length Overall (LOA), Breadth, Depth, Draft
+12. IMO, MMSI, Call Sign
+13. Current Location/Status (AIS) with timestamp qualifier
+
+**EQUIPMENT SUMMARY (VESSEL):**
+- Propulsion: engine make/model, count, total power, propulsors
+- Auxiliaries: generators/alternators, bow/stern thrusters if any
+
+ONLY include data backed by sources with citations. If AIS/position is stale, say "as per latest available AIS in sources".
+` : '';
+
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
 
 ${state.researchContext}
 
 ${technicalDepthFlag}
+
+${vesselRequirements}
 
 **USER QUERY**: ${userQuery}
 
@@ -1041,7 +1071,7 @@ ${technicalDepthFlag}
     fullContent = stripLeadingJson(fullContent);
     
     // PHASE 4: Citation Enforcement - Ensure inline citations are present
-    const citationResult = enforceCitations(fullContent, state.sources);
+    const citationResult = enforceCitations(fullContent, state.sources, { technicalDepth: state.requiresTechnicalDepth });
     if (citationResult.wasEnforced) {
       console.log(`   📎 Citation enforcement: added ${citationResult.citationsAdded} citations (${citationResult.citationsFound}→${citationResult.citationsFound + citationResult.citationsAdded})`);
       fullContent = citationResult.enforcedContent;
