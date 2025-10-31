@@ -6,6 +6,8 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { batchAnalyzeContent, type ContentSource } from '../content-intelligence';
+import { fetchWithRetry } from "../retry";
+import { emitMetrics } from "../metrics";
 
 /**
  * Execute Tavily search with maritime-specific configuration
@@ -14,8 +16,9 @@ async function executeTavilySearch(
   query: string, 
   search_depth: 'basic' | 'advanced',
   apiKey: string
-): Promise<any> {
-  const response = await fetch('https://api.tavily.com/search', {
+): Promise<{ json: any; retryCount: number }> {
+  let retryCount = 0;
+  const response = await fetchWithRetry('https://api.tavily.com/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -34,13 +37,20 @@ async function executeTavilySearch(
       ],
       exclude_domains: ['facebook.com', 'twitter.com', 'instagram.com', 'wikipedia.org'],
     }),
+  }, {
+    retries: 3,
+    baseDelayMs: 400,
+    maxDelayMs: 6000,
+    timeoutMs: 12000,
+    retryOnStatuses: [408, 429, 500, 502, 503, 504],
+    onRetry: ({ attempt }) => { retryCount = attempt; }
   });
   
   if (!response.ok) {
     throw new Error(`Tavily API error: ${response.status}`);
   }
-  
-  return await response.json();
+  const json = await response.json();
+  return { json, retryCount };
 }
 
 /**
@@ -186,14 +196,16 @@ export const deepResearchTool = tool(
       // Execute searches in parallel
       const searchPromises = queries.map(q => executeTavilySearch(q, search_depth, env.TAVILY_API_KEY));
       const searchResults = await Promise.all(searchPromises);
+      const totalRetryCount = searchResults.reduce((sum, r) => sum + (r.retryCount || 0), 0);
       
       // Merge and deduplicate results
       const allResults: any[] = [];
       const seenUrls = new Set<string>();
       
       for (const result of searchResults) {
-        if (result.results) {
-          for (const item of result.results) {
+        const payload = result.json;
+        if (payload.results) {
+          for (const item of payload.results) {
             if (!seenUrls.has(item.url)) {
               seenUrls.add(item.url);
               allResults.push(item);
@@ -222,6 +234,12 @@ export const deepResearchTool = tool(
       console.log(`✅ Research complete: ${selected.length} sources (rejected ${rejected.length})`);
       console.log(`   Confidence: ${(confidence * 100).toFixed(0)}%`);
       
+      // Emit metrics
+      emitMetrics((config?.configurable as any)?.statusEmitter, {
+        tavilyRetryCount: totalRetryCount,
+        totalSources: selected.length,
+      });
+
       return {
         sources: selected,
         rejected_sources: rejected,
@@ -229,6 +247,7 @@ export const deepResearchTool = tool(
         confidence,
         mode: 'research',
         queries_executed: queries.length,
+        metrics: { tavilyRetryCount: totalRetryCount }
       };
     } catch (error: any) {
       console.error('❌ Research error:', error.message);

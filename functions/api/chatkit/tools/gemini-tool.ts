@@ -6,6 +6,9 @@
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
+import { extractSourcesFromGeminiResponse, type UnifiedSource } from "../grounding-extractor";
+import { fetchWithRetry } from "../retry";
+import { emitMetrics } from "../metrics";
 
 export const geminiTool = tool(
   async ({ query, entityContext }: { query: string; entityContext?: string }, config) => {
@@ -76,7 +79,8 @@ export const geminiTool = tool(
       
       console.log(`   🔧 Gemini config: temp=0.0, topP=1.0, topK=1 (deterministic mode)`);
       
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
+      let retryCount = 0;
+      const response = await fetchWithRetry('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
         method: 'POST',
         headers: {
           'x-goog-api-key': env.GEMINI_API_KEY,
@@ -190,6 +194,19 @@ CONTEXT HANDLING:
           },
           tools: [{ google_search: {} }] // Enable Google Search grounding
         }),
+      }, {
+        retries: 3,
+        baseDelayMs: 400,
+        maxDelayMs: 6000,
+        timeoutMs: 15000,
+        retryOnStatuses: [408, 429, 500, 502, 503, 504],
+        onRetry: ({ attempt, delayMs, reason, status }) => {
+          retryCount = attempt;
+          console.warn(`   ↻ Gemini retry #${attempt} in ${Math.round(delayMs)}ms (reason=${reason}${status ? `, status=${status}` : ''})`);
+          if (statusEmitter) {
+            statusEmitter({ type: 'status', stage: 'searching', content: `Retrying Google Search (${attempt})...`, progress: 10 });
+          }
+        }
       });
       
       if (!response.ok) {
@@ -240,115 +257,10 @@ CONTEXT HANDLING:
       console.log(`   📊 searchEntryPoint:`, groundingMetadata?.searchEntryPoint);
       console.log(`   📊 groundingChunks:`, groundingMetadata?.groundingChunks?.length || 0);
       
-      // Extract sources from multiple possible locations
-      let sources: any[] = [];
-      
-      console.log(`   🔍 DEBUG: groundingMetadata keys:`, Object.keys(groundingMetadata || {}));
-      console.log(`   🔍 DEBUG: has webResults?`, !!groundingMetadata?.webResults);
-      console.log(`   🔍 DEBUG: has groundingChunks?`, !!groundingMetadata?.groundingChunks);
-      console.log(`   🔍 DEBUG: groundingChunks length:`, groundingMetadata?.groundingChunks?.length || 0);
-      
-      // PRIORITY 1: webResults (most detailed)
-      if (groundingMetadata?.webResults && Array.isArray(groundingMetadata.webResults)) {
-        sources = groundingMetadata.webResults.map((result: any) => ({
-          url: result.url,
-          title: result.title || 'Untitled',
-          content: result.snippet || result.content || '',
-          score: 0.9,
-        }));
-        console.log(`   📚 Extracted ${sources.length} sources from webResults`);
-      } 
-      
-      // PRIORITY 2: groundingChunks (alternative format - Gemini 2.5 format)
-      if (sources.length === 0 && groundingMetadata?.groundingChunks && Array.isArray(groundingMetadata.groundingChunks)) {
-        console.log(`   🔍 DEBUG: First chunk structure:`, JSON.stringify(groundingMetadata.groundingChunks[0], null, 2));
-
-        const resolveRedirectUrl = async (url: string): Promise<string> => {
-          try {
-            if (!url) return url;
-            const resp = await fetch(url, { method: 'GET', redirect: 'follow' });
-            const finalUrl = (resp as any)?.url || url;
-            if (finalUrl && !finalUrl.includes('vertexaisearch.cloud.google.com')) return finalUrl;
-            return url;
-          } catch {
-            return url;
-          }
-        };
-
-        const chunks = groundingMetadata.groundingChunks.filter((chunk: any) => chunk.web);
-        const mapped = await Promise.all(
-          chunks.map(async (chunk: any) => {
-            const rawUri = chunk.web?.uri || '';
-            const resolved = await resolveRedirectUrl(rawUri);
-            return {
-              url: resolved || rawUri,
-              title: chunk.web?.title || 'Untitled',
-              content: chunk.web?.snippet || '',
-              score: 0.9,
-            };
-          })
-        );
-
-        sources = mapped as any;
-        console.log(`   📚 Extracted ${sources.length} sources from groundingChunks`);
-        if (sources.length > 0) {
-          console.log(`   ✅ Sample source:`, JSON.stringify(sources[0], null, 2));
-        }
-      }
-      
-      // PRIORITY 3: groundingSupport (Gemini 2.0 format)
-      if (sources.length === 0 && groundingMetadata?.groundingSupport && Array.isArray(groundingMetadata.groundingSupport)) {
-        sources = groundingMetadata.groundingSupport
-          .filter((support: any) => support.segment && support.groundingChunkIndices)
-          .flatMap((support: any) => {
-            return support.groundingChunkIndices.map((idx: number) => {
-              const chunk = groundingMetadata.retrievalMetadata?.groundingChunks?.[idx];
-              return {
-                url: chunk?.web?.uri || '',
-                title: chunk?.web?.title || 'Source',
-                content: support.segment?.text || '',
-                score: 0.85,
-              };
-            });
-          })
-          .filter((s: any) => s.url); // Remove entries without URLs
-        console.log(`   📚 Extracted ${sources.length} sources from groundingSupport`);
-      }
-      
-      // FALLBACK: searchEntryPoint (minimal)
-      if (sources.length === 0 && groundingMetadata?.searchEntryPoint) {
-        console.warn(`   ⚠️ Only searchEntryPoint available - Gemini didn't return detailed sources`);
-        sources = [{
-          url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-          title: 'Google Search',
-          content: answer?.substring(0, 500) || '',
-          score: 0.6,
-        }];
-      }
-      
-      // WARNING: No sources at all
+      // Extract sources using unified extractor
+      const sources: UnifiedSource[] = extractSourcesFromGeminiResponse(data, query, answer || undefined);
       if (sources.length === 0) {
-        console.warn(`   ⚠️ ZERO sources returned by Gemini! This shouldn't happen with grounding enabled.`);
-        console.warn(`   Raw metadata:`, JSON.stringify(groundingMetadata, null, 2));
-      }
-      
-      // CRITICAL FIX: Vertex AI redirect URLs often have no snippets
-      // If sources have empty content but Gemini provided an answer, 
-      // distribute answer text across sources so GPT-4o can cite them
-      const sourcesWithoutContent = sources.filter(s => !s.content || s.content.trim().length === 0);
-      if (sourcesWithoutContent.length > 0 && answer && answer.length > 200) {
-        console.log(`   🔧 FIX: ${sourcesWithoutContent.length} sources have no content, distributing Gemini answer text`);
-        
-        // Split Gemini's answer into sentences
-        const sentences = answer.match(/[^.!?]+[.!?]+/g) || [answer];
-        
-        // Distribute sentences across sources without content
-        sourcesWithoutContent.forEach((source, idx) => {
-          const startIdx = Math.floor((idx / sourcesWithoutContent.length) * sentences.length);
-          const endIdx = Math.floor(((idx + 1) / sourcesWithoutContent.length) * sentences.length);
-          source.content = sentences.slice(startIdx, endIdx).join(' ').trim();
-          console.log(`   📝 Assigned ${source.content.length} chars to source ${idx + 1}`);
-        });
+        console.warn(`   ⚠️ ZERO usable sources after normalization. Raw keys:`, Object.keys(groundingMetadata || {}));
       }
       
       // PHASE 1: Add source quality assessment for observability
@@ -379,10 +291,19 @@ CONTEXT HANDLING:
       console.log(`✅ Gemini complete: ${sources.length} sources, answer: ${answer ? 'YES' : 'NO'}`);
       console.log(`   📊 Source quality: T1=${tierCounts.T1 || 0} (auth), T2=${tierCounts.T2 || 0} (industry), T3=${tierCounts.T3 || 0} (general)`);
       
+      // Emit metrics for observability
+      emitMetrics(statusEmitter, {
+        geminiRetryCount: retryCount,
+        totalSources: sourceQualityAnalysis.length,
+        sourcesByTier: { T1: tierCounts.T1 || 0, T2: tierCounts.T2 || 0, T3: tierCounts.T3 || 0 },
+        webResultsCount: groundingMetadata?.webResults?.length || 0,
+        redirectOnlyFlag: (!sourceQualityAnalysis.length && !!groundingMetadata?.searchEntryPoint) || false,
+      });
+
       return JSON.stringify({
         sources: sourceQualityAnalysis,  // PHASE 1: Include tier information
         answer,
-        searchQueries: groundingMetadata?.searchQueries || [],
+        searchQueries: groundingMetadata?.searchQueries || groundingMetadata?.webSearchQueries || [],
         citations: groundingMetadata?.citations || [],
         confidence: sources.length >= 3 ? 0.95 : (sources.length >= 2 ? 0.85 : 0.7),
         mode: 'gemini',
@@ -390,7 +311,9 @@ CONTEXT HANDLING:
           sourcesByTier: tierCounts,
           totalSources: sources.length,
           hasAnswer: !!answer,
-          answerLength: answer?.length || 0
+          answerLength: answer?.length || 0,
+          geminiRetryCount: retryCount,
+          webResultsCount: groundingMetadata?.webResults?.length || 0
         }
       });
     } catch (error: any) {

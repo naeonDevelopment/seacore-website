@@ -13,6 +13,10 @@
  */
 
 import { ChatOpenAI } from "@langchain/openai";
+import { setTimeout as sleep } from "timers/promises";
+import { extractSourcesFromGeminiResponse } from "./grounding-extractor";
+import { fetchWithRetry } from "./retry";
+import { getCachedResult, setCachedResult, getCacheStats } from "./kv-cache";
 
 // =====================
 // TYPES
@@ -199,6 +203,30 @@ Return ONLY the JSON:`;
       // Equipment (propulsion/auxiliaries)
       ensure(`${query} propulsion engines generators auxiliaries specifications`, 'equipment (propulsion/auxiliaries)', 'medium');
     }
+    
+    // Company-specific mandatory sub-queries
+    if (isCompanyQuery) {
+      const ensure = (q: string, purpose: string, priority: 'high'|'medium'|'low'='high') => {
+        if (!subQueries.some(sq => (sq.query || '').toLowerCase() === q.toLowerCase())) {
+          subQueries.push({ query: q, purpose, priority });
+        }
+      };
+      ensure(`${query} fleet list vessels`, 'company fleet and assets', 'high');
+      ensure(`site:linkedin.com ${query} maritime`, 'company profile and operations', 'medium');
+      ensure(`${query} press release news`, 'recent activities and contracts', 'medium');
+    }
+    
+    // Equipment-specific mandatory sub-queries
+    if (isEquipmentQuery) {
+      const ensure = (q: string, purpose: string, priority: 'high'|'medium'|'low'='high') => {
+        if (!subQueries.some(sq => (sq.query || '').toLowerCase() === q.toLowerCase())) {
+          subQueries.push({ query: q, purpose, priority });
+        }
+      };
+      ensure(`${query} filetype:pdf maintenance manual`, 'OEM PDF documentation (manuals/bulletins)', 'high');
+      ensure(`site:gcaptain.com ${query} maintenance OR problems`, 'operator experience and failures', 'medium');
+      ensure(`${query} specifications datasheet`, 'technical specifications', 'medium');
+    }
 
     const queryPlan: QueryPlan = {
       mainQuery: query,
@@ -287,6 +315,7 @@ export async function executeParallelQueries(
   subQueries: SubQuery[],
   geminiApiKey: string,
   entityContext: string | undefined,
+  kv?: KVNamespace,
   statusEmitter?: (event: any) => void
 ): Promise<Source[]> {
   
@@ -300,35 +329,62 @@ export async function executeParallelQueries(
     });
   }
   
+  // Deduplicate sub-queries by normalized query string (exact dedup)
+  const dedupedSubQueries: SubQuery[] = [];
+  const seen = new Set<string>();
+  for (const sq of subQueries) {
+    const key = (sq.query || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    if (!seen.has(key)) {
+      seen.add(key);
+      dedupedSubQueries.push(sq);
+    }
+  }
+  if (dedupedSubQueries.length !== subQueries.length) {
+    console.log(`   🧹 Deduped sub-queries: ${subQueries.length} → ${dedupedSubQueries.length}`);
+  }
+
   const startTime = Date.now();
   
-  // Execute all sub-queries in parallel
-  const results = await Promise.all(
-    subQueries.map(async (subQuery, index) => {
-      console.log(`   🔍 [${index+1}/${subQueries.length}] "${subQuery.query}"`);
-      
-      try {
-        const sources = await executeSingleGeminiQuery(
-          subQuery.query,
-          entityContext,
-          geminiApiKey
-        );
-        
-        console.log(`   ✅ [${index+1}] Found ${sources.length} sources`);
-        return sources;
-        
-      } catch (error: any) {
-        console.error(`   ❌ [${index+1}] Failed: ${error.message}`);
-        return [];
-      }
-    })
-  );
+  // Execute with a simple concurrency limit to avoid saturating APIs
+  const CONCURRENCY = Math.min(4, Math.max(2, Math.floor((dedupedSubQueries.length + 1) / 2)));
+  const results: Source[][] = [];
+  let inFlight = 0;
+  let index = 0;
+
+  async function runNext(): Promise<void> {
+    if (index >= dedupedSubQueries.length) return;
+    const currentIndex = index++;
+    const subQuery = dedupedSubQueries[currentIndex];
+    inFlight++;
+    console.log(`   🔍 [${currentIndex + 1}/${dedupedSubQueries.length}] "${subQuery.query}"`);
+    try {
+      const sources = await executeSingleGeminiQuery(
+        subQuery.query,
+        entityContext,
+        geminiApiKey,
+        kv,
+      );
+      console.log(`   ✅ [${currentIndex + 1}] Found ${sources.length} sources`);
+      results[currentIndex] = sources;
+    } catch (error: any) {
+      console.error(`   ❌ [${currentIndex + 1}] Failed: ${error.message}`);
+      results[currentIndex] = [];
+    } finally {
+      inFlight--;
+    }
+    // brief micro-yield to avoid event loop starvation
+    await sleep(0);
+    if (index < dedupedSubQueries.length) await runNext();
+  }
+
+  const starters = Array.from({ length: Math.min(CONCURRENCY, dedupedSubQueries.length) }, () => runNext());
+  await Promise.all(starters);
   
   const executionTime = Date.now() - startTime;
   let allSources = results.flat();
   
   // Vessel-centric filtering: remove off-topic sources when queries clearly target a vessel
-  const isVesselContext = subQueries.some(sq => /\b(vessel|ship|imo|mmsi|call\s*sign)\b/i.test(sq.query));
+  const isVesselContext = dedupedSubQueries.some(sq => /\b(vessel|ship|imo|mmsi|call\s*sign)\b/i.test(sq.query));
   if (isVesselContext) {
     const isLikelyVesselSource = (s: Source) => {
       const url = (s.url || '').toLowerCase();
@@ -363,7 +419,8 @@ export async function executeParallelQueries(
 async function executeSingleGeminiQuery(
   query: string,
   entityContext: string | undefined,
-  geminiApiKey: string
+  geminiApiKey: string,
+  kv?: KVNamespace
 ): Promise<Source[]> {
   
   // Build query with context if available
@@ -371,6 +428,16 @@ async function executeSingleGeminiQuery(
   if (entityContext) {
     enrichedQuery = `${entityContext}\n\nQuery: ${query}`;
   }
+  
+  // Try KV cache for this sub-query
+  try {
+    const cached = await getCachedResult(kv as any, enrichedQuery, undefined);
+    if (cached && cached.sources?.length) {
+      const stats = getCacheStats(cached);
+      console.log(`   ⚡ SUBQUERY CACHE HIT (age: ${stats.age}s)`);
+      return cached.sources as any;
+    }
+  } catch {}
   
   // Gemini API call with deterministic config
   const generationConfig = {
@@ -380,7 +447,7 @@ async function executeSingleGeminiQuery(
     maxOutputTokens: 2048,
   };
   
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
+  const response = await fetchWithRetry('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
     method: 'POST',
     headers: {
       'x-goog-api-key': geminiApiKey,
@@ -393,6 +460,12 @@ async function executeSingleGeminiQuery(
       generationConfig,
       tools: [{ google_search: {} }]
     }),
+  }, {
+    retries: 3,
+    baseDelayMs: 400,
+    maxDelayMs: 6000,
+    timeoutMs: 15000,
+    retryOnStatuses: [408, 429, 500, 502, 503, 504],
   });
   
   if (!response.ok) {
@@ -401,53 +474,26 @@ async function executeSingleGeminiQuery(
   
   const data = await response.json();
   const candidate = data.candidates?.[0];
-  const groundingMetadata = candidate?.groundingMetadata;
+  const answer = candidate?.content?.parts?.[0]?.text || null;
   
-  // Extract sources from multiple possible locations
-  let sources: Source[] = [];
+  // Normalize sources using shared extractor
+  const unified = extractSourcesFromGeminiResponse(data, enrichedQuery, answer || undefined);
+  const sources: Source[] = unified.map((u) => ({
+    url: u.url,
+    title: u.title,
+    content: u.content,
+    score: u.score,
+  }));
   
-  // Priority 1: webResults
-  if (groundingMetadata?.webResults && Array.isArray(groundingMetadata.webResults)) {
-    sources = groundingMetadata.webResults.map((result: any) => ({
-      url: result.url,
-      title: result.title || 'Untitled',
-      content: result.snippet || result.content || '',
-      score: 0.9,
-    }));
-  }
-  
-  // Priority 2: groundingChunks (Gemini 2.5 format)
-  if (sources.length === 0 && groundingMetadata?.groundingChunks) {
-    // Resolve Google vertexaisearch redirects to real target URLs for clean citations
-    const resolveRedirectUrl = async (url: string): Promise<string> => {
-      try {
-        if (!url) return url;
-        const resp = await fetch(url, { method: 'GET', redirect: 'follow' });
-        // After following redirects, resp.url should be the final resolved URL
-        const finalUrl = resp.url || url;
-        // Avoid keeping the vertexaisearch redirector in citations
-        if (finalUrl.includes('vertexaisearch.cloud.google.com')) return url; // fallback
-        return finalUrl;
-      } catch {
-        return url;
-      }
-    };
-
-    const chunks = groundingMetadata.groundingChunks.filter((chunk: any) => chunk.web);
-    const mapped = await Promise.all(
-      chunks.map(async (chunk: any) => {
-        const rawUri = chunk.web?.uri || '';
-        const resolved = await resolveRedirectUrl(rawUri);
-        return {
-          url: resolved || rawUri,
-          title: chunk.web?.title || 'Untitled',
-          content: chunk.web?.snippet || '',
-          score: 0.9,
-        } as Source;
-      })
-    );
-    sources = mapped;
-  }
+  // Store in KV cache (shorter TTL for sub-queries) - truncate content to cap KV size
+  try {
+    const toCache = sources.map(s => ({ ...s, content: (s.content || '').slice(0, 600) }));
+    await setCachedResult(kv as any, enrichedQuery, undefined, {
+      sources: toCache,
+      answer: null,
+      diagnostics: { totalSources: toCache.length, hasAnswer: false, answerLength: 0, sourcesByTier: {} }
+    }, 600);
+  } catch {}
   
   return sources;
 }

@@ -16,6 +16,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { maritimeTools } from './tools';
+import { deepResearchTool } from './tools/deep-research';
 import { geminiTool } from './tools/gemini-tool';
 import { SessionMemoryManager, type SessionMemory } from './session-memory';
 import { 
@@ -43,6 +44,9 @@ import {
   validateCitations
 } from './citation-enforcer';
 import { accumulateKnowledge } from './memory-accumulation';
+import { validateVesselEntity } from './entity-validation';
+import { computeCoverage, missingVesselCoverage } from './source-categorizer';
+import { emitMetrics } from './metrics';
 import { 
   detectConversationState, 
   detectUserIntent,
@@ -266,6 +270,11 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       step: 'entity_resolution',
       content: `"${classification.resolvedQuery.originalQuery}" → ${classification.resolvedQuery.activeEntity?.name}`
     });
+    statusEmitter({
+      type: 'thought',
+      phase: 'plan',
+      content: `Planning for ${classification.resolvedQuery.activeEntity?.name || 'entity'} using ${classification.mode} mode`,
+    });
   }
   
   // Chain of Thought - ALWAYS emit technical depth detection (if applicable)
@@ -394,6 +403,13 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       // Query Planning
       const queryPlan = await planQuery(queryToSend, entityContext, env.OPENAI_API_KEY);
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'thought',
+          phase: 'plan',
+          content: `Planned ${queryPlan.subQueries.length} targeted searches for "${classification.resolvedQuery.activeEntity?.name || queryToSend}"`,
+        });
+      }
       
       if (statusEmitter) {
         statusEmitter({
@@ -414,6 +430,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         queryPlan.subQueries,
         env.GEMINI_API_KEY,
         entityContext,
+        env.CHAT_SESSIONS,
         statusEmitter
       );
       
@@ -427,7 +444,14 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
-      const rankedSources = aggregateAndRank(allSources);
+      let rankedSources = aggregateAndRank(allSources);
+      if (statusEmitter) {
+        statusEmitter({
+          type: 'thought',
+          phase: 'search',
+          content: `Collected ${allSources.length} sources → ${rankedSources.length} ranked by authority`,
+        });
+      }
       
       // PHASE 3: Calculate confidence indicator
       const confidence = calculateConfidence(rankedSources);
@@ -443,8 +467,42 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           type: 'confidence',
           data: confidence
         });
+        statusEmitter({
+          type: 'thought',
+          phase: 'verify',
+          content: `Verification confidence: ${confidence.label} (${confidence.score}/100)`
+        });
       }
       
+      // Fallback reinforcement: if too few or weak sources, run deep-research (Tavily) and re-aggregate
+      if (rankedSources.length < 3) {
+        console.log(`   ⚠️ Low source count (${rankedSources.length}) → running deep-research fallback`);
+        if (statusEmitter) {
+          statusEmitter({ type: 'status', stage: 'searching', content: '🔎 Expanding search (deep-research)...', progress: 60 });
+        }
+        try {
+          const dr = await deepResearchTool.invoke({
+            query: queryToSend,
+            search_depth: 'advanced',
+            use_multi_query: true,
+            entityContext: entityContext || undefined
+          }, config);
+          const parsed = typeof dr === 'string' ? JSON.parse(dr) : dr;
+          const extra = (parsed?.sources || []).map((s: any) => ({
+            url: s.url,
+            title: s.title,
+            content: s.content,
+            score: s.score,
+            tier: s.tier,
+          }));
+          const merged = [...rankedSources, ...extra];
+          rankedSources = aggregateAndRank(merged);
+          console.log(`   ✅ Deep-research merged: total ${rankedSources.length} sources after re-aggregation`);
+        } catch (e: any) {
+          console.warn(`   ⚠️ Deep-research fallback failed: ${e.message}`);
+        }
+      }
+
       // Build research context
       let researchContext = `=== GEMINI GROUNDING RESULTS (PARALLEL SEARCH) ===\n\n`;
       // Note: DO NOT include queryPlan details here - GPT-4o might echo them back
@@ -1066,12 +1124,20 @@ ${vesselRequirements}
       if (match) {
         return text.slice(match[0].length).trimStart();
       }
+      // Remove leading fenced code block (e.g., ```json ... ``` ) before first heading
+      const fence = text.match(/^\s*```[\s\S]*?```\s*(?=(##\s|$))/);
+      if (fence) {
+        return text.slice(fence[0].length).trimStart();
+      }
       return text;
     };
     fullContent = stripLeadingJson(fullContent);
     
     // PHASE 4: Citation Enforcement - Ensure inline citations are present
-    const citationResult = enforceCitations(fullContent, state.sources, { technicalDepth: state.requiresTechnicalDepth });
+    // Raise minimum citations for vessel queries to 5 (bounded by source count)
+    const lastUser = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
+    const vesselQueryFlag = /\b(vessel|ship|imo\s*\d{7}|mmsi\s*\d{9}|crew\s*boat)\b/i.test(String((lastUser as any)?.content || ''));
+    const citationResult = enforceCitations(fullContent, state.sources, { technicalDepth: state.requiresTechnicalDepth, minRequired: vesselQueryFlag ? 5 : undefined });
     if (citationResult.wasEnforced) {
       console.log(`   📎 Citation enforcement: added ${citationResult.citationsAdded} citations (${citationResult.citationsFound}→${citationResult.citationsFound + citationResult.citationsAdded})`);
       fullContent = citationResult.enforcedContent;
@@ -1148,7 +1214,15 @@ ${vesselRequirements}
   
   // Ensure response has accumulated content
   if (response && fullContent) {
-    response.content = fullContent;
+    const stripLeadingArtifacts = (text: string): string => {
+      if (!text) return text;
+      const json = text.match(/^\s*\{[\s\S]*?\}\s*(?=(##\s|$))/);
+      if (json) return text.slice(json[0].length).trimStart();
+      const fence = text.match(/^\s*```[\s\S]*?```\s*(?=(##\s|$))/);
+      if (fence) return text.slice(fence[0].length).trimStart();
+      return text;
+    };
+    response.content = stripLeadingArtifacts(fullContent);
   }
   
   console.log(`   Has tool calls: ${!!response?.tool_calls?.length}`);
@@ -1411,9 +1485,10 @@ async function processToolResults(state: State, config: any): Promise<Partial<St
   
   console.log(`   Processing ${toolMessages.length} tool results`);
   
-  // Extract sources from all tool results
+  // Extract sources and metrics from all tool results
   const allSources: Source[] = [];
   let hasResearch = false;
+  const collectedMetrics: any = {};
   
   for (const toolMsg of toolMessages) {
     const content = typeof toolMsg.content === 'string' ? toolMsg.content : JSON.stringify(toolMsg.content);
@@ -1424,6 +1499,9 @@ async function processToolResults(state: State, config: any): Promise<Partial<St
       if (data.sources && Array.isArray(data.sources)) {
         allSources.push(...data.sources);
         hasResearch = true;
+      }
+      if (data.metrics) {
+        Object.assign(collectedMetrics, data.metrics);
       }
       
       // Also check for Gemini answer
@@ -1474,11 +1552,52 @@ async function processToolResults(state: State, config: any): Promise<Partial<St
     }
   }
   
-  // Build research context if we have sources
+  // Build research context and perform vessel entity validation when applicable
   let researchContext: string | null = null;
+  let validatedSources = allSources;
   if (hasResearch && allSources.length > 0) {
-    researchContext = `=== RESEARCH CONTEXT ===\nFound ${allSources.length} sources:\n\n`;
-    allSources.forEach((source, idx) => {
+    const lastUser = [...state.messages].reverse().find((m: BaseMessage) => m.constructor.name === 'HumanMessage');
+    const userText = (lastUser as any)?.content || '';
+    const looksLikeVessel = /\b(vessel|ship|imo\s*\d{7}|mmsi\s*\d{9}|crew\s*boat)\b/i.test(userText);
+
+    if (looksLikeVessel) {
+      const validation = validateVesselEntity(String(userText), allSources as any, undefined);
+      validatedSources = validation.filteredSources as any;
+      const validationLine = `ENTITY VALIDATION: match=${validation.match} confidence=${Math.round(validation.confidence*100)}% via ${validation.matchedBy.join('+') || 'N/A'} | supportingSources=${validation.supportingSources} authoritativeHits=${validation.authoritativeHits}`;
+      console.log(`   ${validationLine}`);
+      if (statusEmitter) {
+        statusEmitter({ type: 'thinking', step: 'entity_validation', content: validationLine });
+      }
+      // If validation is weak, hint the synthesizer via context
+      if (!validation.match) {
+        researchContext = (researchContext || '') + `⚠️ Entity validation weak. Consider clarifying vessel name/IMO or re-running targeted AIS/Equasis queries.\n\n`;
+      }
+
+      // PHASE 4: Category coverage (AIS, registry, owner, class, directory/news)
+      const coverage = computeCoverage(validatedSources as any);
+      const missing = missingVesselCoverage(coverage);
+      const covLine = `COVERAGE: ais=${coverage.ais||0} registry=${coverage.registry||0} owner=${coverage.owner||0} class=${coverage.class||0} directory/news=${coverage.directory_news||0}`;
+      console.log(`   ${covLine}`);
+      if (statusEmitter) {
+        statusEmitter({ type: 'thinking', step: 'coverage_check', content: covLine });
+      }
+      if (missing.length > 0) {
+        const msg = `⚠️ Missing vessel coverage categories: ${missing.join(', ')}. Consider expanding search (AIS/registry/owner/class/news).`;
+        researchContext = (researchContext || '') + msg + `\n\n`;
+      }
+
+      // Emit structured metrics event
+      emitMetrics(statusEmitter, {
+        totalSources: validatedSources.length,
+        entityValidationConfidence: validation.confidence,
+        vesselCoverage: coverage as any,
+        missingCoverage: missing,
+        ...collectedMetrics,
+      });
+    }
+
+    researchContext = (researchContext || `=== RESEARCH CONTEXT ===\nFound ${validatedSources.length} sources:\n\n`);
+    validatedSources.forEach((source, idx) => {
       researchContext += `[${idx + 1}] ${source.title}\n${source.url}\n${source.content?.substring(0, 300)}...\n\n`;
     });
   }
@@ -1487,7 +1606,7 @@ async function processToolResults(state: State, config: any): Promise<Partial<St
   console.log(`   Research context: ${hasResearch ? 'YES' : 'NO'}`);
   
   return {
-    sources: allSources,
+    sources: validatedSources,
     researchContext,
   };
 }
