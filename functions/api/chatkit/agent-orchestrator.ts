@@ -647,7 +647,7 @@ DO NOT suggest using external research - provide detailed information directly.`
     } catch (error: any) {
       if (error.message === 'LLM_STREAM_TIMEOUT') {
         console.error(`   ❌ LLM stream timeout after ${LLM_TIMEOUT_MS}ms`);
-        fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again, or enable the "Online Research" toggle for comprehensive analysis.`;
+        fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again. For vessel/equipment queries I automatically verify with trusted web sources and include citations.`;
       } else {
         console.error(`   ❌ LLM stream error:`, error);
         throw error;
@@ -1208,8 +1208,10 @@ async function generateEntityFleetcoreMapping(
   // STEP 1: Check if this is appropriate for fleetcore mapping
   // Don't add mapping for pure platform queries (user already knows about fleetcore)
   const isPurePlatformQuery = /\b(fleetcore|pms|maintenance system|how does|what is|tell me about)\b.*\b(fleetcore|pms|system|platform|features?)\b/i.test(query);
+  // Also skip mapping for vessel-centric queries (user asked about a specific ship)
+  const isVesselQuery = /\b(vessel|ship|imo\s*\d{7}|call\s*sign)\b/i.test(query);
   
-  if (isPurePlatformQuery) {
+  if (isPurePlatformQuery || isVesselQuery) {
     console.log(`   ⏭️  Skipping: Pure platform query (user asking about fleetcore itself)`);
     return null;
   }

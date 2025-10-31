@@ -1,5 +1,5 @@
 /**
- * PHASE 2: Query Planning & Parallel Execution
+ * Query Planning & Parallel Execution
  * 
  * Decomposes complex queries into 3-6 targeted sub-queries
  * Executes them in parallel using LangGraph async capabilities
@@ -325,7 +325,30 @@ export async function executeParallelQueries(
   );
   
   const executionTime = Date.now() - startTime;
-  const allSources = results.flat();
+  let allSources = results.flat();
+  
+  // Vessel-centric filtering: remove off-topic sources when queries clearly target a vessel
+  const isVesselContext = subQueries.some(sq => /\b(vessel|ship|imo|mmsi|call\s*sign)\b/i.test(sq.query));
+  if (isVesselContext) {
+    const isLikelyVesselSource = (s: Source) => {
+      const url = (s.url || '').toLowerCase();
+      const title = (s.title || '').toLowerCase();
+      const content = (s.content || '').toLowerCase();
+      const maritimeDomain = (
+        url.includes('vesselfinder') || url.includes('marinetraffic') || url.includes('equasis') ||
+        url.includes('vesseltracker') || url.includes('myshiptracking') || url.includes('magicport') ||
+        url.includes('maritime') || url.includes('ship') || url.includes('fleetmon')
+      );
+      const maritimeSignals = /\b(imo|mmsi|call\s*sign|vessel|ship|loa|gross\s*tonnage|crew\s*boat)\b/i.test(title + ' ' + content);
+      const clearlyOffTopic = url.includes('stanford.edu') || url.includes('hs-fps.stanford') || url.includes('linkedin.com/in/');
+      return (maritimeDomain || maritimeSignals) && !clearlyOffTopic;
+    };
+    const filtered = allSources.filter(isLikelyVesselSource);
+    if (filtered.length >= Math.min(3, allSources.length)) {
+      allSources = filtered;
+      console.log(`   🚧 Vessel filter applied: ${filtered.length}/${results.flat().length} retained`);
+    }
+  }
   
   console.log(`   ⚡ Parallel execution complete: ${executionTime}ms`);
   console.log(`   📊 Total sources: ${allSources.length} (before dedup)`);
