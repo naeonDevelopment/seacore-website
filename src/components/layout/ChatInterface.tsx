@@ -456,6 +456,9 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
     // Match variations: **Sources:**, Sources:, ## Sources, ### Sources
     s = s.replace(/\n\s*(#{1,3}\s*)?(\*\*)?Sources:?(\*\*)?\s*[\s\S]*$/i, '');
     
+    // Strip any leading JSON block (e.g., leaked planner output) before first markdown header
+    s = s.replace(/^\s*\{[\s\S]*?\}\s*(?=(##\s|$))/, '');
+    
     return s.trim();
   };
 
@@ -937,8 +940,14 @@ _Note: Online research uses fast verification mode with Gemini. Deep research mo
                     // No need for delayed clearing - status disappears when content starts
                   }
                   
-                  // Accumulate content
-                  streamedContent += parsed.content;
+                  // Handle final overwrite (enforced citations) vs incremental streaming
+                  if (parsed.overwrite) {
+                    // Replace entire content with final enforced version
+                    streamedContent = parsed.content || '';
+                  } else {
+                    // Accumulate incremental content
+                    streamedContent += parsed.content;
+                  }
                 }
 
                 // Throttle UI updates to ~100ms AFTER message creation

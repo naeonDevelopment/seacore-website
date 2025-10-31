@@ -1028,6 +1028,18 @@ ${technicalDepthFlag}
     
     console.log(`   ✅ Synthesized (${fullContent.length} chars, ${chunkCount} chunks)`);
     
+    // Strip any leaked JSON/planner blocks before enforcement
+    const stripLeadingJson = (text: string): string => {
+      if (!text) return text;
+      // Remove leading JSON object if present before first markdown heading
+      const match = text.match(/^\s*\{[\s\S]*?\}\s*(?=(##\s|$))/);
+      if (match) {
+        return text.slice(match[0].length).trimStart();
+      }
+      return text;
+    };
+    fullContent = stripLeadingJson(fullContent);
+    
     // PHASE 4: Citation Enforcement - Ensure inline citations are present
     const citationResult = enforceCitations(fullContent, state.sources);
     if (citationResult.wasEnforced) {
@@ -1683,8 +1695,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         console.log(`   Token streaming worked: ${hasStreamedContent}`);
         console.log(`   Sources: ${sources.length}`);
         
-        // FALLBACK: If token streaming didn't work, chunk the complete response
-        // This is the proven pattern from legacy agent
+        // Ensure final enforced content reaches the UI.
+        // If token streaming didn't work, chunk the complete response (legacy pattern)
         if (!hasStreamedContent && finalState?.messages) {
           console.log(`⚠️ No token streaming occurred, using fallback chunking`);
           
@@ -1712,6 +1724,25 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
 
               fullResponse = content;
               console.log(`   ✅ Fallback chunking complete: ${content.length} chars sent`);
+            }
+          }
+        }
+
+        // If we did stream tokens, but the final synthesized message differs (e.g., citation enforcement),
+        // send a final overwrite event so the frontend replaces the content with the enforced version.
+        if (hasStreamedContent && finalState?.messages) {
+          const messagesUpdate = finalState.messages;
+          if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
+            const lastMessage = messagesUpdate[messagesUpdate.length - 1];
+            const enforced = typeof lastMessage.content === 'string'
+              ? lastMessage.content
+              : JSON.stringify(lastMessage.content);
+            if (enforced && enforced.length > 0 && enforced !== fullResponse) {
+              console.log(`   🔄 Sending final enforced content overwrite (${enforced.length} chars)`);
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: 'content', overwrite: true, content: enforced })}\n\n`
+              ));
+              fullResponse = enforced;
             }
           }
         }

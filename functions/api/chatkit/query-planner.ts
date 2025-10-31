@@ -368,14 +368,35 @@ async function executeSingleGeminiQuery(
   
   // Priority 2: groundingChunks (Gemini 2.5 format)
   if (sources.length === 0 && groundingMetadata?.groundingChunks) {
-    sources = groundingMetadata.groundingChunks
-      .filter((chunk: any) => chunk.web)
-      .map((chunk: any) => ({
-        url: chunk.web?.uri || '',
-        title: chunk.web?.title || 'Untitled',
-        content: chunk.web?.snippet || '',
-        score: 0.9,
-      }));
+    // Resolve Google vertexaisearch redirects to real target URLs for clean citations
+    const resolveRedirectUrl = async (url: string): Promise<string> => {
+      try {
+        if (!url) return url;
+        const resp = await fetch(url, { method: 'GET', redirect: 'follow' });
+        // After following redirects, resp.url should be the final resolved URL
+        const finalUrl = resp.url || url;
+        // Avoid keeping the vertexaisearch redirector in citations
+        if (finalUrl.includes('vertexaisearch.cloud.google.com')) return url; // fallback
+        return finalUrl;
+      } catch {
+        return url;
+      }
+    };
+
+    const chunks = groundingMetadata.groundingChunks.filter((chunk: any) => chunk.web);
+    const mapped = await Promise.all(
+      chunks.map(async (chunk: any) => {
+        const rawUri = chunk.web?.uri || '';
+        const resolved = await resolveRedirectUrl(rawUri);
+        return {
+          url: resolved || rawUri,
+          title: chunk.web?.title || 'Untitled',
+          content: chunk.web?.snippet || '',
+          score: 0.9,
+        } as Source;
+      })
+    );
+    sources = mapped;
   }
   
   return sources;
