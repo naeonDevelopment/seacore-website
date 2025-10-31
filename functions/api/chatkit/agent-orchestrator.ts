@@ -686,6 +686,12 @@ DO NOT suggest using external research - provide detailed information directly.`
       for await (const chunk of stream) {
         fullContent += chunk.content;
         chunkCount++;
+        
+        // Proxy tokens to client immediately to prevent UI timeouts
+        if (statusEmitter && chunk.content) {
+          statusEmitter({ type: 'content', content: chunk.content });
+        }
+        
         if (chunkCount === 1 || chunkCount % 20 === 0) {
           console.log(`   💬 Streaming chunk #${chunkCount} (${fullContent.length} chars so far)`);
         }
@@ -1068,6 +1074,11 @@ ${vesselRequirements}
       for await (const chunk of stream) {
         fullContent += chunk.content;
         chunkCount++;
+        
+        // Proxy tokens directly to SSE stream
+        if (statusEmitter && chunk.content) {
+          statusEmitter({ type: 'content', content: chunk.content });
+        }
         
         if (chunkCount === 1) {
           console.log(`   💬 First chunk received - streaming active`);
