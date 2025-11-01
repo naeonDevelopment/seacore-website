@@ -119,25 +119,41 @@ export interface ChatRequest {
   };
 }
 
-// Helper: Convert planner JSON into concise thinking steps via gpt-4o-mini
+// Helper: Convert planner plan into concise thinking steps WITHOUT calling an LLM
 async function emitPlanThinkingSteps(
+  plan: { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> },
+  statusEmitter: ((event: any) => void) | null
+): Promise<void> {
+  if (!statusEmitter) return;
+  const rows = (plan.subQueries || []).slice(0, 7).map((sq, i) => {
+    const prefix = `${i + 1}.`;
+    const text = (sq.purpose || sq.query || '').trim().replace(/\s+/g, ' ');
+    return `${prefix} ${text}`;
+  });
+  const header = plan.strategy ? `Strategy: ${plan.strategy}` : '';
+  const payload = [header, ...rows].filter(Boolean).join('\n');
+  statusEmitter({ type: 'thinking', step: 'plan_steps', content: payload });
+}
+
+// Optional LLM-backed formatter for more natural steps (fast 4o-mini), with fallback
+async function emitPlanThinkingStepsLLM(
   plan: { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> },
   statusEmitter: ((event: any) => void) | null,
   openaiKey?: string
 ): Promise<void> {
   if (!statusEmitter) return;
+  if (!openaiKey) return emitPlanThinkingSteps(plan, statusEmitter);
   try {
-    const llm = new ChatOpenAI({ modelName: 'gpt-4o-mini', temperature: 0.2, openAIApiKey: openaiKey || '', streaming: false });
+    const llm = new ChatOpenAI({ modelName: 'gpt-4o-mini', temperature: 0.2, openAIApiKey: openaiKey, streaming: false });
     const jsonForModel = JSON.stringify({ strategy: plan.strategy, subQueries: (plan.subQueries || []).slice(0, 8) });
     const resp = await llm.invoke([
-      { role: 'system', content: 'You convert structured plan JSON into 3-7 concise, human-friendly thinking steps. Output plain text only.' },
-      { role: 'user', content: `Plan JSON:\n${jsonForModel}\n\nRequirements:\n- 3-7 short steps\n- Start each line with a step indicator (e.g., 1., ✓)\n- Use the purpose for wording; keep it very brief\n- No JSON, no code, no preamble` }
+      { role: 'system', content: 'Convert plan JSON into 3-7 concise thinking steps. Output plain text only.' },
+      { role: 'user', content: `Plan JSON:\n${jsonForModel}\n\nRules:\n- 3-7 short steps\n- Start each line with 1., 2., 3.\n- Use purpose text; keep under 12 words\n- No JSON, no code, no preamble` }
     ]);
     const content = typeof resp.content === 'string' ? resp.content : JSON.stringify(resp.content);
     statusEmitter({ type: 'thinking', step: 'plan_steps', content: content.trim() });
-  } catch (e) {
-    const lines = (plan.subQueries || []).slice(0, 6).map((sq, i) => `${i + 1}. ${sq.purpose || sq.query}`);
-    statusEmitter({ type: 'thinking', step: 'plan_steps', content: lines.join('\n') });
+  } catch {
+    await emitPlanThinkingSteps(plan, statusEmitter);
   }
 }
 
@@ -440,8 +456,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           content: `Planned ${budgetedSubQueries.length}/${queryPlan.subQueries.length} targeted searches for "${classification.resolvedQuery.activeEntity?.name || queryToSend}"`,
         });
       }
-      // NEW: Emit human-friendly thinking steps from the planner JSON (fast gpt-4o-mini)
-      await emitPlanThinkingSteps({ strategy: queryPlan.strategy, subQueries: budgetedSubQueries as any }, statusEmitter, env.OPENAI_API_KEY);
+      // NEW: Emit human-friendly thinking steps from the planner JSON (fast gpt-4o-mini with fallback)
+      await emitPlanThinkingStepsLLM({ strategy: queryPlan.strategy, subQueries: budgetedSubQueries as any }, statusEmitter, env.OPENAI_API_KEY);
       
       if (statusEmitter) {
         statusEmitter({
@@ -1840,6 +1856,16 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         }
       };
       
+      // UX HEARTBEAT: emit periodic status so UI never appears stalled
+      let heartbeatTimer: any = null;
+      try {
+        heartbeatTimer = setInterval(() => {
+          try {
+            statusEmitter({ type: 'status', stage: 'heartbeat', content: '⏳ Working...' });
+          } catch {}
+        }, 1000);
+      } catch {}
+      
       // Initialize LangSmith tracing as early as possible (before any chain execution)
       let langsmithClient: LangSmithClient | null = null;
       try {
@@ -2185,6 +2211,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         
         // Done
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        try { if (heartbeatTimer) clearInterval(heartbeatTimer); } catch {}
         controller.close();
       } catch (error: any) {
         console.error('❌ Stream error:', error);
@@ -2192,6 +2219,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           type: 'error', 
           content: error.message 
         })}\n\n`));
+        try { if (heartbeatTimer) clearInterval(heartbeatTimer); } catch {}
         controller.close();
       }
     },

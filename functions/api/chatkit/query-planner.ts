@@ -405,8 +405,8 @@ export async function executeParallelQueries(
 
   const startTime = Date.now();
   
-  // Execute with a simple concurrency limit to avoid saturating APIs
-  const CONCURRENCY = Math.min(4, Math.max(2, Math.floor((dedupedSubQueries.length + 1) / 2)));
+  // Execute with a higher concurrency for faster perceived latency (cap to 8)
+  const CONCURRENCY = Math.min(8, Math.max(4, dedupedSubQueries.length));
   const results: Source[][] = [];
   let inFlight = 0;
   let index = 0;
@@ -430,15 +430,21 @@ export async function executeParallelQueries(
       });
     }
     
+    // Enforce per-subquery timeout for faster perceived latency
+    const TIMEOUT_MS = 8000; // hard cap per subquery
+    const timeoutPromise = new Promise<Source[]>((resolve) => setTimeout(() => resolve([]), TIMEOUT_MS));
     try {
-      const sources = await executeSingleGeminiQuery(
-        subQuery.query,
-        entityContext,
-        geminiApiKey,
-        kv,
-        pseApiKey,
-        pseCx,
-      );
+      const sources = await Promise.race([
+        executeSingleGeminiQuery(
+          subQuery.query,
+          entityContext,
+          geminiApiKey,
+          kv,
+          pseApiKey,
+          pseCx,
+        ),
+        timeoutPromise
+      ]);
       console.log(`   ✅ [${currentIndex + 1}] Found ${sources.length} sources`);
       results[currentIndex] = sources;
       
