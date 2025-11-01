@@ -45,7 +45,6 @@ import {
   validateCitations
 } from './citation-enforcer';
 import { accumulateKnowledge } from './memory-accumulation';
-import { validateVesselEntity } from './entity-validation';
 import { computeCoverage, missingVesselCoverage } from './source-categorizer';
 import { emitMetrics } from './metrics';
 import { 
@@ -79,6 +78,7 @@ import {
   type FleetcoreApplicationMapping 
 } from './fleetcore-entity-mapper';
 import { extractMaritimeEntities } from './utils/entity-utils';
+import { validateVesselEntity } from './entity-validation';
 
 // Cloudflare Workers types
 declare global {
@@ -154,6 +154,62 @@ async function emitPlanThinkingStepsLLM(
     statusEmitter({ type: 'thinking', step: 'plan_steps', content: content.trim() });
   } catch {
     await emitPlanThinkingSteps(plan, statusEmitter);
+  }
+}
+
+// ===== Vessel Reflexion Utilities =====
+function hasRegistrySourceUrl(url: string): boolean {
+  const u = (url || '').toLowerCase();
+  return u.includes('vesselfinder') || u.includes('marinetraffic') || u.includes('equasis') || u.includes('myshiptracking') || u.includes('vesseltracker') || u.includes('fleetmon');
+}
+
+function hasRegistryCoverage(sources: Array<{ url: string }>): boolean {
+  return sources.some(s => hasRegistrySourceUrl(s.url));
+}
+
+function hasEquasisCoverage(sources: Array<{ url: string }>): boolean {
+  return sources.some(s => (s.url || '').toLowerCase().includes('equasis'));
+}
+
+function hasOwnerOperatorHints(sources: Array<{ title: string; content: string }>): boolean {
+  const needle = /(owner|operator|management|managed by|operated by)/i;
+  return sources.some(s => needle.test(`${s.title}\n${s.content}`));
+}
+
+function isLikelyVesselQuery(q: string): boolean {
+  const ql = (q || '').toLowerCase();
+  return /\b(imo|mmsi|call\s*sign|vessel|ship)\b/.test(ql) || /\b([a-z]+(?:\s+[a-z]+)*\s+\d{1,3})\b/i.test(q);
+}
+
+async function generateVesselRefinementSubQueries(
+  query: string,
+  missing: { needRegistry: boolean; needEquasis: boolean; needIdentifiers: boolean; needOwnerOperator: boolean },
+  openaiKey?: string
+): Promise<Array<{ query: string; purpose: string; priority: 'high'|'medium' }>> {
+  // Deterministic baseline
+  const baseline: Array<{ query: string; purpose: string; priority: 'high'|'medium' }> = [];
+  if (missing.needRegistry) baseline.push({ query: `${query} marinetraffic vesselfinder AIS position MMSI IMO`, purpose: 'Add AIS/registry corroboration', priority: 'high' });
+  if (missing.needEquasis) baseline.push({ query: `${query} Equasis registry profile vessel details`, purpose: 'Fetch Equasis registry profile', priority: 'high' });
+  if (missing.needIdentifiers) baseline.push({ query: `${query} IMO MMSI call sign identifiers`, purpose: 'Find vessel identifiers (IMO/MMSI/Call Sign)', priority: 'high' });
+  if (missing.needOwnerOperator) baseline.push({ query: `${query} owner operator management company`, purpose: 'Find owner/operator/manager', priority: 'medium' });
+
+  if (!openaiKey) return baseline.slice(0, 3);
+  try {
+    const llm = new ChatOpenAI({ modelName: 'gpt-4o-mini', temperature: 0.2, openAIApiKey: openaiKey, streaming: false });
+    const prompt = `You are generating up to 3 VERY targeted follow-up search queries for a vessel lookup. Query: "${query}". Missing evidence: ${JSON.stringify(missing)}.
+Rules: natural language, include site names as text (no site: operator), short and specific. Output JSON array: [{"query":"...","purpose":"...","priority":"high|medium"}] and nothing else.`;
+    const resp = await llm.invoke([
+      { role: 'system', content: 'Generate JSON only. No preamble.' },
+      { role: 'user', content: prompt }
+    ]);
+    const content = typeof resp.content === 'string' ? resp.content : JSON.stringify(resp.content);
+    const match = content.match(/\[\s*[\s\S]*\]/);
+    if (!match) return baseline.slice(0, 3);
+    const parsed = JSON.parse(match[0]);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 3);
+    return baseline.slice(0, 3);
+  } catch {
+    return baseline.slice(0, 3);
   }
 }
 
@@ -584,6 +640,45 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           console.log(`   ✅ Evidence reinforcement complete: confidence now ${confidence.label} (${confidence.score})`);
         } catch (e: any) {
           console.warn(`   ⚠️ Evidence reinforcement failed: ${e.message}`);
+        }
+      }
+
+      // PHASE 4: Vessel Reflexion loop — fill missing required fields using targeted follow-ups
+      if (isVesselQuery) {
+        const minimal = rankedSources.map((s: any) => ({ title: s.title || '', url: s.url || '', content: s.content || '' }));
+        const validation = validateVesselEntity(queryToSend, minimal);
+        const haveIdentifiers = validation.matchedBy.includes('IMO') || validation.matchedBy.includes('MMSI') || validation.matchedBy.includes('CallSign');
+        const needIdentifiers = !haveIdentifiers;
+        const needRegistry = !hasRegistrySource;
+        const needEquasis = !hasEquasisCoverage(rankedSources as any);
+        const needOwnerOperator = !hasOwnerOperatorHints(minimal as any);
+        const needsRefine = needIdentifiers || needRegistry || needEquasis || needOwnerOperator;
+
+        if (needsRefine) {
+          console.log(`   🔁 Reflexion: Missing fields → identifiers:${needIdentifiers} registry:${needRegistry} equasis:${needEquasis} owner/operator:${needOwnerOperator}`);
+          if (statusEmitter) {
+            statusEmitter({ type: 'thinking', step: 'reflexion', content: 'Identified gaps (registry/Equasis/IDs/owner). Generating targeted follow-ups…' });
+          }
+          const followups = await generateVesselRefinementSubQueries(queryToSend, { needRegistry, needEquasis, needIdentifiers, needOwnerOperator }, env.OPENAI_API_KEY);
+          if (statusEmitter) {
+            await emitPlanThinkingStepsLLM({ strategy: 'refinement', subQueries: followups as any }, statusEmitter, env.OPENAI_API_KEY);
+          }
+          try {
+            const moreSources = await executeParallelQueries(
+              followups.map(f => ({ query: f.query, purpose: f.purpose, priority: f.priority })),
+              env.GEMINI_API_KEY,
+              entityContext || undefined,
+              env.CHAT_SESSIONS,
+              (env as any).PSE_API_KEY,
+              (env as any).PSE_CX
+            );
+            const merged = aggregateAndRank([...rankedSources, ...moreSources], { query: queryToSend });
+            rankedSources = merged;
+            confidence = calculateConfidence(rankedSources);
+            console.log(`   ✅ Reflexion merge complete: total ${rankedSources.length} sources, confidence ${confidence.label} (${confidence.score})`);
+          } catch (e: any) {
+            console.warn(`   ⚠️ Reflexion follow-ups failed: ${e.message}`);
+          }
         }
       }
 
