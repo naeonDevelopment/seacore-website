@@ -119,6 +119,28 @@ export interface ChatRequest {
   };
 }
 
+// Helper: Convert planner JSON into concise thinking steps via gpt-4o-mini
+async function emitPlanThinkingSteps(
+  plan: { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> },
+  statusEmitter: ((event: any) => void) | null,
+  openaiKey?: string
+): Promise<void> {
+  if (!statusEmitter) return;
+  try {
+    const llm = new ChatOpenAI({ modelName: 'gpt-4o-mini', temperature: 0.2, openAIApiKey: openaiKey || '', streaming: false });
+    const jsonForModel = JSON.stringify({ strategy: plan.strategy, subQueries: (plan.subQueries || []).slice(0, 8) });
+    const resp = await llm.invoke([
+      { role: 'system', content: 'You convert structured plan JSON into 3-7 concise, human-friendly thinking steps. Output plain text only.' },
+      { role: 'user', content: `Plan JSON:\n${jsonForModel}\n\nRequirements:\n- 3-7 short steps\n- Start each line with a step indicator (e.g., 1., ✓)\n- Use the purpose for wording; keep it very brief\n- No JSON, no code, no preamble` }
+    ]);
+    const content = typeof resp.content === 'string' ? resp.content : JSON.stringify(resp.content);
+    statusEmitter({ type: 'thinking', step: 'plan_steps', content: content.trim() });
+  } catch (e) {
+    const lines = (plan.subQueries || []).slice(0, 6).map((sq, i) => `${i + 1}. ${sq.purpose || sq.query}`);
+    statusEmitter({ type: 'thinking', step: 'plan_steps', content: lines.join('\n') });
+  }
+}
+
 // =====================
 // STATE DEFINITION
 // =====================
@@ -418,6 +440,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           content: `Planned ${budgetedSubQueries.length}/${queryPlan.subQueries.length} targeted searches for "${classification.resolvedQuery.activeEntity?.name || queryToSend}"`,
         });
       }
+      // NEW: Emit human-friendly thinking steps from the planner JSON (fast gpt-4o-mini)
+      await emitPlanThinkingSteps({ strategy: queryPlan.strategy, subQueries: budgetedSubQueries as any }, statusEmitter, env.OPENAI_API_KEY);
       
       if (statusEmitter) {
         statusEmitter({
