@@ -449,12 +449,12 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         statusEmitter({
           type: 'status',
           stage: 'analyzing',
-          content: `📊 Ranking ${allSources.length} sources by authority...`,
+          content: `📊 Ranking ${allSources.length} sources by relevance and authority...`,
           progress: 50
         });
       }
       
-      let rankedSources = aggregateAndRank(allSources);
+      let rankedSources = aggregateAndRank(allSources, { query: queryToSend });
       let didDeepResearch = false;
       if (statusEmitter) {
         statusEmitter({
@@ -507,7 +507,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
             tier: s.tier,
           }));
           const merged = [...rankedSources, ...extra];
-          rankedSources = aggregateAndRank(merged);
+          rankedSources = aggregateAndRank(merged, { query: queryToSend });
           didDeepResearch = true;
           console.log(`   ✅ Deep-research merged: total ${rankedSources.length} sources after re-aggregation`);
         } catch (e: any) {
@@ -521,7 +521,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         return acc;
       }, {} as Record<string, number>);
       const totalAfter = rankedSources.length;
-      const meetsEvidence = (tierCounts['T1'] || 0) >= 1 || (tierCounts['T2'] || 0) >= 2;
+      const qLower = (queryToSend || '').toLowerCase();
+      const isVesselQuery = /\b(imo|mmsi)\b/.test(qLower) || /\b([a-z]+(?:\s+[a-z]+)*\s+\d{1,3})\b/i.test(qLower);
+      const hasRegistrySource = rankedSources.some((s: any) => /marinetraffic|vesselfinder|equasis/.test((s.url || '').toLowerCase()));
+      const meetsEvidence = isVesselQuery ? hasRegistrySource : ((tierCounts['T1'] || 0) >= 1 || (tierCounts['T2'] || 0) >= 2);
       if ((!meetsEvidence || confidence.label === 'low') && !didDeepResearch) {
         console.log(`   ⚠️ Evidence below threshold (T1=${tierCounts['T1'] || 0}, T2=${tierCounts['T2'] || 0}) → running deep-research`);
         if (statusEmitter) {
@@ -536,7 +539,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           }, config);
           const parsed2 = typeof dr2 === 'string' ? JSON.parse(dr2) : dr2;
           const extra2 = (parsed2?.sources || []).map((s: any) => ({ url: s.url, title: s.title, content: s.content, score: s.score, tier: s.tier }));
-          rankedSources = aggregateAndRank([...rankedSources, ...extra2]);
+          rankedSources = aggregateAndRank([...rankedSources, ...extra2], { query: queryToSend });
           confidence = calculateConfidence(rankedSources);
           console.log(`   ✅ Evidence reinforcement complete: confidence now ${confidence.label} (${confidence.score})`);
         } catch (e: any) {
@@ -565,10 +568,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       // Build research context
       let researchContext = `=== GEMINI GROUNDING RESULTS (PARALLEL SEARCH) ===\n\n`;
       // Note: DO NOT include queryPlan details here - GPT-4o might echo them back
-      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked by authority)\n\n`;
+      researchContext += `SOURCES FOUND: ${allSources.length} → ${rankedSources.length} (ranked by relevance & authority)\n\n`;
       
       if (rankedSources.length > 0) {
-        researchContext += `SOURCES (ranked by authority):\n`;
+        researchContext += `SOURCES (ranked by relevance & authority):\n`;
         rankedSources.forEach((s: any, idx: number) => {
           // CRITICAL: Include substantial content (800 chars) for LLM to generate detailed, cited answers
           // 200 chars was too little - LLM couldn't find specific facts to cite

@@ -641,10 +641,10 @@ async function executePSESearch(query: string, apiKey: string, cx: string): Prom
 // =====================
 
 /**
- * Aggregate, deduplicate, and rank sources by authority
- * Implements stable sorting and top-10 selection
+ * Aggregate, deduplicate, and rank sources by relevance and authority
+ * Implements stable sorting with query-aware boosts and top-10 selection
  */
-export function aggregateAndRank(sources: Source[]): Source[] {
+export function aggregateAndRank(sources: Source[], opts?: { query?: string }): Source[] {
   
   console.log(`\n📊 AGGREGATION: Processing ${sources.length} sources`);
   
@@ -662,21 +662,47 @@ export function aggregateAndRank(sources: Source[]): Source[] {
   
   console.log(`   📉 Deduplication: ${sources.length} → ${deduped.length} sources`);
   
-  // Step 4: Stable sort (tier DESC, url ASC, title ASC)
+  // Step 4: Stable sort with query relevance boost (then tier DESC, url ASC, title ASC)
+  const query = (opts?.query || '').toLowerCase();
+  const vesselMatch = query.match(/\b([a-z]+(?:\s+[a-z]+)*\s+\d{1,3})\b/i);
+  const vesselPhrase = vesselMatch ? (vesselMatch[1] || '').toLowerCase() : '';
+  const vesselTokens = vesselPhrase ? vesselPhrase.split(/\s+/).filter(Boolean) : [];
+
+  function relevanceWeight(s: any): number {
+    if (!query) return 0;
+    const url = (s.url || '').toLowerCase();
+    const title = (s.title || '').toLowerCase();
+    const text = `${url} ${title}`;
+    let weight = 0;
+    const isRegistry = /marinetraffic|vesselfinder|equasis/.test(url);
+    if (vesselPhrase) {
+      if (text.includes(vesselPhrase)) weight += 200; // exact phrase match
+      else if (vesselTokens.length > 1 && vesselTokens.every(t => text.includes(t))) weight += 120; // all tokens
+      else if (vesselTokens.some(t => text.includes(t))) weight += 40; // partial
+    }
+    if (isRegistry) weight += vesselPhrase ? 150 : 80; // prefer registries, especially for named vessels
+    return weight;
+  }
+
   const sorted = deduped.sort((a, b) => {
-    // Primary: tier (T1 > T2 > T3)
-    const tierOrder = { 'T1': 1, 'T2': 2, 'T3': 3 };
+    // Primary: query relevance (DESC)
+    const rwA = relevanceWeight(a);
+    const rwB = relevanceWeight(b);
+    if (rwA !== rwB) return rwB - rwA;
+
+    // Secondary: tier (T1 > T2 > T3)
+    const tierOrder = { 'T1': 1, 'T2': 2, 'T3': 3 } as Record<string, number>;
     if (a.tier && b.tier) {
       const tierDiff = tierOrder[a.tier] - tierOrder[b.tier];
       if (tierDiff !== 0) return tierDiff;
     }
-    
-    // Secondary: normalized URL (alphabetical)
+
+    // Tertiary: normalized URL (alphabetical)
     const urlA = (a as any).normalizedUrl || a.url;
     const urlB = (b as any).normalizedUrl || b.url;
     if (urlA !== urlB) return urlA.localeCompare(urlB);
-    
-    // Tertiary: title (alphabetical)
+
+    // Quaternary: title (alphabetical)
     return (a.title || '').localeCompare(b.title || '');
   });
   
