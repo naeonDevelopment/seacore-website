@@ -684,14 +684,16 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
           let buffer = '';
           // Stream safety timeouts
           const streamStartTime = Date.now();
-          const STREAM_TIMEOUT = 120000; // 2 minutes
+          // Conditional timeout: 3 minutes for deep research (browsing enabled), 2 minutes for normal queries
+          const STREAM_TIMEOUT = currentUseBrowsingRef.current ? 180000 : 120000; // 3 min for research, 2 min for normal
           let lastChunkTime = Date.now();
           const CHUNK_TIMEOUT = 30000; // 30 seconds
           while (true) {
             // Check timeouts
             const nowTs = Date.now();
             if (nowTs - streamStartTime > STREAM_TIMEOUT) {
-              console.error('❌ [ChatInterface] Stream timeout (2m)');
+              const timeoutMin = Math.floor(STREAM_TIMEOUT / 60000);
+              console.error(`❌ [ChatInterface] Stream timeout (${timeoutMin}m)`);
               throw new Error('Stream timeout');
             }
             if (nowTs - lastChunkTime > CHUNK_TIMEOUT) {
