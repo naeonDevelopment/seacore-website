@@ -59,6 +59,23 @@ export interface AggregatedResult {
 // QUERY PLANNING
 // =====================
 
+// Phase 3: Minimal canonicalization helpers (local to avoid module resolution issues)
+interface CanonicalEntity { type: 'vessel' | 'company' | 'unknown'; name?: string; imo?: string; mmsi?: string; callSign?: string; }
+function canonicalizeQueryEntity(query: string): CanonicalEntity | null {
+  const text = query.trim();
+  const imo = (text.match(/\bIMO\s*(\d{7})\b/i) || [])[1];
+  const mmsi = (text.match(/\bMMSI\s*(\d{9})\b/i) || [])[1];
+  const csMatch = text.match(/\b(call\s*sign|cs)\s*([A-Z0-9]{3,8})\b/i);
+  const callSign = csMatch ? csMatch[2].toUpperCase() : undefined;
+  const nameMatch = text.match(/\b([A-Z][a-z]+\s+(?:[A-Z][a-z]+|\d{2,}))\b/);
+  const name = nameMatch ? nameMatch[1].trim() : undefined;
+  if (imo || mmsi || callSign || name) {
+    const type: CanonicalEntity['type'] = (imo || mmsi || callSign || /\bvessel|ship\b/i.test(text)) ? 'vessel' : (/company|operator|owner/i.test(text) ? 'company' : 'unknown');
+    return { type, name, imo, mmsi, callSign };
+  }
+  return null;
+}
+
 /**
  * Generate 3-6 targeted sub-queries for a complex maritime query
  * Uses GPT-4o-mini for fast, cheap query decomposition
@@ -74,7 +91,13 @@ export async function planQuery(
   
   // Detect query type for strategy selection
   const isComparative = /largest|biggest|smallest|best|worst|compare|versus|vs/i.test(query);
-  const isVesselQuery = /vessel|ship|mv|ms|mt|imo\s*\d+/i.test(query);
+  
+  // ENHANCED: Vessel detection with name pattern matching
+  // Patterns: "Stanford Maya", "Dynamic 25", "MV Ocean Star", "IMO 1234567"
+  const hasVesselKeyword = /vessel|ship|mv|ms|mt|ss|hms|imo\s*\d{7}|mmsi\s*\d{9}/i.test(query);
+  const hasVesselNamePattern = /^(tell me about |what about |info on |details on |search for )?([A-Z][a-z]+\s+([A-Z][a-z]+|\d+))$/i.test(query.trim());
+  const isVesselQuery = hasVesselKeyword || hasVesselNamePattern;
+  
   const isCompanyQuery = /company|operator|owner|fleet|maritime\s+group/i.test(query);
   const isEquipmentQuery = /engine|generator|equipment|machinery|pump|compressor/i.test(query);
   
@@ -83,74 +106,100 @@ export async function planQuery(
   else if (query.split(' ').length > 10) strategy = 'comprehensive';
   
   console.log(`   Strategy: ${strategy}`);
+  console.log(`   Vessel Query: ${isVesselQuery} (keyword: ${hasVesselKeyword}, pattern: ${hasVesselNamePattern})`);
   
+  // Phase 3: Minimal canonicalization to assist planning (IMO/MMSI/name)
+  const canonical = canonicalizeQueryEntity(query);
+
   const planningPrompt = `You are a maritime intelligence query planner. Decompose this query into 3-6 targeted sub-queries that search SPECIFIC maritime sources.
 
 MAIN QUERY: "${query}"
 ${entityContext ? `CONTEXT: ${entityContext}` : ''}
+${canonical ? `\nENTITY CANONICALIZATION:\n${JSON.stringify(canonical)}` : ''}
 
 STRATEGY: ${strategy}
-${isVesselQuery ? '- Focus on vessel specifications, ownership, operations' : ''}
+${isVesselQuery ? '- THIS IS A VESSEL QUERY - Search for vessel registries, AIS data, specifications, ownership' : ''}
 ${isCompanyQuery ? '- Focus on company fleet, operations, ownership structure' : ''}
 ${isEquipmentQuery ? '- Focus on equipment specs, OEM details, maintenance, REAL-WORLD OPERATIONAL DATA' : ''}
 ${isComparative ? '- Focus on comparative attributes and verification' : ''}
 
+${isVesselQuery ? `
+⚠️ CRITICAL: VESSEL NAME DETECTION
+The query contains a vessel name: "${query}"
+DO NOT search for generic technical terms or equipment!
+ONLY search for THIS SPECIFIC VESSEL by name.
+` : ''}
+
 CRITICAL: TARGET SPECIFIC MARITIME DATA SOURCES:
 
-**FOR EQUIPMENT/MAINTENANCE QUERIES - GENERATE THESE SUB-QUERY TYPES:**
-1. OEM Technical Documentation (HIGH PRIORITY):
-   - "site:cat.com filetype:pdf [equipment model] maintenance"
-   - "site:wartsila.com filetype:pdf [equipment] service bulletin"
-   - "site:man-es.com filetype:pdf [equipment] technical circular"
+**FOR EQUIPMENT/MAINTENANCE QUERIES - USE NATURAL LANGUAGE:**
+CRITICAL: NO site: or filetype: operators - they prevent Gemini grounding.
 
-2. Maritime Forums & Field Reports (for real-world scenarios):
-   - "site:gcaptain.com [equipment] maintenance problems OR failures OR experience"
-   - "site:marineinsight.com [equipment] common issues OR maintenance"
-   - "[equipment] chief engineer forum failure OR troubleshooting"
+Good examples:
+1. "[equipment model] caterpillar wartsila MAN maintenance manual PDF OEM"
+2. "[equipment] service bulletin technical circular documentation"
+3. "[equipment] gcaptain maritime forum maintenance problems failures experience"
+4. "[equipment] marineinsight common issues maintenance challenges"
+5. "[equipment] DNV classification requirements standards"
+6. "[equipment] specifications datasheet technical data"
 
-3. Classification Society Standards:
-   - "site:dnv.com [equipment type] requirements"
-   - "site:lr.org [equipment type] guidance"
+Bad examples (DO NOT DO THIS):
+❌ "site:cat.com [equipment]"
+❌ "filetype:pdf [equipment]"
 
-4. General Equipment Information:
-   - "[equipment] specifications datasheet"
-   - "[equipment] operator manual"
+**FOR VESSEL QUERIES - DO NOT USE site: OPERATORS:**
+CRITICAL: Gemini's grounding search works BEST with natural language queries.
+DO NOT use site: operators - they prevent proper grounding source extraction.
 
-**FOR VESSEL QUERIES:**
-1. "site:vesselfinder.com OR site:marinetraffic.com [vessel name] IMO"
-2. "[vessel name] specifications owner operator"
-3. "[vessel name] shipyard built classification"
-4. "site:equasis.org [vessel name]"
+Good examples:
+1. "[vessel name] IMO MMSI call sign marinetraffic vesselfinder"
+2. "[vessel name] specifications owner operator registry"
+3. "[vessel name] shipyard built delivery date"
+4. "[vessel name] equasis registry data"
+5. "[vessel name] AIS position current location"
 
-**FOR COMPANY QUERIES:**
-1. "[company] fleet list vessels"
-2. "[company] maritime operations areas"
-3. "site:linkedin.com [company] maritime"
+Bad examples (DO NOT DO THIS):
+❌ "site:vesselfinder.com [vessel name]"
+❌ "site:equasis.org [vessel name]"
+
+**FOR COMPANY QUERIES - NATURAL LANGUAGE ONLY:**
+Good examples:
+1. "[company] fleet list vessels operations"
+2. "[company] maritime operations areas services"
+3. "[company] linkedin profile maritime shipping"
+
+Bad examples (DO NOT DO THIS):
+❌ "site:linkedin.com [company]"
 
 RULES:
-1. Generate 3-6 sub-queries (depending on complexity)
-2. Each sub-query should target a SPECIFIC source type
-3. Prioritize sub-queries by importance (high/medium/low)
-4. For equipment queries: ALWAYS include at least one PDF search + one forum search
-5. For vessel queries: owner, specs, classification, current status
-6. For company queries: fleet size, operations, ownership, reputation
-7. For comparative queries: attribute for each entity + verification sources
-8. Use site: operators and filetype:pdf when targeting specific sources
-9. Keep sub-queries concise and searchable
+1. Generate 6-8 sub-queries for vessel queries, 3-5 for others
+2. Each sub-query should use NATURAL LANGUAGE (NO site: or filetype: operators!)
+3. Include relevant domain names IN THE QUERY TEXT (e.g., "marinetraffic vesselfinder")
+4. Prioritize sub-queries by importance (high/medium/low)
+5. For equipment: Include OEM names (Caterpillar, Wartsila, MAN) + forum names (gcaptain)
+6. For vessels: Include registry sites (equasis, marinetraffic, vesselfinder) as TEXT in query
+7. For companies: Include source types (linkedin, press releases) as TEXT in query
+8. For comparative queries: Create separate queries for each entity + verification
+9. Keep sub-queries concise, specific, and searchable with natural language
 
-Return JSON:
+⚠️ CRITICAL OUTPUT FORMAT:
+Return ONLY valid JSON with NO additional text, explanations, or markdown.
+Do NOT add any text before or after the JSON.
+Your FIRST character must be "{" and LAST character must be "}".
+
+JSON Schema:
 {
   "strategy": "${strategy}",
   "subQueries": [
     {
-      "query": "specific searchable query with site: or filetype: operators",
-      "purpose": "what this finds (e.g., OEM PDF manual, forum discussion, vessel registry)",
+      "query": "natural language query including relevant site names as TEXT (no operators)",
+      "purpose": "what this finds (e.g., vessel registry from MarineTraffic, OEM docs from Wartsila)",
       "priority": "high|medium|low"
     }
   ]
 }
 
-Return ONLY the JSON:`;
+START YOUR RESPONSE WITH: {`;
 
   try {
     // CRITICAL FIX: Use non-streaming LLM for internal planning (don't leak to UI)
@@ -165,7 +214,16 @@ Return ONLY the JSON:`;
     const response = await llm.invoke([
       { role: 'system', content: 'You are a precise query planning system. Return valid JSON only.' },
       { role: 'user', content: planningPrompt }
-    ]);
+    ], {
+      tags: ['planner', 'query-planning', strategy],
+      metadata: {
+        component: 'planner',
+        strategy,
+        isVesselQuery,
+        isCompanyQuery,
+        isEquipmentQuery
+      }
+    });
     
     const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
     const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -186,20 +244,20 @@ Return ONLY the JSON:`;
           subQueries.push({ query: q, purpose, priority });
         }
       };
-      // Registry and identity
-      ensure(`${query} IMO MMSI call sign`, 'registry identifiers (IMO/MMSI/Call sign)', 'high');
-      ensure(`site:equasis.org ${query}`, 'official registry profile', 'high');
+      // Registry and identity (NO site: operators - they break Gemini grounding)
+      ensure(`${query} IMO MMSI call sign marinetraffic vesselfinder`, 'registry identifiers from vessel tracking sites', 'high');
+      ensure(`${query} equasis registry official data`, 'official registry profile from Equasis', 'high');
       // Ownership/management
       ensure(`${query} owner operator manager`, 'ownership and management', 'high');
       // Class and flag
       ensure(`${query} class society classification notation`, 'class society and class notations', 'medium');
       ensure(`${query} flag state registry`, 'flag and registry details', 'medium');
-      ensure(`${query} flag certificates PDF filetype:pdf`, 'flag certification documents (PDF)', 'low');
+      ensure(`${query} flag certificates documentation`, 'flag certification documents', 'low');
       // Particulars
       ensure(`${query} lightship gross tonnage deadweight length overall breadth depth`, 'principal particulars', 'medium');
       ensure(`${query} keel lay date delivery date built shipyard`, 'build dates and shipyard', 'medium');
       // Current status/location
-      ensure(`site:vesselfinder.com OR site:marinetraffic.com ${query} position AIS`, 'current location/status (AIS)', 'medium');
+      ensure(`${query} position AIS current location vesselfinder marinetraffic`, 'current location/status from AIS tracking', 'medium');
       // Equipment (propulsion/auxiliaries)
       ensure(`${query} propulsion engines generators auxiliaries specifications`, 'equipment (propulsion/auxiliaries)', 'medium');
     }
@@ -211,9 +269,9 @@ Return ONLY the JSON:`;
           subQueries.push({ query: q, purpose, priority });
         }
       };
-      ensure(`${query} fleet list vessels`, 'company fleet and assets', 'high');
-      ensure(`site:linkedin.com ${query} maritime`, 'company profile and operations', 'medium');
-      ensure(`${query} press release news`, 'recent activities and contracts', 'medium');
+      ensure(`${query} fleet list vessels operations`, 'company fleet and assets', 'high');
+      ensure(`${query} linkedin maritime company profile`, 'company profile and operations from LinkedIn', 'medium');
+      ensure(`${query} press release news recent activities`, 'recent activities and contracts', 'medium');
     }
     
     // Equipment-specific mandatory sub-queries
@@ -223,9 +281,9 @@ Return ONLY the JSON:`;
           subQueries.push({ query: q, purpose, priority });
         }
       };
-      ensure(`${query} filetype:pdf maintenance manual`, 'OEM PDF documentation (manuals/bulletins)', 'high');
-      ensure(`site:gcaptain.com ${query} maintenance OR problems`, 'operator experience and failures', 'medium');
-      ensure(`${query} specifications datasheet`, 'technical specifications', 'medium');
+      ensure(`${query} maintenance manual PDF OEM documentation`, 'OEM PDF documentation (manuals/bulletins)', 'high');
+      ensure(`${query} gcaptain maritime forum maintenance problems failures`, 'operator experience and failures from forums', 'medium');
+      ensure(`${query} specifications datasheet technical data`, 'technical specifications', 'medium');
     }
 
     const queryPlan: QueryPlan = {
@@ -284,12 +342,12 @@ function createFallbackPlan(query: string, strategy: string): QueryPlan {
   } else if (/engine|generator|equipment|machinery|maintenance/i.test(query)) {
     // Equipment queries - add PDF and forum searches
     subQueries.push({
-      query: `${query} filetype:pdf maintenance manual`,
+      query: `${query} maintenance manual PDF OEM`,
       purpose: 'OEM PDF documentation',
       priority: 'high'
     });
     subQueries.push({
-      query: `site:gcaptain.com ${query} maintenance OR problems`,
+      query: `${query} gcaptain maritime forum maintenance problems`,
       purpose: 'forum operational experience',
       priority: 'medium'
     });
@@ -316,7 +374,9 @@ export async function executeParallelQueries(
   geminiApiKey: string,
   entityContext: string | undefined,
   kv?: KVNamespace,
-  statusEmitter?: (event: any) => void
+  statusEmitter?: (event: any) => void,
+  pseApiKey?: string,
+  pseCx?: string
 ): Promise<Source[]> {
   
   console.log(`\n⚡ PARALLEL EXECUTION: ${subQueries.length} sub-queries`);
@@ -356,16 +416,49 @@ export async function executeParallelQueries(
     const currentIndex = index++;
     const subQuery = dedupedSubQueries[currentIndex];
     inFlight++;
+    const startedAt = Date.now();
     console.log(`   🔍 [${currentIndex + 1}/${dedupedSubQueries.length}] "${subQuery.query}"`);
+    
+    // Emit progress update to UI
+    if (statusEmitter) {
+      const progress = Math.floor((currentIndex / dedupedSubQueries.length) * 100);
+      statusEmitter({
+        type: 'status',
+        stage: 'searching',
+        content: `🔎 Search ${currentIndex + 1}/${dedupedSubQueries.length}: ${subQuery.purpose || 'Gathering data'}`,
+        progress: Math.min(progress, 75) // Cap at 75% to leave room for aggregation
+      });
+    }
+    
     try {
       const sources = await executeSingleGeminiQuery(
         subQuery.query,
         entityContext,
         geminiApiKey,
         kv,
+        pseApiKey,
+        pseCx,
       );
       console.log(`   ✅ [${currentIndex + 1}] Found ${sources.length} sources`);
       results[currentIndex] = sources;
+      
+      // Emit completion for this sub-query
+      if (statusEmitter) {
+        const latency = Date.now() - startedAt;
+        statusEmitter({
+          type: 'thinking',
+          step: `search_${currentIndex + 1}_complete`,
+          content: `✓ Found ${sources.length} sources from ${subQuery.purpose || 'search'}`
+        });
+        statusEmitter({
+          type: 'metrics',
+          content: 'subquery_metrics',
+          index: currentIndex + 1,
+          latencyMs: latency,
+          purpose: subQuery.purpose || 'search',
+          priority: subQuery.priority || 'medium'
+        });
+      }
     } catch (error: any) {
       console.error(`   ❌ [${currentIndex + 1}] Failed: ${error.message}`);
       results[currentIndex] = [];
@@ -420,7 +513,9 @@ async function executeSingleGeminiQuery(
   query: string,
   entityContext: string | undefined,
   geminiApiKey: string,
-  kv?: KVNamespace
+  kv?: KVNamespace,
+  pseApiKey?: string,
+  pseCx?: string
 ): Promise<Source[]> {
   
   // Build query with context if available
@@ -469,6 +564,11 @@ async function executeSingleGeminiQuery(
   });
   
   if (!response.ok) {
+    // Attempt PSE fallback if configured
+    if (pseApiKey && pseCx) {
+      console.warn(`   ⚠️ Gemini error ${response.status} → trying PSE fallback`);
+      return await executePSESearch(enrichedQuery, pseApiKey, pseCx);
+    }
     throw new Error(`Gemini API error: ${response.status}`);
   }
   
@@ -495,7 +595,45 @@ async function executeSingleGeminiQuery(
     }, 600);
   } catch {}
   
+  // If Gemini produced no sources but PSE is available, attempt fallback
+  if ((!sources || sources.length === 0) && pseApiKey && pseCx) {
+    console.warn(`   ⚠️ No sources from Gemini → trying PSE fallback`);
+    try {
+      const fallback = await executePSESearch(enrichedQuery, pseApiKey, pseCx);
+      if (fallback.length > 0) return fallback;
+    } catch {}
+  }
   return sources;
+}
+
+/**
+ * Google Programmable Search Engine (PSE) fallback
+ */
+async function executePSESearch(query: string, apiKey: string, cx: string): Promise<Source[]> {
+  const url = new URL('https://www.googleapis.com/customsearch/v1');
+  url.searchParams.set('key', apiKey);
+  url.searchParams.set('cx', cx);
+  url.searchParams.set('q', query);
+  url.searchParams.set('num', '10');
+  const resp = await fetchWithRetry(url.toString(), { method: 'GET' }, {
+    retries: 2,
+    baseDelayMs: 400,
+    maxDelayMs: 4000,
+    timeoutMs: 12000,
+    retryOnStatuses: [408, 429, 500, 502, 503, 504]
+  });
+  if (!resp.ok) {
+    throw new Error(`PSE error: ${resp.status}`);
+  }
+  const data = await resp.json();
+  const items = data.items || [];
+  const mapped: Source[] = items.map((it: any) => ({
+    url: it.link,
+    title: it.title,
+    content: it.snippet || it.htmlSnippet || '',
+    score: 0.5
+  }));
+  return mapped;
 }
 
 // =====================

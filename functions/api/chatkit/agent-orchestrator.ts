@@ -14,6 +14,7 @@ import { MemorySaver } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { Client as LangSmithClient } from "langsmith";
 import { MARITIME_SYSTEM_PROMPT } from './maritime-system-prompt';
 import { maritimeTools } from './tools';
 import { deepResearchTool } from './tools/deep-research';
@@ -403,11 +404,18 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       // Query Planning
       const queryPlan = await planQuery(queryToSend, entityContext, env.OPENAI_API_KEY);
+      // Apply per-session sub-query budget (prioritize high > medium > low)
+      const MAX_SUBQUERIES = 10;
+      const prioritized = [...queryPlan.subQueries].sort((a, b) => {
+        const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
+        return (order[a.priority] ?? 9) - (order[b.priority] ?? 9);
+      });
+      const budgetedSubQueries = prioritized.slice(0, MAX_SUBQUERIES);
       if (statusEmitter) {
         statusEmitter({
           type: 'thought',
           phase: 'plan',
-          content: `Planned ${queryPlan.subQueries.length} targeted searches for "${classification.resolvedQuery.activeEntity?.name || queryToSend}"`,
+          content: `Planned ${budgetedSubQueries.length}/${queryPlan.subQueries.length} targeted searches for "${classification.resolvedQuery.activeEntity?.name || queryToSend}"`,
         });
       }
       
@@ -415,23 +423,25 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         statusEmitter({
           type: 'thinking',
           step: 'query_planning',
-          content: `Planned ${queryPlan.subQueries.length} targeted searches`
+          content: `Planned ${budgetedSubQueries.length} targeted searches`
         });
         statusEmitter({
           type: 'status',
           stage: 'searching',
-          content: `⚡ Executing ${queryPlan.subQueries.length} parallel searches...`,
+          content: `⚡ Executing ${budgetedSubQueries.length} parallel searches...`,
           progress: 25
         });
       }
       
       // Parallel Execution
       const allSources = await executeParallelQueries(
-        queryPlan.subQueries,
+        budgetedSubQueries,
         env.GEMINI_API_KEY,
         entityContext,
         env.CHAT_SESSIONS,
-        statusEmitter
+        statusEmitter,
+        (env as any).PSE_API_KEY,
+        (env as any).PSE_CX
       );
       
       // Aggregate + Rank
@@ -445,6 +455,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       }
       
       let rankedSources = aggregateAndRank(allSources);
+      let didDeepResearch = false;
       if (statusEmitter) {
         statusEmitter({
           type: 'thought',
@@ -454,7 +465,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       }
       
       // PHASE 3: Calculate confidence indicator
-      const confidence = calculateConfidence(rankedSources);
+      let confidence = calculateConfidence(rankedSources);
       console.log(`   📊 Confidence: ${confidence.label} (${confidence.score}/100) - ${confidence.reasoning}`);
       
       if (statusEmitter) {
@@ -497,10 +508,58 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           }));
           const merged = [...rankedSources, ...extra];
           rankedSources = aggregateAndRank(merged);
+          didDeepResearch = true;
           console.log(`   ✅ Deep-research merged: total ${rankedSources.length} sources after re-aggregation`);
         } catch (e: any) {
           console.warn(`   ⚠️ Deep-research fallback failed: ${e.message}`);
         }
+      }
+
+      // Evidence threshold gate (after optional deep-research due to low count)
+      const tierCounts = rankedSources.reduce((acc: Record<string, number>, s: any) => {
+        if (s.tier) acc[s.tier] = (acc[s.tier] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      const totalAfter = rankedSources.length;
+      const meetsEvidence = (tierCounts['T1'] || 0) >= 1 || (tierCounts['T2'] || 0) >= 2;
+      if ((!meetsEvidence || confidence.label === 'low') && !didDeepResearch) {
+        console.log(`   ⚠️ Evidence below threshold (T1=${tierCounts['T1'] || 0}, T2=${tierCounts['T2'] || 0}) → running deep-research`);
+        if (statusEmitter) {
+          statusEmitter({ type: 'status', stage: 'searching', content: '🔎 Strengthening evidence (deep-research)...', progress: 65 });
+        }
+        try {
+          const dr2 = await deepResearchTool.invoke({
+            query: queryToSend,
+            search_depth: 'advanced',
+            use_multi_query: true,
+            entityContext: entityContext || undefined
+          }, config);
+          const parsed2 = typeof dr2 === 'string' ? JSON.parse(dr2) : dr2;
+          const extra2 = (parsed2?.sources || []).map((s: any) => ({ url: s.url, title: s.title, content: s.content, score: s.score, tier: s.tier }));
+          rankedSources = aggregateAndRank([...rankedSources, ...extra2]);
+          confidence = calculateConfidence(rankedSources);
+          console.log(`   ✅ Evidence reinforcement complete: confidence now ${confidence.label} (${confidence.score})`);
+        } catch (e: any) {
+          console.warn(`   ⚠️ Evidence reinforcement failed: ${e.message}`);
+        }
+      }
+
+      // Emit metrics snapshot
+      const dedupPercent = allSources.length > 0 ? Math.max(0, (allSources.length - rankedSources.length)) / allSources.length : 0;
+      const metrics = {
+        totalFound: allSources.length,
+        totalRanked: rankedSources.length,
+        dedupPercent: Number((dedupPercent * 100).toFixed(1)),
+        tiers: {
+          T1: tierCounts['T1'] || 0,
+          T2: tierCounts['T2'] || 0,
+          T3: tierCounts['T3'] || 0
+        },
+        confidence
+      };
+      console.log(`   📈 Metrics:`, metrics);
+      if (statusEmitter) {
+        statusEmitter({ type: 'metrics', content: 'research_metrics', progress: 70, ...metrics } as any);
       }
 
       // Build research context
@@ -532,6 +591,9 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
             return acc;
           }, {} as Record<string, number>),
           totalSources: rankedSources.length,
+          foundBeforeDedup: allSources.length,
+          dedupPercent: metrics.dedupPercent,
+          confidence: metrics.confidence,
           hasAnswer: false,
           answerLength: 0
         }
@@ -609,18 +671,6 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
     });
     console.log(`   📢 Emitted synthesis start status to frontend`);
   }
-
-  if (statusEmitter) {
-    statusEmitter({
-      type: 'status',
-      stage: 'synthesis_start',
-      content: state.sources.length > 0 
-        ? '🎯 Analyzing sources and formulating response...'
-        : '💭 Formulating response...',
-      progress: 0
-    });
-    console.log(`   📢 Emitted synthesis start status to frontend`);
-  }
   
   // Get user query for Phase C follow-ups
   const lastUserMessage = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
@@ -687,10 +737,8 @@ DO NOT suggest using external research - provide detailed information directly.`
         fullContent += chunk.content;
         chunkCount++;
         
-        // Proxy tokens to client immediately to prevent UI timeouts
-        if (statusEmitter && chunk.content) {
-          statusEmitter({ type: 'content', content: chunk.content });
-        }
+        // NOTE: Do NOT proxy tokens here - LangGraph's stream handler already sends AIMessageChunk
+        // Proxying here causes double emission (each token sent twice)
         
         if (chunkCount === 1 || chunkCount % 20 === 0) {
           console.log(`   💬 Streaming chunk #${chunkCount} (${fullContent.length} chars so far)`);
@@ -1075,10 +1123,8 @@ ${vesselRequirements}
         fullContent += chunk.content;
         chunkCount++;
         
-        // Proxy tokens directly to SSE stream
-        if (statusEmitter && chunk.content) {
-          statusEmitter({ type: 'content', content: chunk.content });
-        }
+        // NOTE: Do NOT proxy tokens here - LangGraph's stream handler already sends AIMessageChunk
+        // Proxying here causes double emission (each token sent twice)
         
         if (chunkCount === 1) {
           console.log(`   💬 First chunk received - streaming active`);
@@ -1130,17 +1176,60 @@ ${vesselRequirements}
     // Strip any leaked JSON/planner blocks before enforcement
     const stripLeadingJson = (text: string): string => {
       if (!text) return text;
-      // Remove leading JSON object if present before first markdown heading
-      const match = text.match(/^\s*\{[\s\S]*?\}\s*(?=(##\s|$))/);
-      if (match) {
-        return text.slice(match[0].length).trimStart();
+      let cleaned = text;
+      
+      // AGGRESSIVE: Remove ANY leading JSON object (query plans, strategies, etc.)
+      // Match opening brace to closing brace, handling nested objects
+      let depth = 0;
+      let inString = false;
+      let escape = false;
+      let jsonEnd = -1;
+      
+      for (let i = 0; i < cleaned.length; i++) {
+        const char = cleaned[i];
+        
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        
+        if (char === '\\') {
+          escape = true;
+          continue;
+        }
+        
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+        
+        if (!inString) {
+          if (char === '{') {
+            depth++;
+          } else if (char === '}') {
+            depth--;
+            if (depth === 0) {
+              jsonEnd = i + 1;
+              break;
+            }
+          }
+        }
       }
-      // Remove leading fenced code block (e.g., ```json ... ``` ) before first heading
-      const fence = text.match(/^\s*```[\s\S]*?```\s*(?=(##\s|$))/);
+      
+      // If we found a complete JSON object at the start, remove it
+      if (jsonEnd > 0) {
+        cleaned = cleaned.slice(jsonEnd).trimStart();
+        console.log(`   🧹 Stripped ${jsonEnd} chars of leading JSON from response`);
+      }
+      
+      // Also remove fenced code blocks at start
+      const fence = cleaned.match(/^\s*```[\s\S]*?```\s*/);
       if (fence) {
-        return text.slice(fence[0].length).trimStart();
+        cleaned = cleaned.slice(fence[0].length).trimStart();
+        console.log(`   🧹 Stripped ${fence[0].length} chars of fenced code block from response`);
       }
-      return text;
+      
+      return cleaned;
     };
     fullContent = stripLeadingJson(fullContent);
     
@@ -1724,6 +1813,23 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         }
       };
       
+      // Initialize LangSmith tracing as early as possible (before any chain execution)
+      let langsmithClient: LangSmithClient | null = null;
+      try {
+        if (env.LANGSMITH_API_KEY) {
+          (globalThis as any).process = (globalThis as any).process || {};
+          (globalThis as any).process.env = (globalThis as any).process.env || {};
+          (globalThis as any).process.env.LANGCHAIN_TRACING_V2 = 'true';
+          (globalThis as any).process.env.LANGCHAIN_API_KEY = env.LANGSMITH_API_KEY;
+          (globalThis as any).process.env.LANGCHAIN_PROJECT = (globalThis as any).process.env.LANGCHAIN_PROJECT || 'seacore-maritime-agent';
+          (globalThis as any).process.env.LANGCHAIN_ENDPOINT = (globalThis as any).process.env.LANGCHAIN_ENDPOINT || 'https://api.smith.langchain.com';
+          langsmithClient = new LangSmithClient({ apiKey: env.LANGSMITH_API_KEY });
+          console.log(`🔬 LangSmith tracing enabled (project="${(globalThis as any).process.env.LANGCHAIN_PROJECT}")`);
+        }
+      } catch (e) {
+        console.warn(`⚠️ Failed to initialize LangSmith client:`, (e as any)?.message || e);
+      }
+      
       try {
         // CRITICAL: Use .stream() with streamMode (not .streamEvents())
         // This enables token-level streaming via AIMessageChunk
@@ -1740,6 +1846,18 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               sessionMemory,
               statusEmitter, // PHASE A1 & A2: Pass emitter to nodes
             },
+            // Tags/metadata flow to LangSmith traces via LangChain RunnableConfig
+            tags: [
+              'seacore',
+              'maritime',
+              enableBrowsing ? 'browsing:on' : 'browsing:off'
+            ],
+            metadata: {
+              session_id: sessionId,
+              project: (globalThis as any).process?.env?.LANGCHAIN_PROJECT || 'seacore-maritime-agent',
+              feature_flag: 'simplified-orchestrator',
+              environment: (env as any)?.ENVIRONMENT || 'production',
+            },
             streamMode: ["messages", "updates"] as const, // KEY: Enable both message and state streaming
           }
         );
@@ -1749,6 +1867,9 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         let eventCount = 0;
         let hasStreamedContent = false; // Track if token streaming worked
         let finalState: any = null; // Capture final state for fallback
+        // Defensive buffer for planner JSON that may arrive across multiple chunks
+        let suppressPlannerJson = false;
+        let plannerJsonBuffer = "";
         
         console.log(`📡 Agent stream created - entering event loop`);
         
@@ -1766,12 +1887,62 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
                 const text = typeof msg.content === 'string' ? msg.content : String(msg.content);
                 if (text) {
-                  hasStreamedContent = true; // Mark that token streaming is working
-                fullResponse += text;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: text })}\n\n`));
+                  // CRITICAL FIX: Filter out JSON/query planner output
+                  // Robust handling: detect pure or embedded planner JSON and strip/buffer it
+                  let chunk = text;
+                  let trimmedText = chunk.trim();
 
-                if (eventCount <= 5) {
-                  console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
+                  // If previously detected an opening JSON plan, keep buffering until closing brace
+                  if (suppressPlannerJson) {
+                    plannerJsonBuffer += trimmedText;
+                    if (/\}\s*$/.test(trimmedText)) {
+                      // Closing brace reached — drop buffered planner JSON
+                      console.log('   🚫 Dropped buffered planner JSON (multi-chunk)');
+                      suppressPlannerJson = false;
+                      plannerJsonBuffer = "";
+                    }
+                    continue; // Do not forward any part of planner JSON
+                  }
+
+                  // Detect a complete planner JSON payload (pure JSON)
+                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(trimmedText);
+                  if (isOnlyJsonPlan) {
+                    console.log(`   🚫 FILTERED planner JSON: "${trimmedText.substring(0, 60)}..."`);
+                    continue;
+                  }
+
+                  // Detect start of planner JSON that may span multiple chunks
+                  const startsPlannerJson = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*$/.test(trimmedText) && !/\}\s*$/.test(trimmedText);
+                  if (startsPlannerJson) {
+                    suppressPlannerJson = true;
+                    plannerJsonBuffer = trimmedText;
+                    console.log('   🚫 Detected start of planner JSON (buffering)');
+                    continue;
+                  }
+
+                  // If planner JSON appears embedded within otherwise valid output, strip it
+                  const stripped = trimmedText.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '').trim();
+                  if (stripped.length === 0 && /"strategy"[\s\S]*"subQueries"/.test(trimmedText)) {
+                    console.log('   🚫 Stripped embedded planner JSON (left empty)');
+                    continue;
+                  }
+
+                  // Only forward MARKDOWN/synthesis content to the UI
+                  const looksLikeMarkdown = stripped.startsWith('#') || stripped.startsWith('##') ||
+                                            /^[A-Z\*\-•]/.test(stripped) ||
+                                            fullResponse.length > 0; // After first chunk, trust the stream
+
+                  if (!looksLikeMarkdown && (/^\s*[\[{]/.test(stripped) || /^\s*"strategy"/.test(stripped))) {
+                    console.log(`   🚫 FILTERED JSON-like chunk: "${stripped.substring(0, 50)}..."`);
+                    continue;
+                  }
+
+                  hasStreamedContent = true; // Mark that token streaming is working
+                  fullResponse += stripped;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: stripped })}\n\n`));
+
+                  if (eventCount <= 5) {
+                    console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
                   }
                 }
               }
