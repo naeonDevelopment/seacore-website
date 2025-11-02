@@ -896,6 +896,10 @@ function normalizeUrl(url: string): string {
     // Remove www
     let hostname = parsed.hostname.replace(/^www\./, '');
     
+    // Remove locale prefix from pathname (e.g., /en/, /fr/, /ar/, etc.) for dedupe
+    let pathname = parsed.pathname || '';
+    pathname = pathname.replace(/^\/(ar|en|es|fr|no|pt|de|it|ru|tr|zh|ja|ko)\//, '/');
+
     // Remove tracking params
     const cleanParams = new URLSearchParams();
     parsed.searchParams.forEach((value, key) => {
@@ -906,7 +910,7 @@ function normalizeUrl(url: string): string {
     });
     
     // Rebuild URL
-    const normalized = `${parsed.protocol}//${hostname}${parsed.pathname}`;
+    const normalized = `${parsed.protocol}//${hostname}${pathname}`;
     const params = cleanParams.toString();
     
     return params ? `${normalized}?${params}` : normalized;

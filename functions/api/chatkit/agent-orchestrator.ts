@@ -150,8 +150,11 @@ async function emitPlanThinkingStepsLLM(
       { role: 'system', content: 'Convert plan JSON into 3-7 concise thinking steps. Output plain text only.' },
       { role: 'user', content: `Plan JSON:\n${jsonForModel}\n\nRules:\n- 3-7 short steps\n- Start each line with 1., 2., 3.\n- Use purpose text; keep under 12 words\n- No JSON, no code, no preamble` }
     ]);
-    const content = typeof resp.content === 'string' ? resp.content : JSON.stringify(resp.content);
-    statusEmitter({ type: 'thinking', step: 'plan_steps', content: content.trim() });
+    let content = typeof resp.content === 'string' ? resp.content : JSON.stringify(resp.content);
+    // Sanitize any leaked JSON before emitting
+    content = content.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '').trim();
+    content = content.replace(/(\d+)\.(\S)/g, '$1. $2');
+    statusEmitter({ type: 'thinking', step: 'plan_steps', content });
   } catch {
     await emitPlanThinkingSteps(plan, statusEmitter);
   }
@@ -1943,9 +1946,27 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
       const encoder = new TextEncoder();
       
       // PHASE A1 & A2: Create status/thinking emitter
+      const sanitizeThinking = (text: string): string => {
+        if (!text) return text;
+        let out = String(text);
+        // Remove planner JSON blocks if present
+        out = out.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '').trim();
+        // Collapse excessive whitespace
+        out = out.replace(/[\t\r]+/g, ' ').replace(/\s{2,}/g, ' ');
+        // Add space after numbered steps like `1.` if missing
+        out = out.replace(/(\d+)\.(\S)/g, '$1. $2');
+        return out;
+      };
+
       const statusEmitter = (event: { type: string; step?: string; stage?: string; content: string; progress?: number }) => {
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          const e = { ...event } as any;
+          if (typeof e.content === 'string') {
+            e.content = sanitizeThinking(e.content);
+            // If content became empty after sanitization, skip emitting
+            if (!e.content) return;
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
         } catch (err) {
           console.warn('⚠️ Status emit failed:', err);
         }
