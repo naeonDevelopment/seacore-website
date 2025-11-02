@@ -1282,12 +1282,65 @@ ${vesselRequirements}
 
 **USER QUERY**: ${userQuery}
 
-**CRITICAL: ${isVesselQuery ? 'THIS IS A VESSEL QUERY' : 'THIS IS A GENERAL QUERY'}**
+**CRITICAL: ${isVesselQuery ? '🚢 THIS IS A VESSEL QUERY 🚢' : 'THIS IS A GENERAL QUERY'}**
 
+${isVesselQuery ? `
+**⚠️⚠️⚠️ MANDATORY REQUIREMENT - READ THIS CAREFULLY ⚠️⚠️⚠️**
+
+You MUST start your response with the ## VESSEL PROFILE section containing ALL the structured fields listed below. This is NOT optional. If you do not include this section FIRST with ALL fields extracted from sources, your response will be REJECTED.
+
+**YOUR RESPONSE MUST START WITH THIS EXACT STRUCTURE:**
+
+## VESSEL PROFILE
+
+**Identity & Registration:**
+- IMO Number: [value] [[N]](url)
+- MMSI: [value] [[N]](url)
+- Call Sign: [value] [[N]](url)
+- Flag State: [value] [[N]](url)
+
+**Ownership & Management:**
+- Owner: [value] [[N]](url)
+- Operator/Manager: [value] [[N]](url)
+
+**Classification:**
+- Class Society: [value] [[N]](url)
+- Class Notation: [value]
+
+**Principal Dimensions:**
+- Length Overall (LOA): [value] meters [[N]](url)
+- Breadth: [value] meters [[N]](url)
+- Depth: [value] meters
+- Draft: [value] meters
+
+**Tonnages:**
+- Gross Tonnage (GT): [value] tons [[N]](url)
+- Net Tonnage (NT): [value] tons
+- Deadweight (DWT): [value] tons [[N]](url)
+
+**Build Information:**
+- Shipyard: [value] [[N]](url)
+- Build Year: [value] [[N]](url)
+
+**Propulsion & Machinery:**
+- Main Engines: [make/model, count, power] [[N]](url)
+- Propellers: [type, count] [[N]](url)
+- Generators: [if available]
+
+**Current Status:**
+- Location: [value with timestamp] [[N]](url)
+- Speed: [value] knots
+- Destination: [value]
+
+(THEN continue with other sections)
+
+` : ''}
 **OUTPUT FORMAT:**
-${isVesselQuery ? `- START with: ## VESSEL PROFILE (with all mandatory fields)
+${isVesselQuery ? `- YOUR FIRST LINE MUST BE: ## VESSEL PROFILE
+- Extract ALL fields from sources (or write "Not found")
 - THEN: ## EXECUTIVE SUMMARY
-- THEN: Additional analysis sections` : `- START with: ## EXECUTIVE SUMMARY
+- THEN: ## TECHNICAL ANALYSIS
+- THEN: ## MARITIME CONTEXT` : `- START with: ## EXECUTIVE SUMMARY
 - THEN: ## KEY SPECIFICATIONS
 - THEN: Additional sections`}
 - NO JSON, NO query plans, NO internal structures
@@ -1296,27 +1349,37 @@ ${isVesselQuery ? `- START with: ## VESSEL PROFILE (with all mandatory fields)
 **YOUR TASK:**
 You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise overview (400-500 words)'}.
 
-${isVesselQuery ? '**⚠️ VESSEL QUERY DETECTED: You MUST include the complete VESSEL PROFILE section first (see requirements below). This is non-negotiable.**' : ''}
+**⚠️ YOU HAVE ${state.sources.length} SOURCES - USE THEM ALL ⚠️**
 
-**AVAILABLE SOURCES:**
-${state.sources.slice(0, Math.min(5, state.sources.length)).map((s: any, i: number) => 
-  `[${i+1}] ${s.title || 'Source ' + (i+1)}\n    ${s.url}\n    ${(s.content || '').substring(0, 200)}...`
+${state.sources.map((s: any, i: number) => 
+  `**Source [${i+1}]**: ${s.title || 'Source ' + (i+1)}
+   URL: ${s.url}
+   Content: ${(s.content || '').substring(0, 300)}...
+   ${(s.content || '').length > 300 ? '[CONTINUED - extract more details from this source]' : ''}`
 ).join('\n\n')}
-${state.sources.length > 5 ? `\n...and ${state.sources.length - 5} more sources` : ''}
 
 **CONTENT REQUIREMENTS:**
-1. **Extract Specific Facts**: 
+1. **USE ALL ${state.sources.length} SOURCES**: 
+   - Review EVERY source above and extract facts
+   - Cross-reference information across multiple sources
+   - Combine information from different sources for complete picture
+   - DO NOT rely on just 1-2 sources - use ALL of them
+   
+2. **Extract Specific Facts**: 
    - Exact model numbers (e.g., "Caterpillar C32 ACERT")
-   - Precise specifications (e.g., "34.00 meters LOA")
-   - Actual names (e.g., "Stanford Marine Group")
-   - Verifiable data points from sources
+   - Precise specifications (e.g., "41.00 meters LOA")
+   - Actual company names (e.g., "Stanford Marine Group")
+   - Equipment details (engines, propulsion, generators)
+   - Ownership and management details
+   - Class society and notation
+   - All dimensions and tonnages
 
-2. **Citation Format**:
-   - Add [[N]](actual_source_url) after EVERY fact where N = source number
-   - Example: "Length: 41 meters [[1]](https://marinetraffic.com/...)"
-   - The [[N]](url) format creates a clickable citation link
+3. **Citation Format**:
+   - Add [[N]](url) after EVERY fact where N = source number (1-${state.sources.length})
+   - Example: "Length: 41 meters [[1]](url)"
+   - The [[N]](url) creates a clickable link - the URL is hidden by frontend
    - Cite ALL specifications, dimensions, names, dates, and technical details
-   - Citations are MANDATORY for vessel profiles
+   - Use ACTUAL source URLs from the list above
 
 3. **Structure** (${isVesselQuery ? 'VESSEL QUERY - USE THIS ORDER' : 'use these headers'}):
    ${isVesselQuery ? `
@@ -2072,6 +2135,9 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         return out;
       };
 
+      // Track last status time for smart heartbeat
+      let lastStatusTime = Date.now();
+      
       const statusEmitter = (event: { type: string; step?: string; stage?: string; content: string; progress?: number }) => {
         try {
           const e = { ...event } as any;
@@ -2081,19 +2147,24 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             if (!e.content) return;
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
+          lastStatusTime = Date.now(); // Update last status time
         } catch (err) {
           console.warn('⚠️ Status emit failed:', err);
         }
       };
       
       // UX HEARTBEAT: emit periodic status so UI never appears stalled
+      // Reduced frequency to avoid overriding detailed thinking steps
       let heartbeatTimer: any = null;
       try {
         heartbeatTimer = setInterval(() => {
           try {
-            statusEmitter({ type: 'status', stage: 'heartbeat', content: '⏳ Working...' });
+            // Only emit heartbeat if no status update in last 3 seconds
+            if (Date.now() - lastStatusTime > 3000) {
+              statusEmitter({ type: 'status', stage: 'heartbeat', content: '⏳ Processing...' });
+            }
           } catch {}
-        }, 1000);
+        }, 3000); // Every 3 seconds instead of 1
       } catch {}
       
       // Initialize LangSmith tracing as early as possible (before any chain execution)
