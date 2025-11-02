@@ -147,13 +147,28 @@ async function emitPlanThinkingStepsLLM(
     const llm = new ChatOpenAI({ modelName: 'gpt-4o-mini', temperature: 0.2, openAIApiKey: openaiKey, streaming: false });
     const jsonForModel = JSON.stringify({ strategy: plan.strategy, subQueries: (plan.subQueries || []).slice(0, 8) });
     const resp = await llm.invoke([
-      { role: 'system', content: 'Convert plan JSON into 3-7 concise thinking steps. Output plain text only.' },
-      { role: 'user', content: `Plan JSON:\n${jsonForModel}\n\nRules:\n- 3-7 short steps\n- Start each line with 1., 2., 3.\n- Use purpose text; keep under 12 words\n- No JSON, no code, no preamble` }
+      { role: 'system', content: 'Convert plan JSON into 3-7 concise thinking steps. Output plain text only. NO JSON.' },
+      { role: 'user', content: `Plan JSON:\n${jsonForModel}\n\nRules:\n- 3-7 short steps\n- Start each line with 1., 2., 3.\n- Use purpose text; keep under 12 words\n- ABSOLUTELY NO JSON OUTPUT\n- Only plain text numbered steps` }
     ]);
     let content = typeof resp.content === 'string' ? resp.content : JSON.stringify(resp.content);
-    // Sanitize any leaked JSON before emitting
-    content = content.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '').trim();
+    
+    // CRITICAL FIX: Aggressive JSON sanitization
+    // Remove ANY content that looks like JSON (starts with { or contains "strategy"/"subQueries")
+    if (content.includes('{') || content.includes('"strategy"') || content.includes('"subQueries"')) {
+      console.warn('   ⚠️ JSON detected in plan steps, using fallback');
+      return await emitPlanThinkingSteps(plan, statusEmitter);
+    }
+    
+    // Remove any remaining JSON-like structures
+    content = content.replace(/\{[^}]*\}/g, '').trim();
     content = content.replace(/(\d+)\.(\S)/g, '$1. $2');
+    
+    // Validate output has numbered steps
+    if (!/^\d+\.\s/.test(content)) {
+      console.warn('   ⚠️ Invalid step format, using fallback');
+      return await emitPlanThinkingSteps(plan, statusEmitter);
+    }
+    
     statusEmitter({ type: 'thinking', step: 'plan_steps', content });
   } catch {
     await emitPlanThinkingSteps(plan, statusEmitter);
@@ -1193,29 +1208,68 @@ ${state.requiresTechnicalDepth ? `
 `}`;
 
     // Vessel field requirements (applies when vessel query detected)
-    const vesselRequirements = /\b(vessel|ship|imo\s*\d{7}|call\s*sign)\b/i.test(userQuery) ? `
+    // Note: isVesselQuery already defined earlier in this function
+    const vesselRequirements = isVesselQuery ? `
 
-**VESSEL PROFILE - REQUIRED FIELDS:**
-Provide a structured profile with the following fields. For each factual entry, cite inline immediately. If a field is not found in the provided sources, write "Not found in sources" (do NOT guess):
-1. Management/Operator
-2. Owner
-3. Class Society and Class Notation
-4. Flag State
-5. Flag Certification Documents (link title if available)
-6. Lightship (t)
-7. Gross Tonnage (GT) and Net Tonnage (NT)
-8. Deadweight (DWT)
-9. Keel Lay Date
-10. Delivery/Build Date and Shipyard
-11. Length Overall (LOA), Breadth, Depth, Draft
-12. IMO, MMSI, Call Sign
-13. Current Location/Status (AIS) with timestamp qualifier
+**🚢 CRITICAL: THIS IS A VESSEL QUERY - YOU MUST INCLUDE ALL VESSEL PROFILE FIELDS**
 
-**EQUIPMENT SUMMARY (VESSEL):**
-- Propulsion: engine make/model, count, total power, propulsors
-- Auxiliaries: generators/alternators, bow/stern thrusters if any
+**MANDATORY STRUCTURE - USE THIS EXACT FORMAT:**
 
-ONLY include data backed by sources with citations. If AIS/position is stale, say "as per latest available AIS in sources".
+## VESSEL PROFILE
+
+**Identity & Registration:**
+- IMO Number: [extract from sources or "Not found"]
+- MMSI: [extract or "Not found"]
+- Call Sign: [extract or "Not found"]
+- Flag State: [extract or "Not found"]
+- Official Number: [extract if available or omit]
+
+**Ownership & Management:**
+- Owner: [extract company name or "Not found"] [[N]](url)
+- Operator/Manager: [extract company name or "Not found"] [[N]](url)
+- Technical Manager: [extract if available or omit]
+
+**Classification:**
+- Class Society: [e.g., "Lloyd's Register", "DNV", "ABS" or "Not found"] [[N]](url)
+- Class Notation: [e.g., "100A1" or "Not found"]
+
+**Principal Dimensions:**
+- Length Overall (LOA): [X meters] [[N]](url)
+- Breadth: [X meters] [[N]](url)
+- Depth: [X meters if available]
+- Draft: [X meters if available]
+
+**Tonnages:**
+- Gross Tonnage (GT): [X tons] [[N]](url)
+- Net Tonnage (NT): [X tons if available]
+- Deadweight (DWT): [X tons] [[N]](url)
+- Lightship: [X tons if available]
+
+**Build Information:**
+- Shipyard: [shipyard name and location] [[N]](url)
+- Build Year: [YYYY] [[N]](url)
+- Delivery Date: [date if available]
+- Keel Laid: [date if available]
+- Hull Number: [if available]
+
+**Propulsion & Machinery:**
+- Main Engines: [make/model, count, power (kW/HP)] [[N]](url)
+- Propellers/Propulsion: [type, count] [[N]](url)
+- Generators: [make/model, count, power if available]
+- Bow/Stern Thrusters: [if mentioned in sources]
+
+**Current Status:**
+- Location: [as per AIS data with timestamp qualifier] [[N]](url)
+- Speed: [knots if available]
+- Destination: [if available]
+- ETA: [if available]
+- Status: [e.g., "En route", "At anchor", "In port"]
+
+**CRITICAL RULES:**
+1. Extract EVERY field listed above from your sources
+2. If a field is not in sources, write "Not found in sources" (do NOT guess or omit)
+3. Cite EVERY factual statement with [[N]](url)
+4. This profile section is MANDATORY and must appear BEFORE any analysis sections
 ` : '';
 
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
@@ -1228,15 +1282,21 @@ ${vesselRequirements}
 
 **USER QUERY**: ${userQuery}
 
-**PHASE 4A: SIMPLIFIED SYNTHESIS INSTRUCTIONS**
+**CRITICAL: ${isVesselQuery ? 'THIS IS A VESSEL QUERY' : 'THIS IS A GENERAL QUERY'}**
 
 **OUTPUT FORMAT:**
-- START IMMEDIATELY with: ## EXECUTIVE SUMMARY
+${isVesselQuery ? `- START with: ## VESSEL PROFILE (with all mandatory fields)
+- THEN: ## EXECUTIVE SUMMARY
+- THEN: Additional analysis sections` : `- START with: ## EXECUTIVE SUMMARY
+- THEN: ## KEY SPECIFICATIONS
+- THEN: Additional sections`}
 - NO JSON, NO query plans, NO internal structures
 - Pure markdown content only
 
 **YOUR TASK:**
 You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise overview (400-500 words)'}.
+
+${isVesselQuery ? '**⚠️ VESSEL QUERY DETECTED: You MUST include the complete VESSEL PROFILE section first (see requirements below). This is non-negotiable.**' : ''}
 
 **AVAILABLE SOURCES:**
 ${state.sources.slice(0, Math.min(5, state.sources.length)).map((s: any, i: number) => 
@@ -1252,13 +1312,19 @@ ${state.sources.length > 5 ? `\n...and ${state.sources.length - 5} more sources`
    - Verifiable data points from sources
 
 2. **Citation Format**:
-   - Add [[N]](url) after key facts where N = source number
-   - Example: "Stanford Maya is 34 meters long [[1]](${state.sources[0]?.url || 'https://example.com'})"
-   - Cite major claims, specifications, and identities
-   - Our system will validate and add missing citations automatically
+   - Add [[N]](actual_source_url) after EVERY fact where N = source number
+   - Example: "Length: 41 meters [[1]](https://marinetraffic.com/...)"
+   - The [[N]](url) format creates a clickable citation link
+   - Cite ALL specifications, dimensions, names, dates, and technical details
+   - Citations are MANDATORY for vessel profiles
 
-3. **Structure** (use these headers):
-   ${state.requiresTechnicalDepth ? `
+3. **Structure** (${isVesselQuery ? 'VESSEL QUERY - USE THIS ORDER' : 'use these headers'}):
+   ${isVesselQuery ? `
+   - ## VESSEL PROFILE (MANDATORY - all fields from requirements above)
+   - ## EXECUTIVE SUMMARY
+   - ## TECHNICAL SPECIFICATIONS
+   - ## OPERATIONAL STATUS
+   - ## MARITIME CONTEXT` : (state.requiresTechnicalDepth ? `
    - ## EXECUTIVE SUMMARY
    - ## TECHNICAL SPECIFICATIONS
    - ## MAINTENANCE ANALYSIS (required for technical depth)
@@ -1269,7 +1335,7 @@ ${state.sources.length > 5 ? `\n...and ${state.sources.length - 5} more sources`
    - ## KEY SPECIFICATIONS
    - ## OPERATIONAL STATUS
    - ## TECHNICAL ANALYSIS
-   - ## MARITIME CONTEXT`}
+   - ## MARITIME CONTEXT`)}
 
 4. **Quality Standards**:
    - Write with authority and confidence
@@ -1277,8 +1343,9 @@ ${state.sources.length > 5 ? `\n...and ${state.sources.length - 5} more sources`
    - NO vague terms ("approximately", "around", "seems to be")
    - NO generic statements without specific facts
    - Cross-reference multiple sources for accuracy
+   - ${isVesselQuery ? 'EVERY field in VESSEL PROFILE must be extracted from sources' : 'Extract ALL available technical specifications'}
 
-**IMPORTANT**: Focus on extracting and synthesizing facts. Our automated citation enforcer will ensure proper citation formatting post-generation.`;
+**REMINDER**: ${isVesselQuery ? 'Start with ## VESSEL PROFILE section, then continue with other sections.' : 'Start with ## EXECUTIVE SUMMARY.'}`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
