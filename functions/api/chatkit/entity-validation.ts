@@ -108,15 +108,57 @@ export function validateVesselEntity(targetQuery: string, sources: MinimalSource
     if (targetNameNorm && normalizeName(a.name) === targetNameNorm) nameHits++;
   }
 
-  // Confidence heuristic
+  // PHASE 3 FIX: More conservative confidence scoring
+  // Single AIS hit should NOT give 95% confidence - require multiple corroborations
   let confidence = 0;
   const matchedBy: Array<'IMO' | 'MMSI' | 'CallSign' | 'Name'> = [];
-  if (target.imo && (imoHits >= 2 || authoritativeHits >= 1)) { confidence = Math.max(confidence, 0.95); matchedBy.push('IMO'); }
-  if (target.mmsi && (mmsiHits >= 2 || authoritativeHits >= 1)) { confidence = Math.max(confidence, 0.85); matchedBy.push('MMSI'); }
-  if (target.callSign && callHits >= 2) { confidence = Math.max(confidence, 0.8); matchedBy.push('CallSign'); }
-  if (!matchedBy.length && nameHits >= 2) { confidence = Math.max(confidence, 0.7); matchedBy.push('Name'); }
+  
+  // IMO matching (most reliable identifier)
+  if (target.imo) {
+    if (imoHits >= 3 && authoritativeHits >= 2) {
+      confidence = Math.max(confidence, 0.95); // High confidence: multiple authoritative sources
+    } else if (imoHits >= 2 || (authoritativeHits >= 1 && imoHits >= 1)) {
+      confidence = Math.max(confidence, 0.85); // Good confidence: 2+ sources or 1 auth + 1 other
+    } else if (authoritativeHits >= 1) {
+      confidence = Math.max(confidence, 0.70); // Medium: single authoritative source only
+    } else if (imoHits >= 1) {
+      confidence = Math.max(confidence, 0.60); // Low: single non-auth source
+    }
+    if (imoHits >= 1) matchedBy.push('IMO');
+  }
+  
+  // MMSI matching (reliable but less stable than IMO)
+  if (target.mmsi) {
+    if (mmsiHits >= 2 && authoritativeHits >= 1) {
+      confidence = Math.max(confidence, 0.80); // Good confidence
+    } else if (authoritativeHits >= 1) {
+      confidence = Math.max(confidence, 0.65); // Medium: single auth source
+    } else if (mmsiHits >= 1) {
+      confidence = Math.max(confidence, 0.55); // Low: single non-auth
+    }
+    if (mmsiHits >= 1) matchedBy.push('MMSI');
+  }
+  
+  // Call sign matching (moderately reliable)
+  if (target.callSign && callHits >= 2) {
+    confidence = Math.max(confidence, 0.75);
+    matchedBy.push('CallSign');
+  } else if (target.callSign && callHits >= 1) {
+    confidence = Math.max(confidence, 0.60);
+    matchedBy.push('CallSign');
+  }
+  
+  // Name-only matching (least reliable - vessels can have similar names)
+  if (!matchedBy.length && nameHits >= 3) {
+    confidence = Math.max(confidence, 0.65); // Reduced from 0.7
+    matchedBy.push('Name');
+  } else if (!matchedBy.length && nameHits >= 2) {
+    confidence = Math.max(confidence, 0.55);
+    matchedBy.push('Name');
+  }
 
-  const match = confidence >= 0.8 || (matchedBy.includes('Name') && nameHits >= 3);
+  // PHASE 3: Stricter match threshold - require 70% confidence minimum
+  const match = confidence >= 0.70;
 
   return {
     match,

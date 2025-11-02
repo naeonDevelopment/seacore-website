@@ -540,7 +540,8 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         env.CHAT_SESSIONS,
         statusEmitter,
         (env as any).PSE_API_KEY,
-        (env as any).PSE_CX
+        (env as any).PSE_CX,
+        env.OPENAI_API_KEY // PHASE 4B: For semantic caching
       );
       
       // Aggregate + Rank
@@ -646,42 +647,116 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         }
       }
 
-      // PHASE 4: Vessel Reflexion loop — fill missing required fields using targeted follow-ups
+      // PHASE 3 FIX: Vessel Reflexion loop with convergence guarantees
+      // Max 2 iterations with quality gates to prevent infinite loops and junk accumulation
       if (isVesselQuery) {
-        const minimal = rankedSources.map((s: any) => ({ title: s.title || '', url: s.url || '', content: s.content || '' }));
-        const validation = validateVesselEntity(queryToSend, minimal);
-        const haveIdentifiers = validation.matchedBy.includes('IMO') || validation.matchedBy.includes('MMSI') || validation.matchedBy.includes('CallSign');
-        const needIdentifiers = !haveIdentifiers;
-        const needRegistry = !hasRegistrySource;
-        const needEquasis = !hasEquasisCoverage(rankedSources as any);
-        const needOwnerOperator = !hasOwnerOperatorHints(minimal as any);
-        const needsRefine = needIdentifiers || needRegistry || needEquasis || needOwnerOperator;
-
-        if (needsRefine) {
-          console.log(`   🔁 Reflexion: Missing fields → identifiers:${needIdentifiers} registry:${needRegistry} equasis:${needEquasis} owner/operator:${needOwnerOperator}`);
-          if (statusEmitter) {
-            statusEmitter({ type: 'thinking', step: 'reflexion', content: 'Identified gaps (registry/Equasis/IDs/owner). Generating targeted follow-ups…' });
+        let reflexionIteration = 0;
+        const MAX_REFLEXION_ITERATIONS = 2;
+        let lastGapCount = 999; // Track progress
+        
+        while (reflexionIteration < MAX_REFLEXION_ITERATIONS) {
+          const minimal = rankedSources.map((s: any) => ({ title: s.title || '', url: s.url || '', content: s.content || '' }));
+          const validation = validateVesselEntity(queryToSend, minimal);
+          
+          // Check what's missing
+          const haveIdentifiers = validation.matchedBy.includes('IMO') || validation.matchedBy.includes('MMSI') || validation.matchedBy.includes('CallSign');
+          const needIdentifiers = !haveIdentifiers;
+          const needRegistry = !hasRegistrySource;
+          const needEquasis = !hasEquasisCoverage(rankedSources as any);
+          const needOwnerOperator = !hasOwnerOperatorHints(minimal as any);
+          const needsRefine = needIdentifiers || needRegistry || needEquasis || needOwnerOperator;
+          
+          // Count gaps
+          const currentGapCount = [needIdentifiers, needRegistry, needEquasis, needOwnerOperator].filter(Boolean).length;
+          
+          // PHASE 3: Convergence check - stop if no progress or no gaps
+          if (!needsRefine) {
+            console.log(`   ✅ Reflexion: All required fields present`);
+            break;
           }
-          const followups = await generateVesselRefinementSubQueries(queryToSend, { needRegistry, needEquasis, needIdentifiers, needOwnerOperator }, env.OPENAI_API_KEY);
-          if (statusEmitter) {
-            await emitPlanThinkingStepsLLM({ strategy: 'refinement', subQueries: followups as any }, statusEmitter, env.OPENAI_API_KEY);
+          
+          if (reflexionIteration > 0 && currentGapCount >= lastGapCount) {
+            console.log(`   ⚠️ Reflexion: No progress (gaps: ${currentGapCount}/${lastGapCount}), stopping`);
+            break;
           }
+          
+          reflexionIteration++;
+          lastGapCount = currentGapCount;
+          
+          console.log(`   🔁 Reflexion iteration ${reflexionIteration}/${MAX_REFLEXION_ITERATIONS}: ${currentGapCount} gaps → identifiers:${needIdentifiers} registry:${needRegistry} equasis:${needEquasis} owner:${needOwnerOperator}`);
+          
+          if (statusEmitter) {
+            statusEmitter({ 
+              type: 'thinking', 
+              step: `reflexion_iter_${reflexionIteration}`, 
+              content: `Iteration ${reflexionIteration}: Filling ${currentGapCount} gaps (registry/Equasis/IDs/owner)...` 
+            });
+          }
+          
+          // Generate targeted follow-ups
+          const followups = await generateVesselRefinementSubQueries(
+            queryToSend, 
+            { needRegistry, needEquasis, needIdentifiers, needOwnerOperator }, 
+            env.OPENAI_API_KEY
+          );
+          
+          if (statusEmitter) {
+            await emitPlanThinkingStepsLLM({ strategy: `refinement-iter-${reflexionIteration}`, subQueries: followups as any }, statusEmitter, env.OPENAI_API_KEY);
+          }
+          
           try {
+            const beforeCount = rankedSources.length;
+            const beforeConfidence = confidence.score;
+            
+            // Execute follow-ups
             const moreSources = await executeParallelQueries(
               followups.map(f => ({ query: f.query, purpose: f.purpose, priority: f.priority })),
               env.GEMINI_API_KEY,
               entityContext || undefined,
               env.CHAT_SESSIONS,
+              statusEmitter,
               (env as any).PSE_API_KEY,
-              (env as any).PSE_CX
+              (env as any).PSE_CX,
+              env.OPENAI_API_KEY // PHASE 4B: For semantic caching
             );
-            const merged = aggregateAndRank([...rankedSources, ...moreSources], { query: queryToSend });
+            
+            // PHASE 3: Quality gate - only merge if new sources are relevant
+            const relevantNewSources = moreSources.filter((s: any) => {
+              const content = (s.content || '').toLowerCase();
+              const hasVesselData = /\b(imo|mmsi|vessel|ship|marine|gross\s*tonnage|dwt)\b/.test(content);
+              return hasVesselData && content.length >= 100;
+            });
+            
+            if (relevantNewSources.length === 0) {
+              console.log(`   ⚠️ Reflexion iteration ${reflexionIteration}: No relevant sources found, stopping`);
+              break;
+            }
+            
+            console.log(`   📊 Reflexion iteration ${reflexionIteration}: ${moreSources.length} sources → ${relevantNewSources.length} relevant`);
+            
+            // Merge and re-rank
+            const merged = aggregateAndRank([...rankedSources, ...relevantNewSources], { query: queryToSend });
+            const afterCount = merged.length;
+            
+            // PHASE 3: Progress validation - must add at least 1 new unique source
+            if (afterCount <= beforeCount) {
+              console.log(`   ⚠️ Reflexion iteration ${reflexionIteration}: No new sources after dedup (${beforeCount}→${afterCount}), stopping`);
+              break;
+            }
+            
             rankedSources = merged;
             confidence = calculateConfidence(rankedSources);
-            console.log(`   ✅ Reflexion merge complete: total ${rankedSources.length} sources, confidence ${confidence.label} (${confidence.score})`);
+            
+            console.log(`   ✅ Reflexion iteration ${reflexionIteration}: ${beforeCount}→${afterCount} sources, confidence ${beforeConfidence}→${confidence.score}`);
+            
           } catch (e: any) {
-            console.warn(`   ⚠️ Reflexion follow-ups failed: ${e.message}`);
+            console.warn(`   ⚠️ Reflexion iteration ${reflexionIteration} failed: ${e.message}`);
+            break;
           }
+        }
+        
+        if (reflexionIteration > 0) {
+          console.log(`   🏁 Reflexion complete: ${reflexionIteration} iterations, final confidence ${confidence.label} (${confidence.score})`);
         }
       }
 
@@ -1153,85 +1228,57 @@ ${vesselRequirements}
 
 **USER QUERY**: ${userQuery}
 
-**CRITICAL INSTRUCTIONS FOR SYNTHESIS:**
+**PHASE 4A: SIMPLIFIED SYNTHESIS INSTRUCTIONS**
 
-**IMPORTANT - READ THIS FIRST:** 
-- Do NOT output any JSON structures, query plans, search strategies, or internal processing details
-- Do NOT echo back any technical structures from previous messages or context
-- START IMMEDIATELY with your markdown-formatted answer (EXECUTIVE SUMMARY header)
-- NEVER begin with { "strategy": ... } or any JSON - this will break the UI
-- Your FIRST characters must be: ## EXECUTIVE SUMMARY or ## (section name)
-- DO NOT output "AI" or any label before your answer - start directly with ##
+**OUTPUT FORMAT:**
+- START IMMEDIATELY with: ## EXECUTIVE SUMMARY
+- NO JSON, NO query plans, NO internal structures
+- Pure markdown content only
 
-1. **SOURCE UTILIZATION:**
-   - You have ${state.sources.length} verified sources with ${state.sources.length * 800} characters of content
-   - Extract SPECIFIC facts: dimensions, model numbers, specifications, dates, operators
-   - Cross-reference multiple sources for validation
-   - Use manufacturer names, exact specifications, and technical details from sources
+**YOUR TASK:**
+You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise overview (400-500 words)'}.
 
-2. **MANDATORY CITATION FORMAT - THIS IS ABSOLUTELY CRITICAL:**
-   
-   ⚠️ **CITATION REQUIREMENT: You MUST include at least ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)} citations or your response will be REJECTED**
-   
-   **CITATION FORMAT (NON-NEGOTIABLE):**
-   - Add [[N]](ACTUAL_SOURCE_URL) citation IMMEDIATELY after EVERY factual statement
-   - NO EXCEPTIONS - Every specification, dimension, name, date, or technical detail MUST be cited
-   - Use the ACTUAL URLs from the SOURCES list above
-   - DO NOT use placeholder text like "url" or omit the URL
-   
-   **STEP-BY-STEP CITATION PROCESS:**
-   1. Write a factual statement
-   2. Immediately look up which source [N] supports it
-   3. Copy the EXACT URL from that source
-   4. Add [[N]](EXACT_URL) right after the statement
-   5. Continue to next fact
-   
-   **YOUR AVAILABLE SOURCES WITH URLs:**
-   ${state.sources.slice(0, Math.min(5, state.sources.length)).map((s: any, i: number) => 
-     `   [${i+1}] ${s.url}`
-   ).join('\n')}
-   
-   **CORRECT Citation Examples:**
-   - "Stanford Maya is an offshore support vessel [[1]](${state.sources[0]?.url || 'URL'})"
-   - "Length Overall: 34 meters [[2]](${state.sources[1]?.url || 'URL'})"
-   - "Equipped with Caterpillar engines [[3]](${state.sources[2]?.url || 'URL'})"
-   
-   **WRONG - These will FAIL:**
-   - ❌ "Stanford Maya is an offshore support vessel [[1]](url)" 
-   - ❌ "Length Overall: 50 meters [2]"
-   - ❌ "Main Engines: Caterpillar 3512C" (no citation)
-   
-   **VALIDATION CHECK BEFORE RESPONDING:**
-   - Count your citations - you need at least ${Math.min(state.requiresTechnicalDepth ? 8 : 5, state.sources.length)}
-   - Verify every [[N]](URL) has a real URL, not placeholder text
-   - Confirm every specification/dimension/name has a citation
+**AVAILABLE SOURCES:**
+${state.sources.slice(0, Math.min(5, state.sources.length)).map((s: any, i: number) => 
+  `[${i+1}] ${s.title || 'Source ' + (i+1)}\n    ${s.url}\n    ${(s.content || '').substring(0, 200)}...`
+).join('\n\n')}
+${state.sources.length > 5 ? `\n...and ${state.sources.length - 5} more sources` : ''}
 
-3. **STRUCTURE & FORMATTING:**
-   - Use proper markdown headers: EXECUTIVE SUMMARY, TECHNICAL SPECIFICATIONS, etc.
-   - Use bullet points (•) for specifications
-   - Write in clear, professional paragraphs
-   - ${state.requiresTechnicalDepth ? 'Target: 600-800 words minimum with comprehensive technical detail' : 'Target: 400-500 words with concise overview'}
+**CONTENT REQUIREMENTS:**
+1. **Extract Specific Facts**: 
+   - Exact model numbers (e.g., "Caterpillar C32 ACERT")
+   - Precise specifications (e.g., "34.00 meters LOA")
+   - Actual names (e.g., "Stanford Marine Group")
+   - Verifiable data points from sources
 
-4. **CONTENT QUALITY:**
-   - Extract and present SPECIFIC information from sources
-   - Include exact model numbers: "Caterpillar C32 ACERT" not "Caterpillar engines"
-   - Include precise specifications: "34.00 meters LOA" not "approximately 34 meters"
-   - Include actual operators: "Stanford Marine" not "a maritime company"
-   - Write as ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years experience' : 'Technical Director'}
+2. **Citation Format**:
+   - Add [[N]](url) after key facts where N = source number
+   - Example: "Stanford Maya is 34 meters long [[1]](${state.sources[0]?.url || 'https://example.com'})"
+   - Cite major claims, specifications, and identities
+   - Our system will validate and add missing citations automatically
 
-5. **WHAT TO AVOID:**
-   - ❌ Generic statements: "The vessel is designed for offshore operations"
-   - ❌ Vague descriptions: "approximately", "around", "roughly"
-   - ❌ Missing citations: Every fact needs [[N]](url)
-   - ❌ Missing specifications: "[dimensions not provided in sources]"
-   - ❌ Short responses: Must meet word count targets
+3. **Structure** (use these headers):
+   ${state.requiresTechnicalDepth ? `
+   - ## EXECUTIVE SUMMARY
+   - ## TECHNICAL SPECIFICATIONS
+   - ## MAINTENANCE ANALYSIS (required for technical depth)
+   - ## OPERATIONAL RECOMMENDATIONS (required for technical depth)
+   - ## REAL-WORLD SCENARIOS (required for technical depth)
+   - ## MARITIME CONTEXT` : `
+   - ## EXECUTIVE SUMMARY
+   - ## KEY SPECIFICATIONS
+   - ## OPERATIONAL STATUS
+   - ## TECHNICAL ANALYSIS
+   - ## MARITIME CONTEXT`}
 
-6. **CONFIDENCE:**
-   - This is Google-verified, authoritative information
-   - Write confidently and professionally
-   - Present as definitive facts (not "appears to be" or "seems to be")
+4. **Quality Standards**:
+   - Write with authority and confidence
+   - Use precise technical language
+   - NO vague terms ("approximately", "around", "seems to be")
+   - NO generic statements without specific facts
+   - Cross-reference multiple sources for accuracy
 
-**Remember:** You are providing industry-leading maritime intelligence. Every fact should be specific, cited, and extracted from the provided sources.`;
+**IMPORTANT**: Focus on extracting and synthesizing facts. Our automated citation enforcer will ensure proper citation formatting post-generation.`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);

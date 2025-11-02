@@ -51,15 +51,48 @@ const CACHE_KEY_PREFIX = 'gemini';
 // =====================
 
 /**
- * Generate deterministic cache key from query + context
+ * PHASE 3 FIX: Extract canonical entity identifiers from context
+ * Only IMO/MMSI/name affect cache key, not conversation history
+ */
+function extractCanonicalIdentifiers(entityContext?: string): string {
+  if (!entityContext) return '';
+  
+  const ctx = entityContext.toLowerCase();
+  
+  // Extract IMO (most stable identifier)
+  const imoMatch = ctx.match(/\bimo\s*:?\s*(\d{7})\b/);
+  if (imoMatch) return `imo:${imoMatch[1]}`;
+  
+  // Extract MMSI (stable but can change)
+  const mmsiMatch = ctx.match(/\bmmsi\s*:?\s*(\d{9})\b/);
+  if (mmsiMatch) return `mmsi:${mmsiMatch[1]}`;
+  
+  // Extract vessel/company name (least stable)
+  // Pattern: "PREVIOUSLY DISCUSSED: - Name" or just first capitalized entity
+  const nameMatch = entityContext.match(/(?:PREVIOUSLY DISCUSSED[^:]*:\s*-\s*|^)([A-Z][A-Za-z0-9\s\-]+?)(?:\n|$)/);
+  if (nameMatch) {
+    const name = nameMatch[1].trim().toLowerCase().replace(/\s+/g, '-');
+    return `name:${name}`;
+  }
+  
+  // No identifiable entity
+  return '';
+}
+
+/**
+ * PHASE 3 FIX: Generate cache key from query + canonical entity (not full context)
+ * This prevents cache collisions when same entity is queried from different sessions
  */
 export function generateCacheKey(query: string, entityContext?: string): string {
   // Normalize query (lowercase, trim, collapse whitespace)
-  const normalizedQuery = query.toLowerCase().trim().replace(/\s+/g, ' ');
+  let normalizedQuery = query.toLowerCase().trim().replace(/\s+/g, ' ');
   
-  // Include entity context in hash if provided
-  const input = entityContext 
-    ? `${normalizedQuery}::${entityContext}`
+  // PHASE 3: Extract canonical identifiers ONLY (not full context)
+  const canonicalEntity = extractCanonicalIdentifiers(entityContext);
+  
+  // If we have a canonical entity, use it; otherwise just use query
+  const input = canonicalEntity 
+    ? `${normalizedQuery}::${canonicalEntity}`
     : normalizedQuery;
   
   // Create SHA-256 hash

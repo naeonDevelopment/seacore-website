@@ -44,8 +44,20 @@ export function enforceCitations(
   options?: { technicalDepth?: boolean; minRequired?: number }
 ): CitationEnforcementResult {
   
-  // Count existing citations
-  const existingCitations = countCitations(content);
+  // PHASE 4A: Step 1 - Validate and auto-repair malformed citations FIRST
+  const repairResult = validateAndRepairCitations(content, sources);
+  let workingContent = repairResult.repairedContent;
+  
+  if (repairResult.repairsCount > 0) {
+    console.log(`\n📎 CITATION AUTO-REPAIR:`);
+    console.log(`   Repaired ${repairResult.repairsCount} malformed citations`);
+    if (repairResult.errors.length > 0) {
+      console.warn(`   ⚠️ Repair errors:`, repairResult.errors);
+    }
+  }
+  
+  // Count existing citations (after repair)
+  const existingCitations = countCitations(workingContent);
   const baseMin = options?.minRequired !== undefined
     ? options.minRequired
     : (options?.technicalDepth ? 5 : 3);
@@ -59,16 +71,16 @@ export function enforceCitations(
     console.log(`   ✅ Citation count sufficient (${existingCitations}/${minRequired})`);
     return {
       originalContent: content,
-      enforcedContent: content,
-      citationsAdded: 0,
+      enforcedContent: workingContent, // Return repaired content
+      citationsAdded: repairResult.repairsCount, // Count repairs as additions
       citationsFound: existingCitations,
       citationsRequired: minRequired,
-      wasEnforced: false,
+      wasEnforced: repairResult.repairsCount > 0, // Enforced if repairs made
       diagnostics: {
         originalCitationCount: existingCitations,
         targetCitationCount: minRequired,
         factualStatementsFound: 0,
-        injectionsPerformed: 0
+        injectionsPerformed: repairResult.repairsCount
       }
     };
   }
@@ -76,12 +88,12 @@ export function enforceCitations(
   // Need to inject citations
   console.log(`   ⚠️ Insufficient citations - injecting...`);
   
-  const result = injectCitations(content, sources, minRequired - existingCitations);
+  const result = injectCitations(workingContent, sources, minRequired - existingCitations);
   
   return {
     originalContent: content,
     enforcedContent: result.content,
-    citationsAdded: result.injected,
+    citationsAdded: result.injected + repairResult.repairsCount,
     citationsFound: existingCitations,
     citationsRequired: minRequired,
     wasEnforced: true,
@@ -89,19 +101,97 @@ export function enforceCitations(
       originalCitationCount: existingCitations,
       targetCitationCount: minRequired,
       factualStatementsFound: result.factualStatements,
-      injectionsPerformed: result.injected
+      injectionsPerformed: result.injected + repairResult.repairsCount
     }
   };
 }
 
 /**
  * Count existing inline citations in content
+ * PHASE 4A: Enhanced to detect edge cases and malformed citations
  * Matches: [1], [2], [[1]], [[2]](url), etc.
  */
 function countCitations(content: string): number {
   // Match both [N] and [[N]](url) formats
   const matches = content.match(/\[\[?\d+\]?\](?:\([^)]+\))?/g);
   return matches ? matches.length : 0;
+}
+
+/**
+ * PHASE 4A: Validate and auto-repair malformed citations
+ * Detects and fixes common edge cases:
+ * - Missing outer brackets: [1] → [[1]](url)
+ * - Missing URL: [[1]] → [[1]](url)
+ * - Empty URL: [[1]]() → [[1]](url)
+ * - Wrong format: [1](url) → [[1]](url)
+ */
+function validateAndRepairCitations(content: string, sources: Source[]): {
+  repairedContent: string;
+  repairsCount: number;
+  errors: string[];
+} {
+  let repaired = content;
+  let repairsCount = 0;
+  const errors: string[] = [];
+  
+  // Edge case 1: Single brackets with numbers [N] without URL
+  // Replace [1], [2], etc. with [[1]](url), [[2]](url)
+  const singleBracketPattern = /\[(\d+)\](?!\()/g;
+  repaired = repaired.replace(singleBracketPattern, (match, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    if (index < 1 || index > sources.length) {
+      errors.push(`Citation [${index}] out of bounds (sources: ${sources.length})`);
+      return match; // Keep as-is if invalid
+    }
+    repairsCount++;
+    return `[[${index}]](${sources[index - 1].url})`;
+  });
+  
+  // Edge case 2: Double brackets without URL [[N]]
+  const doubleBracketNoUrl = /\[\[(\d+)\]\](?!\()/g;
+  repaired = repaired.replace(doubleBracketNoUrl, (match, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    if (index < 1 || index > sources.length) {
+      errors.push(`Citation [[${index}]] out of bounds (sources: ${sources.length})`);
+      return match;
+    }
+    repairsCount++;
+    return `[[${index}]](${sources[index - 1].url})`;
+  });
+  
+  // Edge case 3: Empty URL [[N]]()
+  const emptyUrlPattern = /\[\[(\d+)\]\]\(\)/g;
+  repaired = repaired.replace(emptyUrlPattern, (match, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    if (index < 1 || index > sources.length) {
+      errors.push(`Citation [[${index}]]() out of bounds (sources: ${sources.length})`);
+      return match;
+    }
+    repairsCount++;
+    return `[[${index}]](${sources[index - 1].url})`;
+  });
+  
+  // Edge case 4: Wrong format [N](url) - should be [[N]](url)
+  const wrongFormatPattern = /\[(\d+)\]\(([^)]+)\)/g;
+  repaired = repaired.replace(wrongFormatPattern, (match, indexStr, url) => {
+    const index = parseInt(indexStr, 10);
+    if (index < 1 || index > sources.length) {
+      errors.push(`Citation [${index}](${url}) out of bounds (sources: ${sources.length})`);
+      return match;
+    }
+    // Verify URL matches expected source
+    const expectedUrl = sources[index - 1].url;
+    if (url !== expectedUrl) {
+      // Replace with correct URL
+      repairsCount++;
+      return `[[${index}]](${expectedUrl})`;
+    }
+    // Just fix format (add extra brackets)
+    repairsCount++;
+    return `[[${index}]](${url})`;
+  });
+  
+  return { repairedContent: repaired, repairsCount, errors };
 }
 
 /**

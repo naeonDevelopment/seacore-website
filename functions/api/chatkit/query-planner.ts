@@ -17,6 +17,7 @@ import { setTimeout as sleep } from "timers/promises";
 import { extractSourcesFromGeminiResponse } from "./grounding-extractor";
 import { fetchWithRetry } from "./retry";
 import { getCachedResult, setCachedResult, getCacheStats } from "./kv-cache";
+import { getSemanticCachedResult, setSemanticCachedResult, getDefaultSemanticCacheConfig } from "./semantic-cache";
 
 // =====================
 // TYPES
@@ -237,29 +238,57 @@ START YOUR RESPONSE WITH: {`;
     
     let subQueries: SubQuery[] = plan.subQueries || [];
 
-    // Ensure mandatory vessel sub-queries are present for comprehensive coverage
+    // PHASE 2 FIX: Natural language mandatory vessel sub-queries (NO keyword spam)
     if (isVesselQuery) {
       const ensure = (q: string, purpose: string, priority: 'high'|'medium'|'low'='high') => {
-        if (!subQueries.some(sq => (sq.query || '').toLowerCase() === q.toLowerCase())) {
+        // Check if similar query already exists (fuzzy match on purpose or key terms)
+        const similar = subQueries.some(sq => {
+          const sqLower = (sq.query || '').toLowerCase();
+          const qLower = q.toLowerCase();
+          const sqPurpose = (sq.purpose || '').toLowerCase();
+          const purposeLower = purpose.toLowerCase();
+          
+          // Exact match
+          if (sqLower === qLower) return true;
+          
+          // Purpose match (e.g., both about registry)
+          if (sqPurpose === purposeLower) return true;
+          
+          // Key term overlap (3+ shared words)
+          const sqWords = new Set(sqLower.split(/\s+/).filter(w => w.length > 3));
+          const qWords = new Set(qLower.split(/\s+/).filter(w => w.length > 3));
+          const overlap = [...sqWords].filter(w => qWords.has(w)).length;
+          if (overlap >= 3) return true;
+          
+          return false;
+        });
+        
+        if (!similar) {
           subQueries.push({ query: q, purpose, priority });
         }
       };
-      // Registry and identity (NO site: operators - they break Gemini grounding)
-      ensure(`${query} IMO MMSI call sign marinetraffic vesselfinder`, 'registry identifiers from vessel tracking sites', 'high');
-      ensure(`${query} equasis registry official data`, 'official registry profile from Equasis', 'high');
+      
+      // PHASE 2: Natural language queries (NO keyword spam)
+      // Registry and identity
+      ensure(`${query} vessel registry IMO number`, 'registry identifiers (IMO/MMSI)', 'high');
+      ensure(`${query} Equasis registry profile`, 'official Equasis registry data', 'high');
+      
       // Ownership/management
-      ensure(`${query} owner operator manager`, 'ownership and management', 'high');
+      ensure(`${query} vessel owner and operator`, 'ownership and management company', 'high');
+      
       // Class and flag
-      ensure(`${query} class society classification notation`, 'class society and class notations', 'medium');
-      ensure(`${query} flag state registry`, 'flag and registry details', 'medium');
-      ensure(`${query} flag certificates documentation`, 'flag certification documents', 'low');
+      ensure(`${query} classification society class notation`, 'class society and notation', 'medium');
+      ensure(`${query} flag state and registry`, 'flag state registration', 'medium');
+      
       // Particulars
-      ensure(`${query} lightship gross tonnage deadweight length overall breadth depth`, 'principal particulars', 'medium');
-      ensure(`${query} keel lay date delivery date built shipyard`, 'build dates and shipyard', 'medium');
+      ensure(`${query} vessel dimensions and tonnage`, 'principal dimensions (LOA, beam, tonnage)', 'medium');
+      ensure(`${query} build date and shipyard`, 'construction date and builder', 'medium');
+      
       // Current status/location
-      ensure(`${query} position AIS current location vesselfinder marinetraffic`, 'current location/status from AIS tracking', 'medium');
-      // Equipment (propulsion/auxiliaries)
-      ensure(`${query} propulsion engines generators auxiliaries specifications`, 'equipment (propulsion/auxiliaries)', 'medium');
+      ensure(`${query} current AIS position`, 'current location from AIS', 'medium');
+      
+      // Equipment
+      ensure(`${query} main engines and propulsion`, 'propulsion system details', 'medium');
     }
     
     // Company-specific mandatory sub-queries
@@ -376,7 +405,8 @@ export async function executeParallelQueries(
   kv?: KVNamespace,
   statusEmitter?: (event: any) => void,
   pseApiKey?: string,
-  pseCx?: string
+  pseCx?: string,
+  openaiApiKey?: string // PHASE 4B: For semantic caching
 ): Promise<Source[]> {
   
   console.log(`\n⚡ PARALLEL EXECUTION: ${subQueries.length} sub-queries`);
@@ -405,14 +435,25 @@ export async function executeParallelQueries(
 
   const startTime = Date.now();
   
+  // PHASE 4A FIX: Global timeout (circuit breaker pattern)
+  // Instead of 6 queries × 8s = 48s worst case, cap total execution to 20s
+  const GLOBAL_TIMEOUT_MS = 20000; // 20s max for ALL queries combined
+  const PER_QUERY_TIMEOUT_MS = Math.max(
+    3000, // minimum 3s per query
+    Math.floor(GLOBAL_TIMEOUT_MS / Math.max(dedupedSubQueries.length, 1))
+  );
+  
+  console.log(`   ⏱️ Timeout strategy: ${PER_QUERY_TIMEOUT_MS}ms per query (global limit: ${GLOBAL_TIMEOUT_MS}ms)`);
+  
   // Execute with a higher concurrency for faster perceived latency (cap to 8)
   const CONCURRENCY = Math.min(8, Math.max(4, dedupedSubQueries.length));
   const results: Source[][] = [];
   let inFlight = 0;
   let index = 0;
+  let globalTimeoutTriggered = false;
 
   async function runNext(): Promise<void> {
-    if (index >= dedupedSubQueries.length) return;
+    if (index >= dedupedSubQueries.length || globalTimeoutTriggered) return;
     const currentIndex = index++;
     const subQuery = dedupedSubQueries[currentIndex];
     inFlight++;
@@ -430,9 +471,10 @@ export async function executeParallelQueries(
       });
     }
     
-    // Enforce per-subquery timeout for faster perceived latency
-    const TIMEOUT_MS = 8000; // hard cap per subquery
-    const timeoutPromise = new Promise<Source[]>((resolve) => setTimeout(() => resolve([]), TIMEOUT_MS));
+    // PHASE 4A: Per-query timeout is now adaptive based on global budget
+    const timeoutPromise = new Promise<Source[]>((resolve) => 
+      setTimeout(() => resolve([]), PER_QUERY_TIMEOUT_MS)
+    );
     try {
       const sources = await Promise.race([
         executeSingleGeminiQuery(
@@ -442,6 +484,7 @@ export async function executeParallelQueries(
           kv,
           pseApiKey,
           pseCx,
+          openaiApiKey // PHASE 4B: Pass for semantic caching
         ),
         timeoutPromise
       ]);
@@ -473,11 +516,22 @@ export async function executeParallelQueries(
     }
     // brief micro-yield to avoid event loop starvation
     await sleep(0);
-    if (index < dedupedSubQueries.length) await runNext();
+    if (index < dedupedSubQueries.length && !globalTimeoutTriggered) await runNext();
   }
 
+  // PHASE 4A: Wrap entire execution in global timeout
   const starters = Array.from({ length: Math.min(CONCURRENCY, dedupedSubQueries.length) }, () => runNext());
-  await Promise.all(starters);
+  const executionPromise = Promise.all(starters);
+  
+  const globalTimeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      globalTimeoutTriggered = true;
+      console.warn(`   ⏱️ Global timeout triggered after ${GLOBAL_TIMEOUT_MS}ms`);
+      resolve();
+    }, GLOBAL_TIMEOUT_MS);
+  });
+  
+  await Promise.race([executionPromise, globalTimeoutPromise]);
   
   const executionTime = Date.now() - startTime;
   let allSources = results.flat();
@@ -513,6 +567,7 @@ export async function executeParallelQueries(
 
 /**
  * Execute a single Gemini query
+ * PHASE 4B: Now supports semantic caching with embeddings
  * Extracted from gemini-tool.ts for parallel execution
  */
 async function executeSingleGeminiQuery(
@@ -521,7 +576,8 @@ async function executeSingleGeminiQuery(
   geminiApiKey: string,
   kv?: KVNamespace,
   pseApiKey?: string,
-  pseCx?: string
+  pseCx?: string,
+  openaiApiKey?: string
 ): Promise<Source[]> {
   
   // Build query with context if available
@@ -530,12 +586,32 @@ async function executeSingleGeminiQuery(
     enrichedQuery = `${entityContext}\n\nQuery: ${query}`;
   }
   
-  // Try KV cache for this sub-query
+  // PHASE 4B: Try semantic cache first (if OpenAI key available)
+  if (openaiApiKey && kv) {
+    try {
+      const semanticMatch = await getSemanticCachedResult(
+        kv,
+        enrichedQuery,
+        entityContext,
+        openaiApiKey,
+        getDefaultSemanticCacheConfig()
+      );
+      
+      if (semanticMatch) {
+        console.log(`   ⚡ SEMANTIC CACHE HIT (${(semanticMatch.similarity * 100).toFixed(1)}% similar)`);
+        return semanticMatch.result.sources || [];
+      }
+    } catch (error: any) {
+      console.warn(`   ⚠️ Semantic cache failed: ${error.message}, falling back to exact cache`);
+    }
+  }
+  
+  // Fall back to exact hash cache
   try {
     const cached = await getCachedResult(kv as any, enrichedQuery, undefined);
     if (cached && cached.sources?.length) {
       const stats = getCacheStats(cached);
-      console.log(`   ⚡ SUBQUERY CACHE HIT (age: ${stats.age}s)`);
+      console.log(`   ⚡ EXACT CACHE HIT (age: ${stats.age}s)`);
       return cached.sources as any;
     }
   } catch {}
@@ -594,11 +670,32 @@ async function executeSingleGeminiQuery(
   // Store in KV cache (shorter TTL for sub-queries) - truncate content to cap KV size
   try {
     const toCache = sources.map(s => ({ ...s, content: (s.content || '').slice(0, 600) }));
-    await setCachedResult(kv as any, enrichedQuery, undefined, {
+    const cachePayload = {
       sources: toCache,
       answer: null,
       diagnostics: { totalSources: toCache.length, hasAnswer: false, answerLength: 0, sourcesByTier: {} }
-    }, 600);
+    };
+    
+    // Store in exact hash cache
+    await setCachedResult(kv as any, enrichedQuery, undefined, cachePayload, 600);
+    
+    // PHASE 4B: Also store in semantic cache (if OpenAI key available)
+    if (openaiApiKey && kv) {
+      try {
+        await setSemanticCachedResult(
+          kv,
+          enrichedQuery,
+          entityContext,
+          cachePayload,
+          openaiApiKey,
+          600, // 10 min TTL for sub-queries
+          getDefaultSemanticCacheConfig()
+        );
+        console.log(`   💾 Stored in both exact and semantic caches`);
+      } catch (error: any) {
+        console.warn(`   ⚠️ Semantic cache storage failed: ${error.message}`);
+      }
+    }
   } catch {}
   
   // If Gemini produced no sources but PSE is available, attempt fallback
@@ -846,42 +943,83 @@ function generateConfidenceReasoning(
 }
 
 /**
- * Assign authority tier based on domain and content type
- * Enhanced to recognize PDFs, forums, and maritime-specific sources
+ * PHASE 2 FIX: Content-aware authority tier assignment
+ * Validates content quality and relevance, not just domain
  */
 function assignAuthorityTier(source: Source): Source {
   const url = source.url?.toLowerCase() || '';
   const title = source.title?.toLowerCase() || '';
   const content = source.content?.toLowerCase() || '';
   
-  // Check if source is a PDF (high value for technical documentation)
-  const isPDF = url.includes('.pdf') || title.includes('.pdf') || content.includes('pdf');
+  // PHASE 2: Content quality checks
+  const hasSubstantialContent = content.length >= 100;
+  const hasErrorIndicators = content.includes('404') || content.includes('not found') || 
+                              content.includes('error') || content.includes('page not available');
+  const hasMaritimeKeywords = /\b(vessel|ship|marine|maritime|imo|mmsi|port|cargo|crew|engine)\b/.test(content);
   
-  // T1: Authoritative (government, IMO, classification societies, OEMs, academia, PDF manuals)
-  if (url.includes('.gov') || url.includes('imo.org') || url.includes('iacs.org.uk') || 
-      url.includes('classnk') || url.includes('dnv.com') || url.includes('lr.org') || 
-      url.includes('abs.org') || url.includes('.edu') || 
-      url.includes('wartsila.com') || url.includes('cat.com') || url.includes('man-es.com') ||
-      url.includes('rolls-royce.com') || url.includes('abb.com') || url.includes('siemens.com') ||
-      url.includes('kongsberg.com') || url.includes('cummins.com') || url.includes('volvo.com') ||
-      (isPDF && (url.includes('wartsila') || url.includes('cat') || url.includes('man') || 
-                 url.includes('rolls') || url.includes('abb') || url.includes('cummins')))) {
+  // Reject low-quality sources regardless of domain
+  if (hasErrorIndicators || !hasSubstantialContent) {
+    console.log(`   🚫 PHASE 2: Rejected low-quality source (${content.length} chars, errors: ${hasErrorIndicators}): ${url.substring(0, 60)}`);
+    return { ...source, tier: 'T3' }; // Downgrade to T3
+  }
+  
+  // Check if source is a PDF (high value for technical documentation)
+  const isPDF = url.includes('.pdf') || title.includes('.pdf');
+  
+  // PHASE 2: T1 tier requires BOTH authoritative domain AND relevant content
+  const isAuthoritativeDomain = (
+    url.includes('.gov') || url.includes('imo.org') || url.includes('iacs.org.uk') || 
+    url.includes('classnk') || url.includes('dnv.com') || url.includes('lr.org') || 
+    url.includes('abs.org') || url.includes('.edu')
+  );
+  
+  const isOEMDomain = (
+    url.includes('wartsila.com') || url.includes('cat.com') || url.includes('man-es.com') ||
+    url.includes('rolls-royce.com') || url.includes('abb.com') || url.includes('siemens.com') ||
+    url.includes('kongsberg.com') || url.includes('cummins.com')
+  );
+  
+  // T1: Authoritative sources WITH relevant content
+  if (isAuthoritativeDomain && hasMaritimeKeywords) {
     return { ...source, tier: 'T1' };
   }
   
-  // T2: Industry publications, maritime forums, and maritime-specific sources
-  if (url.includes('maritime') || url.includes('shipping') || url.includes('vessel') ||
-      url.includes('gcaptain.com') || url.includes('tradewinds') || url.includes('splash247') ||
-      url.includes('maritime-executive') || url.includes('shippingwatch') ||
-      url.includes('marineinsight.com') || url.includes('seatrade') ||
-      url.includes('marinelink') || url.includes('offshore-energy') ||
-      url.includes('vesselfinder') || url.includes('marinetraffic') || url.includes('equasis') ||
-      url.includes('iseaport') || url.includes('marineengineering') ||
-      (isPDF && url.includes('maritime'))) {
+  // T1: OEM PDFs with technical content (not marketing)
+  if (isPDF && isOEMDomain) {
+    const hasTechnicalContent = /\b(maintenance|service|specifications|manual|bulletin|technical|datasheet)\b/.test(content);
+    if (hasTechnicalContent) {
+      return { ...source, tier: 'T1' };
+    }
+    // OEM PDF without technical keywords → T2
     return { ...source, tier: 'T2' };
   }
   
-  // T3: General web sources
+  // PHASE 2: T2 tier for maritime-specific sources WITH content validation
+  const isMaritimeDomain = (
+    url.includes('maritime') || url.includes('shipping') || url.includes('vessel') ||
+    url.includes('gcaptain.com') || url.includes('tradewinds') || url.includes('splash247') ||
+    url.includes('maritime-executive') || url.includes('shippingwatch') ||
+    url.includes('marineinsight.com') || url.includes('seatrade') ||
+    url.includes('marinelink') || url.includes('offshore-energy')
+  );
+  
+  const isRegistryDomain = (
+    url.includes('vesselfinder') || url.includes('marinetraffic') || url.includes('equasis') ||
+    url.includes('registry') || url.includes('flagstate')
+  );
+  
+  // T2: Maritime industry sources with relevant content
+  if ((isMaritimeDomain || isRegistryDomain) && hasMaritimeKeywords) {
+    return { ...source, tier: 'T2' };
+  }
+  
+  // PHASE 2: Registry sources without vessel data → downgrade to T3
+  if (isRegistryDomain && !hasMaritimeKeywords) {
+    console.log(`   ⚠️ PHASE 2: Registry domain without vessel data, downgrading: ${url.substring(0, 60)}`);
+    return { ...source, tier: 'T3' };
+  }
+  
+  // T3: General web sources or maritime sources without relevant content
   return { ...source, tier: 'T3' };
 }
 
@@ -945,4 +1083,5 @@ function deduplicateByUrl(sources: (Source & { normalizedUrl: string })[]): Sour
   
   return Array.from(seen.values());
 }
+
 
