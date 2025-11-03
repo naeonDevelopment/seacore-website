@@ -127,52 +127,31 @@ async function emitPlanThinkingSteps(
   if (!statusEmitter) return;
   const rows = (plan.subQueries || []).slice(0, 7).map((sq, i) => {
     const prefix = `${i + 1}.`;
-    const text = (sq.purpose || sq.query || '').trim().replace(/\s+/g, ' ');
+    let text = (sq.purpose || sq.query || '').trim();
+    
+    // P0 FIX: Make camelCase readable (findVesselIdentification → Find vessel identification)
+    text = text
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase → camel Case
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2') // HTTPRequest → HTTP Request
+      .replace(/^\w/, c => c.toUpperCase()) // capitalize first letter
+      .replace(/\s+/g, ' '); // normalize whitespace
+    
     return `${prefix} ${text}`;
   });
-  // NO STRATEGY LINE - just emit numbered steps to avoid JSON-like output
+  // NO STRATEGY LINE - just emit numbered steps
   const payload = rows.join('\n');
   statusEmitter({ type: 'thinking', step: 'plan_steps', content: payload });
 }
 
-// Optional LLM-backed formatter for more natural steps (fast 4o-mini), with fallback
+// P0 FIX: Removed GPT-4o-mini to eliminate JSON leak
+// Direct formatting is faster, cheaper, and GUARANTEED not to leak JSON
 async function emitPlanThinkingStepsLLM(
   plan: { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> },
   statusEmitter: ((event: any) => void) | null,
   openaiKey?: string
 ): Promise<void> {
-  if (!statusEmitter) return;
-  if (!openaiKey) return emitPlanThinkingSteps(plan, statusEmitter);
-  try {
-    const llm = new ChatOpenAI({ modelName: 'gpt-4o-mini', temperature: 0.2, openAIApiKey: openaiKey, streaming: false });
-    const jsonForModel = JSON.stringify({ strategy: plan.strategy, subQueries: (plan.subQueries || []).slice(0, 8) });
-    const resp = await llm.invoke([
-      { role: 'system', content: 'Convert plan JSON into 3-7 concise thinking steps. Output plain text only. NO JSON.' },
-      { role: 'user', content: `Plan JSON:\n${jsonForModel}\n\nRules:\n- 3-7 short steps\n- Start each line with 1., 2., 3.\n- Use purpose text; keep under 12 words\n- ABSOLUTELY NO JSON OUTPUT\n- Only plain text numbered steps` }
-    ]);
-    let content = typeof resp.content === 'string' ? resp.content : JSON.stringify(resp.content);
-    
-    // CRITICAL FIX: Aggressive JSON sanitization
-    // Remove ANY content that looks like JSON (starts with { or contains "strategy"/"subQueries")
-    if (content.includes('{') || content.includes('"strategy"') || content.includes('"subQueries"')) {
-      console.warn('   ⚠️ JSON detected in plan steps, using fallback');
-      return await emitPlanThinkingSteps(plan, statusEmitter);
-    }
-    
-    // Remove any remaining JSON-like structures
-    content = content.replace(/\{[^}]*\}/g, '').trim();
-    content = content.replace(/(\d+)\.(\S)/g, '$1. $2');
-    
-    // Validate output has numbered steps
-    if (!/^\d+\.\s/.test(content)) {
-      console.warn('   ⚠️ Invalid step format, using fallback');
-      return await emitPlanThinkingSteps(plan, statusEmitter);
-    }
-    
-    statusEmitter({ type: 'thinking', step: 'plan_steps', content });
-  } catch {
-    await emitPlanThinkingSteps(plan, statusEmitter);
-  }
+  // CRITICAL: Always use direct formatting (no LLM = no JSON leak)
+  return emitPlanThinkingSteps(plan, statusEmitter);
 }
 
 // ===== Vessel Reflexion Utilities =====
@@ -2247,15 +2226,14 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               if (msg.constructor.name === 'AIMessageChunk' && msg.content) {
                 const text = typeof msg.content === 'string' ? msg.content : String(msg.content);
                 if (text) {
-                  // CRITICAL FIX: Filter out JSON/query planner output
-                  // Robust handling: detect pure or embedded planner JSON and strip/buffer it
-                  let chunk = text;
-                  let trimmedText = chunk.trim();
+                  // P0 FIX: Preserve whitespace! Use trimmed for validation but emit original
+                  const chunk = text; // PRESERVE original text with spaces
+                  const trimmedForValidation = chunk.trim(); // Only for checks
 
                   // If previously detected an opening JSON plan, keep buffering until closing brace
                   if (suppressPlannerJson) {
-                    plannerJsonBuffer += trimmedText;
-                    if (/\}\s*$/.test(trimmedText)) {
+                    plannerJsonBuffer += trimmedForValidation;
+                    if (/\}\s*$/.test(trimmedForValidation)) {
                       // Closing brace reached — drop buffered planner JSON
                       console.log('   🚫 Dropped buffered planner JSON (multi-chunk)');
                       suppressPlannerJson = false;
@@ -2265,41 +2243,48 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   }
 
                   // Detect a complete planner JSON payload (pure JSON)
-                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(trimmedText);
+                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(trimmedForValidation);
                   if (isOnlyJsonPlan) {
-                    console.log(`   🚫 FILTERED planner JSON: "${trimmedText.substring(0, 60)}..."`);
+                    console.log(`   🚫 FILTERED planner JSON: "${trimmedForValidation.substring(0, 60)}..."`);
                     continue;
                   }
 
                   // Detect start of planner JSON that may span multiple chunks
-                  const startsPlannerJson = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*$/.test(trimmedText) && !/\}\s*$/.test(trimmedText);
+                  const startsPlannerJson = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*$/.test(trimmedForValidation) && !/\}\s*$/.test(trimmedForValidation);
                   if (startsPlannerJson) {
                     suppressPlannerJson = true;
-                    plannerJsonBuffer = trimmedText;
+                    plannerJsonBuffer = trimmedForValidation;
                     console.log('   🚫 Detected start of planner JSON (buffering)');
                     continue;
                   }
 
-                  // If planner JSON appears embedded within otherwise valid output, strip it
-                  const stripped = trimmedText.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '').trim();
-                  if (stripped.length === 0 && /"strategy"[\s\S]*"subQueries"/.test(trimmedText)) {
+                  // P0 FIX: If JSON appears, strip it but keep surrounding whitespace structure
+                  const contentToEmit = chunk.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '');
+                  const contentTrimmed = contentToEmit.trim(); // Check if empty after strip
+                  
+                  if (contentTrimmed.length === 0 && /"strategy"[\s\S]*"subQueries"/.test(trimmedForValidation)) {
                     console.log('   🚫 Stripped embedded planner JSON (left empty)');
+                    continue;
+                  }
+                  
+                  // Skip empty chunks
+                  if (contentTrimmed.length === 0) {
                     continue;
                   }
 
                   // Only forward MARKDOWN/synthesis content to the UI
-                  const looksLikeMarkdown = stripped.startsWith('#') || stripped.startsWith('##') ||
-                                            /^[A-Z\*\-•]/.test(stripped) ||
+                  const looksLikeMarkdown = contentTrimmed.startsWith('#') || contentTrimmed.startsWith('##') ||
+                                            /^[A-Z\*\-•]/.test(contentTrimmed) ||
                                             fullResponse.length > 0; // After first chunk, trust the stream
 
-                  if (!looksLikeMarkdown && (/^\s*[\[{]/.test(stripped) || /^\s*"strategy"/.test(stripped))) {
-                    console.log(`   🚫 FILTERED JSON-like chunk: "${stripped.substring(0, 50)}..."`);
+                  if (!looksLikeMarkdown && (/^\s*[\[{]/.test(contentTrimmed) || /^\s*"strategy"/.test(contentTrimmed))) {
+                    console.log(`   🚫 FILTERED JSON-like chunk: "${contentTrimmed.substring(0, 50)}..."`);
                     continue;
                   }
 
                   hasStreamedContent = true; // Mark that token streaming is working
-                  fullResponse += stripped;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: stripped })}\n\n`));
+                  fullResponse += contentToEmit; // PRESERVE spaces!
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: contentToEmit })}\n\n`));
 
                   if (eventCount <= 5) {
                     console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
@@ -2335,22 +2320,45 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 
                 console.log(`   🔮 Router returned ${newSources.length} Gemini sources`);
                 
-                // Emit source events for frontend
+                // P0 FIX: Validate URLs before emitting to frontend
+                let validCount = 0;
                 for (const source of newSources) {
-                  controller.enqueue(encoder.encode(
-                    `data: ${JSON.stringify({ 
-                      type: 'source',
-                      action: 'selected',
-                      title: source.title,
-                      url: source.url,
-                      content: source.content?.substring(0, 300) || '',
-                      score: source.score || 0.5
-                    })}\n\n`
-                  ));
+                  // Quick validation (basic check without importing full validator)
+                  const url = source.url || '';
+                  const isValid = url && 
+                    !url.includes('/ais/details/ships?') && // no query params only
+                    !url.match(/\/ais\/details\/ships$/) && // no bare endpoint
+                    !url.includes('/ports/') && // no port pages for vessel queries
+                    !url.match(/\/vessels\/details\/\d{1,6}$/); // no incomplete vessel IDs
+                  
+                  if (isValid) {
+                    controller.enqueue(encoder.encode(
+                      `data: ${JSON.stringify({ 
+                        type: 'source',
+                        action: 'selected',
+                        title: source.title,
+                        url: source.url,
+                        content: source.content?.substring(0, 300) || '',
+                        score: source.score || 0.5
+                      })}\n\n`
+                    ));
+                    validCount++;
+                  } else {
+                    console.log(`   🚫 Blocked invalid source: ${url.substring(0, 60)}`);
+                  }
                 }
                 
-                sources.push(...newSources);
-                console.log(`   📚 Added ${newSources.length} Gemini sources (total: ${sources.length})`);
+                // Only push valid sources
+                const validSources = newSources.filter(s => {
+                  const url = s.url || '';
+                  return url && 
+                    !url.includes('/ais/details/ships?') && 
+                    !url.match(/\/ais\/details\/ships$/) && 
+                    !url.includes('/ports/') && 
+                    !url.match(/\/vessels\/details\/\d{1,6}$/);
+                });
+                sources.push(...validSources);
+                console.log(`   📚 Added ${validCount}/${newSources.length} valid Gemini sources (total: ${sources.length})`);
               }
             }
             
@@ -2362,24 +2370,46 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
               if (nodeState?.sources && Array.isArray(nodeState.sources) && nodeState.sources.length > 0) {
                 const newSources = nodeState.sources;
                 
-                // Emit source events for frontend
+                // P0 FIX: Validate URLs before emitting to frontend
+                let validCount = 0;
                 for (const source of newSources) {
-                  controller.enqueue(encoder.encode(
-                    `data: ${JSON.stringify({ 
-                      type: 'source',
-                      action: 'selected',
-                      title: source.title,
-                      url: source.url,
-                      content: source.content?.substring(0, 300) || '',
-                      score: source.score || 0.5
+                  const url = source.url || '';
+                  const isValid = url && 
+                    !url.includes('/ais/details/ships?') && 
+                    !url.match(/\/ais\/details\/ships$/) && 
+                    !url.includes('/ports/') && 
+                    !url.match(/\/vessels\/details\/\d{1,6}$/);
+                  
+                  if (isValid) {
+                    controller.enqueue(encoder.encode(
+                      `data: ${JSON.stringify({ 
+                        type: 'source',
+                        action: 'selected',
+                        title: source.title,
+                        url: source.url,
+                        content: source.content?.substring(0, 300) || '',
+                        score: source.score || 0.5
                     })}\n\n`
                   ));
+                  validCount++;
+                } else {
+                  console.log(`   🚫 Blocked invalid source: ${url.substring(0, 60)}`);
                 }
-                
-                sources.push(...newSources);
-                console.log(`   📚 Added ${newSources.length} research sources (total: ${sources.length})`);
               }
+              
+              // Only push valid sources
+              const validSources = newSources.filter(s => {
+                const url = s.url || '';
+                return url && 
+                  !url.includes('/ais/details/ships?') && 
+                  !url.match(/\/ais\/details\/ships$/) && 
+                  !url.includes('/ports/') && 
+                  !url.match(/\/vessels\/details\/\d{1,6}$/);
+              });
+              sources.push(...validSources);
+              console.log(`   📚 Added ${validCount}/${newSources.length} valid research sources (total: ${sources.length})`);
             }
+          }
           }
         }
         
