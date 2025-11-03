@@ -2479,10 +2479,21 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     continue; // Do not forward any part of planner JSON
                   }
 
-                  // Detect a complete planner JSON payload (pure JSON)
-                  const isOnlyJsonPlan = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(trimmedForValidation);
-                  if (isOnlyJsonPlan) {
+                  // CRITICAL FIX: Detect and filter BOTH types of JSON:
+                  // 1. Planner JSON: {"strategy": "focused", "subQueries": [...]}
+                  // 2. Structured Output JSON: {"vessel_profile": {...}, "executive_summary": ...}
+                  
+                  // Check for planner JSON
+                  const isPlannerJson = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(trimmedForValidation);
+                  if (isPlannerJson) {
                     console.log(`   🚫 FILTERED planner JSON: "${trimmedForValidation.substring(0, 60)}..."`);
+                    continue;
+                  }
+                  
+                  // Check for structured output JSON (vessel_profile)
+                  const isStructuredOutputJson = /^\s*\{[\s\S]*"vessel_profile"[\s\S]*\}\s*$/.test(trimmedForValidation);
+                  if (isStructuredOutputJson) {
+                    console.log(`   🚫 FILTERED structured output JSON: "${trimmedForValidation.substring(0, 60)}..."`);
                     continue;
                   }
 
@@ -2494,13 +2505,23 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     console.log('   🚫 Detected start of planner JSON (buffering)');
                     continue;
                   }
+                  
+                  // Detect start of structured output JSON
+                  const startsStructuredJson = /^\s*\{[\s\S]*"vessel_profile"[\s\S]*$/.test(trimmedForValidation) && !/\}\s*$/.test(trimmedForValidation);
+                  if (startsStructuredJson) {
+                    suppressPlannerJson = true;
+                    plannerJsonBuffer = trimmedForValidation;
+                    console.log('   🚫 Detected start of structured output JSON (buffering)');
+                    continue;
+                  }
 
-                  // P0 FIX: If JSON appears, strip it but keep surrounding whitespace structure
-                  const contentToEmit = chunk.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '');
+                  // P0 FIX: Strip BOTH types of JSON inline
+                  let contentToEmit = chunk.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '');
+                  contentToEmit = contentToEmit.replace(/\{[\s\S]*?"vessel_profile"[\s\S]*?\}\s*/g, '');
                   const contentTrimmed = contentToEmit.trim(); // Check if empty after strip
                   
-                  if (contentTrimmed.length === 0 && /"strategy"[\s\S]*"subQueries"/.test(trimmedForValidation)) {
-                    console.log('   🚫 Stripped embedded planner JSON (left empty)');
+                  if (contentTrimmed.length === 0 && (/"strategy"[\s\S]*"subQueries"/.test(trimmedForValidation) || /"vessel_profile"/.test(trimmedForValidation))) {
+                    console.log('   🚫 Stripped embedded JSON (left empty)');
                     continue;
                   }
                   
