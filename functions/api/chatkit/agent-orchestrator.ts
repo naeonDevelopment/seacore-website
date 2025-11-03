@@ -2553,12 +2553,9 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     continue;
                   }
 
-                  // Only forward MARKDOWN/synthesis content to the UI
-                  const looksLikeMarkdown = contentTrimmed.startsWith('#') || contentTrimmed.startsWith('##') ||
-                                            /^[A-Z\*\-•]/.test(contentTrimmed) ||
-                                            fullResponse.length > 0; // After first chunk, trust the stream
-
-                  if (!looksLikeMarkdown && (/^\s*[\[{]/.test(contentTrimmed) || /^\s*"strategy"/.test(contentTrimmed))) {
+                  // Forward any non-empty, non-JSON chunk (be permissive on first chunk)
+                  // We already stripped planner/structured/reflexion JSON above, so avoid over-filtering here.
+                  if (/^\s*[\[{]/.test(contentTrimmed) || /^\s*"strategy"/.test(contentTrimmed)) {
                     console.log(`   🚫 FILTERED JSON-like chunk: "${contentTrimmed.substring(0, 50)}..."`);
                     continue;
                   }
