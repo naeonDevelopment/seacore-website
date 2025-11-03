@@ -1146,8 +1146,18 @@ If you don't have specific information, be honest and suggest the user enable on
       }
     }
     
-    // OPTIONAL: Run verification pipeline for high-value queries (comparative, multi-entity)
-    const isVesselQuery = /\b(vessel|ship|imo\s*\d{7}|call\s*sign)\b/i.test(userQuery);
+    // CRITICAL FIX: Use same vessel detection as classifier (query-classification-rules.ts line 234-258)
+    // This uses comprehensive entity extraction to detect vessel names like "Stanford Rhine"
+    const qLower = userQuery.toLowerCase();
+    const hasVesselKeyword = /\b(vessel|ship|imo|mmsi|call\s*sign|flag)\b/.test(qLower);
+    const hasVesselPattern = /\b(MV|MS|MT|SS|HMS)\s+[A-Z]/i.test(userQuery);
+    const hasIdentifierPattern = /\b(IMO|MMSI)[\s:]?\d+/i.test(userQuery);
+    const extractedEntities = extractMaritimeEntities(userQuery);
+    const isVesselQuery = hasVesselKeyword || hasVesselPattern || hasIdentifierPattern || extractedEntities.length > 0;
+    
+    if (extractedEntities.length > 0) {
+      console.log(`   🚢 Detected vessel entities: ${extractedEntities.join(', ')}`);
+    }
     const shouldRunVerificationPipeline = 
       (isVesselQuery && state.sources.length >= 3) ||
       (state.sources.length >= 3 && // Multiple sources available
@@ -1908,7 +1918,10 @@ async function generateEntityFleetcoreMapping(
   // Don't add mapping for pure platform queries (user already knows about fleetcore)
   const isPurePlatformQuery = /\b(fleetcore|pms|maintenance system|how does|what is|tell me about)\b.*\b(fleetcore|pms|system|platform|features?)\b/i.test(query);
   // Also skip mapping for vessel-centric queries (user asked about a specific ship)
-  const isVesselQuery = /\b(vessel|ship|imo\s*\d{7}|call\s*sign)\b/i.test(query);
+  // Use same detection logic as synthesizer node
+  const hasVesselKeyword = /\b(vessel|ship|imo|mmsi|call\s*sign|flag)\b/i.test(query);
+  const extractedEntities = extractMaritimeEntities(query);
+  const isVesselQuery = hasVesselKeyword || extractedEntities.length > 0;
   
   if (isPurePlatformQuery || isVesselQuery) {
     console.log(`   ⏭️  Skipping: Pure platform query (user asking about fleetcore itself)`);
