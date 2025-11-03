@@ -2479,11 +2479,12 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     continue; // Do not forward any part of planner JSON
                   }
 
-                  // CRITICAL FIX: Detect and filter BOTH types of JSON:
+                  // CRITICAL FIX: Detect and filter ALL types of JSON:
                   // 1. Planner JSON: {"strategy": "focused", "subQueries": [...]}
                   // 2. Structured Output JSON: {"vessel_profile": {...}, "executive_summary": ...}
+                  // 3. Reflexion Array JSON: [{"query": "...", "purpose": "...", "priority": "..."}]
                   
-                  // Check for planner JSON
+                  // Check for planner JSON (object)
                   const isPlannerJson = /^\s*\{[\s\S]*"strategy"[\s\S]*"subQueries"[\s\S]*\}\s*$/.test(trimmedForValidation);
                   if (isPlannerJson) {
                     console.log(`   🚫 FILTERED planner JSON: "${trimmedForValidation.substring(0, 60)}..."`);
@@ -2494,6 +2495,13 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   const isStructuredOutputJson = /^\s*\{[\s\S]*"vessel_profile"[\s\S]*\}\s*$/.test(trimmedForValidation);
                   if (isStructuredOutputJson) {
                     console.log(`   🚫 FILTERED structured output JSON: "${trimmedForValidation.substring(0, 60)}..."`);
+                    continue;
+                  }
+                  
+                  // Check for reflexion/follow-up queries JSON (array)
+                  const isReflexionArrayJson = /^\s*\[[\s\S]*\{\s*"query"[\s\S]*"purpose"[\s\S]*\}\s*\]\s*$/.test(trimmedForValidation);
+                  if (isReflexionArrayJson) {
+                    console.log(`   🚫 FILTERED reflexion array JSON: "${trimmedForValidation.substring(0, 60)}..."`);
                     continue;
                   }
 
@@ -2514,13 +2522,23 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     console.log('   🚫 Detected start of structured output JSON (buffering)');
                     continue;
                   }
+                  
+                  // Detect start of reflexion array JSON
+                  const startsReflexionJson = /^\s*\[[\s\S]*\{\s*"query"[\s\S]*$/.test(trimmedForValidation) && !/\]\s*$/.test(trimmedForValidation);
+                  if (startsReflexionJson) {
+                    suppressPlannerJson = true;
+                    plannerJsonBuffer = trimmedForValidation;
+                    console.log('   🚫 Detected start of reflexion array JSON (buffering)');
+                    continue;
+                  }
 
-                  // P0 FIX: Strip BOTH types of JSON inline
+                  // P0 FIX: Strip ALL three types of JSON inline
                   let contentToEmit = chunk.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '');
                   contentToEmit = contentToEmit.replace(/\{[\s\S]*?"vessel_profile"[\s\S]*?\}\s*/g, '');
+                  contentToEmit = contentToEmit.replace(/\[[\s\S]*?\{\s*"query"[\s\S]*?"purpose"[\s\S]*?\}\s*\]\s*/g, '');
                   const contentTrimmed = contentToEmit.trim(); // Check if empty after strip
                   
-                  if (contentTrimmed.length === 0 && (/"strategy"[\s\S]*"subQueries"/.test(trimmedForValidation) || /"vessel_profile"/.test(trimmedForValidation))) {
+                  if (contentTrimmed.length === 0 && (/"strategy"[\s\S]*"subQueries"/.test(trimmedForValidation) || /"vessel_profile"/.test(trimmedForValidation) || /\[[\s\S]*"query"[\s\S]*"purpose"/.test(trimmedForValidation))) {
                     console.log('   🚫 Stripped embedded JSON (left empty)');
                     continue;
                   }
