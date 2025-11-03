@@ -115,9 +115,12 @@ function isValidSourceUrl(url: string): { valid: boolean; reason?: string } {
       return { valid: false, reason: 'incomplete vessel URL (missing ID)' };
     }
     
-    // Pattern 2: /ais/details/ships must have specific vessel
-    if (path.includes('/ais/details/ships') && !path.match(/\/ais\/details\/ships\/\d+/)) {
-      return { valid: false, reason: 'generic ships page (no specific vessel)' };
+    // Pattern 2: /ais/details/ships must have specific vessel (shipid, mmsi, or imo)
+    if (path.includes('/ais/details/ships')) {
+      // Must have shipid:, mmsi:, or imo: parameters
+      if (!url.match(/\/(shipid|mmsi|imo):\d+/)) {
+        return { valid: false, reason: 'generic ships page (no vessel identifiers)' };
+      }
     }
     
     // Pattern 3: Root pages without identifiers
@@ -240,7 +243,16 @@ export function extractSourcesFromGeminiResponse(
         content: r?.snippet || r?.content || '',
         score: 0.9,
       }))
-      .filter((s: UnifiedSource) => !!s.url);
+      .filter((s: UnifiedSource) => {
+        if (!s.url) return false;
+        // Validate immediately to avoid processing invalid URLs
+        const validation = isValidSourceUrl(s.url);
+        if (!validation.valid) {
+          console.log(`   🚫 Rejected at extraction - ${validation.reason}: ${s.url.substring(0, 60)}`);
+          return false;
+        }
+        return true;
+      });
   }
 
   // Priority 2: groundingChunks + groundingSupports (Gemini 2.5)
@@ -264,7 +276,13 @@ export function extractSourcesFromGeminiResponse(
             const url = webMeta?.uri || '';
             const title = webMeta?.title || 'Source';
             if (url) {
-              sources.push({ url, title, content: segmentText || '', score: 0.85 });
+              // Validate before adding
+              const validation = isValidSourceUrl(url);
+              if (validation.valid) {
+                sources.push({ url, title, content: segmentText || '', score: 0.85 });
+              } else {
+                console.log(`   🚫 Rejected chunk source - ${validation.reason}: ${url.substring(0, 60)}`);
+              }
             }
           }
         }
@@ -275,7 +293,13 @@ export function extractSourcesFromGeminiResponse(
           const url = webMeta?.uri || '';
           const title = webMeta?.title || 'Source';
           if (url) {
-            sources.push({ url, title, content: '', score: 0.8 });
+            // Validate before adding
+            const validation = isValidSourceUrl(url);
+            if (validation.valid) {
+              sources.push({ url, title, content: '', score: 0.8 });
+            } else {
+              console.log(`   🚫 Rejected chunk (no support) - ${validation.reason}: ${url.substring(0, 60)}`);
+            }
           }
         }
       }

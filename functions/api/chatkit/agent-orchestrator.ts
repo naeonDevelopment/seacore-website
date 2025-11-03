@@ -130,8 +130,8 @@ async function emitPlanThinkingSteps(
     const text = (sq.purpose || sq.query || '').trim().replace(/\s+/g, ' ');
     return `${prefix} ${text}`;
   });
-  const header = plan.strategy ? `Strategy: ${plan.strategy}` : '';
-  const payload = [header, ...rows].filter(Boolean).join('\n');
+  // NO STRATEGY LINE - just emit numbered steps to avoid JSON-like output
+  const payload = rows.join('\n');
   statusEmitter({ type: 'thinking', step: 'plan_steps', content: payload });
 }
 
@@ -1285,54 +1285,60 @@ ${vesselRequirements}
 **CRITICAL: ${isVesselQuery ? '🚢 THIS IS A VESSEL QUERY 🚢' : 'THIS IS A GENERAL QUERY'}**
 
 ${isVesselQuery ? `
-**⚠️⚠️⚠️ MANDATORY REQUIREMENT - READ THIS CAREFULLY ⚠️⚠️⚠️**
+**⚠️⚠️⚠️ MANDATORY - YOUR FIRST SECTION MUST BE ## VESSEL PROFILE ⚠️⚠️⚠️**
 
-You MUST start your response with the ## VESSEL PROFILE section containing ALL the structured fields listed below. This is NOT optional. If you do not include this section FIRST with ALL fields extracted from sources, your response will be REJECTED.
+DO NOT START WITH "EXECUTIVE SUMMARY". START WITH "VESSEL PROFILE".
 
-**YOUR RESPONSE MUST START WITH THIS EXACT STRUCTURE:**
+**EXAMPLE OF CORRECT OUTPUT FORMAT:**
 
+\`\`\`
 ## VESSEL PROFILE
 
 **Identity & Registration:**
-- IMO Number: [value] [[N]](url)
-- MMSI: [value] [[N]](url)
-- Call Sign: [value] [[N]](url)
-- Flag State: [value] [[N]](url)
+- IMO Number: 9549683 [[1]](https://marinetraffic.com/...)
+- MMSI: 377126000 [[1]](https://marinetraffic.com/...)
+- Call Sign: J8B4075 [[2]](https://vesselfinder.com/...)
+- Flag State: St. Vincent and the Grenadines [[1]](...)
 
 **Ownership & Management:**
-- Owner: [value] [[N]](url)
-- Operator/Manager: [value] [[N]](url)
+- Owner: Stanford Marine Group [[3]](https://company-registry...)
+- Operator/Manager: Stanford Marine Services [[3]](...)
 
 **Classification:**
-- Class Society: [value] [[N]](url)
-- Class Notation: [value]
+- Class Society: Lloyd's Register [[4]](...)
+- Class Notation: 100A1 Crew Boat
 
 **Principal Dimensions:**
-- Length Overall (LOA): [value] meters [[N]](url)
-- Breadth: [value] meters [[N]](url)
-- Depth: [value] meters
-- Draft: [value] meters
+- Length Overall (LOA): 41 meters [[1]](...)
+- Breadth: 7.3 meters [[1]](...)
+- Depth: Not found in sources
+- Draft: 2.1 meters [[2]](...)
 
 **Tonnages:**
-- Gross Tonnage (GT): [value] tons [[N]](url)
-- Net Tonnage (NT): [value] tons
-- Deadweight (DWT): [value] tons [[N]](url)
+- Gross Tonnage (GT): 240 tons [[1]](...)
+- Net Tonnage (NT): 120 tons [[1]](...)
+- Deadweight (DWT): 121 tons [[2]](...)
 
 **Build Information:**
-- Shipyard: [value] [[N]](url)
-- Build Year: [value] [[N]](url)
+- Shipyard: Gulf Craft Shipyard, UAE [[5]](...)
+- Build Year: 2009 [[1]](...)
 
 **Propulsion & Machinery:**
-- Main Engines: [make/model, count, power] [[N]](url)
-- Propellers: [type, count] [[N]](url)
-- Generators: [if available]
+- Main Engines: 2x Caterpillar C32, 1,940 HP total [[6]](...)
+- Propellers: Twin waterjet propulsion [[6]](...)
+- Generators: 2x Cummins 60kW [[6]](...)
 
 **Current Status:**
-- Location: [value with timestamp] [[N]](url)
-- Speed: [value] knots
-- Destination: [value]
+- Location: Persian Gulf, en route to Marjan Oil Field (as of Oct 2024) [[7]](...)
+- Speed: 0.2 knots
+- Destination: Marjan Oil Field
 
-(THEN continue with other sections)
+## EXECUTIVE SUMMARY
+
+[Then continue with analysis...]
+\`\`\`
+
+**YOU MUST FOLLOW THIS EXACT FORMAT. START WITH ## VESSEL PROFILE, NOT ## EXECUTIVE SUMMARY.**
 
 ` : ''}
 **OUTPUT FORMAT:**
