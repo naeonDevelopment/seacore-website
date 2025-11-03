@@ -78,15 +78,22 @@ export function analyzeVessel(
 ): VesselCharacteristics {
   const textLower = contextText.toLowerCase();
   
-  // Determine vessel type
+  // P0 FIX: Improved vessel type detection with prioritization
+  // PRIORITY 1: Check for explicit vessel type mentions first (most specific)
+  // PRIORITY 2: Then check for cargo-related terms (less specific)
   let vesselType = vesselData.type || 'vessel';
   if (!vesselData.type) {
-    if (/container|teu/i.test(contextText)) vesselType = 'container ship';
-    else if (/tanker|crude|oil/i.test(contextText)) vesselType = 'tanker';
-    else if (/bulk carrier|bulk/i.test(contextText)) vesselType = 'bulk carrier';
-    else if (/crew boat|crew transfer|offshore/i.test(contextText)) vesselType = 'crew boat';
-    else if (/supply vessel|psv|ahts/i.test(contextText)) vesselType = 'offshore supply vessel';
-    else if (/patrol|coast guard/i.test(contextText)) vesselType = 'patrol vessel';
+    // PRIORITY 1: Specific vessel types (high confidence patterns)
+    if (/crew\s*boat|crew\s*transfer|crew\s*vessel/i.test(contextText)) vesselType = 'crew boat';
+    else if (/offshore\s*supply|platform\s*supply|psv|ahts/i.test(contextText)) vesselType = 'offshore supply vessel';
+    else if (/patrol\s*vessel|patrol\s*boat|coast\s*guard/i.test(contextText)) vesselType = 'patrol vessel';
+    else if (/research\s*vessel|survey\s*vessel/i.test(contextText)) vesselType = 'research vessel';
+    // PRIORITY 2: Cargo vessel types (check for specific patterns)
+    else if (/container\s*ship|container\s*vessel|\bteu\b/i.test(contextText)) vesselType = 'container ship';
+    else if (/bulk\s*carrier|bulk\s*vessel|capesize|panamax/i.test(contextText)) vesselType = 'bulk carrier';
+    else if (/\btanker\b|crude\s*oil\s*tanker|product\s*tanker|chemical\s*tanker/i.test(contextText)) vesselType = 'tanker';
+    // PRIORITY 3: Generic terms (lowest priority)
+    else if (/\bvessel\b|\bship\b/i.test(contextText)) vesselType = 'vessel';
   }
   
   // Determine size from tonnage, LOA, or capacity

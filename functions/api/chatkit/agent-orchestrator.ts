@@ -143,7 +143,7 @@ async function emitPlanThinkingSteps(
   statusEmitter({ type: 'thinking', step: 'plan_steps', content: payload });
 }
 
-// P0 FIX: Removed GPT-4o-mini to eliminate JSON leak
+// 
 // Direct formatting is faster, cheaper, and GUARANTEED not to leak JSON
 async function emitPlanThinkingStepsLLM(
   plan: { strategy: string; subQueries: Array<{ query: string; purpose?: string; priority?: string }> },
@@ -152,6 +152,90 @@ async function emitPlanThinkingStepsLLM(
 ): Promise<void> {
   // CRITICAL: Always use direct formatting (no LLM = no JSON leak)
   return emitPlanThinkingSteps(plan, statusEmitter);
+}
+
+// Convert structured JSON vessel response to markdown with citations
+function convertVesselJsonToMarkdown(vesselData: any, sources: Source[]): string {
+  let markdown = `## VESSEL PROFILE\n\n`;
+  
+  // Helper: Find best source for a field based on content relevance
+  const findSourceForField = (fieldName: string, value: string): number => {
+    if (value === 'Not found in sources') return 0;
+    
+    // Try to find source containing this value
+    for (let i = 0; i < sources.length; i++) {
+      const content = (sources[i].content || '').toLowerCase();
+      const valueLower = value.toLowerCase();
+      if (content.includes(valueLower)) {
+        return i + 1; // 1-indexed for user display
+      }
+    }
+    
+    // Default to source 1 if no match
+    return sources.length > 0 ? 1 : 0;
+  };
+  
+  // Helper: Add citation if not "Not found"
+  const withCitation = (value: string, sourceNum: number): string => {
+    if (value === 'Not found in sources' || sourceNum === 0) {
+      return value;
+    }
+    return `${value} [[${sourceNum}]](${sources[sourceNum - 1]?.url || '#'})`;
+  };
+  
+  const profile = vesselData.vessel_profile;
+  
+  // Identity & Registration
+  markdown += `**Identity & Registration:**\n`;
+  markdown += `- IMO Number: ${withCitation(profile.identity.imo, findSourceForField('imo', profile.identity.imo))}\n`;
+  markdown += `- MMSI: ${withCitation(profile.identity.mmsi, findSourceForField('mmsi', profile.identity.mmsi))}\n`;
+  markdown += `- Call Sign: ${withCitation(profile.identity.call_sign, findSourceForField('call sign', profile.identity.call_sign))}\n`;
+  markdown += `- Flag State: ${withCitation(profile.identity.flag, findSourceForField('flag', profile.identity.flag))}\n\n`;
+  
+  // Ownership & Management
+  markdown += `**Ownership & Management:**\n`;
+  markdown += `- Owner: ${withCitation(profile.ownership.owner, findSourceForField('owner', profile.ownership.owner))}\n`;
+  markdown += `- Operator/Manager: ${withCitation(profile.ownership.operator, findSourceForField('operator', profile.ownership.operator))}\n\n`;
+  
+  // Principal Dimensions
+  markdown += `**Principal Dimensions:**\n`;
+  markdown += `- Length Overall (LOA): ${withCitation(profile.dimensions.loa, findSourceForField('loa', profile.dimensions.loa))}\n`;
+  markdown += `- Breadth: ${withCitation(profile.dimensions.breadth, findSourceForField('breadth', profile.dimensions.breadth))}\n`;
+  markdown += `- Draft: ${withCitation(profile.dimensions.draft, findSourceForField('draft', profile.dimensions.draft))}\n\n`;
+  
+  // Tonnages
+  markdown += `**Tonnages:**\n`;
+  markdown += `- Gross Tonnage (GT): ${withCitation(profile.tonnages.gross_tonnage, findSourceForField('gross tonnage', profile.tonnages.gross_tonnage))}\n`;
+  markdown += `- Deadweight (DWT): ${withCitation(profile.tonnages.deadweight, findSourceForField('deadweight', profile.tonnages.deadweight))}\n\n`;
+  
+  // Build Information
+  markdown += `**Build Information:**\n`;
+  markdown += `- Shipyard: ${withCitation(profile.build_info.shipyard, findSourceForField('shipyard', profile.build_info.shipyard))}\n`;
+  markdown += `- Build Year: ${withCitation(profile.build_info.build_year, findSourceForField('build year', profile.build_info.build_year))}\n\n`;
+  
+  // Propulsion & Machinery
+  markdown += `**Propulsion & Machinery:**\n`;
+  markdown += `- Main Engines: ${withCitation(profile.propulsion.main_engines, findSourceForField('engine', profile.propulsion.main_engines))}\n`;
+  markdown += `- Propellers/Propulsion: ${withCitation(profile.propulsion.propellers, findSourceForField('propeller', profile.propulsion.propellers))}\n\n`;
+  
+  // Current Status
+  markdown += `**Current Status:**\n`;
+  markdown += `- Location: ${withCitation(profile.current_status.location, findSourceForField('location', profile.current_status.location))}\n`;
+  markdown += `- Destination: ${withCitation(profile.current_status.destination, findSourceForField('destination', profile.current_status.destination))}\n\n`;
+  
+  // Executive Summary
+  markdown += `## EXECUTIVE SUMMARY\n\n`;
+  markdown += `${vesselData.executive_summary}\n\n`;
+  
+  // Technical Analysis
+  markdown += `## TECHNICAL ANALYSIS\n\n`;
+  markdown += `${vesselData.technical_analysis}\n\n`;
+  
+  // Maritime Context
+  markdown += `## MARITIME CONTEXT\n\n`;
+  markdown += `${vesselData.maritime_context}\n`;
+  
+  return markdown;
 }
 
 // ===== Vessel Reflexion Utilities =====
@@ -1411,20 +1495,151 @@ ${state.sources.map((s: any, i: number) =>
       });
     }
     
+    // P1 FIX: Use Structured Output API for vessel queries to guarantee format compliance
+    // For vessel queries, use JSON schema to ensure VESSEL PROFILE section is always first
+    const USE_STRUCTURED_OUTPUT = isVesselQuery; // Enable for vessel queries only
+    
     // CRITICAL: Use stream() and pass config for LangGraph callback system
     // Add timeout protection to prevent infinite hangs
     const LLM_TIMEOUT_MS = 45000; // 45 seconds max for LLM response
     const TARGET_LENGTH = state.requiresTechnicalDepth ? 4000 : 2000; // chars
     
-    const streamPromise = (async () => {
-      const stream = await llm.stream([systemMessage, ...state.messages], config);
-      let fullContent = '';
-      let chunkCount = 0;
-      console.log(`   📡 Starting LLM stream (mode: verification)`);
+    let fullContent = '';
+    
+    if (USE_STRUCTURED_OUTPUT && isVesselQuery) {
+      // P1 FIX: Use Structured Output API for guaranteed vessel profile structure
+      console.log(`   🎯 Using Structured Output API for vessel query`);
       
-      for await (const chunk of stream) {
-        fullContent += chunk.content;
-        chunkCount++;
+      const structuredLlm = new ChatOpenAI({
+        modelName: "gpt-4o",
+        temperature: 0,
+        topP: 1.0,
+        openAIApiKey: env.OPENAI_API_KEY,
+        streaming: false, // Structured output doesn't support streaming
+      });
+      
+      const vesselSchema = {
+        type: "json_schema" as const,
+        json_schema: {
+          name: "vessel_response",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              vessel_profile: {
+                type: "object",
+                properties: {
+                  identity: {
+                    type: "object",
+                    properties: {
+                      imo: { type: "string", description: "IMO number or 'Not found in sources'" },
+                      mmsi: { type: "string", description: "MMSI or 'Not found in sources'" },
+                      call_sign: { type: "string", description: "Call sign or 'Not found in sources'" },
+                      flag: { type: "string", description: "Flag state or 'Not found in sources'" }
+                    },
+                    required: ["imo", "mmsi", "call_sign", "flag"],
+                    additionalProperties: false
+                  },
+                  ownership: {
+                    type: "object",
+                    properties: {
+                      owner: { type: "string", description: "Owner company or 'Not found in sources'" },
+                      operator: { type: "string", description: "Operator/manager or 'Not found in sources'" }
+                    },
+                    required: ["owner", "operator"],
+                    additionalProperties: false
+                  },
+                  dimensions: {
+                    type: "object",
+                    properties: {
+                      loa: { type: "string", description: "Length overall or 'Not found in sources'" },
+                      breadth: { type: "string", description: "Breadth or 'Not found in sources'" },
+                      draft: { type: "string", description: "Draft or 'Not found in sources'" }
+                    },
+                    required: ["loa", "breadth", "draft"],
+                    additionalProperties: false
+                  },
+                  tonnages: {
+                    type: "object",
+                    properties: {
+                      gross_tonnage: { type: "string", description: "Gross tonnage or 'Not found in sources'" },
+                      deadweight: { type: "string", description: "Deadweight or 'Not found in sources'" }
+                    },
+                    required: ["gross_tonnage", "deadweight"],
+                    additionalProperties: false
+                  },
+                  build_info: {
+                    type: "object",
+                    properties: {
+                      shipyard: { type: "string", description: "Shipyard name and location or 'Not found in sources'" },
+                      build_year: { type: "string", description: "Build year or 'Not found in sources'" }
+                    },
+                    required: ["shipyard", "build_year"],
+                    additionalProperties: false
+                  },
+                  propulsion: {
+                    type: "object",
+                    properties: {
+                      main_engines: { type: "string", description: "Main engines make/model/power or 'Not found in sources'" },
+                      propellers: { type: "string", description: "Propellers/propulsion type or 'Not found in sources'" }
+                    },
+                    required: ["main_engines", "propellers"],
+                    additionalProperties: false
+                  },
+                  current_status: {
+                    type: "object",
+                    properties: {
+                      location: { type: "string", description: "Current location from AIS or 'Not found in sources'" },
+                      destination: { type: "string", description: "Destination or 'Not found in sources'" }
+                    },
+                    required: ["location", "destination"],
+                    additionalProperties: false
+                  }
+                },
+                required: ["identity", "ownership", "dimensions", "tonnages", "build_info", "propulsion", "current_status"],
+                additionalProperties: false
+              },
+              executive_summary: { 
+                type: "string",
+                description: "2-3 paragraph executive summary of the vessel"
+              },
+              technical_analysis: { 
+                type: "string",
+                description: "Technical analysis of vessel specifications and capabilities"
+              },
+              maritime_context: { 
+                type: "string",
+                description: "Maritime context and operational significance"
+              }
+            },
+            required: ["vessel_profile", "executive_summary", "technical_analysis", "maritime_context"],
+            additionalProperties: false
+          }
+        }
+      };
+      
+      const response = await structuredLlm.invoke([systemMessage, ...state.messages], {
+        response_format: vesselSchema
+      });
+      
+      // Parse JSON response
+      const jsonContent = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+      const vesselData = JSON.parse(jsonContent);
+      
+      // Convert JSON to markdown with citations
+      fullContent = convertVesselJsonToMarkdown(vesselData, state.sources);
+      console.log(`   ✅ Structured output generated: ${fullContent.length} chars`);
+      
+    } else {
+      // Standard streaming for non-vessel queries
+      const streamPromise = (async () => {
+        const stream = await llm.stream([systemMessage, ...state.messages], config);
+        let chunkCount = 0;
+        console.log(`   📡 Starting LLM stream (mode: verification)`);
+        
+        for await (const chunk of stream) {
+          fullContent += chunk.content;
+          chunkCount++;
         
         // NOTE: Do NOT proxy tokens here - LangGraph's stream handler already sends AIMessageChunk
         // Proxying here causes double emission (each token sent twice)
@@ -1449,32 +1664,32 @@ ${state.sources.map((s: any, i: number) =>
         }
       }
       
-      console.log(`   ✅ Stream complete: ${chunkCount} chunks, ${fullContent.length} chars`);
-      return { fullContent, chunkCount };
-    })();
-    
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('LLM_STREAM_TIMEOUT')), LLM_TIMEOUT_MS)
-    );
-    
-    let fullContent: string;
-    let chunkCount: number;
-    try {
-      const result = await Promise.race([streamPromise, timeoutPromise]);
-      fullContent = result.fullContent;
-      chunkCount = result.chunkCount;
-    } catch (error: any) {
-      if (error.message === 'LLM_STREAM_TIMEOUT') {
-        console.error(`   ❌ LLM stream timeout after ${LLM_TIMEOUT_MS}ms`);
-        fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again, or enable the "Online Research" toggle for comprehensive analysis.`;
-        chunkCount = 0;
-      } else {
-        console.error(`   ❌ LLM stream error:`, error);
-        throw error;
+        console.log(`   ✅ Stream complete: ${chunkCount} chunks, ${fullContent.length} chars`);
+        return { fullContent, chunkCount };
+      })();
+      
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('LLM_STREAM_TIMEOUT')), LLM_TIMEOUT_MS)
+      );
+      
+      let chunkCount: number;
+      try {
+        const result = await Promise.race([streamPromise, timeoutPromise]);
+        fullContent = result.fullContent;
+        chunkCount = result.chunkCount;
+      } catch (error: any) {
+        if (error.message === 'LLM_STREAM_TIMEOUT') {
+          console.error(`   ❌ LLM stream timeout after ${LLM_TIMEOUT_MS}ms`);
+          fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again, or enable the "Online Research" toggle for comprehensive analysis.`;
+          chunkCount = 0;
+        } else {
+          console.error(`   ❌ LLM stream error:`, error);
+          throw error;
+        }
       }
+      
+      console.log(`   ✅ Synthesized (${fullContent.length} chars, ${chunkCount} chunks)`);
     }
-    
-    console.log(`   ✅ Synthesized (${fullContent.length} chars, ${chunkCount} chunks)`);
     
     // Strip any leaked JSON/planner blocks before enforcement
     const stripLeadingJson = (text: string): string => {
@@ -1568,18 +1783,25 @@ ${state.sources.map((s: any, i: number) =>
       statusEmitter
     );
     
+    // P0 FIX: Fleetcore mapping disabled per user request
+    // User feedback: "remove this section from the answers"
     // ENHANCEMENT: Generate individualized fleetcore mapping for entities
     // This is the KEY ADDITION - automatically append entity-specific fleetcore applications
-    const fleetcoreMapping = await generateEntityFleetcoreMapping(
-      userQuery,
-      fullContent,
-      sessionMemory,
-      statusEmitter
-    );
+    const ENABLE_FLEETCORE_MAPPING = false; // TODO: Make this a user preference
+    
+    let fleetcoreMapping: FleetcoreApplicationMapping | null = null;
+    if (ENABLE_FLEETCORE_MAPPING) {
+      fleetcoreMapping = await generateEntityFleetcoreMapping(
+        userQuery,
+        fullContent,
+        sessionMemory,
+        statusEmitter
+      );
+    }
     
     // If we generated a mapping, append it to the response
     let finalContent = fullContent;
-    if (fleetcoreMapping) {
+    if (ENABLE_FLEETCORE_MAPPING && fleetcoreMapping) {
       const mappingMarkdown = formatMappingAsMarkdown(fleetcoreMapping);
       finalContent = fullContent + mappingMarkdown;
       console.log(`   ✨ Added fleetcore mapping for ${fleetcoreMapping.entityName} (${fleetcoreMapping.features.length} features)`);
@@ -2209,6 +2431,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         // Defensive buffer for planner JSON that may arrive across multiple chunks
         let suppressPlannerJson = false;
         let plannerJsonBuffer = "";
+        // P0 FIX: Track source index for proper numbering in frontend
+        let sourceIndex = 0;
         
         console.log(`📡 Agent stream created - entering event loop`);
         
@@ -2332,10 +2556,12 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     !url.match(/\/vessels\/details\/\d{1,6}$/); // no incomplete vessel IDs
                   
                   if (isValid) {
+                    sourceIndex++; // P0 FIX: Increment source counter
                     controller.enqueue(encoder.encode(
                       `data: ${JSON.stringify({ 
                         type: 'source',
                         action: 'selected',
+                        index: sourceIndex, // P0 FIX: Include index for frontend display
                         title: source.title,
                         url: source.url,
                         content: source.content?.substring(0, 300) || '',
@@ -2381,10 +2607,12 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     !url.match(/\/vessels\/details\/\d{1,6}$/);
                   
                   if (isValid) {
+                    sourceIndex++; // P0 FIX: Increment source counter
                     controller.enqueue(encoder.encode(
                       `data: ${JSON.stringify({ 
                         type: 'source',
                         action: 'selected',
+                        index: sourceIndex, // P0 FIX: Include index for frontend display
                         title: source.title,
                         url: source.url,
                         content: source.content?.substring(0, 300) || '',

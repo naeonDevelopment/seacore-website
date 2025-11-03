@@ -1678,6 +1678,42 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
+                              // P1 FIX: Custom citation link renderer for [[N]](url) format
+                              a: ({ node, href, children, ...props }) => {
+                                // Detect citation format: [[1]], [1], or just a number in brackets
+                                const childText = String(children || '');
+                                const isCitation = /^\[?\d+\]?$/.test(childText.trim());
+                                
+                                if (isCitation && href) {
+                                  // Extract citation number
+                                  const num = childText.replace(/\[|\]/g, '');
+                                  return (
+                                    <a 
+                                      href={href} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="citation-link inline-flex items-baseline text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 no-underline hover:underline font-semibold transition-colors duration-200 text-sm"
+                                      title={href}
+                                      {...props}
+                                    >
+                                      [{num}]
+                                    </a>
+                                  );
+                                }
+                                
+                                // Regular link - open in new tab
+                                return (
+                                  <a 
+                                    href={href} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 underline font-semibold"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </a>
+                                );
+                              },
                               p: ({ node, children, ...props }) => {
                                 const content = String(children);
                                 if (content.trim().match(/^\*\*Sources:\*\*$/i) || content.trim().match(/^Sources:$/i)) {
