@@ -738,10 +738,11 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                 if (parsed?.type === 'step' || parsed?.type === 'tool' || parsed?.type === 'source') {
                   // Log source events (grouped)
                   if (parsed?.type === 'source') {
-                    // Only log first and last few sources to avoid spam
+                    // P0 FIX: Use index from backend instead of local counter
+                    const sourceIndex = parsed.index || 0;
                     const sourceCount = (researchSessions.get(activeResearchIdRef.current!)?.events.filter(e => e.type === 'source').length || 0);
                     if (sourceCount <= 2 || sourceCount % 5 === 0) {
-                      console.log(`🔍 [Source ${sourceCount}]`, parsed.action, parsed.url?.substring(0, 50));
+                      console.log(`🔍 [Source ${sourceIndex}]`, parsed.action, parsed.url?.substring(0, 50));
                     }
                     
                     // Once sources appear in research panel, hide loading indicator
