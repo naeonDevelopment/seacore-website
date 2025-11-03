@@ -2346,8 +2346,13 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
       const sanitizeThinking = (text: string): string => {
         if (!text) return text;
         let out = String(text);
-        // Remove planner JSON blocks if present
+        // CRITICAL: Remove ALL three types of JSON that can leak
+        // 1. Planner object JSON
         out = out.replace(/\{[\s\S]*?"strategy"[\s\S]*?"subQueries"[\s\S]*?\}\s*/g, '').trim();
+        // 2. Structured output JSON
+        out = out.replace(/\{[\s\S]*?"vessel_profile"[\s\S]*?\}\s*/g, '').trim();
+        // 3. Reflexion array JSON (NEW FIX)
+        out = out.replace(/\[[\s\S]*?\{\s*"query"[\s\S]*?"purpose"[\s\S]*?\}\s*\]\s*/g, '').trim();
         // Collapse excessive whitespace
         out = out.replace(/[\t\r]+/g, ' ').replace(/\s{2,}/g, ' ');
         // Add space after numbered steps like `1.` if missing

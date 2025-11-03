@@ -1681,21 +1681,40 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                             components={{
                               // P1 FIX: Custom citation link renderer for [[N]](url) format
                               a: ({ node, href, children, ...props }) => {
-                                // Convert children to string - handle arrays and React nodes
+                                // CRITICAL: ReactMarkdown passes children in various formats
+                                // Debug: console.log('[Citation Debug]', { children, type: typeof children, isArray: Array.isArray(children) });
+                                
                                 let childText = '';
                                 if (Array.isArray(children)) {
-                                  childText = children.map(c => String(c)).join('');
+                                  // Handle array of children
+                                  childText = children.map(c => {
+                                    if (typeof c === 'string') return c;
+                                    if (typeof c === 'number') return String(c);
+                                    if (c && typeof c === 'object' && 'props' in c) {
+                                      // React element - extract text from props.children
+                                      return String(c.props?.children || '');
+                                    }
+                                    return String(c);
+                                  }).join('');
+                                } else if (typeof children === 'string') {
+                                  childText = children;
+                                } else if (typeof children === 'number') {
+                                  childText = String(children);
+                                } else if (children && typeof children === 'object' && 'props' in children) {
+                                  // Single React element
+                                  childText = String((children as any).props?.children || '');
                                 } else {
                                   childText = String(children || '');
                                 }
                                 
-                                // Detect citation format: [1], [12], etc.
-                                // Markdown [[1]](url) renders as link with text "[1]"
                                 const trimmed = childText.trim();
-                                const isCitation = /^\[\d+\]$/.test(trimmed);
+                                
+                                // Detect citation format: [1], [12], [[1]] etc.
+                                // Match [N] where N is 1-3 digits
+                                const isCitation = /^\[+\d{1,3}\]+$/.test(trimmed);
                                 
                                 if (isCitation && href) {
-                                  // Extract citation number (strip brackets)
+                                  // Extract just the number
                                   const num = trimmed.replace(/\[|\]/g, '');
                                   return (
                                     <a 
