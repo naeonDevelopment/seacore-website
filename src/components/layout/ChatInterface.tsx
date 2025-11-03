@@ -1680,13 +1680,22 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                             components={{
                               // P1 FIX: Custom citation link renderer for [[N]](url) format
                               a: ({ node, href, children, ...props }) => {
-                                // Detect citation format: [[1]], [1], or just a number in brackets
-                                const childText = String(children || '');
-                                const isCitation = /^\[?\d+\]?$/.test(childText.trim());
+                                // Convert children to string - handle arrays and React nodes
+                                let childText = '';
+                                if (Array.isArray(children)) {
+                                  childText = children.map(c => String(c)).join('');
+                                } else {
+                                  childText = String(children || '');
+                                }
+                                
+                                // Detect citation format: [1], [12], etc.
+                                // Markdown [[1]](url) renders as link with text "[1]"
+                                const trimmed = childText.trim();
+                                const isCitation = /^\[\d+\]$/.test(trimmed);
                                 
                                 if (isCitation && href) {
-                                  // Extract citation number
-                                  const num = childText.replace(/\[|\]/g, '');
+                                  // Extract citation number (strip brackets)
+                                  const num = trimmed.replace(/\[|\]/g, '');
                                   return (
                                     <a 
                                       href={href} 
