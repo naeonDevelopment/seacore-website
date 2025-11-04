@@ -92,11 +92,19 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       // ensure outgoing keeps playing until fade completes
       const outgoingVideo = activeVideo
       if (inactiveVideoRef.current) {
-        // Avoid restarting if it already began
+        // Critical: Only play if video is actually paused AND not already playing
         const v = inactiveVideoRef.current
-        if (v.paused) {
-          if (v.currentTime < 0.05) v.currentTime = 0
-          v.play().catch(() => {})
+        // Check both paused state and currentTime to avoid double playback
+        if (v.paused && v.currentTime < 0.1) {
+          v.currentTime = 0
+          try {
+            await v.play()
+            console.log(`✅ Started crossfade playback for video ${nextIndex}`)
+          } catch (error) {
+            console.error(`❌ Crossfade play error:`, error)
+          }
+        } else if (!v.paused) {
+          console.log(`⚠️ Video ${nextIndex} already playing, skipping duplicate play()`)
         }
       }
 
@@ -105,7 +113,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       setTimeout(() => setFlashVisible(false), 250)
 
       // Ensure incoming becomes visible only after first frame rendered
-      if (inactiveVideoRef.current) {
+      if (inactiveVideoRef.current && inactiveVideoRef.current.paused === false) {
         await awaitFirstFrame(inactiveVideoRef.current)
       }
 
@@ -121,7 +129,10 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
 
       // After fade completes, pause outgoing to avoid double playback
       setTimeout(() => {
-        if (outgoingVideo && !outgoingVideo.paused) outgoingVideo.pause()
+        if (outgoingVideo && !outgoingVideo.paused) {
+          outgoingVideo.pause()
+          console.log(`⏸️ Paused outgoing video after crossfade`)
+        }
         // Now that fade is done, advance the logical index
         setCurrentVideoIndex(nextIndex)
         // Hide the outgoing player completely to prevent any visibility
@@ -137,7 +148,11 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     }
 
     const ensureReadyThenStart = () => {
-      if (!inactiveVideoRef.current) { isTransitioningRef.current = false; return }
+      if (!inactiveVideoRef.current) { 
+        isTransitioningRef.current = false
+        scheduledOverlapRef.current = false
+        return 
+      }
       if (inactiveVideoRef.current.readyState >= 3) {
         startCrossfade()
       } else {
@@ -160,6 +175,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       ensureReadyThenStart()
     } else {
       isTransitioningRef.current = false
+      scheduledOverlapRef.current = false
     }
   }
 
@@ -265,18 +281,22 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return () => clearInterval(interval)
   }, [currentVideoIndex, activePlayer, videoSources])
 
-  // Intersection Observer
+  // Intersection Observer - pause when out of view, resume when in view
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) {
+            // Pause all videos when out of view
             videoARef.current?.pause()
             videoBRef.current?.pause()
           } else {
+            // Resume only if not transitioning and video is actually paused
             const activeVideo = getActiveVideo()
-            if (activeVideo?.paused && !isTransitioningRef.current) {
-              activeVideo.play().catch(() => {})
+            if (activeVideo?.paused && !isTransitioningRef.current && !scheduledOverlapRef.current) {
+              activeVideo.play().catch((error) => {
+                console.error('❌ IntersectionObserver play error:', error)
+              })
             }
           }
         })
@@ -291,7 +311,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return () => observer.disconnect()
   }, [activePlayer])
 
-  // Initialize first video only
+  // Initialize first video only - single play attempt
   useEffect(() => {
     if (!videoARef.current) return
     
@@ -301,29 +321,27 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     videoA.preload = 'auto'
     videoA.load()
     
+    let hasPlayed = false
     const playVideo = () => {
-      videoA.play().catch(() => {})
+      if (hasPlayed) return // Prevent duplicate play attempts
+      hasPlayed = true
+      videoA.play().catch((error) => {
+        console.error('❌ Initial video play error:', error)
+        hasPlayed = false // Reset on error to allow retry
+      })
     }
     
+    // Only use canplaythrough for more reliable playback
     videoA.addEventListener('canplaythrough', playVideo, { once: true })
-    videoA.addEventListener('canplay', playVideo, { once: true })
+    
+    return () => {
+      videoA.removeEventListener('canplaythrough', playVideo)
+    }
   }, [videoSources])
 
   // Ensure only active video plays, pause inactive
-  useEffect(() => {
-    const activeVideo = getActiveVideo()
-    const inactiveVideo = getInactiveVideo()
-    
-    // Pause inactive video
-    if (inactiveVideo.current && !inactiveVideo.current.paused) {
-      inactiveVideo.current.pause()
-    }
-    
-    // Ensure active video plays
-    if (activeVideo && activeVideo.paused && !isTransitioningRef.current) {
-      activeVideo.play().catch(() => {})
-    }
-  }, [activePlayer])
+  // REMOVED: This useEffect was causing double playback by competing with handleTimeUpdate
+  // The crossfade logic in handleTimeUpdate already handles play/pause correctly
 
   // Preload next video after transition
   useEffect(() => {
