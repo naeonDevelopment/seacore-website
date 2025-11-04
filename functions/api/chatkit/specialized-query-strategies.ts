@@ -40,6 +40,10 @@ export function generateSpecializedStrategy(
       return generateRegulationStrategy(query, entities);
     case 'pms':
       return generatePMSStrategy(query, entities);
+    case 'service':
+      return generateServiceStrategy(query, entities);
+    case 'event':
+      return generateEventStrategy(query, entities);
     default:
       return generateGeneralStrategy(query);
   }
@@ -347,6 +351,117 @@ function generatePMSStrategy(query: string, entities: string[]): SpecializedStra
       }
     ],
     totalQueries: 13
+  };
+}
+
+/**
+ * SERVICE-SPECIFIC STRATEGY
+ * Tier 1: OEM service manuals and procedures
+ * Tier 2: Step-by-step guides
+ * Tier 3: Required materials and tools
+ * Tier 4: Best practices from technicians
+ */
+function generateServiceStrategy(query: string, entities: string[]): SpecializedStrategy {
+  const serviceTopic = entities.join(' ') || query;
+  
+  return {
+    entityType: 'service',
+    tiers: [
+      {
+        name: 'OEM Service Manuals',
+        priority: 'critical',
+        queries: [
+          `${serviceTopic} service procedure manual PDF`,
+          `${serviceTopic} step by step procedure`,
+          `${serviceTopic} official service manual`,
+        ],
+        purpose: 'Get official service procedures'
+      },
+      {
+        name: 'Required Materials',
+        priority: 'high',
+        queries: [
+          `${serviceTopic} required materials consumables`,
+          `${serviceTopic} parts list tools needed`,
+        ],
+        purpose: 'Get materials and tools requirements'
+      },
+      {
+        name: 'Safety & Compliance',
+        priority: 'high',
+        queries: [
+          `${serviceTopic} safety requirements PPE`,
+          `${serviceTopic} environmental compliance waste disposal`,
+        ],
+        purpose: 'Get safety and environmental requirements'
+      },
+      {
+        name: 'Best Practices',
+        priority: 'medium',
+        queries: [
+          `${serviceTopic} best practices tips forum`,
+          `${serviceTopic} common problems troubleshooting`,
+        ],
+        purpose: 'Get practical advice from technicians'
+      }
+    ],
+    totalQueries: 9
+  };
+}
+
+/**
+ * EVENT-SPECIFIC STRATEGY
+ * Tier 1: Incident databases and safety bulletins
+ * Tier 2: Root cause analysis
+ * Tier 3: Corrective actions
+ * Tier 4: Lessons learned
+ */
+function generateEventStrategy(query: string, entities: string[]): SpecializedStrategy {
+  const eventTopic = entities.join(' ') || query;
+  
+  return {
+    entityType: 'event',
+    tiers: [
+      {
+        name: 'Incident Databases',
+        priority: 'critical',
+        queries: [
+          `${eventTopic} incident report database`,
+          `${eventTopic} safety bulletin warning`,
+          `${eventTopic} accident investigation report`,
+        ],
+        purpose: 'Get incident data and safety bulletins'
+      },
+      {
+        name: 'Root Cause Analysis',
+        priority: 'high',
+        queries: [
+          `${eventTopic} root cause analysis`,
+          `${eventTopic} failure analysis investigation`,
+          `${eventTopic} contributing factors`,
+        ],
+        purpose: 'Get root cause information'
+      },
+      {
+        name: 'Corrective Actions',
+        priority: 'high',
+        queries: [
+          `${eventTopic} corrective action preventive measures`,
+          `${eventTopic} repair procedure fix`,
+        ],
+        purpose: 'Get corrective and preventive actions'
+      },
+      {
+        name: 'Lessons Learned',
+        priority: 'medium',
+        queries: [
+          `${eventTopic} lessons learned best practices`,
+          `${eventTopic} similar incidents prevention`,
+        ],
+        purpose: 'Get lessons learned from similar incidents'
+      }
+    ],
+    totalQueries: 10
   };
 }
 

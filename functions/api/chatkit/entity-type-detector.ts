@@ -10,7 +10,7 @@
  * - GENERAL: General maritime topics
  */
 
-export type EntityType = 'vessel' | 'equipment' | 'part' | 'regulation' | 'pms' | 'general';
+export type EntityType = 'vessel' | 'equipment' | 'part' | 'regulation' | 'pms' | 'service' | 'event' | 'general';
 
 export interface EntityDetectionResult {
   type: EntityType;
@@ -58,12 +58,51 @@ const PART_KEYWORDS = [
   'thermostat', 'sensor', 'switch', 'relay', 'breaker'
 ];
 
-// Vessel type indicators
+// Vessel type indicators (matches vessel_types table: 29 types)
 const VESSEL_INDICATORS = [
-  'vessel', 'ship', 'boat', 'craft', 'carrier', 'tanker', 'bulk carrier',
-  'container ship', 'psv', 'ahts', 'supply vessel', 'crew boat',
-  'platform supply', 'anchor handling', 'tug', 'offshore', 'cargo ship',
-  'ferry', 'yacht', 'patrol boat', 'rov support', 'research vessel'
+  'vessel', 'ship', 'boat', 'craft', 'carrier',
+  // Cargo vessels
+  'tanker', 'bulk carrier', 'container ship', 'cargo ship', 'general cargo',
+  'ro-ro', 'reefer', 'lng carrier', 'lpg carrier',
+  // Offshore vessels
+  'psv', 'ahts', 'supply vessel', 'crew boat', 'platform supply vessel',
+  'anchor handling tug supply', 'offshore supply', 'rov support',
+  'dive support vessel', 'construction vessel', 'cable layer',
+  // Special purpose
+  'tug', 'tugboat', 'research vessel', 'survey vessel', 'patrol boat',
+  'fishing vessel', 'trawler', 'dredger', 'icebreaker',
+  // Passenger
+  'ferry', 'cruise ship', 'passenger ship', 'yacht', 'mega yacht'
+];
+
+// Vessel system categories (matches vessel_systems table: 13 categories)
+const VESSEL_SYSTEM_CATEGORIES = [
+  'propulsion',
+  'auxiliary_machinery',
+  'electrical_systems',
+  'safety_systems',
+  'navigation_systems',
+  'communication_systems',
+  'cargo_handling',
+  'accommodation_systems',
+  'environmental_systems',
+  'hull_systems',
+  'other'
+];
+
+// Equipment operational status (matches vessel_equipment_installations.operational_status)
+const EQUIPMENT_STATUS_VALUES = [
+  'operational', 'standby', 'maintenance', 'repair', 'testing',
+  'out_of_service', 'awaiting_parts', 'condemned', 'decommissioned',
+  'satisfactory', 'new_overhaul', 'removed', 'defective'
+];
+
+// Equipment position (matches vessel_equipment_installations.equipment_position enum)
+const EQUIPMENT_POSITIONS = [
+  'PORT', 'STBD', 'CENTER', 'AFT', 'FWD', 'UPPER', 'LOWER',
+  'BOW', 'STERN', 'MIDSHIPS', 'OVERHEAD', 'DECK', 'BULKHEAD',
+  'ENGINE_ROOM', 'BRIDGE', 'CARGO_HOLD', 'FORECASTLE', 'POOP_DECK',
+  'WING_TANK', 'DOUBLE_BOTTOM', 'VOID_SPACE'
 ];
 
 // Regulation/Compliance keywords
@@ -77,11 +116,26 @@ const REGULATION_KEYWORDS = [
 
 // PMS/Maintenance keywords
 const PMS_KEYWORDS = [
-  'maintenance', 'service', 'pms', 'planned maintenance',
-  'overhaul', 'inspection', 'lubrication', 'oil change',
+  'maintenance', 'pms', 'planned maintenance',
+  'overhaul', 'inspection',
   'interval', 'schedule', 'procedure', 'checklist',
   'running hours', 'operating hours', 'maintenance schedule',
   'preventive maintenance', 'corrective maintenance'
+];
+
+// Service/Task keywords (standardized service types)
+const SERVICE_KEYWORDS = [
+  'oil change', 'filter replacement', 'lubrication', 'cleaning',
+  'calibration', 'descaling', 'fluid replacement', 'system flush',
+  'service task', 'routine service', 'filter change', 'oil service'
+];
+
+// Event/Incident keywords
+const EVENT_KEYWORDS = [
+  'breakdown', 'malfunction', 'defect', 'damage', 'failure',
+  'collision', 'grounding', 'fire', 'flooding', 'pollution',
+  'injury', 'near miss', 'incident', 'accident', 'hazardous occurrence',
+  'equipment failure', 'system failure', 'emergency'
 ];
 
 /**
@@ -97,6 +151,8 @@ export function detectEntityType(query: string): EntityDetectionResult {
     part: 0,
     regulation: 0,
     pms: 0,
+    service: 0,
+    event: 0,
     general: 0
   };
   
@@ -199,6 +255,38 @@ export function detectEntityType(query: string): EntityDetectionResult {
   }
   
   // ==================
+  // 6. SERVICE DETECTION
+  // ==================
+  
+  SERVICE_KEYWORDS.forEach(keyword => {
+    if (lowerQuery.includes(keyword)) {
+      scores.service += 35;
+      entities.push(keyword);
+    }
+  });
+  
+  // Specific service task patterns
+  if (/\b(how to|perform|do)\s+(oil change|filter replacement|lubrication)/i.test(lowerQuery)) {
+    scores.service += 30;
+  }
+  
+  // ==================
+  // 7. EVENT DETECTION
+  // ==================
+  
+  EVENT_KEYWORDS.forEach(keyword => {
+    if (lowerQuery.includes(keyword)) {
+      scores.event += 30;
+      entities.push(keyword);
+    }
+  });
+  
+  // Event reporting patterns
+  if (/\b(report|log|record)\s+(breakdown|incident|failure|accident)/i.test(lowerQuery)) {
+    scores.event += 35;
+  }
+  
+  // ==================
   // DETERMINE TYPE
   // ==================
   
@@ -238,6 +326,10 @@ function generateContext(type: EntityType, entities: string[]): string {
       return `Regulatory/compliance query detected. Focus on classification society rules, SOLAS/MARPOL requirements, flag state regulations, and certification standards. Entities: ${entityList}`;
     case 'pms':
       return `Maintenance/PMS query detected. Target maintenance manuals, service bulletins, OEM recommendations, and planned maintenance systems. Entities: ${entityList}`;
+    case 'service':
+      return `Service task query detected. Target standardized service procedures (oil change, filter replacement, lubrication, cleaning, calibration). Focus on step-by-step procedures and required materials. Entities: ${entityList}`;
+    case 'event':
+      return `Event/incident query detected. Focus on incident reporting, breakdown analysis, failure investigation, and corrective actions. Target safety bulletins and incident databases. Entities: ${entityList}`;
     default:
       return `General maritime query. Use broad maritime intelligence sources.`;
   }
@@ -255,10 +347,24 @@ function getSearchStrategy(type: EntityType): string {
       return 'regulatory-authority';
     case 'pms':
       return 'maintenance-manual';
+    case 'service':
+      return 'service-procedure';
+    case 'event':
+      return 'incident-investigation';
     default:
       return 'general-maritime';
   }
 }
+
+/**
+ * Get specialized source hints for entity type
+ */
+/**
+ * Export database-aligned constants for use in extraction schemas
+ */
+export const DB_VESSEL_SYSTEM_CATEGORIES = VESSEL_SYSTEM_CATEGORIES;
+export const DB_EQUIPMENT_STATUS_VALUES = EQUIPMENT_STATUS_VALUES;
+export const DB_EQUIPMENT_POSITIONS = EQUIPMENT_POSITIONS;
 
 /**
  * Get specialized source hints for entity type
@@ -307,6 +413,20 @@ export function getSourceHints(type: EntityType): string[] {
         'service bulletins',
         'oem documentation',
         'technical circulars'
+      ];
+    case 'service':
+      return [
+        'service procedures',
+        'oem service manuals',
+        'step-by-step guides',
+        'maintenance handbooks'
+      ];
+    case 'event':
+      return [
+        'incident databases',
+        'safety bulletins',
+        'failure analysis reports',
+        'maritime accident investigation'
       ];
     default:
       return [];

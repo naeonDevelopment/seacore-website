@@ -16,10 +16,34 @@ export const EQUIPMENT_EXTRACTION_TEMPLATE = `
 - Equipment Code: [standardized code if available]
 - Equipment Name: [official equipment name] [[N]](url)
 - Manufacturer: [manufacturer name] [[N]](url)
+- Manufacturer ID: [UUID reference if available]
 - Model: [exact model number/designation] [[N]](url)
 - Model Year: [year of model introduction if available]
 - Equipment Type: [engine, generator, pump, compressor, etc.] [[N]](url)
-- System Category: [propulsion, auxiliary_machinery, electrical_systems, etc.]
+- System Category: [propulsion, auxiliary_machinery, electrical_systems, safety_systems, navigation_systems, communication_systems, cargo_handling, accommodation_systems, environmental_systems, hull_systems, other] [[N]](url)
+
+**Installation Details (for vessel_equipment_installations):**
+- Equipment Tag: [unique vessel-specific identifier]
+- Installation Name: [descriptive name for this installation]
+- Installation Date: [YYYY-MM-DD] [[N]](url)
+- Commissioning Date: [YYYY-MM-DD] [[N]](url)
+- Installation Location: [general location description]
+- Deck Level: [deck name/number]
+- Compartment: [compartment name]
+- Exact Location: [detailed location description]
+- Equipment Position: [PORT, STBD, CENTER, AFT, FWD, UPPER, LOWER, BOW, STERN, MIDSHIPS, OVERHEAD, DECK, BULKHEAD, ENGINE_ROOM, BRIDGE, CARGO_HOLD, etc.] [[N]](url)
+- Secondary Position: [if combined position like PORT+UPPER]
+- Serial Number: [manufacturer serial number] [[N]](url)
+- Manufacturing Date: [YYYY-MM-DD] [[N]](url)
+
+**Operational Status:**
+- Operational Status: [operational, standby, maintenance, repair, testing, out_of_service, awaiting_parts, condemned, decommissioned, satisfactory, new_overhaul, removed, defective] [[N]](url)
+- Condition Rating: [1-5, where 5 is excellent] [[N]](url)
+- Total Running Hours: [cumulative hours] [[N]](url)
+
+**Warranty Information:**
+- Warranty Provider: [company providing warranty] [[N]](url)
+- Warranty End Date: [YYYY-MM-DD] [[N]](url)
 
 **Technical Specifications:**
 - Rated Power: [kW/HP] [[N]](url)
@@ -132,7 +156,9 @@ export const PARTS_EXTRACTION_TEMPLATE = `
 **Safety & Handling:**
 - Hazardous Material: [Yes/No]
 - HAZMAT Class: [UN classification if applicable]
+- HAZMAT Classification: [detailed classification string] [[N]](url)
 - Safety Precautions: [handling precautions]
+- Storage Requirements: [special storage conditions, temperature, humidity, etc.] [[N]](url)
 
 **Installation & Usage:**
 - Installation Difficulty: [easy, medium, difficult, expert]
@@ -143,8 +169,8 @@ export const PARTS_EXTRACTION_TEMPLATE = `
 
 **Maintenance Context:**
 - Wear Part: [Yes/No]
-- Consumable: [Yes/No]
-- Rotable: [Yes/No - can it be repaired/overhauled]
+- Is Consumable: [Yes/No - used once and replaced] [[N]](url)
+- Is Rotable: [Yes/No - can be repaired/overhauled and reused] [[N]](url)
 - Critical Part: [Yes/No - critical for equipment operation]
 - Replacement Interval: [hours/cycles] [[N]](url)
 - Inspection Interval: [hours/cycles]
@@ -315,6 +341,108 @@ export const REGULATION_EXTRACTION_TEMPLATE = `
 `;
 
 /**
+ * SERVICE EXTRACTION SCHEMA
+ * Maps to: service_definitions, service_materials
+ */
+export const SERVICE_EXTRACTION_TEMPLATE = `
+## SERVICE PROFILE
+
+**Service Identity:**
+- Service Code: [standardized service code]
+- Service Name: [official service name] [[N]](url)
+- Service Description: [detailed description of service]
+- Service Category: [oil_change, filter_replacement, lubrication, cleaning, calibration, descaling, fluid_replacement, system_flush] [[N]](url)
+
+**Equipment Compatibility:**
+- Compatible Equipment Types: [list of equipment this service applies to] [[N]](url)
+- Equipment Models: [specific models if applicable]
+- System Categories: [which vessel systems require this service]
+
+**Service Procedure:**
+- Step-by-Step Procedure: [detailed procedure] [[N]](url)
+- Estimated Duration: [minutes] [[N]](url)
+- Required Certifications: [any certifications needed]
+- Safety Requirements: [safety precautions and PPE] [[N]](url)
+
+**Required Materials (service_materials):**
+- Consumable Materials: [list with quantities] [[N]](url)
+  - Material 1: [name, part_id, quantity per service, function]
+  - Material 2: [name, part_id, quantity per service, function]
+- Special Materials: [sealants, lubricants, cleaning chemicals]
+- Tools Required: [specialized tools needed]
+
+**Environmental Considerations:**
+- Waste Disposal: [proper disposal methods] [[N]](url)
+- Environmental Impact: [considerations]
+- Regulatory Compliance: [any environmental regulations]
+
+**Service Context:**
+- Service Frequency: [how often this service is typically needed]
+- Conditions Requiring Service: [when this service should be performed]
+- Is Consumable Intensive: [Yes/No - requires significant consumables]
+- Estimated Cost: [typical cost range if available]
+
+**Best Practices:**
+[Extract from technical forums and marine engineer discussions]
+- Common Issues: [problems encountered during this service]
+- Tips & Tricks: [practical advice from experienced technicians]
+- Quality Checks: [how to verify service was performed correctly]
+`;
+
+/**
+ * EVENT/INCIDENT EXTRACTION SCHEMA
+ * Maps to: events, work_done_records, event_attachments
+ */
+export const EVENT_EXTRACTION_TEMPLATE = `
+## EVENT PROFILE
+
+**Event Identity:**
+- Report Number: [incident/event report number]
+- Event Type: [breakdown, malfunction, defect, damage, collision, grounding, fire, flooding, pollution, injury, near_miss, hazardous_occurrence, other] [[N]](url)
+- Severity: [critical, high, medium, low] [[N]](url)
+- Title: [brief event title] [[N]](url)
+
+**Event Details:**
+- Description: [detailed event description] [[N]](url)
+- Occurred At: [timestamp] [[N]](url)
+- Location Details: [where on vessel/equipment]
+- Equipment Involved: [affected equipment] [[N]](url)
+- System Involved: [affected vessel system]
+
+**Immediate Response:**
+- Detected By: [person/system that detected issue]
+- Immediate Actions Taken: [emergency response] [[N]](url)
+- Operational Impact: [how operations were affected] [[N]](url)
+- Safety Impact: [any safety concerns] [[N]](url)
+- Environmental Impact: [any environmental concerns] [[N]](url)
+
+**Root Cause Analysis:**
+- Root Cause: [identified cause] [[N]](url)
+- Contributing Factors: [factors that contributed]
+- PMS Compliance Issue: [Yes/No - was maintenance overdue]
+- Lack of Maintenance: [Yes/No - was inadequate maintenance a factor]
+
+**Corrective Actions:**
+- Corrective Action: [actions to fix the issue] [[N]](url)
+- Preventive Action: [actions to prevent recurrence] [[N]](url)
+- Required Parts: [parts needed for repair]
+- Service Required: [Yes/No - does this require service work]
+- Spare Parts Required: [Yes/No - are spare parts needed]
+
+**Status & Follow-up:**
+- Status: [reported, acknowledged, under_review, in_progress, verified, closed] [[N]](url)
+- Estimated Downtime: [hours if equipment offline]
+- Reportable to Authority: [Yes/No]
+- Insurance Claim Required: [Yes/No]
+
+**Lessons Learned:**
+[Extract from incident databases and safety bulletins]
+- Similar Incidents: [similar past incidents]
+- Industry Best Practices: [how industry prevents this]
+- Recommendations: [recommendations to prevent future occurrence]
+`;
+
+/**
  * Get extraction template for entity type
  */
 export function getExtractionTemplate(entityType: string): string {
@@ -327,6 +455,10 @@ export function getExtractionTemplate(entityType: string): string {
       return PMS_EXTRACTION_TEMPLATE;
     case 'regulation':
       return REGULATION_EXTRACTION_TEMPLATE;
+    case 'service':
+      return SERVICE_EXTRACTION_TEMPLATE;
+    case 'event':
+      return EVENT_EXTRACTION_TEMPLATE;
     default:
       return ''; // Vessel template is already in agent-orchestrator
   }
@@ -422,6 +554,30 @@ export function getExtractionInstructions(entityType: string, sourceCount: numbe
 - Note common deficiencies from PSC data
 - Extract best practices for compliance
 - Document lessons learned from detentions
+`;
+
+    case 'service':
+      return baseInstructions + `
+
+**SERVICE-SPECIFIC INSTRUCTIONS**:
+- Extract standardized service procedure step-by-step
+- Document all required materials and consumables
+- Include tool requirements and specifications
+- Note safety requirements and environmental compliance
+- Extract best practices from service technicians
+- Document common issues during service execution
+`;
+
+    case 'event':
+      return baseInstructions + `
+
+**EVENT-SPECIFIC INSTRUCTIONS**:
+- Extract detailed event description and timeline
+- Document root cause analysis
+- Include immediate response and corrective actions
+- Note lessons learned and preventive measures
+- Extract similar incident data from safety bulletins
+- Document industry best practices for prevention
 `;
 
     default:
