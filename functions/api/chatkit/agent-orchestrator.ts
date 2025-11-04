@@ -2341,6 +2341,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+      // Runtime flags: suppress process/thinking events in SSE for clean UI
+      const EMIT_THINKING_EVENTS = false;
       
       // PHASE A1 & A2: Create status/thinking emitter
       const sanitizeThinking = (text: string): string => {
@@ -2365,14 +2367,17 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
       
       const statusEmitter = (event: { type: string; step?: string; stage?: string; content: string; progress?: number }) => {
         try {
+          if (!EMIT_THINKING_EVENTS) { // suppress thinking/status/metrics
+            lastStatusTime = Date.now();
+            return;
+          }
           const e = { ...event } as any;
           if (typeof e.content === 'string') {
             e.content = sanitizeThinking(e.content);
-            // If content became empty after sanitization, skip emitting
             if (!e.content) return;
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
-          lastStatusTime = Date.now(); // Update last status time
+          lastStatusTime = Date.now();
         } catch (err) {
           console.warn('⚠️ Status emit failed:', err);
         }
@@ -2382,14 +2387,15 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
       // Reduced frequency to avoid overriding detailed thinking steps
       let heartbeatTimer: any = null;
       try {
-        heartbeatTimer = setInterval(() => {
-          try {
-            // Only emit heartbeat if no status update in last 3 seconds
-            if (Date.now() - lastStatusTime > 3000) {
-              statusEmitter({ type: 'status', stage: 'heartbeat', content: '⏳ Processing...' });
-            }
-          } catch {}
-        }, 3000); // Every 3 seconds instead of 1
+        if (EMIT_THINKING_EVENTS) {
+          heartbeatTimer = setInterval(() => {
+            try {
+              if (Date.now() - lastStatusTime > 3000) {
+                statusEmitter({ type: 'status', stage: 'heartbeat', content: '⏳ Processing...' });
+              }
+            } catch {}
+          }, 3000);
+        }
       } catch {}
       
       // Initialize LangSmith tracing as early as possible (before any chain execution)
@@ -2761,8 +2767,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           })}\n\n`));
         }
         
-        // Phase C3: Send confidence indicator
-        if (finalState?.confidenceIndicator) {
+        // Phase C3: (suppressed when thinking events disabled) Send confidence indicator
+        if (finalState?.confidenceIndicator && false) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({
             type: 'confidence',
             indicator: finalState.confidenceIndicator
@@ -2770,8 +2776,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           console.log(`📊 Confidence indicator sent: ${finalState.confidenceIndicator.score}%`);
         }
         
-        // Phase C1 & C2: Send follow-up suggestions
-        if (finalState?.followUpSuggestions && finalState.followUpSuggestions.length > 0) {
+        // Phase C1 & C2: (suppressed when thinking events disabled) Send follow-up suggestions
+        if (finalState?.followUpSuggestions && finalState.followUpSuggestions.length > 0 && false) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({
             type: 'followups',
             suggestions: finalState.followUpSuggestions
