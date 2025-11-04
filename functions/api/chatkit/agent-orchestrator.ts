@@ -180,7 +180,17 @@ function convertVesselJsonToMarkdown(vesselData: any, sources: Source[]): string
     if (value === 'Not found in sources' || sourceNum === 0) {
       return value;
     }
-    return `${value} [[${sourceNum}]](${sources[sourceNum - 1]?.url || '#'})`;
+    
+    // CRITICAL FIX: Filter out Google search placeholder URLs
+    const sourceUrl = sources[sourceNum - 1]?.url || '#';
+    const isPlaceholderUrl = sourceUrl.includes('google.com/search') || sourceUrl.includes('google search');
+    
+    // If it's a placeholder, just return the value without citation
+    if (isPlaceholderUrl) {
+      return value;
+    }
+    
+    return `${value} [[${sourceNum}]](${sourceUrl})`;
   };
   
   const profile = vesselData.vessel_profile;
@@ -1420,7 +1430,7 @@ DO NOT START WITH "EXECUTIVE SUMMARY". START WITH "VESSEL PROFILE".
 **YOU MUST FOLLOW THIS EXACT FORMAT. START WITH ## VESSEL PROFILE, NOT ## EXECUTIVE SUMMARY.**
 
 ` : ''}
-**OUTPUT FORMAT:**
+**CRITICAL OUTPUT FORMAT REQUIREMENTS:**
 ${isVesselQuery ? `- YOUR FIRST LINE MUST BE: ## VESSEL PROFILE
 - Extract ALL fields from sources (or write "Not found")
 - THEN: ## EXECUTIVE SUMMARY
@@ -1428,20 +1438,31 @@ ${isVesselQuery ? `- YOUR FIRST LINE MUST BE: ## VESSEL PROFILE
 - THEN: ## MARITIME CONTEXT` : `- START with: ## EXECUTIVE SUMMARY
 - THEN: ## KEY SPECIFICATIONS
 - THEN: Additional sections`}
-- NO JSON, NO query plans, NO internal structures
-- Pure markdown content only
+
+**⚠️ CRITICAL: ABSOLUTELY NO JSON OUTPUT ⚠️**
+- DO NOT generate JSON objects like {"strategy": ..., "subQueries": ...}
+- DO NOT generate JSON arrays like [{"query": ..., "purpose": ...}]
+- DO NOT generate structured data formats
+- DO NOT include internal planning or reasoning in JSON format
+- ONLY generate human-readable markdown prose
+- If you have internal reasoning, keep it internal - DO NOT output it
+- Your FIRST character must be # (markdown header)
+- Your output must be pure markdown content only
 
 **YOUR TASK:**
 You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise overview (400-500 words)'}.
 
 **⚠️ YOU HAVE ${state.sources.length} SOURCES - USE THEM ALL ⚠️**
 
-${state.sources.map((s: any, i: number) => 
-  `**Source [${i+1}]**: ${s.title || 'Source ' + (i+1)}
+${state.sources.map((s: any, i: number) => {
+  // Provide more content (800 chars) for better extraction
+  const contentPreview = (s.content || '').substring(0, 800);
+  const hasMore = (s.content || '').length > 800;
+  return `**Source [${i+1}]**: ${s.title || 'Source ' + (i+1)}
    URL: ${s.url}
-   Content: ${(s.content || '').substring(0, 300)}...
-   ${(s.content || '').length > 300 ? '[CONTINUED - extract more details from this source]' : ''}`
-).join('\n\n')}
+   Content: ${contentPreview}${hasMore ? '...' : ''}
+   ${hasMore ? '[CONTINUED - More details available in this source]' : ''}`;
+}).join('\n\n')}
 
 **CONTENT REQUIREMENTS:**
 1. **USE ALL ${state.sources.length} SOURCES**: 
@@ -1634,13 +1655,19 @@ ${state.sources.map((s: any, i: number) =>
         }
       };
       
+      // CRITICAL: Do NOT pass config to avoid streaming callbacks
+      // Invoke with empty options object to prevent JSON from leaking to stream
       const response = await structuredLlm.invoke([systemMessage, ...state.messages], {
-        response_format: vesselSchema
+        response_format: vesselSchema,
+        // Explicitly prevent any callbacks
+        callbacks: []
       });
       
       // Parse JSON response
       const jsonContent = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
       const vesselData = JSON.parse(jsonContent);
+      
+      console.log(`   🔍 Parsed structured output: ${Object.keys(vesselData).join(', ')}`);
       
       // Convert JSON to markdown with citations
       fullContent = convertVesselJsonToMarkdown(vesselData, state.sources);
@@ -2489,13 +2516,24 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   // If previously detected an opening JSON plan, keep buffering until closing brace
                   if (suppressPlannerJson) {
                     plannerJsonBuffer += trimmedForValidation;
-                    if (/\}\s*$/.test(trimmedForValidation)) {
-                      // Closing brace reached — drop buffered planner JSON
-                      console.log('   🚫 Dropped buffered planner JSON (multi-chunk)');
+                    if (/\}\s*$/.test(trimmedForValidation) || /\]\s*$/.test(trimmedForValidation)) {
+                      // Closing brace/bracket reached — drop buffered planner JSON
+                      console.log(`   🚫 Dropped buffered JSON (${plannerJsonBuffer.length} chars)`);
                       suppressPlannerJson = false;
                       plannerJsonBuffer = "";
                     }
                     continue; // Do not forward any part of planner JSON
+                  }
+
+                  // ULTRA-AGGRESSIVE: Filter any chunk that looks like JSON key-value pairs
+                  // This catches malformed JSON like: "strategy": "focused", "subQueries":
+                  const looksLikeJsonKeyValue = /"(strategy|subQueries|query|purpose|priority|vessel_profile|executive_summary|technical_analysis)"[\s:]*["{[]/.test(trimmedForValidation);
+                  if (looksLikeJsonKeyValue) {
+                    console.log(`   🚫 FILTERED JSON key-value pattern: "${trimmedForValidation.substring(0, 60)}..."`);
+                    // Start buffering in case this is multi-chunk JSON
+                    suppressPlannerJson = true;
+                    plannerJsonBuffer = trimmedForValidation;
+                    continue;
                   }
 
                   // CRITICAL FIX: Detect and filter ALL types of JSON:
@@ -2565,6 +2603,18 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   // Skip empty chunks
                   if (contentTrimmed.length === 0) {
                     continue;
+                  }
+
+                  // CRITICAL: First content chunk MUST start with markdown header
+                  // This enforces our prompt requirement and catches LLM generating JSON first
+                  if (!hasStreamedContent && contentTrimmed.length > 0) {
+                    if (!/^#[\s#]/.test(contentTrimmed)) {
+                      console.log(`   🚫 FILTERED invalid first chunk (must start with #): "${contentTrimmed.substring(0, 50)}..."`);
+                      // Start buffering to see if this is JSON
+                      suppressPlannerJson = true;
+                      plannerJsonBuffer = trimmedForValidation;
+                      continue;
+                    }
                   }
 
                   // Forward any non-empty, non-JSON chunk (be permissive on first chunk)
