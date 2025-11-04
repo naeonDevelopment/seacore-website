@@ -51,6 +51,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   const OVERLAP_SECONDS = 1.5
   const FADE_DURATION_MS = 1500
   const [flashVisible, setFlashVisible] = useState(false)
+  const [isAVisible, setIsAVisible] = useState(true)
+  const [isBVisible, setIsBVisible] = useState(false)
 
   // Start next video with 1.5s overlap and crossfade
   const handleTimeUpdate = (player: 'A' | 'B') => {
@@ -68,7 +70,22 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     const inactiveVideoRef = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
 
-    const startCrossfade = () => {
+    const awaitFirstFrame = (video: HTMLVideoElement): Promise<void> => {
+      return new Promise((resolve) => {
+        const anyVideo = video as any
+        if (typeof anyVideo.requestVideoFrameCallback === 'function') {
+          anyVideo.requestVideoFrameCallback(() => resolve())
+          return
+        }
+        const onPlaying = () => {
+          video.removeEventListener('playing', onPlaying)
+          resolve()
+        }
+        video.addEventListener('playing', onPlaying, { once: true })
+      })
+    }
+
+    const startCrossfade = async () => {
       // ensure outgoing keeps playing until fade completes
       const outgoingVideo = activeVideo
       if (inactiveVideoRef.current) {
@@ -80,7 +97,19 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       setFlashVisible(true)
       setTimeout(() => setFlashVisible(false), 250)
 
-      // Switch visible player to trigger crossfade
+      // Ensure incoming becomes visible only after first frame rendered
+      if (inactiveVideoRef.current) {
+        await awaitFirstFrame(inactiveVideoRef.current)
+      }
+
+      // Make incoming visible before changing opacity to prevent flash
+      if (inactiveVideoRef === videoBRef) {
+        setIsBVisible(true)
+      } else {
+        setIsAVisible(true)
+      }
+
+      // Switch visible player to trigger crossfade (opacity animation)
       setActivePlayer(prev => (prev === 'A' ? 'B' : 'A'))
 
       // After fade completes, pause outgoing to avoid double playback
@@ -88,6 +117,13 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         if (outgoingVideo && !outgoingVideo.paused) outgoingVideo.pause()
         // Now that fade is done, advance the logical index
         setCurrentVideoIndex(nextIndex)
+        // Hide the outgoing player completely to prevent any visibility
+        if (inactiveVideoRef === videoBRef) {
+          // We switched from A to B, so hide A
+          setIsAVisible(false)
+        } else {
+          setIsBVisible(false)
+        }
         isTransitioningRef.current = false
       }, FADE_DURATION_MS)
     }
@@ -233,7 +269,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
             videoBRef.current?.pause()
           } else {
             const activeVideo = getActiveVideo()
-            if (activeVideo?.paused and not isTransitioningRef.current) {
+            if (activeVideo?.paused && !isTransitioningRef.current) {
               activeVideo.play().catch(() => {})
             }
           }
@@ -291,7 +327,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     const inactiveVideo = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
     
-    if (inactiveVideo.current and inactiveIndexRef.current !== nextIndex) {
+    if (inactiveVideo.current && inactiveIndexRef.current !== nextIndex) {
       inactiveIndexRef.current = nextIndex
       inactiveVideo.current.src = videoSources[nextIndex]
       inactiveVideo.current.preload = 'auto'
@@ -323,7 +359,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           objectFit: 'cover',
           objectPosition: 'center',
           pointerEvents: activePlayer === 'A' ? 'auto' : 'none',
-          zIndex: activePlayer === 'A' ? 20 : 10
+          zIndex: activePlayer === 'A' ? 20 : 10,
+          visibility: isAVisible ? 'visible' : 'hidden'
         }}
       />
 
@@ -346,7 +383,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           objectFit: 'cover',
           objectPosition: 'center',
           pointerEvents: activePlayer === 'B' ? 'auto' : 'none',
-          zIndex: activePlayer === 'B' ? 20 : 10
+          zIndex: activePlayer === 'B' ? 20 : 10,
+          visibility: isBVisible ? 'visible' : 'hidden'
         }}
       />
 
