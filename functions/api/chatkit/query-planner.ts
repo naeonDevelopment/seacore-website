@@ -18,6 +18,8 @@ import { extractSourcesFromGeminiResponse } from "./grounding-extractor";
 import { fetchWithRetry } from "./retry";
 import { getCachedResult, setCachedResult, getCacheStats } from "./kv-cache";
 import { getSemanticCachedResult, setSemanticCachedResult, getDefaultSemanticCacheConfig } from "./semantic-cache";
+import { detectEntityType, getSourceHints, type EntityDetectionResult } from "./entity-type-detector";
+import { generateSpecializedStrategy, strategyToQueryList, getTechnicalForumSites, getOEMSites, getClassificationSocietySites } from "./specialized-query-strategies";
 
 // =====================
 // TYPES
@@ -89,6 +91,42 @@ export async function planQuery(
   
   console.log(`\n📋 QUERY PLANNER: Decomposing query`);
   console.log(`   Main query: "${query}"`);
+  
+  // ==========================================
+  // ENTITY TYPE DETECTION (NEW INTELLIGENT ROUTING)
+  // ==========================================
+  const entityDetection = detectEntityType(query);
+  console.log(`   🎯 Entity type detected: ${entityDetection.type} (${entityDetection.confidence}% confidence)`);
+  console.log(`   📦 Entities found: ${entityDetection.entities.join(', ')}`);
+  console.log(`   🔍 Search strategy: ${entityDetection.searchStrategy}`);
+  
+  // Check if we should use specialized strategy (high confidence)
+  const useSpecializedStrategy = entityDetection.confidence >= 60 && entityDetection.type !== 'general';
+  
+  if (useSpecializedStrategy) {
+    console.log(`   ⚡ Using specialized ${entityDetection.type} strategy`);
+    const specializedStrategy = generateSpecializedStrategy(query, entityDetection.type, entityDetection.entities);
+    const specializedQueries = strategyToQueryList(specializedStrategy);
+    
+    // Convert to our SubQuery format
+    const subQueries: SubQuery[] = specializedQueries.slice(0, 12).map(sq => ({
+      query: sq.query,
+      purpose: sq.purpose,
+      priority: sq.priority as 'high' | 'medium' | 'low'
+    }));
+    
+    console.log(`   ✅ Generated ${subQueries.length} specialized queries for ${entityDetection.type}`);
+    
+    return {
+      mainQuery: query,
+      subQueries,
+      strategy: 'comprehensive',
+      estimatedExecutionTime: subQueries.length * 800 // ~800ms per query
+    };
+  }
+  
+  // Fallback to original vessel detection logic for backwards compatibility
+  console.log(`   ℹ️  Using legacy planning strategy (low confidence or general query)`);
   
   // Detect query type for strategy selection
   const isComparative = /largest|biggest|smallest|best|worst|compare|versus|vs/i.test(query);
