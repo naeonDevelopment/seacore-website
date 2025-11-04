@@ -80,9 +80,32 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
             videoARef.current?.pause()
             videoBRef.current?.pause()
           } else {
+            // When in view, try to play the active video
             const activeVideo = activePlayer === 'A' ? videoARef.current : videoBRef.current
-            if (activeVideo?.paused) {
-              activeVideo.play().catch(() => {})
+            if (activeVideo) {
+              // Check if video is ready to play
+              if (activeVideo.readyState >= 2) {
+                activeVideo.play()
+                  .then(() => {
+                    console.log(`✅ Intersection Observer: Video ${activePlayer} started playing`)
+                  })
+                  .catch(e => {
+                    console.error(`❌ Intersection Observer: Play error for video ${activePlayer}:`, e)
+                  })
+              } else {
+                // Wait for video to be ready
+                const handleReady = () => {
+                  activeVideo.play()
+                    .then(() => {
+                      console.log(`✅ Intersection Observer: Video ${activePlayer} started playing after ready`)
+                    })
+                    .catch(e => {
+                      console.error(`❌ Intersection Observer: Play error for video ${activePlayer}:`, e)
+                    })
+                  activeVideo.removeEventListener('canplay', handleReady)
+                }
+                activeVideo.addEventListener('canplay', handleReady, { once: true })
+              }
             }
           }
         })
@@ -103,17 +126,60 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     loadedVideosRef.current = new Set([0])
     
     if (videoARef.current) {
+      const videoA = videoARef.current
       console.log('🎬 Loading video 0:', videoSources[0])
-      videoARef.current.src = videoSources[0]
-      videoARef.current.load()
+      videoA.src = videoSources[0]
+      videoA.load()
       
-      // Wait for video to be ready before playing
-      const handleCanPlay = () => {
-        console.log('✅ Video 0 ready, playing')
-        videoARef.current?.play().catch(e => console.error('Play error:', e))
+      let hasPlayed = false
+      
+      // Multiple fallback strategies for playback
+      const attemptPlay = () => {
+        if (hasPlayed) return
+        hasPlayed = true
+        
+        console.log('✅ Video 0 ready, attempting to play')
+        videoA.play()
+          .then(() => {
+            console.log('✅ Video 0 playing successfully')
+          })
+          .catch(e => {
+            console.error('❌ Play error for video 0:', e)
+            // Try again when user interacts (Intersection Observer will handle this)
+            hasPlayed = false
+          })
       }
       
-      videoARef.current.addEventListener('canplaythrough', handleCanPlay, { once: true })
+      // Try multiple events to ensure playback starts
+      videoA.addEventListener('canplaythrough', attemptPlay, { once: true })
+      videoA.addEventListener('canplay', attemptPlay, { once: true })
+      videoA.addEventListener('loadeddata', () => {
+        console.log('📦 Video 0 loaded data')
+        // Fallback: try to play after a short delay if canplaythrough hasn't fired
+        setTimeout(() => {
+          if (!hasPlayed && videoA.readyState >= 2) {
+            attemptPlay()
+          }
+        }, 500)
+      }, { once: true })
+      
+      // Error handling
+      videoA.addEventListener('error', (e) => {
+        console.error('❌ Video 0 error:', e)
+        const error = videoA.error
+        if (error) {
+          console.error('Video error code:', error.code)
+          console.error('Video error message:', error.message)
+        }
+      })
+      
+      // Timeout fallback: try to play after 2 seconds regardless
+      setTimeout(() => {
+        if (!hasPlayed && videoA.readyState >= 2) {
+          console.log('⏱️ Timeout fallback: attempting to play video 0')
+          attemptPlay()
+        }
+      }, 2000)
     }
     
     // Eagerly preload the next video for smooth transitions
@@ -151,8 +217,18 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
+        autoPlay
+        loop
         preload="auto"
         onTimeUpdate={() => handleTimeUpdate('A')}
+        onError={(e) => {
+          console.error('❌ Video A error:', e)
+          const video = videoARef.current
+          if (video?.error) {
+            console.error('Video A error code:', video.error.code)
+            console.error('Video A error message:', video.error.message)
+          }
+        }}
         animate={{ opacity: activePlayer === 'A' ? 1 : 0 }}
         transition={{ duration: 1.2, ease: 'easeInOut' }}
         style={{ 
@@ -167,8 +243,18 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
+        autoPlay
+        loop
         preload="auto"
         onTimeUpdate={() => handleTimeUpdate('B')}
+        onError={(e) => {
+          console.error('❌ Video B error:', e)
+          const video = videoBRef.current
+          if (video?.error) {
+            console.error('Video B error code:', video.error.code)
+            console.error('Video B error message:', video.error.message)
+          }
+        }}
         animate={{ opacity: activePlayer === 'B' ? 1 : 0 }}
         transition={{ duration: 1.2, ease: 'easeInOut' }}
         style={{ 
