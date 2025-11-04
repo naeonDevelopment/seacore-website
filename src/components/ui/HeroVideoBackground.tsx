@@ -89,10 +89,12 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     
     // Log when we're getting close to trigger point
     if (timeRemaining <= OVERLAP_SECONDS + 0.5 && timeRemaining > OVERLAP_SECONDS) {
-      console.log(`⏱️ Approaching crossfade trigger: ${timeRemaining.toFixed(2)}s remaining (target: ${OVERLAP_SECONDS}s)`)
+      console.log(`⏱️ Approaching crossfade trigger: ${timeRemaining.toFixed(2)}s remaining (target: ≤${OVERLAP_SECONDS}s)`)
     }
     
-    if (timeRemaining > OVERLAP_SECONDS || timeRemaining <= OVERLAP_SECONDS - 0.2) return
+    // Trigger when timeRemaining drops to or below OVERLAP_SECONDS
+    // No lower bound needed - scheduledOverlapRef prevents duplicate triggers
+    if (timeRemaining > OVERLAP_SECONDS) return
 
     // Begin transition (guard against duplicate scheduling)
     if (scheduledOverlapRef.current) {
