@@ -770,6 +770,27 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                           if (session.verifiedSources.length > 28) {
                             session.verifiedSources = session.verifiedSources.slice(-28);
                           }
+                          // Auto-collapse research panel once enough sources are loaded
+                          const VERIFIED_COLLAPSE_THRESHOLD = 6;
+                          const reachedThreshold = session.verifiedSources.length >= VERIFIED_COLLAPSE_THRESHOLD;
+                          const alreadyCollapsed = (session as any).hasAutoCollapsed === true;
+                          if (reachedThreshold && !alreadyCollapsed) {
+                            (session as any).hasAutoCollapsed = true;
+                            const idx = streamingIndexRef.current;
+                            if (idx != null) {
+                              // Brief delay so user sees sources, then collapse
+                              setTimeout(() => {
+                                setExpandedSources((prev) => {
+                                  const ns = new Set(prev);
+                                  ns.delete(idx as number);
+                                  return ns;
+                                });
+                              }, 1200);
+                            } else {
+                              // Content not started yet; collapse after panel opens
+                              (session as any).autoCollapsePending = true;
+                            }
+                          }
                         }
                         updated.set(activeResearchIdRef.current!, session);
                         
@@ -931,6 +952,27 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                           const ns = new Set(prev);
                           ns.add(newMessageIndex);
                           return ns;
+                        });
+
+                        // If many sources already loaded before content, auto-collapse shortly after opening
+                        setResearchSessions((prev) => {
+                          const updated = new Map(prev);
+                          const session = updated.get(assistantMessageId);
+                          const VERIFIED_COLLAPSE_THRESHOLD = 6;
+                          const hasManySources = (session?.verifiedSources?.length || 0) >= VERIFIED_COLLAPSE_THRESHOLD;
+                          const pendingAuto = (session as any)?.autoCollapsePending === true;
+                          if (session && (hasManySources || pendingAuto)) {
+                            (session as any).autoCollapsePending = false;
+                            updated.set(assistantMessageId, session);
+                            setTimeout(() => {
+                              setExpandedSources((prev2) => {
+                                const ns2 = new Set(prev2);
+                                ns2.delete(newMessageIndex);
+                                return ns2;
+                              });
+                            }, 1200);
+                          }
+                          return updated;
                         });
                       }
                     }
