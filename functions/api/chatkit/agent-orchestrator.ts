@@ -1296,11 +1296,11 @@ ${state.requiresTechnicalDepth ? `
 - Use format: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
 `}`;
 
-    // Vessel field requirements (applies when vessel query detected)
+    // Vessel field requirements (conditional on technical depth)
     // Note: isVesselQuery already defined earlier in this function
-    const vesselRequirements = isVesselQuery ? `
+    const vesselRequirements = (isVesselQuery && state.requiresTechnicalDepth) ? `
 
-**🚢 CRITICAL: THIS IS A VESSEL QUERY - YOU MUST INCLUDE ALL VESSEL PROFILE FIELDS**
+**🚢 CRITICAL: THIS IS A DETAILED VESSEL QUERY - YOU MUST INCLUDE ALL VESSEL PROFILE FIELDS**
 
 **MANDATORY STRUCTURE - USE THIS EXACT FORMAT:**
 
@@ -1362,7 +1362,46 @@ ${state.requiresTechnicalDepth ? `
 5. ONLY write "Not found in sources" after exhaustive search of ALL sources
 6. Cite EVERY factual statement with [[N]](url) using ACTUAL source URLs
 7. This VESSEL PROFILE section is MANDATORY and must appear FIRST before any analysis
-` : '';
+` : (isVesselQuery ? `
+
+**🚢 THIS IS A BRIEF VESSEL QUERY - Provide CLEAN OVERVIEW (NO detailed VESSEL PROFILE):**
+
+**CRITICAL: DO NOT use the detailed VESSEL PROFILE structure with many "Not found" fields.**
+**INSTEAD, use narrative format and ONLY include information you actually found:**
+
+**STRUCTURE FOR BRIEF VESSEL QUERIES:**
+
+## EXECUTIVE SUMMARY
+[2-3 paragraphs describing: vessel purpose/type, owner/operator, key specifications, and current operational role - cite all facts]
+[MUST include: vessel type, flag state, owner/operator (if found), build year, and operational context]
+
+## TECHNICAL SPECIFICATIONS
+[ONLY list specs you found - use narrative or clean bullet format]
+- IMO Number: [number] [[N]](url)
+- MMSI: [number] [[N]](url)
+- Flag State: [country] [[N]](url)
+- Owner/Operator: [company name if found] [[N]](url)
+- Build Year: [year if found] [[N]](url)
+- Draft: [if found] [[N]](url)
+[Add other specs ONLY if found: dimensions, tonnages, engines, vessel type]
+[NEVER write "Not found in sources" - just omit missing fields]
+
+## OPERATIONAL STATUS
+[Current location, speed, destination, operational context - cite sources]
+
+## TECHNICAL ANALYSIS
+[Brief technical commentary on propulsion, systems, capabilities if known]
+
+## MARITIME CONTEXT
+[Vessel's role and significance in maritime operations]
+
+**CRITICAL RULES FOR BRIEF MODE:**
+1. Omit fields you cannot find - DO NOT write "Not found in sources"
+2. Use narrative prose, not exhaustive field-by-field lists
+3. Keep concise (400-500 words total)
+4. Focus on what you CAN tell the user, not what you cannot
+5. Cite every fact with [[N]](url)
+` : '');
 
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
 
@@ -1376,71 +1415,28 @@ ${vesselRequirements}
 
 **CRITICAL: ${isVesselQuery ? '🚢 THIS IS A VESSEL QUERY 🚢' : 'THIS IS A GENERAL QUERY'}**
 
-${isVesselQuery ? `
+${(isVesselQuery && state.requiresTechnicalDepth) ? `
 **⚠️⚠️⚠️ MANDATORY - YOUR FIRST SECTION MUST BE ## VESSEL PROFILE ⚠️⚠️⚠️**
 
-DO NOT START WITH "EXECUTIVE SUMMARY". START WITH "VESSEL PROFILE".
+DO NOT START WITH "EXECUTIVE SUMMARY". START WITH "VESSEL PROFILE".` : (isVesselQuery ? `
+**⚠️ BRIEF MODE: START WITH ## EXECUTIVE SUMMARY ⚠️**
 
-**EXAMPLE OF CORRECT OUTPUT FORMAT:**
+DO NOT use detailed VESSEL PROFILE structure. Use narrative format.` : '')}
 
-\`\`\`
-## VESSEL PROFILE
-
-**Identity & Registration:**
-- IMO Number: 9549683 [[1]](https://marinetraffic.com/...)
-- MMSI: 377126000 [[1]](https://marinetraffic.com/...)
-- Call Sign: J8B4075 [[2]](https://vesselfinder.com/...)
-- Flag State: St. Vincent and the Grenadines [[1]](...)
-
-**Ownership & Management:**
-- Owner: Stanford Marine Group [[3]](https://company-registry...)
-- Operator/Manager: Stanford Marine Services [[3]](...)
-
-**Classification:**
-- Class Society: Lloyd's Register [[4]](...)
-- Class Notation: 100A1 Crew Boat
-
-**Principal Dimensions:**
-- Length Overall (LOA): 41 meters [[1]](...)
-- Breadth: 7.3 meters [[1]](...)
-- Depth: Not found in sources
-- Draft: 2.1 meters [[2]](...)
-
-**Tonnages:**
-- Gross Tonnage (GT): 240 tons [[1]](...)
-- Net Tonnage (NT): 120 tons [[1]](...)
-- Deadweight (DWT): 121 tons [[2]](...)
-
-**Build Information:**
-- Shipyard: Gulf Craft Shipyard, UAE [[5]](...)
-- Build Year: 2009 [[1]](...)
-
-**Propulsion & Machinery:**
-- Main Engines: 2x Caterpillar C32, 1,940 HP total [[6]](...)
-- Propellers: Twin waterjet propulsion [[6]](...)
-- Generators: 2x Cummins 60kW [[6]](...)
-
-**Current Status:**
-- Location: Persian Gulf, en route to Marjan Oil Field (as of Oct 2024) [[7]](...)
-- Speed: 0.2 knots
-- Destination: Marjan Oil Field
-
-## EXECUTIVE SUMMARY
-
-[Then continue with analysis...]
-\`\`\`
-
-**YOU MUST FOLLOW THIS EXACT FORMAT. START WITH ## VESSEL PROFILE, NOT ## EXECUTIVE SUMMARY.**
-
-` : ''}
 **CRITICAL OUTPUT FORMAT REQUIREMENTS:**
-${isVesselQuery ? `- YOUR FIRST LINE MUST BE: ## VESSEL PROFILE
-- Extract ALL fields from sources (or write "Not found")
+${(isVesselQuery && state.requiresTechnicalDepth) ? `- YOUR FIRST SECTION MUST BE: ## VESSEL PROFILE (detailed structure with all fields)
+- Extract ALL fields from sources (or write "Not found in sources")
 - THEN: ## EXECUTIVE SUMMARY
+- THEN: ## TECHNICAL ANALYSIS
+- THEN: ## MARITIME CONTEXT` : (isVesselQuery ? `- YOUR FIRST SECTION MUST BE: ## EXECUTIVE SUMMARY (brief mode)
+- DO NOT use VESSEL PROFILE structure
+- ONLY include information you found - omit missing fields entirely
+- THEN: ## TECHNICAL SPECIFICATIONS (clean list - no "Not found")
+- THEN: ## OPERATIONAL STATUS
 - THEN: ## TECHNICAL ANALYSIS
 - THEN: ## MARITIME CONTEXT` : `- START with: ## EXECUTIVE SUMMARY
 - THEN: ## KEY SPECIFICATIONS
-- THEN: Additional sections`}
+- THEN: Additional sections`)}
 
 **⚠️ CRITICAL: ABSOLUTELY NO JSON OUTPUT ⚠️**
 - DO NOT generate JSON objects like {"strategy": ..., "subQueries": ...}
