@@ -57,12 +57,41 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
 
   // Start next video with 1.5s overlap and crossfade
   const handleTimeUpdate = (player: 'A' | 'B') => {
-    if (isTransitioningRef.current || player !== activePlayer) return
+    // Early exit logging
+    if (isTransitioningRef.current) {
+      // Don't log every frame during transition
+      return
+    }
+    if (player !== activePlayer) return
+    
     const activeVideo = getActiveVideo()
     const activeIndexRef = getActiveIndexRef()
-    if (!activeVideo || activeIndexRef.current !== currentVideoIndex || !activeVideo.duration) return
+    
+    if (!activeVideo) {
+      console.warn('❌ handleTimeUpdate: No active video')
+      return
+    }
+    
+    if (!activeVideo.duration) {
+      // Video duration not loaded yet - log only once
+      if (activeVideo.currentTime > 0 && activeVideo.currentTime < 0.1) {
+        console.warn(`⚠️ Video ${currentVideoIndex} has no duration (currentTime: ${activeVideo.currentTime.toFixed(3)})`)
+      }
+      return
+    }
+    
+    if (activeIndexRef.current !== currentVideoIndex) {
+      console.warn(`⚠️ Index mismatch: activeIndexRef=${activeIndexRef.current}, currentVideoIndex=${currentVideoIndex}`)
+      return
+    }
 
     const timeRemaining = activeVideo.duration - activeVideo.currentTime
+    
+    // Log when we're getting close to trigger point
+    if (timeRemaining <= OVERLAP_SECONDS + 0.5 && timeRemaining > OVERLAP_SECONDS) {
+      console.log(`⏱️ Approaching crossfade trigger: ${timeRemaining.toFixed(2)}s remaining (target: ${OVERLAP_SECONDS}s)`)
+    }
+    
     if (timeRemaining > OVERLAP_SECONDS || timeRemaining <= OVERLAP_SECONDS - 0.2) return
 
     // Begin transition (guard against duplicate scheduling)
@@ -70,13 +99,14 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       console.log(`⚠️ Crossfade already scheduled, skipping duplicate (currentVideo: ${currentVideoIndex})`)
       return
     }
+    
+    console.log(`🎬 TRIGGERING CROSSFADE: ${currentVideoIndex} → ${getNextIndex()} (timeRemaining: ${timeRemaining.toFixed(2)}s, activePlayer: ${activePlayer}, duration: ${activeVideo.duration.toFixed(2)}s)`)
+    
     scheduledOverlapRef.current = true
     isTransitioningRef.current = true
     const nextIndex = getNextIndex()
     const inactiveVideoRef = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
-
-    console.log(`🎬 Starting crossfade: ${currentVideoIndex} → ${nextIndex} (timeRemaining: ${timeRemaining.toFixed(2)}s, activePlayer: ${activePlayer})`)
 
     const awaitFirstFrame = (video: HTMLVideoElement): Promise<void> => {
       return new Promise((resolve) => {
@@ -267,14 +297,26 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     videoA.preload = 'auto'
     videoA.load()
     
+    console.log(`🎥 Initializing video player with first video: ${videoSources[0]}`)
+    
     let hasPlayed = false
     const playVideo = () => {
-      if (hasPlayed) return // Prevent duplicate play attempts
+      if (hasPlayed) {
+        console.warn('⚠️ Initial video already started, skipping duplicate play')
+        return
+      }
       hasPlayed = true
-      videoA.play().catch((error) => {
-        console.error('❌ Initial video play error:', error)
-        hasPlayed = false // Reset on error to allow retry
-      })
+      
+      console.log(`▶️ Starting initial video playback (duration: ${videoA.duration ? videoA.duration.toFixed(2) + 's' : 'unknown'})`)
+      
+      videoA.play()
+        .then(() => {
+          console.log(`✅ Initial video 0 playing (duration: ${videoA.duration.toFixed(2)}s)`)
+        })
+        .catch((error) => {
+          console.error('❌ Initial video play error:', error)
+          hasPlayed = false // Reset on error to allow retry
+        })
     }
     
     // Only use canplaythrough for more reliable playback
