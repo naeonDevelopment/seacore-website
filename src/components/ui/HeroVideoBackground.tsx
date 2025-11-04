@@ -27,7 +27,6 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     getAssetPath('assets/hero/h_h_3.mp4')
   ], [])
 
-  // Get inactive video ref based on active player
   const getInactiveVideo = () => {
     return activePlayer === 'A' ? videoBRef : videoARef
   }
@@ -48,7 +47,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return (currentVideoIndex + 1) % videoSources.length
   }
 
-  // Simplified transition function - handles all transition logic
+  // Transition to next video
   const transitionToNext = async () => {
     if (isTransitioningRef.current) return
     
@@ -67,39 +66,36 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     // Pause current video
     activeVideo.pause()
     
+    if (!inactiveVideo.current) {
+      isTransitioningRef.current = false
+      return
+    }
+    
     // Ensure next video is loaded
     if (inactiveIndexRef.current !== nextIndex) {
-      if (!inactiveVideo.current) return
-      
       inactiveIndexRef.current = nextIndex
       inactiveVideo.current.src = videoSources[nextIndex]
       inactiveVideo.current.preload = 'auto'
       inactiveVideo.current.load()
     }
     
-    // Wait for video to be ready (readyState 4 = HAVE_ENOUGH_DATA)
+    // Wait for video to be ready
     const waitForReady = (video: HTMLVideoElement): Promise<void> => {
       return new Promise((resolve) => {
         if (video.readyState >= 4) {
           resolve()
           return
         }
-        
         const handleReady = () => {
           video.removeEventListener('canplaythrough', handleReady)
           resolve()
         }
-        
         video.addEventListener('canplaythrough', handleReady, { once: true })
       })
     }
     
     try {
-      if (!inactiveVideo.current) return
-      
       await waitForReady(inactiveVideo.current)
-      
-      // Start playing next video
       inactiveVideo.current.currentTime = 0
       await inactiveVideo.current.play()
       
@@ -109,10 +105,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       setActivePlayer(prev => prev === 'A' ? 'B' : 'A')
       setCurrentVideoIndex(nextIndex)
       
-      // Reset transition flag after crossfade
       setTimeout(() => {
         isTransitioningRef.current = false
-        console.log(`✅ Transition complete`)
       }, 1000)
       
     } catch (error) {
@@ -121,13 +115,11 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     }
   }
 
-  // Handle video end - primary transition trigger
+  // Handle video end
   const handleVideoEnd = (player: 'A' | 'B') => {
     if (player !== activePlayer || isTransitioningRef.current) return
-    
     const activeIndexRef = getActiveIndexRef()
     if (activeIndexRef.current !== currentVideoIndex) return
-    
     transitionToNext()
   }
 
@@ -138,15 +130,12 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     
     const preloadNext = () => {
       const timeRemaining = activeVideo.duration - activeVideo.currentTime
-      const PRELOAD_TIME = 2.0 // Preload 2 seconds before end
-      
-      if (timeRemaining <= PRELOAD_TIME && timeRemaining > (PRELOAD_TIME - 0.5)) {
+      if (timeRemaining <= 2.0 && timeRemaining > 1.5) {
         const nextIndex = getNextIndex()
         const inactiveVideo = getInactiveVideo()
         const inactiveIndexRef = getInactiveIndexRef()
         
         if (inactiveVideo.current && inactiveIndexRef.current !== nextIndex) {
-          console.log(`📥 Preloading video ${nextIndex}`)
           inactiveIndexRef.current = nextIndex
           inactiveVideo.current.src = videoSources[nextIndex]
           inactiveVideo.current.preload = 'auto'
@@ -155,12 +144,11 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       }
     }
     
-    const interval = setInterval(preloadNext, 100) // Check every 100ms
-    
+    const interval = setInterval(preloadNext, 200)
     return () => clearInterval(interval)
   }, [currentVideoIndex, activePlayer, videoSources])
 
-  // Intersection Observer - pause when out of view
+  // Intersection Observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -186,7 +174,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return () => observer.disconnect()
   }, [activePlayer])
 
-  // Initialize first video
+  // Initialize first video only
   useEffect(() => {
     if (!videoARef.current) return
     
@@ -197,28 +185,33 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     videoA.load()
     
     const playVideo = () => {
-      videoA.play().catch((e) => {
-        console.error('Play error:', e)
-      })
+      videoA.play().catch(() => {})
     }
     
-    // Use canplaythrough for best readiness
     videoA.addEventListener('canplaythrough', playVideo, { once: true })
-    
-    // Fallback to canplay
     videoA.addEventListener('canplay', playVideo, { once: true })
-    
-    // Preload second video
-    if (videoBRef.current && videoSources.length > 1) {
-      videoBIndexRef.current = 1
-      videoBRef.current.src = videoSources[1]
-      videoBRef.current.preload = 'auto'
-      videoBRef.current.load()
-    }
   }, [videoSources])
+
+  // Ensure only active video plays, pause inactive
+  useEffect(() => {
+    const activeVideo = getActiveVideo()
+    const inactiveVideo = getInactiveVideo()
+    
+    // Pause inactive video
+    if (inactiveVideo.current && !inactiveVideo.current.paused) {
+      inactiveVideo.current.pause()
+    }
+    
+    // Ensure active video plays
+    if (activeVideo && activeVideo.paused && !isTransitioningRef.current) {
+      activeVideo.play().catch(() => {})
+    }
+  }, [activePlayer])
 
   // Preload next video after transition
   useEffect(() => {
+    if (currentVideoIndex === 0) return // Skip on initial mount
+    
     const nextIndex = getNextIndex()
     const inactiveVideo = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
@@ -236,26 +229,28 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       {/* Fallback gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 z-0" />
 
-      {/* Video A */}
+      {/* Video A - Only visible when activePlayer is 'A' */}
       <motion.video
         ref={videoARef}
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
         onEnded={() => handleVideoEnd('A')}
-        onError={(e) => {
+        onError={() => {
           console.error('❌ Video A error:', videoARef.current?.error)
         }}
+        initial={{ opacity: activePlayer === 'A' ? 1 : 0 }}
         animate={{ opacity: activePlayer === 'A' ? 1 : 0 }}
         transition={{ duration: 1.0, ease: [0.4, 0.0, 0.2, 1] }}
         style={{ 
           objectFit: 'cover',
-          objectPosition: 'center'
+          objectPosition: 'center',
+          pointerEvents: activePlayer === 'A' ? 'auto' : 'none'
         }}
       />
 
-      {/* Video B */}
+      {/* Video B - Only visible when activePlayer is 'B' */}
       <motion.video
         ref={videoBRef}
         className="absolute inset-0 w-full h-full z-10"
@@ -263,14 +258,16 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         playsInline
         preload="metadata"
         onEnded={() => handleVideoEnd('B')}
-        onError={(e) => {
+        onError={() => {
           console.error('❌ Video B error:', videoBRef.current?.error)
         }}
+        initial={{ opacity: 0 }}
         animate={{ opacity: activePlayer === 'B' ? 1 : 0 }}
         transition={{ duration: 1.0, ease: [0.4, 0.0, 0.2, 1] }}
         style={{ 
           objectFit: 'cover',
-          objectPosition: 'center'
+          objectPosition: 'center',
+          pointerEvents: activePlayer === 'B' ? 'auto' : 'none'
         }}
       />
 
