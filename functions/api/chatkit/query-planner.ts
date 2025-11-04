@@ -183,14 +183,13 @@ RULES:
 8. For comparative queries: Create separate queries for each entity + verification
 9. Keep sub-queries concise, specific, and searchable with natural language
 
-⚠️⚠️⚠️ ULTRA-CRITICAL FOR VESSEL QUERIES ⚠️⚠️⚠️
+⚠️ CRITICAL FOR VESSEL QUERIES ⚠️
 If this is a VESSEL query (contains vessel name like "Dynamic 25", "Stanford Pelican", etc.):
-- DO NOT generate generic searches for technical terms, equipment, or systems
-- DO NOT search for "dynamic positioning", "dynamic systems", manufacturer catalogs, etc.
-- EVERY sub-query MUST include the EXACT vessel name: "${query}"
-- Focus ONLY on: vessel registries, AIS tracking, vessel specifications, ownership
-- Example GOOD: "Dynamic 25 vessel IMO MMSI marinetraffic"
-- Example BAD: "dynamic systems", "wartsila dynamic", "MAN engines"
+- FOCUS on vessel-specific searches: registries, AIS tracking, specifications, ownership
+- Include the vessel name in queries for context
+- Prioritize: MarineTraffic, VesselFinder, Equasis, company websites, maritime registries
+- Example: "Dynamic 25 vessel IMO MMSI specifications marinetraffic vesselfinder"
+- Avoid: Pure equipment searches without vessel name (but vessel + equipment is OK)
 
 ⚠️ CRITICAL OUTPUT FORMAT:
 Return ONLY valid JSON with NO additional text, explanations, or markdown.
@@ -247,36 +246,38 @@ START YOUR RESPONSE WITH: {`;
     
     let subQueries: SubQuery[] = plan.subQueries || [];
 
-    // CRITICAL FIX: For vessel queries, filter out any sub-queries that don't contain the vessel name
-    // This prevents generic searches like "dynamic systems", "wartsila", etc.
+    // DISABLED: This filtering was too aggressive and reduced grounding quality
+    // Gemini's search is smart enough to filter generic results
+    // Our mandatory vessel queries (lines 315-330) already ensure vessel-specific searches
+    /*
     if (isVesselQuery) {
-      // Extract vessel name from query (remove "tell me about", "details on", etc.)
+      // Extract vessel name from query
       const vesselName = query
-        .replace(/^(tell me about|details on|info on|search for|what about)\s+/i, '')
+        .replace(/^(tell me about|details on|info on|search for|what about|vessel)\s+/i, '')
         .trim();
       
       const vesselWords = vesselName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
       
-      // Filter: Keep only sub-queries that contain at least one vessel name word
-      // AND don't contain generic equipment/system terms
+      // Only filter if we can confidently identify generic searches
       const filtered = subQueries.filter(sq => {
         const sqLower = (sq.query || '').toLowerCase();
         
-        // Must contain at least one word from vessel name
-        const hasVesselWord = vesselWords.some(word => sqLower.includes(word));
+        // Block ONLY clearly generic searches without ANY vessel reference
+        const isObviouslyGeneric = 
+          (/^(dynamic positioning|propulsion systems|marine equipment)\b/i.test(sqLower) ||
+          /^(wartsila|man engines|caterpillar)\b/i.test(sqLower)) &&
+          !vesselWords.some(word => sqLower.includes(word)) &&
+          !/\bvessel\b/i.test(sqLower);
         
-        // Must NOT be generic equipment/system searches
-        const isGeneric = /^(dynamic positioning|dynamic systems|wartsila|man engines|caterpillar|equipment|machinery|propulsion systems?)\b/i.test(sqLower)
-          && !vesselWords.some(word => sqLower.includes(word));
-        
-        return hasVesselWord && !isGeneric;
+        return !isObviouslyGeneric;
       });
       
       if (filtered.length < subQueries.length) {
-        console.log(`   🧹 Filtered vessel queries: ${subQueries.length} → ${filtered.length} (removed generic searches)`);
+        console.log(`   🧹 Filtered obvious generic queries: ${subQueries.length} → ${filtered.length}`);
         subQueries = filtered;
       }
     }
+    */
 
     // PHASE 2 FIX: Natural language mandatory vessel sub-queries (NO keyword spam)
     if (isVesselQuery) {
