@@ -1772,16 +1772,19 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                                   );
                                 }
                                 
-                                // Regular link - open in new tab
+                                // Regular link - open in new tab with icon
                                 return (
                                   <a 
                                     href={href} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 underline font-semibold"
+                                    className="inline-flex items-baseline gap-1 text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 font-semibold border-b-2 border-maritime-300 dark:border-maritime-600 hover:border-maritime-600 dark:hover:border-maritime-400 transition-colors break-words"
                                     {...props}
                                   >
                                     {children}
+                                    <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
                                   </a>
                                 );
                               },
@@ -1833,19 +1836,6 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                                 
                                 return <p {...props} className="my-2 leading-relaxed">{children}</p>;
                               },
-                              a: ({ node, ...props }) => (
-                                <a
-                                  {...props}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-baseline gap-1 text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 font-semibold border-b-2 border-maritime-300 dark:border-maritime-600 hover:border-maritime-600 dark:hover:border-maritime-400 transition-colors break-words"
-                                >
-                                  {props.children}
-                                  <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </a>
-                              ),
                               strong: ({ node, ...props }) => (
                                 <strong {...props} className="font-bold text-maritime-700 dark:text-maritime-300" />
                               ),
