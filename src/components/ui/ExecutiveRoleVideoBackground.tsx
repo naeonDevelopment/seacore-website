@@ -18,65 +18,214 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
   const videoBRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isTransitioningRef = useRef(false)
-  const loadedVideosRef = useRef<Set<number>>(new Set([0])) // Track loaded video indices
+  const videoAIndexRef = useRef<number>(0)
+  const videoBIndexRef = useRef<number>(-1)
 
   const videoSources = useMemo(() => [
     getAssetPath('assets/section_experts/vid_section_experts1.mp4'),
     getAssetPath('assets/section_experts/vid_section_experts_2.mp4')
   ], [])
 
-  // Get the inactive video ref and next video index
   const getInactiveVideo = () => {
     return activePlayer === 'A' ? videoBRef : videoARef
+  }
+
+  const getInactiveIndexRef = () => {
+    return activePlayer === 'A' ? videoBIndexRef : videoAIndexRef
+  }
+
+  const getActiveVideo = () => {
+    return activePlayer === 'A' ? videoARef.current : videoBRef.current
+  }
+
+  const getActiveIndexRef = () => {
+    return activePlayer === 'A' ? videoAIndexRef : videoBIndexRef
   }
 
   const getNextIndex = () => {
     return (currentVideoIndex + 1) % videoSources.length
   }
 
-  // Handle time update on active video
+  // Overlap/crossfade settings
+  const OVERLAP_SECONDS = 1.5
+  const FADE_DURATION_MS = 1500
+  const [isAVisible, setIsAVisible] = useState(true)
+  const [isBVisible, setIsBVisible] = useState(false)
+  const scheduledOverlapRef = useRef(false)
+
+  // Start next video with 1.5s overlap and crossfade
   const handleTimeUpdate = (player: 'A' | 'B') => {
     if (isTransitioningRef.current || player !== activePlayer) return
     
-    const activeVideo = player === 'A' ? videoARef.current : videoBRef.current
-    if (!activeVideo) return
+    const activeVideo = getActiveVideo()
+    const activeIndexRef = getActiveIndexRef()
     
+    if (!activeVideo || !activeVideo.duration) return
+    if (activeIndexRef.current !== currentVideoIndex) return
+
     const timeRemaining = activeVideo.duration - activeVideo.currentTime
     
-    // Start transition 1.5 seconds before end (triggers at ~6.5 seconds)
-    if (timeRemaining <= 1.5 && timeRemaining > 1.4) {
-      isTransitioningRef.current = true
+    // Trigger when timeRemaining drops to or below OVERLAP_SECONDS
+    if (timeRemaining > OVERLAP_SECONDS) return
+
+    // Begin transition (guard against duplicate scheduling)
+    if (scheduledOverlapRef.current) return
+    
+    scheduledOverlapRef.current = true
+    isTransitioningRef.current = true
+    const nextIndex = getNextIndex()
+    const inactiveVideoRef = getInactiveVideo()
+    const inactiveIndexRef = getInactiveIndexRef()
+
+    const awaitFirstFrame = (video: HTMLVideoElement): Promise<void> => {
+      return new Promise((resolve) => {
+        const anyVideo = video as any
+        if (typeof anyVideo.requestVideoFrameCallback === 'function') {
+          anyVideo.requestVideoFrameCallback(() => resolve())
+          return
+        }
+        const onPlaying = () => {
+          video.removeEventListener('playing', onPlaying)
+          resolve()
+        }
+        video.addEventListener('playing', onPlaying, { once: true })
+      })
+    }
+
+    const startCrossfade = async () => {
+      const outgoingVideo = activeVideo
       
-      const inactiveVideo = getInactiveVideo()
-      const nextIndex = getNextIndex()
-      
-      // Play the already-preloaded video
-      if (inactiveVideo.current) {
-        inactiveVideo.current.currentTime = 0
-        inactiveVideo.current.play().catch(() => {})
+      if (inactiveVideoRef.current) {
+        const v = inactiveVideoRef.current
+        
+        // Only play if video is paused and at start
+        if (v.paused && v.currentTime < 0.1) {
+          v.currentTime = 0
+          try {
+            await v.play()
+          } catch (error) {
+            console.error('Video crossfade play error:', error)
+          }
+        }
       }
-      
-      // Swap active player after 1.2 seconds (completes at ~7.7s, before video ends at 8s)
+
+      // Ensure incoming becomes visible only after first frame rendered
+      if (inactiveVideoRef.current && inactiveVideoRef.current.paused === false) {
+        await awaitFirstFrame(inactiveVideoRef.current)
+      }
+
+      // Make incoming visible before changing opacity to prevent flash
+      if (inactiveVideoRef === videoBRef) {
+        setIsBVisible(true)
+      } else {
+        setIsAVisible(true)
+      }
+
+      // Switch visible player to trigger crossfade (opacity animation)
+      setActivePlayer(prev => (prev === 'A' ? 'B' : 'A'))
+
+      // After fade completes, pause outgoing video and update state
       setTimeout(() => {
-        setActivePlayer(prev => prev === 'A' ? 'B' : 'A')
+        if (outgoingVideo && !outgoingVideo.paused) {
+          outgoingVideo.pause()
+        }
         setCurrentVideoIndex(nextIndex)
+        
+        // Hide the outgoing player
+        if (inactiveVideoRef === videoBRef) {
+          setIsAVisible(false)
+        } else {
+          setIsBVisible(false)
+        }
+        
         isTransitioningRef.current = false
-      }, 1200)
+        scheduledOverlapRef.current = false
+      }, FADE_DURATION_MS)
+    }
+
+    const ensureReadyThenStart = () => {
+      if (!inactiveVideoRef.current) { 
+        isTransitioningRef.current = false
+        scheduledOverlapRef.current = false
+        return 
+      }
+      if (inactiveVideoRef.current.readyState >= 3) {
+        startCrossfade()
+      } else {
+        const onReady = () => {
+          inactiveVideoRef.current?.removeEventListener('canplaythrough', onReady)
+          startCrossfade()
+        }
+        inactiveVideoRef.current.addEventListener('canplaythrough', onReady, { once: true })
+      }
+    }
+
+    // Load next video in inactive player if needed
+    if (inactiveVideoRef.current) {
+      if (inactiveIndexRef.current !== nextIndex) {
+        inactiveIndexRef.current = nextIndex
+        inactiveVideoRef.current.src = videoSources[nextIndex]
+        inactiveVideoRef.current.preload = 'auto'
+        inactiveVideoRef.current.load()
+      }
+      ensureReadyThenStart()
+    } else {
+      isTransitioningRef.current = false
+      scheduledOverlapRef.current = false
     }
   }
 
-  // Intersection Observer
+  // Handle video end - safety fallback if crossfade somehow fails
+  const handleVideoEnd = (player: 'A' | 'B') => {
+    if (player === activePlayer && !isTransitioningRef.current) {
+      // Reset transition flags if they got stuck
+      isTransitioningRef.current = false
+      scheduledOverlapRef.current = false
+    }
+  }
+
+  // Preload next video when current video is playing
+  useEffect(() => {
+    const activeVideo = getActiveVideo()
+    if (!activeVideo || !activeVideo.duration) return
+    if (isTransitioningRef.current) return
+    
+    const preloadNext = () => {
+      const timeRemaining = activeVideo.duration - activeVideo.currentTime
+      if (timeRemaining <= 3.0 && timeRemaining > 2.6) {
+        const nextIndex = getNextIndex()
+        const inactiveVideo = getInactiveVideo()
+        const inactiveIndexRef = getInactiveIndexRef()
+        
+        if (inactiveVideo.current && inactiveIndexRef.current !== nextIndex) {
+          inactiveIndexRef.current = nextIndex
+          inactiveVideo.current.src = videoSources[nextIndex]
+          inactiveVideo.current.preload = 'auto'
+          inactiveVideo.current.load()
+        }
+      }
+    }
+    
+    const interval = setInterval(preloadNext, 150)
+    return () => clearInterval(interval)
+  }, [currentVideoIndex, activePlayer, videoSources])
+
+  // Intersection Observer - pause when out of view, resume when in view
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) {
+            // Pause all videos when out of view
             videoARef.current?.pause()
             videoBRef.current?.pause()
           } else {
-            const activeVideo = activePlayer === 'A' ? videoARef.current : videoBRef.current
-            if (activeVideo?.paused) {
-              activeVideo.play().catch(() => {})
+            // Resume only if not transitioning and video is actually paused
+            const activeVideo = getActiveVideo()
+            if (activeVideo?.paused && !isTransitioningRef.current && !scheduledOverlapRef.current) {
+              activeVideo.play().catch((error) => {
+                console.error('IntersectionObserver play error:', error)
+              })
             }
           }
         })
@@ -91,50 +240,40 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
     return () => observer.disconnect()
   }, [activePlayer])
 
-  // Initialize first video and preload second video
+  // Initialize first video
   useEffect(() => {
-    loadedVideosRef.current = new Set([0])
+    if (!videoARef.current) return
     
-    if (videoARef.current) {
-      videoARef.current.src = videoSources[0]
-      videoARef.current.load()
+    const videoA = videoARef.current
+    videoAIndexRef.current = 0
+    videoA.src = videoSources[0]
+    videoA.preload = 'auto'
+    videoA.load()
+    
+    let hasPlayed = false
+    const playVideo = () => {
+      if (hasPlayed) return
+      hasPlayed = true
       
-      // Wait for video to be ready before playing
-      const handleCanPlay = () => {
-        videoARef.current?.play().catch(e => console.error('Play error:', e))
-      }
-      
-      videoARef.current.addEventListener('canplaythrough', handleCanPlay, { once: true })
+      videoA.play().catch((error) => {
+        console.error('Initial video play error:', error)
+        hasPlayed = false
+      })
     }
     
-    // Eagerly preload the next video for smooth transitions
-    if (videoBRef.current && videoSources.length > 1) {
-      videoBRef.current.src = videoSources[1]
-      videoBRef.current.load()
-      loadedVideosRef.current.add(1)
+    videoA.addEventListener('canplaythrough', playVideo, { once: true })
+    
+    return () => {
+      videoA.removeEventListener('canplaythrough', playVideo)
     }
   }, [videoSources])
-
-  // Preload next video when active player changes
-  useEffect(() => {
-    const nextIndex = getNextIndex()
-    const inactiveVideo = getInactiveVideo()
-    
-    // If the next video isn't already loaded, preload it
-    if (inactiveVideo.current && !loadedVideosRef.current.has(nextIndex)) {
-      inactiveVideo.current.src = videoSources[nextIndex]
-      inactiveVideo.current.load()
-      loadedVideosRef.current.add(nextIndex)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePlayer, currentVideoIndex])
 
   return (
     <div ref={containerRef} className={`absolute inset-0 overflow-hidden z-10 ${className}`}>
       {/* Fallback gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-slate-900 dark:to-emerald-950/30 z-0" />
 
-      {/* Video A */}
+      {/* Video A - fades out during overlap */}
       <motion.video
         ref={videoARef}
         className="absolute inset-0 w-full h-full z-10"
@@ -142,27 +281,43 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
         playsInline
         preload="auto"
         onTimeUpdate={() => handleTimeUpdate('A')}
+        onEnded={() => handleVideoEnd('A')}
+        onError={() => {
+          console.error('Video A error:', videoARef.current?.error)
+        }}
+        initial={{ opacity: activePlayer === 'A' ? 1 : 0 }}
         animate={{ opacity: activePlayer === 'A' ? 1 : 0 }}
-        transition={{ duration: 1.2, ease: 'easeInOut' }}
+        transition={{ duration: OVERLAP_SECONDS, ease: [0.25, 0.1, 0.25, 1] }}
         style={{ 
           objectFit: 'cover',
-          objectPosition: 'center'
+          objectPosition: 'center',
+          pointerEvents: activePlayer === 'A' ? 'auto' : 'none',
+          zIndex: activePlayer === 'A' ? 20 : 10,
+          visibility: isAVisible ? 'visible' : 'hidden'
         }}
       />
 
-      {/* Video B */}
+      {/* Video B - fades in during overlap */}
       <motion.video
         ref={videoBRef}
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
         onTimeUpdate={() => handleTimeUpdate('B')}
+        onEnded={() => handleVideoEnd('B')}
+        onError={() => {
+          console.error('Video B error:', videoBRef.current?.error)
+        }}
+        initial={{ opacity: 0 }}
         animate={{ opacity: activePlayer === 'B' ? 1 : 0 }}
-        transition={{ duration: 1.2, ease: 'easeInOut' }}
+        transition={{ duration: OVERLAP_SECONDS, ease: [0.25, 0.1, 0.25, 1] }}
         style={{ 
           objectFit: 'cover',
-          objectPosition: 'center'
+          objectPosition: 'center',
+          pointerEvents: activePlayer === 'B' ? 'auto' : 'none',
+          zIndex: activePlayer === 'B' ? 20 : 10,
+          visibility: isBVisible ? 'visible' : 'hidden'
         }}
       />
 
