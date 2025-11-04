@@ -53,6 +53,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   const [flashVisible, setFlashVisible] = useState(false)
   const [isAVisible, setIsAVisible] = useState(true)
   const [isBVisible, setIsBVisible] = useState(false)
+  const scheduledOverlapRef = useRef(false)
 
   // Start next video with 1.5s overlap and crossfade
   const handleTimeUpdate = (player: 'A' | 'B') => {
@@ -64,7 +65,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     const timeRemaining = activeVideo.duration - activeVideo.currentTime
     if (timeRemaining > OVERLAP_SECONDS || timeRemaining <= OVERLAP_SECONDS - 0.2) return
 
-    // Begin transition
+    // Begin transition (guard against duplicate scheduling)
+    if (scheduledOverlapRef.current) return
+    scheduledOverlapRef.current = true
     isTransitioningRef.current = true
     const nextIndex = getNextIndex()
     const inactiveVideoRef = getInactiveVideo()
@@ -89,8 +92,12 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       // ensure outgoing keeps playing until fade completes
       const outgoingVideo = activeVideo
       if (inactiveVideoRef.current) {
-        inactiveVideoRef.current.currentTime = 0
-        inactiveVideoRef.current.play().catch(() => {})
+        // Avoid restarting if it already began
+        const v = inactiveVideoRef.current
+        if (v.paused) {
+          if (v.currentTime < 0.05) v.currentTime = 0
+          v.play().catch(() => {})
+        }
       }
 
       // brief white pulse to mask any single-frame load
@@ -125,6 +132,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           setIsBVisible(false)
         }
         isTransitioningRef.current = false
+        scheduledOverlapRef.current = false
       }, FADE_DURATION_MS)
     }
 
@@ -135,11 +143,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       } else {
         const onReady = () => {
           inactiveVideoRef.current?.removeEventListener('canplaythrough', onReady)
-          inactiveVideoRef.current?.removeEventListener('canplay', onReady)
           startCrossfade()
         }
         inactiveVideoRef.current.addEventListener('canplaythrough', onReady, { once: true })
-        inactiveVideoRef.current.addEventListener('canplay', onReady, { once: true })
       }
     }
 
