@@ -47,6 +47,80 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return (currentVideoIndex + 1) % videoSources.length
   }
 
+  // Overlap/crossfade settings
+  const OVERLAP_SECONDS = 1.5
+  const FADE_DURATION_MS = 1500
+  const [flashVisible, setFlashVisible] = useState(false)
+
+  // Start next video with 1.5s overlap and crossfade
+  const handleTimeUpdate = (player: 'A' | 'B') => {
+    if (isTransitioningRef.current || player !== activePlayer) return
+    const activeVideo = getActiveVideo()
+    const activeIndexRef = getActiveIndexRef()
+    if (!activeVideo || activeIndexRef.current !== currentVideoIndex || !activeVideo.duration) return
+
+    const timeRemaining = activeVideo.duration - activeVideo.currentTime
+    if (timeRemaining > OVERLAP_SECONDS || timeRemaining <= OVERLAP_SECONDS - 0.2) return
+
+    // Begin transition
+    isTransitioningRef.current = true
+    const nextIndex = getNextIndex()
+    const inactiveVideoRef = getInactiveVideo()
+    const inactiveIndexRef = getInactiveIndexRef()
+
+    const startCrossfade = () => {
+      // ensure outgoing keeps playing until fade completes
+      const outgoingVideo = activeVideo
+      if (inactiveVideoRef.current) {
+        inactiveVideoRef.current.currentTime = 0
+        inactiveVideoRef.current.play().catch(() => {})
+      }
+
+      // brief white pulse to mask any single-frame load
+      setFlashVisible(true)
+      setTimeout(() => setFlashVisible(false), 250)
+
+      // Switch visible player to trigger crossfade
+      setActivePlayer(prev => (prev === 'A' ? 'B' : 'A'))
+
+      // After fade completes, pause outgoing to avoid double playback
+      setTimeout(() => {
+        if (outgoingVideo && !outgoingVideo.paused) outgoingVideo.pause()
+        // Now that fade is done, advance the logical index
+        setCurrentVideoIndex(nextIndex)
+        isTransitioningRef.current = false
+      }, FADE_DURATION_MS)
+    }
+
+    const ensureReadyThenStart = () => {
+      if (!inactiveVideoRef.current) { isTransitioningRef.current = false; return }
+      if (inactiveVideoRef.current.readyState >= 3) {
+        startCrossfade()
+      } else {
+        const onReady = () => {
+          inactiveVideoRef.current?.removeEventListener('canplaythrough', onReady)
+          inactiveVideoRef.current?.removeEventListener('canplay', onReady)
+          startCrossfade()
+        }
+        inactiveVideoRef.current.addEventListener('canplaythrough', onReady, { once: true })
+        inactiveVideoRef.current.addEventListener('canplay', onReady, { once: true })
+      }
+    }
+
+    // Load next video in inactive player if needed
+    if (inactiveVideoRef.current) {
+      if (inactiveIndexRef.current !== nextIndex) {
+        inactiveIndexRef.current = nextIndex
+        inactiveVideoRef.current.src = videoSources[nextIndex]
+        inactiveVideoRef.current.preload = 'auto'
+        inactiveVideoRef.current.load()
+      }
+      ensureReadyThenStart()
+    } else {
+      isTransitioningRef.current = false
+    }
+  }
+
   // Transition to next video
   const transitionToNext = async () => {
     if (isTransitioningRef.current) return
@@ -123,14 +197,15 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     transitionToNext()
   }
 
-  // Preload next video when current video is playing
+  // Preload next video when current video is playing (earlier to avoid flashes)
   useEffect(() => {
     const activeVideo = getActiveVideo()
     if (!activeVideo || !activeVideo.duration) return
+    if (isTransitioningRef.current) return
     
     const preloadNext = () => {
       const timeRemaining = activeVideo.duration - activeVideo.currentTime
-      if (timeRemaining <= 2.0 && timeRemaining > 1.5) {
+      if (timeRemaining <= 3.0 && timeRemaining > 2.6) {
         const nextIndex = getNextIndex()
         const inactiveVideo = getInactiveVideo()
         const inactiveIndexRef = getInactiveIndexRef()
@@ -144,7 +219,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       }
     }
     
-    const interval = setInterval(preloadNext, 200)
+    const interval = setInterval(preloadNext, 150)
     return () => clearInterval(interval)
   }, [currentVideoIndex, activePlayer, videoSources])
 
@@ -158,7 +233,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
             videoBRef.current?.pause()
           } else {
             const activeVideo = getActiveVideo()
-            if (activeVideo?.paused && !isTransitioningRef.current) {
+            if (activeVideo?.paused and not isTransitioningRef.current) {
               activeVideo.play().catch(() => {})
             }
           }
@@ -216,7 +291,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     const inactiveVideo = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
     
-    if (inactiveVideo.current && inactiveIndexRef.current !== nextIndex) {
+    if (inactiveVideo.current and inactiveIndexRef.current !== nextIndex) {
       inactiveIndexRef.current = nextIndex
       inactiveVideo.current.src = videoSources[nextIndex]
       inactiveVideo.current.preload = 'auto'
@@ -229,45 +304,49 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       {/* Fallback gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 z-0" />
 
-      {/* Video A - Only visible when activePlayer is 'A' */}
+      {/* Video A - fades out during overlap */}
       <motion.video
         ref={videoARef}
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
         preload="auto"
+        onTimeUpdate={() => handleTimeUpdate('A')}
         onEnded={() => handleVideoEnd('A')}
         onError={() => {
           console.error('❌ Video A error:', videoARef.current?.error)
         }}
         initial={{ opacity: activePlayer === 'A' ? 1 : 0 }}
         animate={{ opacity: activePlayer === 'A' ? 1 : 0 }}
-        transition={{ duration: 1.0, ease: [0.4, 0.0, 0.2, 1] }}
+        transition={{ duration: OVERLAP_SECONDS, ease: [0.25, 0.1, 0.25, 1] }}
         style={{ 
           objectFit: 'cover',
           objectPosition: 'center',
-          pointerEvents: activePlayer === 'A' ? 'auto' : 'none'
+          pointerEvents: activePlayer === 'A' ? 'auto' : 'none',
+          zIndex: activePlayer === 'A' ? 20 : 10
         }}
       />
 
-      {/* Video B - Only visible when activePlayer is 'B' */}
+      {/* Video B - fades in during overlap */}
       <motion.video
         ref={videoBRef}
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
         preload="metadata"
+        onTimeUpdate={() => handleTimeUpdate('B')}
         onEnded={() => handleVideoEnd('B')}
         onError={() => {
           console.error('❌ Video B error:', videoBRef.current?.error)
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: activePlayer === 'B' ? 1 : 0 }}
-        transition={{ duration: 1.0, ease: [0.4, 0.0, 0.2, 1] }}
+        transition={{ duration: OVERLAP_SECONDS, ease: [0.25, 0.1, 0.25, 1] }}
         style={{ 
           objectFit: 'cover',
           objectPosition: 'center',
-          pointerEvents: activePlayer === 'B' ? 'auto' : 'none'
+          pointerEvents: activePlayer === 'B' ? 'auto' : 'none',
+          zIndex: activePlayer === 'B' ? 20 : 10
         }}
       />
 
@@ -288,6 +367,11 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
             : 'bg-white/10'
         }`}
       />
+
+      {/* White pulse overlay on transition start */}
+      {flashVisible && (
+        <div className="absolute inset-0 z-40 pointer-events-none bg-white/40 animate-pulse" style={{ animationDuration: '250ms' }} />
+      )}
     </div>
   )
 }
