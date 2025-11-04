@@ -1354,11 +1354,14 @@ ${state.requiresTechnicalDepth ? `
 - ETA: [if available]
 - Status: [e.g., "En route", "At anchor", "In port"]
 
-**CRITICAL RULES:**
-1. Extract EVERY field listed above from your sources
-2. If a field is not in sources, write "Not found in sources" (do NOT guess or omit)
-3. Cite EVERY factual statement with [[N]](url)
-4. This profile section is MANDATORY and must appear BEFORE any analysis sections
+**CRITICAL EXTRACTION RULES:**
+1. READ ALL ${state.sources.length} SOURCES THOROUGHLY before marking anything "Not found"
+2. Extract partial information if complete data unavailable (e.g., "Built 2022" even without shipyard)
+3. Cross-reference between sources to piece together complete information
+4. Infer from context (e.g., "PSV operations" implies vessel type)
+5. ONLY write "Not found in sources" after exhaustive search of ALL sources
+6. Cite EVERY factual statement with [[N]](url) using ACTUAL source URLs
+7. This VESSEL PROFILE section is MANDATORY and must appear FIRST before any analysis
 ` : '';
 
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
@@ -1453,15 +1456,17 @@ ${isVesselQuery ? `- YOUR FIRST LINE MUST BE: ## VESSEL PROFILE
 You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise overview (400-500 words)'}.
 
 **⚠️ YOU HAVE ${state.sources.length} SOURCES - USE THEM ALL ⚠️**
+**EXTRACTION REQUIREMENT: You must extract EVERY available detail from ALL sources below.**
 
 ${state.sources.map((s: any, i: number) => {
-  // Provide more content (800 chars) for better extraction
-  const contentPreview = (s.content || '').substring(0, 800);
-  const hasMore = (s.content || '').length > 800;
+  // Provide substantial content (1200 chars) for comprehensive extraction
+  const contentPreview = (s.content || '').substring(0, 1200);
+  const hasMore = (s.content || '').length > 1200;
   return `**Source [${i+1}]**: ${s.title || 'Source ' + (i+1)}
    URL: ${s.url}
    Content: ${contentPreview}${hasMore ? '...' : ''}
-   ${hasMore ? '[CONTINUED - More details available in this source]' : ''}`;
+   ${hasMore ? '[CONTINUED - Additional data available]' : ''}
+   **ACTION**: Read this source carefully and extract ALL vessel specifications, dimensions, dates, names, and technical details.`;
 }).join('\n\n')}
 
 **CONTENT REQUIREMENTS:**
@@ -1486,6 +1491,13 @@ ${state.sources.map((s: any, i: number) => {
    - The [[N]](url) creates a clickable link - the URL is hidden by frontend
    - Cite ALL specifications, dimensions, names, dates, and technical details
    - Use ACTUAL source URLs from the list above
+   
+4. **CRITICAL - Avoid "Not found" when possible**:
+   - ONLY write "Not found in sources" if you've checked ALL ${state.sources.length} sources thoroughly
+   - If you find partial information (e.g., "built 2022" without shipyard name), still include it
+   - Extract ANY related information even if not perfectly formatted
+   - Cross-reference between sources to piece together complete information
+   - Look for implied information (e.g., if sources mention "PSV" or "supply vessel", that's the vessel type)
 
 3. **Structure** (${isVesselQuery ? 'VESSEL QUERY - USE THIS ORDER' : 'use these headers'}):
    ${isVesselQuery ? `
@@ -1532,9 +1544,9 @@ ${state.sources.map((s: any, i: number) => {
       });
     }
     
-    // P1 FIX: Use Structured Output API for vessel queries to guarantee format compliance
-    // For vessel queries, use JSON schema to ensure VESSEL PROFILE section is always first
-    const USE_STRUCTURED_OUTPUT = isVesselQuery; // Enable for vessel queries only
+    // CRITICAL FIX: DISABLE Structured Output - it's too rigid and causes "Not found" for everything
+    // Pure streaming markdown with strong prompts works better for extraction
+    const USE_STRUCTURED_OUTPUT = false; // DISABLED - causes missing data issues
     
     // CRITICAL: Use stream() and pass config for LangGraph callback system
     // Add timeout protection to prevent infinite hangs
