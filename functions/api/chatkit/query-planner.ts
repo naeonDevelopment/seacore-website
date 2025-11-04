@@ -183,6 +183,15 @@ RULES:
 8. For comparative queries: Create separate queries for each entity + verification
 9. Keep sub-queries concise, specific, and searchable with natural language
 
+⚠️⚠️⚠️ ULTRA-CRITICAL FOR VESSEL QUERIES ⚠️⚠️⚠️
+If this is a VESSEL query (contains vessel name like "Dynamic 25", "Stanford Pelican", etc.):
+- DO NOT generate generic searches for technical terms, equipment, or systems
+- DO NOT search for "dynamic positioning", "dynamic systems", manufacturer catalogs, etc.
+- EVERY sub-query MUST include the EXACT vessel name: "${query}"
+- Focus ONLY on: vessel registries, AIS tracking, vessel specifications, ownership
+- Example GOOD: "Dynamic 25 vessel IMO MMSI marinetraffic"
+- Example BAD: "dynamic systems", "wartsila dynamic", "MAN engines"
+
 ⚠️ CRITICAL OUTPUT FORMAT:
 Return ONLY valid JSON with NO additional text, explanations, or markdown.
 Do NOT add any text before or after the JSON.
@@ -238,6 +247,37 @@ START YOUR RESPONSE WITH: {`;
     
     let subQueries: SubQuery[] = plan.subQueries || [];
 
+    // CRITICAL FIX: For vessel queries, filter out any sub-queries that don't contain the vessel name
+    // This prevents generic searches like "dynamic systems", "wartsila", etc.
+    if (isVesselQuery) {
+      // Extract vessel name from query (remove "tell me about", "details on", etc.)
+      const vesselName = query
+        .replace(/^(tell me about|details on|info on|search for|what about)\s+/i, '')
+        .trim();
+      
+      const vesselWords = vesselName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      
+      // Filter: Keep only sub-queries that contain at least one vessel name word
+      // AND don't contain generic equipment/system terms
+      const filtered = subQueries.filter(sq => {
+        const sqLower = (sq.query || '').toLowerCase();
+        
+        // Must contain at least one word from vessel name
+        const hasVesselWord = vesselWords.some(word => sqLower.includes(word));
+        
+        // Must NOT be generic equipment/system searches
+        const isGeneric = /^(dynamic positioning|dynamic systems|wartsila|man engines|caterpillar|equipment|machinery|propulsion systems?)\b/i.test(sqLower)
+          && !vesselWords.some(word => sqLower.includes(word));
+        
+        return hasVesselWord && !isGeneric;
+      });
+      
+      if (filtered.length < subQueries.length) {
+        console.log(`   🧹 Filtered vessel queries: ${subQueries.length} → ${filtered.length} (removed generic searches)`);
+        subQueries = filtered;
+      }
+    }
+
     // PHASE 2 FIX: Natural language mandatory vessel sub-queries (NO keyword spam)
     if (isVesselQuery) {
       const ensure = (q: string, purpose: string, priority: 'high'|'medium'|'low'='high') => {
@@ -269,26 +309,25 @@ START YOUR RESPONSE WITH: {`;
       };
       
       // PHASE 2: Natural language queries (NO keyword spam)
-      // Registry and identity
-      ensure(`${query} vessel registry IMO number`, 'registry identifiers (IMO/MMSI)', 'high');
-      ensure(`${query} Equasis registry profile`, 'official Equasis registry data', 'high');
+      // CRITICAL: All queries MUST include vessel name to avoid generic results
+      
+      // Registry and identity - HIGHEST PRIORITY
+      ensure(`${query} vessel IMO MMSI call sign marinetraffic vesselfinder`, 'vessel identifiers from registries', 'high');
+      ensure(`${query} vessel equasis registry data specifications`, 'Equasis official registry', 'high');
+      ensure(`${query} vessel AIS tracking current position`, 'AIS tracking data', 'high');
       
       // Ownership/management
-      ensure(`${query} vessel owner and operator`, 'ownership and management company', 'high');
+      ensure(`${query} vessel owner operator management company`, 'ownership and management', 'high');
       
-      // Class and flag
-      ensure(`${query} classification society class notation`, 'class society and notation', 'medium');
-      ensure(`${query} flag state and registry`, 'flag state registration', 'medium');
+      // Vessel particulars
+      ensure(`${query} vessel specifications dimensions LOA beam tonnage`, 'dimensions and tonnages', 'high');
+      ensure(`${query} vessel build year shipyard builder`, 'construction info', 'medium');
       
-      // Particulars
-      ensure(`${query} vessel dimensions and tonnage`, 'principal dimensions (LOA, beam, tonnage)', 'medium');
-      ensure(`${query} build date and shipyard`, 'construction date and builder', 'medium');
+      // Classification
+      ensure(`${query} vessel class society flag state`, 'class and flag', 'medium');
       
-      // Current status/location
-      ensure(`${query} current AIS position`, 'current location from AIS', 'medium');
-      
-      // Equipment
-      ensure(`${query} main engines and propulsion`, 'propulsion system details', 'medium');
+      // Technical specs (if available)
+      ensure(`${query} vessel engines propulsion machinery`, 'propulsion details', 'low');
     }
     
     // Company-specific mandatory sub-queries
