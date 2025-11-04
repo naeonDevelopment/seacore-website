@@ -44,7 +44,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return (currentVideoIndex + 1) % videoSources.length
   }
 
-  // Handle video time update - transition with 1.5s overlap
+  // Handle video time update - transition with smooth overlap
   const handleTimeUpdate = (player: 'A' | 'B') => {
     // Only handle if this is the active player and we're not already transitioning
     if (isTransitioningRef.current || player !== activePlayer) return
@@ -59,10 +59,25 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     if (currentIndex !== currentVideoIndex) return
     
     const timeRemaining = activeVideo.duration - activeVideo.currentTime
-    const OVERLAP_DURATION = 1.5 // seconds
+    const PRELOAD_TIME = 3.0 // Start loading next video 3 seconds before end
+    const OVERLAP_DURATION = 1.5 // Start crossfade 1.5 seconds before end
+    
+    // Preload next video early (3 seconds before end)
+    if (timeRemaining <= PRELOAD_TIME && timeRemaining > (PRELOAD_TIME - 0.3)) {
+      const inactiveVideo = getInactiveVideo()
+      const inactiveIndexRef = getInactiveIndexRef()
+      const nextIndex = getNextIndex()
+      
+      // Preload if not already loaded
+      if (inactiveVideo.current && inactiveIndexRef.current !== nextIndex) {
+        console.log(`📥 Early preloading video ${nextIndex} (${timeRemaining.toFixed(2)}s remaining)`)
+        inactiveIndexRef.current = nextIndex
+        inactiveVideo.current.src = videoSources[nextIndex]
+        inactiveVideo.current.load()
+      }
+    }
     
     // Start transition 1.5 seconds before end (with buffer to prevent multiple triggers)
-    // Use a wider range to catch the transition point reliably
     if (timeRemaining <= OVERLAP_DURATION && timeRemaining > (OVERLAP_DURATION - 0.2)) {
       isTransitioningRef.current = true
       
@@ -81,12 +96,63 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           inactiveVideo.current.src = videoSources[nextIndex]
           inactiveVideo.current.load()
           
-          // Wait for video to be ready before playing
+          // Wait for video to be fully ready before playing (use canplaythrough for smoother playback)
           const handleCanPlay = () => {
-            inactiveVideo.current!.currentTime = 0
-            inactiveVideo.current!.play()
+            // Small delay to ensure video is fully ready
+            setTimeout(() => {
+              inactiveVideo.current!.currentTime = 0
+              inactiveVideo.current!.play()
+                .then(() => {
+                  console.log(`✅ Started playing video ${nextIndex} (overlapping with video ${currentIndex})`)
+                  
+                  // Ensure outgoing video continues playing during crossfade
+                  const outgoingVideo = activePlayer === 'A' ? videoARef.current : videoBRef.current
+                  if (outgoingVideo && outgoingVideo.paused) {
+                    outgoingVideo.play().catch(() => {})
+                  }
+                  
+                  // Small delay before crossfade to ensure new video is playing smoothly
+                  setTimeout(() => {
+                    // Start crossfade - both videos playing during overlap
+                    setActivePlayer(prev => {
+                      const newPlayer = prev === 'A' ? 'B' : 'A'
+                      setCurrentVideoIndex(nextIndex)
+                      console.log(`✅ Crossfade started to player ${newPlayer}, showing video ${nextIndex}`)
+                      return newPlayer
+                    })
+                    
+                    // Reset transition flag after crossfade completes
+                    setTimeout(() => {
+                      isTransitioningRef.current = false
+                      console.log(`✅ Transition complete, video ${nextIndex} is now active`)
+                    }, 1500) // Match crossfade duration
+                  }, 100) // Small delay to ensure smooth playback start
+                })
+                .catch(e => {
+                  console.error(`❌ Play error for video ${nextIndex}:`, e)
+                  isTransitioningRef.current = false
+                })
+            }, 50) // Small delay to ensure video is ready
+            inactiveVideo.current?.removeEventListener('canplaythrough', handleCanPlay)
+            inactiveVideo.current?.removeEventListener('canplay', handleCanPlay)
+          }
+          
+          // Prefer canplaythrough for smoother playback, fallback to canplay
+          if (inactiveVideo.current.readyState >= 3) {
+            // Already ready, play immediately
+            handleCanPlay()
+          } else {
+            inactiveVideo.current.addEventListener('canplaythrough', handleCanPlay, { once: true })
+            inactiveVideo.current.addEventListener('canplay', handleCanPlay, { once: true })
+          }
+        } else {
+          // Video already preloaded, ensure it's ready and play it
+          if (inactiveVideo.current.readyState >= 3) {
+            // Video is ready, play it
+            inactiveVideo.current.currentTime = 0
+            inactiveVideo.current.play()
               .then(() => {
-                console.log(`✅ Started playing video ${nextIndex} (overlapping with video ${currentIndex})`)
+                console.log(`✅ Started playing preloaded video ${nextIndex} (overlapping with video ${currentIndex})`)
                 
                 // Ensure outgoing video continues playing during crossfade
                 const outgoingVideo = activePlayer === 'A' ? videoARef.current : videoBRef.current
@@ -94,59 +160,65 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
                   outgoingVideo.play().catch(() => {})
                 }
                 
-                // Start crossfade immediately - both videos playing during overlap
-                setActivePlayer(prev => {
-                  const newPlayer = prev === 'A' ? 'B' : 'A'
-                  setCurrentVideoIndex(nextIndex)
-                  console.log(`✅ Crossfade started to player ${newPlayer}, showing video ${nextIndex}`)
-                  return newPlayer
-                })
-                
-                // Reset transition flag after crossfade completes
+                // Small delay before crossfade to ensure smooth playback
                 setTimeout(() => {
-                  isTransitioningRef.current = false
-                  console.log(`✅ Transition complete, video ${nextIndex} is now active`)
-                }, 1500) // Match crossfade duration
+                  // Start crossfade - both videos playing during overlap
+                  setActivePlayer(prev => {
+                    const newPlayer = prev === 'A' ? 'B' : 'A'
+                    setCurrentVideoIndex(nextIndex)
+                    console.log(`✅ Crossfade started to player ${newPlayer}, showing video ${nextIndex}`)
+                    return newPlayer
+                  })
+                  
+                  // Reset transition flag after crossfade completes
+                  setTimeout(() => {
+                    isTransitioningRef.current = false
+                    console.log(`✅ Transition complete, video ${nextIndex} is now active`)
+                  }, 1500) // Match crossfade duration
+                }, 100) // Small delay to ensure smooth playback start
               })
               .catch(e => {
                 console.error(`❌ Play error for video ${nextIndex}:`, e)
                 isTransitioningRef.current = false
               })
-            inactiveVideo.current?.removeEventListener('canplay', handleCanPlay)
+          } else {
+            // Video not quite ready yet, wait for it
+            const handleReady = () => {
+              inactiveVideo.current!.currentTime = 0
+              inactiveVideo.current!.play()
+                .then(() => {
+                  console.log(`✅ Started playing video ${nextIndex} (overlapping with video ${currentIndex})`)
+                  
+                  const outgoingVideo = activePlayer === 'A' ? videoARef.current : videoBRef.current
+                  if (outgoingVideo && outgoingVideo.paused) {
+                    outgoingVideo.play().catch(() => {})
+                  }
+                  
+                  setTimeout(() => {
+                    setActivePlayer(prev => {
+                      const newPlayer = prev === 'A' ? 'B' : 'A'
+                      setCurrentVideoIndex(nextIndex)
+                      console.log(`✅ Crossfade started to player ${newPlayer}, showing video ${nextIndex}`)
+                      return newPlayer
+                    })
+                    
+                    setTimeout(() => {
+                      isTransitioningRef.current = false
+                      console.log(`✅ Transition complete, video ${nextIndex} is now active`)
+                    }, 1500)
+                  }, 100)
+                })
+                .catch(e => {
+                  console.error(`❌ Play error for video ${nextIndex}:`, e)
+                  isTransitioningRef.current = false
+                })
+              inactiveVideo.current?.removeEventListener('canplaythrough', handleReady)
+              inactiveVideo.current?.removeEventListener('canplay', handleReady)
+            }
+            
+            inactiveVideo.current.addEventListener('canplaythrough', handleReady, { once: true })
+            inactiveVideo.current.addEventListener('canplay', handleReady, { once: true })
           }
-          
-          inactiveVideo.current.addEventListener('canplay', handleCanPlay, { once: true })
-        } else {
-          // Video already loaded, just play it
-          inactiveVideo.current.currentTime = 0
-          inactiveVideo.current.play()
-            .then(() => {
-              console.log(`✅ Started playing preloaded video ${nextIndex} (overlapping with video ${currentIndex})`)
-              
-              // Ensure outgoing video continues playing during crossfade
-              const outgoingVideo = activePlayer === 'A' ? videoARef.current : videoBRef.current
-              if (outgoingVideo && outgoingVideo.paused) {
-                outgoingVideo.play().catch(() => {})
-              }
-              
-              // Start crossfade immediately - both videos playing during overlap
-              setActivePlayer(prev => {
-                const newPlayer = prev === 'A' ? 'B' : 'A'
-                setCurrentVideoIndex(nextIndex)
-                console.log(`✅ Crossfade started to player ${newPlayer}, showing video ${nextIndex}`)
-                return newPlayer
-              })
-              
-              // Reset transition flag after crossfade completes
-              setTimeout(() => {
-                isTransitioningRef.current = false
-                console.log(`✅ Transition complete, video ${nextIndex} is now active`)
-              }, 1500) // Match crossfade duration
-            })
-            .catch(e => {
-              console.error(`❌ Play error for video ${nextIndex}:`, e)
-              isTransitioningRef.current = false
-            })
         }
       }
     }
@@ -253,12 +325,17 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       }, 2000)
     }
     
-    // Preload second video into player B
+    // Preload second video into player B with aggressive preloading
     if (videoBRef.current && videoSources.length > 1) {
       videoBIndexRef.current = 1
       console.log('🎬 Preloading video 1 into player B:', videoSources[1])
       videoBRef.current.src = videoSources[1]
       videoBRef.current.load()
+      
+      // Wait for video 1 to be ready to ensure smooth transition
+      videoBRef.current.addEventListener('canplaythrough', () => {
+        console.log('✅ Video 1 fully preloaded and ready')
+      }, { once: true })
     }
   }, [videoSources])
 
@@ -276,6 +353,11 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       inactiveIndexRef.current = nextIndex
       inactiveVideo.current.src = videoSources[nextIndex]
       inactiveVideo.current.load()
+      
+      // Wait for video to be ready for smooth playback
+      inactiveVideo.current.addEventListener('canplaythrough', () => {
+        console.log(`✅ Video ${nextIndex} fully preloaded and ready`)
+      }, { once: true })
     }
     
     // Don't pause the outgoing video - let it play until it naturally ends
@@ -305,7 +387,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           }
         }}
         animate={{ opacity: activePlayer === 'A' ? 1 : 0 }}
-        transition={{ duration: 1.5, ease: 'easeInOut' }}
+        transition={{ duration: 1.5, ease: [0.25, 0.1, 0.25, 1] }}
         onEnded={() => {
           // Handle video ending naturally - ensure smooth transition
           if (activePlayer === 'A' && videoAIndexRef.current === currentVideoIndex) {
