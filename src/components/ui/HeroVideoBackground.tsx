@@ -50,7 +50,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   // Overlap/crossfade settings
   const OVERLAP_SECONDS = 1.5
   const FADE_DURATION_MS = 1500
-  const [flashVisible, setFlashVisible] = useState(false)
+  // const [flashVisible, setFlashVisible] = useState(false) // Removed - crossfade is smooth enough
   const [isAVisible, setIsAVisible] = useState(true)
   const [isBVisible, setIsBVisible] = useState(false)
   const scheduledOverlapRef = useRef(false)
@@ -149,9 +149,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         }
       }
 
-      // brief white pulse to mask any single-frame load
-      setFlashVisible(true)
-      setTimeout(() => setFlashVisible(false), 250)
+      // Subtle flash removed - smooth crossfade handles transition without visual artifacts
+      // setFlashVisible(true)
+      // setTimeout(() => setFlashVisible(false), 250)
 
       // Ensure incoming becomes visible only after first frame rendered
       if (inactiveVideoRef.current && inactiveVideoRef.current.paused === false) {
@@ -407,10 +407,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         }`}
       />
 
-      {/* White pulse overlay on transition start */}
-      {flashVisible && (
-        <div className="absolute inset-0 z-40 pointer-events-none bg-white/40 animate-pulse" style={{ animationDuration: '250ms' }} />
-      )}
+      {/* White pulse overlay removed - smooth crossfade eliminates need for flash masking */}
     </div>
   )
 }
