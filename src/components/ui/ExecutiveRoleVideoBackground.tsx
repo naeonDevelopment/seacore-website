@@ -76,6 +76,8 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
     const nextIndex = getNextIndex()
     const inactiveVideoRef = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
+    
+    console.log(`🎬 Executive: Starting crossfade ${currentVideoIndex} → ${nextIndex} (loop: ${nextIndex === 0 ? 'YES - back to start' : 'NO'})`)
 
     const awaitFirstFrame = (video: HTMLVideoElement): Promise<void> => {
       return new Promise((resolve) => {
@@ -98,14 +100,19 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
       if (inactiveVideoRef.current) {
         const v = inactiveVideoRef.current
         
+        console.log(`📹 Executive: Video ${nextIndex} state - paused: ${v.paused}, time: ${v.currentTime.toFixed(3)}`)
+        
         // Only play if video is paused and at start
         if (v.paused && v.currentTime < 0.1) {
           v.currentTime = 0
           try {
             await v.play()
+            console.log(`✅ Executive: Playing video ${nextIndex}`)
           } catch (error) {
             console.error('Video crossfade play error:', error)
           }
+        } else {
+          console.warn(`⚠️ Executive: Video ${nextIndex} not ready - paused: ${v.paused}, time: ${v.currentTime.toFixed(3)}`)
         }
       }
 
@@ -250,15 +257,23 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
     videoA.preload = 'auto'
     videoA.load()
     
+    console.log(`🎥 Executive: Initializing video player with ${videoSources.length} videos`)
+    
     let hasPlayed = false
     const playVideo = () => {
       if (hasPlayed) return
       hasPlayed = true
       
-      videoA.play().catch((error) => {
-        console.error('Initial video play error:', error)
-        hasPlayed = false
-      })
+      console.log(`▶️ Executive: Starting initial video 0 (duration: ${videoA.duration}s)`)
+      
+      videoA.play()
+        .then(() => {
+          console.log(`✅ Executive: Initial video 0 playing`)
+        })
+        .catch((error) => {
+          console.error('Initial video play error:', error)
+          hasPlayed = false
+        })
     }
     
     videoA.addEventListener('canplaythrough', playVideo, { once: true })
