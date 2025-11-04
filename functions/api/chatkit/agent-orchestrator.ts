@@ -1163,8 +1163,14 @@ If you don't have specific information, be honest and suggest the user enable on
       (state.sources.length >= 3 && // Multiple sources available
        (userQuery.match(/\b(largest|biggest|smallest|compare|versus|vs|which|best)\b/i) || // Comparative query
         state.sources.length >= 5)); // Rich source set
-    
-    if (shouldRunVerificationPipeline) {
+    // FAST STREAM: Skip heavy verification pipeline to reduce TTFB
+    const fastStream = (env as any)?.FAST_STREAM_MODE === true;
+    const shouldRunVerificationPipelineEffective = shouldRunVerificationPipeline && !fastStream;
+    if (fastStream) {
+      console.log('   ⚡ FAST_STREAM_MODE: Skipping verification pipeline for faster streaming');
+    }
+
+    if (shouldRunVerificationPipelineEffective) {
       console.log(`   🔬 Running verification pipeline (${state.sources.length} sources)`);
       
       if (statusEmitter) {
@@ -2341,6 +2347,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
       // Runtime flags: suppress process/thinking events in SSE for clean UI
       const EMIT_THINKING_EVENTS = false;
       
@@ -2427,7 +2434,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           {
             configurable: {
               thread_id: sessionId,
-              env,
+              // Propagate a fast streaming hint to nodes (skip heavy verification)
+              env: { ...(env as any), FAST_STREAM_MODE: true },
               sessionMemory,
               statusEmitter, // PHASE A1 & A2: Pass emitter to nodes
             },
@@ -2606,7 +2614,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 
                 // P0 FIX: Validate URLs before emitting to frontend
                 let validCount = 0;
-                for (const source of newSources) {
+              for (const source of newSources) {
                   // Quick validation (basic check without importing full validator)
                   const url = source.url || '';
                   const isValid = url && 
@@ -2629,6 +2637,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                       })}\n\n`
                     ));
                     validCount++;
+                    // Stagger source emissions for progressive reveal
+                    await sleep(150);
                   } else {
                     console.log(`   🚫 Blocked invalid source: ${url.substring(0, 60)}`);
                   }
@@ -2658,7 +2668,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                 
                 // P0 FIX: Validate URLs before emitting to frontend
                 let validCount = 0;
-                for (const source of newSources) {
+              for (const source of newSources) {
                   const url = source.url || '';
                   const isValid = url && 
                     !url.includes('/ais/details/ships?') && 
@@ -2680,6 +2690,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     })}\n\n`
                   ));
                   validCount++;
+                  await sleep(150);
                 } else {
                   console.log(`   🚫 Blocked invalid source: ${url.substring(0, 60)}`);
                 }
