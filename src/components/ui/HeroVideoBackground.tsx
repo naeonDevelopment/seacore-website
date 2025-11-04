@@ -66,12 +66,17 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     if (timeRemaining > OVERLAP_SECONDS || timeRemaining <= OVERLAP_SECONDS - 0.2) return
 
     // Begin transition (guard against duplicate scheduling)
-    if (scheduledOverlapRef.current) return
+    if (scheduledOverlapRef.current) {
+      console.log(`⚠️ Crossfade already scheduled, skipping duplicate (currentVideo: ${currentVideoIndex})`)
+      return
+    }
     scheduledOverlapRef.current = true
     isTransitioningRef.current = true
     const nextIndex = getNextIndex()
     const inactiveVideoRef = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
+
+    console.log(`🎬 Starting crossfade: ${currentVideoIndex} → ${nextIndex} (timeRemaining: ${timeRemaining.toFixed(2)}s, activePlayer: ${activePlayer})`)
 
     const awaitFirstFrame = (video: HTMLVideoElement): Promise<void> => {
       return new Promise((resolve) => {
@@ -94,17 +99,21 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       if (inactiveVideoRef.current) {
         // Critical: Only play if video is actually paused AND not already playing
         const v = inactiveVideoRef.current
+        console.log(`📹 Inactive video state - paused: ${v.paused}, currentTime: ${v.currentTime.toFixed(3)}, readyState: ${v.readyState}`)
+        
         // Check both paused state and currentTime to avoid double playback
         if (v.paused && v.currentTime < 0.1) {
           v.currentTime = 0
           try {
             await v.play()
-            console.log(`✅ Started crossfade playback for video ${nextIndex}`)
+            console.log(`✅ Started crossfade playback for video ${nextIndex} (${activePlayer} → ${activePlayer === 'A' ? 'B' : 'A'})`)
           } catch (error) {
             console.error(`❌ Crossfade play error:`, error)
           }
         } else if (!v.paused) {
-          console.log(`⚠️ Video ${nextIndex} already playing, skipping duplicate play()`)
+          console.log(`⚠️ Video ${nextIndex} already playing (paused: ${v.paused}, time: ${v.currentTime.toFixed(3)}), skipping duplicate play()`)
+        } else {
+          console.log(`⚠️ Video ${nextIndex} not in expected state (paused: ${v.paused}, time: ${v.currentTime.toFixed(3)})`)
         }
       }
 
@@ -179,80 +188,17 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     }
   }
 
-  // Transition to next video
-  const transitionToNext = async () => {
-    if (isTransitioningRef.current) return
-    
-    const activeVideo = getActiveVideo()
-    const activeIndexRef = getActiveIndexRef()
-    
-    if (!activeVideo || activeIndexRef.current !== currentVideoIndex) return
-    
-    isTransitioningRef.current = true
-    const nextIndex = getNextIndex()
-    const inactiveVideo = getInactiveVideo()
-    const inactiveIndexRef = getInactiveIndexRef()
-    
-    console.log(`🔄 Transitioning from video ${currentVideoIndex} to ${nextIndex}`)
-    
-    // Pause current video
-    activeVideo.pause()
-    
-    if (!inactiveVideo.current) {
-      isTransitioningRef.current = false
-      return
-    }
-    
-    // Ensure next video is loaded
-    if (inactiveIndexRef.current !== nextIndex) {
-      inactiveIndexRef.current = nextIndex
-      inactiveVideo.current.src = videoSources[nextIndex]
-      inactiveVideo.current.preload = 'auto'
-      inactiveVideo.current.load()
-    }
-    
-    // Wait for video to be ready
-    const waitForReady = (video: HTMLVideoElement): Promise<void> => {
-      return new Promise((resolve) => {
-        if (video.readyState >= 4) {
-          resolve()
-          return
-        }
-        const handleReady = () => {
-          video.removeEventListener('canplaythrough', handleReady)
-          resolve()
-        }
-        video.addEventListener('canplaythrough', handleReady, { once: true })
-      })
-    }
-    
-    try {
-      await waitForReady(inactiveVideo.current)
-      inactiveVideo.current.currentTime = 0
-      await inactiveVideo.current.play()
-      
-      console.log(`✅ Started playing video ${nextIndex}`)
-      
-      // Update active player and index
-      setActivePlayer(prev => prev === 'A' ? 'B' : 'A')
-      setCurrentVideoIndex(nextIndex)
-      
-      setTimeout(() => {
-        isTransitioningRef.current = false
-      }, 1000)
-      
-    } catch (error) {
-      console.error(`❌ Play error:`, error)
-      isTransitioningRef.current = false
-    }
-  }
-
-  // Handle video end
+  // Handle video end - DISABLED: crossfade handles transitions before video ends
+  // This is a safety fallback only if crossfade somehow fails
   const handleVideoEnd = (player: 'A' | 'B') => {
-    if (player !== activePlayer || isTransitioningRef.current) return
-    const activeIndexRef = getActiveIndexRef()
-    if (activeIndexRef.current !== currentVideoIndex) return
-    transitionToNext()
+    // If we reach the end, the crossfade should have already happened
+    // Log a warning but don't transition (prevents double playback)
+    if (player === activePlayer && !isTransitioningRef.current) {
+      console.warn(`⚠️ Video ${currentVideoIndex} ended without crossfade transition. Crossfade should trigger at ${OVERLAP_SECONDS}s before end.`)
+      // Reset transition flags in case they got stuck
+      isTransitioningRef.current = false
+      scheduledOverlapRef.current = false
+    }
   }
 
   // Preload next video when current video is playing (earlier to avoid flashes)
@@ -343,21 +289,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   // REMOVED: This useEffect was causing double playback by competing with handleTimeUpdate
   // The crossfade logic in handleTimeUpdate already handles play/pause correctly
 
-  // Preload next video after transition
-  useEffect(() => {
-    if (currentVideoIndex === 0) return // Skip on initial mount
-    
-    const nextIndex = getNextIndex()
-    const inactiveVideo = getInactiveVideo()
-    const inactiveIndexRef = getInactiveIndexRef()
-    
-    if (inactiveVideo.current && inactiveIndexRef.current !== nextIndex) {
-      inactiveIndexRef.current = nextIndex
-      inactiveVideo.current.src = videoSources[nextIndex]
-      inactiveVideo.current.preload = 'auto'
-      inactiveVideo.current.load()
-    }
-  }, [currentVideoIndex, activePlayer, videoSources])
+  // Preload next video after transition - REMOVED: consolidated into handleTimeUpdate preload
+  // The preload logic at line 195-219 handles this more efficiently during playback
 
   return (
     <div ref={containerRef} className={`absolute inset-0 overflow-hidden z-10 ${className}`}>
