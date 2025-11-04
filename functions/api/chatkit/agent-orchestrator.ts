@@ -1453,7 +1453,21 @@ ${isVesselQuery ? `- YOUR FIRST LINE MUST BE: ## VESSEL PROFILE
 - Your output must be pure markdown content only
 
 **YOUR TASK:**
-You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise overview (400-500 words)'}.
+You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise but complete overview (400-500 words)'}.
+
+${!state.requiresTechnicalDepth ? `
+**⚠️ BRIEF MODE - Keep Response Focused:**
+- This is an initial overview query - be concise and well-organized
+- Cover ALL key points but avoid excessive detail
+- User can ask follow-up questions for deeper analysis
+- Think "executive briefing" not "technical manual"
+` : `
+**⚠️ DETAILED MODE - Comprehensive Analysis:**
+- User explicitly requested detailed information
+- Provide comprehensive technical analysis with maintenance insights
+- Include real-world operational data and best practices
+- Think "technical manual" not "executive summary"
+`}
 
 **⚠️ YOU HAVE ${state.sources.length} SOURCES - USE THEM ALL ⚠️**
 **EXTRACTION REQUIREMENT: You must extract EVERY available detail from ALL sources below.**
@@ -1501,11 +1515,23 @@ ${state.sources.map((s: any, i: number) => {
 
 3. **Structure** (${isVesselQuery ? 'VESSEL QUERY - USE THIS ORDER' : 'use these headers'}):
    ${isVesselQuery ? `
-   - ## VESSEL PROFILE (MANDATORY - all fields from requirements above)
+   ${!state.requiresTechnicalDepth ? `
+   **BRIEF MODE (Initial Vessel Lookup):**
+   - ## EXECUTIVE SUMMARY (2-3 paragraphs: vessel purpose, operator, key specs)
+   - ## TECHNICAL SPECIFICATIONS (organized list with citations)
+   - ## OPERATIONAL STATUS (current location, flag, operational context)
+   - ## TECHNICAL ANALYSIS (brief technical commentary on propulsion, systems)
+   - ## MARITIME CONTEXT (vessel's role in maritime operations)
+   ` : `
+   **DETAILED MODE (Comprehensive Vessel Analysis):**
+   - ## VESSEL PROFILE (complete technical specifications)
    - ## EXECUTIVE SUMMARY
-   - ## TECHNICAL SPECIFICATIONS
+   - ## TECHNICAL SPECIFICATIONS (comprehensive)
    - ## OPERATIONAL STATUS
-   - ## MARITIME CONTEXT` : (state.requiresTechnicalDepth ? `
+   - ## MAINTENANCE ANALYSIS
+   - ## REAL-WORLD INSIGHTS
+   - ## MARITIME CONTEXT
+   `}` : (state.requiresTechnicalDepth ? `
    - ## EXECUTIVE SUMMARY
    - ## TECHNICAL SPECIFICATIONS
    - ## MAINTENANCE ANALYSIS (required for technical depth)

@@ -317,6 +317,14 @@ export function isSystemOrganizationQuery(query: string): boolean {
 export function requiresTechnicalDepth(query: string): boolean {
   const queryLower = query.toLowerCase().trim();
   
+  // CRITICAL: Exclude simple vessel lookup queries
+  // "tell me about [vessel]" should be BRIEF overview, not technical depth
+  const isSimpleVesselLookup = /^(tell me about|what is|info on|details on|search for)\s+[a-z0-9\s\-]+$/i.test(query.trim());
+  if (isSimpleVesselLookup) {
+    console.log(`   📋 BRIEF MODE: Simple vessel lookup detected - will provide concise overview`);
+    return false;
+  }
+  
   // Check for explicit depth request phrases
   const hasDepthPhrase = TECHNICAL_DEPTH_PHRASES.some(pattern => pattern.test(query));
   if (hasDepthPhrase) {
@@ -345,16 +353,16 @@ export function requiresTechnicalDepth(query: string): boolean {
     return true;
   }
   
-  // Special case: Follow-up queries that reference previous entity context
-  // Example: "ok tell me more details about the engines"
-  // This should be treated as technical depth when entity context exists
-  const isFollowUpTechnical = (
-    /^(ok|okay|yes|right|sure|alright),?\s+(tell|give|show)/i.test(query) &&
-    (queryLower.includes('detail') || queryLower.includes('more') || queryLower.includes('specific'))
+  // Special case: Follow-up queries requesting details/insights
+  // Example: "give me details about the engines" or "tell me more about maintenance"
+  const isFollowUpDetailed = (
+    (queryLower.includes('detail') || queryLower.includes('insight') || 
+     queryLower.includes('more') || queryLower.includes('comprehensive')) &&
+    (queryLower.includes('about') || queryLower.includes('on') || queryLower.includes('regarding'))
   );
   
-  if (isFollowUpTechnical) {
-    console.log(`   🔬 TECHNICAL DEPTH: Follow-up technical query detected`);
+  if (isFollowUpDetailed) {
+    console.log(`   🔬 TECHNICAL DEPTH: Follow-up requesting details/insights`);
     return true;
   }
   
