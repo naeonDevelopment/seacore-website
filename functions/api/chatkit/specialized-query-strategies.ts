@@ -94,15 +94,16 @@ function generateVesselStrategy(query: string, entities: string[]): SpecializedS
       },
       {
         name: 'Ownership & Management',
-        priority: 'medium',
+        priority: 'high',
         queries: [
           `${vesselName} vessel owner operator management company`,
-          `${vesselName} fleet company operations`,
+          `${vesselName} ship owner company fleet`,
+          `${vesselName} vessel operator maritime company`,
         ],
         purpose: 'Get ownership and operational details'
       }
     ],
-    totalQueries: 10
+    totalQueries: 11
   };
 }
 

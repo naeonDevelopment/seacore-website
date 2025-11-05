@@ -1373,7 +1373,8 @@ ${state.requiresTechnicalDepth ? `
 
 ## EXECUTIVE SUMMARY
 [2-3 paragraphs describing: vessel purpose/type, owner/operator, key specifications, and current operational role - cite all facts]
-[MUST include: vessel type, flag state, owner/operator (if found), build year, and operational context]
+[**CRITICAL**: MUST include vessel type, flag state, **owner/operator company name** (search ALL sources thoroughly), build year, and operational context]
+[Owner/Operator is HIGH PRIORITY - look for: "owned by", "operated by", "managed by", "owner:", "operator:", company names in AIS data]
 
 ## TECHNICAL SPECIFICATIONS
 [ONLY list specs you found - use narrative or clean bullet format]
@@ -1487,11 +1488,11 @@ ${state.sources.map((s: any, i: number) => {
    - DO NOT rely on just 1-2 sources - use ALL of them
    
 2. **Extract Specific Facts**: 
+   - **OWNER/OPERATOR COMPANY NAME** (TOP PRIORITY - search ALL sources for: "owner", "operator", "managed by", "operated by", company names)
    - Exact model numbers (e.g., "Caterpillar C32 ACERT")
    - Precise specifications (e.g., "41.00 meters LOA")
    - Actual company names (e.g., "Stanford Marine Group")
    - Equipment details (engines, propulsion, generators)
-   - Ownership and management details
    - Class society and notation
    - All dimensions and tonnages
 
