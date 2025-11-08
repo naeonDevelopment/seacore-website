@@ -133,6 +133,49 @@ const LoadingIndicator: React.FC<{
   );
 };
 
+/**
+ * Parse REFERENCES section and convert bare [N] citations to [N](url) format
+ * This handles the new IEEE-style citation format from the backend
+ */
+function preprocessCitations(content: string): string {
+  // Extract REFERENCES section
+  const referencesMatch = content.match(/##\s*REFERENCES\s*\n\n([\s\S]*?)(?:\n\n##|$)/i);
+  
+  if (!referencesMatch) {
+    // No REFERENCES section, return as-is
+    return content;
+  }
+  
+  const referencesSection = referencesMatch[1];
+  const citationMap = new Map<string, string>();
+  
+  // Parse each reference line: [N] SiteName, "Title," URL
+  const referenceLines = referencesSection.split('\n');
+  for (const line of referenceLines) {
+    const match = line.match(/^\[(\d+)\]\s+.*?,\s+".*?",\s+(https?:\/\/[^\s]+)/);
+    if (match) {
+      const [, num, url] = match;
+      citationMap.set(num, url);
+    }
+  }
+  
+  if (citationMap.size === 0) {
+    return content;
+  }
+  
+  // Replace bare [N] citations with [N](url)
+  // Match [N] that's NOT already part of a markdown link
+  let processed = content.replace(/\[(\d+)\](?!\()/g, (match, num) => {
+    const url = citationMap.get(num);
+    if (url) {
+      return `[${num}](${url})`;
+    }
+    return match;
+  });
+  
+  return processed;
+}
+
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   isFullscreen = false, 
   onClose,
@@ -1865,7 +1908,7 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                               ),
                             }}
                           >
-                            {sanitizeAssistantContent(message.content)}
+                            {preprocessCitations(sanitizeAssistantContent(message.content))}
                           </ReactMarkdown>
                           {message.isStreaming && (
                             <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse align-baseline" />
