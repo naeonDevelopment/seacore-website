@@ -1,14 +1,17 @@
 /**
- * PHASE 4: Citation Enforcement Post-Processor
+ * Citation Enforcement Post-Processor
  * 
- * Ensures inline citations are present in verification-mode answers.
- * If GPT-4o forgets to add citations, this injects them automatically.
+ * Ensures inline citations are present in research-mode answers.
+ * Automatically injects citations if GPT-4 misses them.
+ * 
+ * Modern Format: Uses IEEE-style [N] citations with REFERENCES section
+ * - Inline citations: [1], [2], [3]
+ * - REFERENCES section added automatically at end
  * 
  * Rules:
  * - Minimum citations: min(3, sources.length)
  * - Only inject if current count < threshold
  * - Target factual statements (numbers, names, technical terms)
- * - Use [[N]](url) format for consistency
  */
 
 export interface Source {
@@ -118,12 +121,14 @@ function countCitations(content: string): number {
 }
 
 /**
- * PHASE 4A: Validate and auto-repair malformed citations
- * Detects and fixes common edge cases:
- * - Missing outer brackets: [1] → [[1]](url)
- * - Missing URL: [[1]] → [[1]](url)
- * - Empty URL: [[1]]() → [[1]](url)
- * - Wrong format: [1](url) → [[1]](url)
+ * Validate and auto-repair citations
+ * Converts legacy formats to modern IEEE-style [N] format
+ * 
+ * Legacy formats converted:
+ * - [[N]](url) → [N]
+ * - [N](url) → [N]
+ * - [[N]] → [N]
+ * - [[N]]() → [N]
  */
 function validateAndRepairCitations(content: string, sources: Source[]): {
   repairedContent: string;
@@ -134,61 +139,40 @@ function validateAndRepairCitations(content: string, sources: Source[]): {
   let repairsCount = 0;
   const errors: string[] = [];
   
-  // Edge case 1: Single brackets with numbers [N] without URL
-  // Replace [1], [2], etc. with [[1]](url), [[2]](url)
-  const singleBracketPattern = /\[(\d+)\](?!\()/g;
-  repaired = repaired.replace(singleBracketPattern, (match, indexStr) => {
+  // Convert legacy format 1: [[N]](url) → [N]
+  const legacyFormat1 = /\[\[(\d+)\]\]\([^)]*\)/g;
+  repaired = repaired.replace(legacyFormat1, (match, indexStr) => {
     const index = parseInt(indexStr, 10);
     if (index < 1 || index > sources.length) {
-      errors.push(`Citation [${index}] out of bounds (sources: ${sources.length})`);
-      return match; // Keep as-is if invalid
-    }
-    repairsCount++;
-    return `[[${index}]](${sources[index - 1].url})`;
-  });
-  
-  // Edge case 2: Double brackets without URL [[N]]
-  const doubleBracketNoUrl = /\[\[(\d+)\]\](?!\()/g;
-  repaired = repaired.replace(doubleBracketNoUrl, (match, indexStr) => {
-    const index = parseInt(indexStr, 10);
-    if (index < 1 || index > sources.length) {
-      errors.push(`Citation [[${index}]] out of bounds (sources: ${sources.length})`);
+      errors.push(`Citation out of bounds: [${index}] (sources: ${sources.length})`);
       return match;
     }
     repairsCount++;
-    return `[[${index}]](${sources[index - 1].url})`;
+    return `[${index}]`;
   });
   
-  // Edge case 3: Empty URL [[N]]()
-  const emptyUrlPattern = /\[\[(\d+)\]\]\(\)/g;
-  repaired = repaired.replace(emptyUrlPattern, (match, indexStr) => {
+  // Convert legacy format 2: [N](url) → [N]
+  const legacyFormat2 = /\[(\d+)\]\([^)]+\)/g;
+  repaired = repaired.replace(legacyFormat2, (match, indexStr) => {
     const index = parseInt(indexStr, 10);
     if (index < 1 || index > sources.length) {
-      errors.push(`Citation [[${index}]]() out of bounds (sources: ${sources.length})`);
+      errors.push(`Citation out of bounds: [${index}] (sources: ${sources.length})`);
       return match;
     }
     repairsCount++;
-    return `[[${index}]](${sources[index - 1].url})`;
+    return `[${index}]`;
   });
   
-  // Edge case 4: Wrong format [N](url) - should be [[N]](url)
-  const wrongFormatPattern = /\[(\d+)\]\(([^)]+)\)/g;
-  repaired = repaired.replace(wrongFormatPattern, (match, indexStr, url) => {
+  // Convert legacy format 3: [[N]] → [N]
+  const legacyFormat3 = /\[\[(\d+)\]\]/g;
+  repaired = repaired.replace(legacyFormat3, (match, indexStr) => {
     const index = parseInt(indexStr, 10);
     if (index < 1 || index > sources.length) {
-      errors.push(`Citation [${index}](${url}) out of bounds (sources: ${sources.length})`);
+      errors.push(`Citation out of bounds: [${index}] (sources: ${sources.length})`);
       return match;
     }
-    // Verify URL matches expected source
-    const expectedUrl = sources[index - 1].url;
-    if (url !== expectedUrl) {
-      // Replace with correct URL
-      repairsCount++;
-      return `[[${index}]](${expectedUrl})`;
-    }
-    // Just fix format (add extra brackets)
     repairsCount++;
-    return `[[${index}]](${url})`;
+    return `[${index}]`;
   });
   
   return { repairedContent: repaired, repairsCount, errors };
@@ -224,10 +208,9 @@ function injectCitations(
   for (let i = 0; i < Math.min(needed, sortedStatements.length); i++) {
     const statement = sortedStatements[i];
     const sourceIndex = i % sources.length; // Cycle through sources
-    const source = sources[sourceIndex];
     
-    // Insert citation after the statement
-    const citation = `[[${sourceIndex + 1}]](${source.url})`;
+    // Insert citation after the statement (modern IEEE format)
+    const citation = `[${sourceIndex + 1}]`;
     const insertPos = statement.position + statement.text.length;
     
     modifiedContent = 
@@ -267,8 +250,7 @@ function injectAtParagraphEnds(
   // Inject at first N paragraph ends
   for (let i = 0; i < Math.min(needed, paragraphs.length); i++) {
     const sourceIndex = i % sources.length;
-    const source = sources[sourceIndex];
-    const citation = ` [[${sourceIndex + 1}]](${source.url})`;
+    const citation = ` [${sourceIndex + 1}]`;
     
     paragraphs[i] = paragraphs[i].trimEnd() + citation;
     injected++;

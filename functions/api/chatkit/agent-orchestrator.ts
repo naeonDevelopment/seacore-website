@@ -44,6 +44,21 @@ import {
   enforceCitations,
   validateCitations
 } from './citation-enforcer';
+import {
+  ensureModernCitationFormat,
+  validateCitationFormat,
+  getCitationStats
+} from './citation-formatter';
+import { 
+  extractOwnerOperator,
+  hasOwnerOperatorData,
+  type OwnerOperatorData
+} from './owner-operator-extractor';
+import {
+  extractEnhancedContent,
+  getSmartPreview,
+  type ExtractedContent
+} from './content-extractor';
 import { accumulateKnowledge } from './memory-accumulation';
 import { computeCoverage, missingVesselCoverage } from './source-categorizer';
 import { emitMetrics } from './metrics';
@@ -262,9 +277,10 @@ function hasEquasisCoverage(sources: Array<{ url: string }>): boolean {
   return sources.some(s => (s.url || '').toLowerCase().includes('equasis'));
 }
 
+// Check if owner/operator data can be extracted from sources
+// Uses pattern-based extraction instead of simple keyword detection
 function hasOwnerOperatorHints(sources: Array<{ title: string; content: string }>): boolean {
-  const needle = /(owner|operator|management|managed by|operated by)/i;
-  return sources.some(s => needle.test(`${s.title}\n${s.content}`));
+  return hasOwnerOperatorData(sources as any);
 }
 
 function isLikelyVesselQuery(q: string): boolean {
@@ -282,7 +298,25 @@ async function generateVesselRefinementSubQueries(
   if (missing.needRegistry) baseline.push({ query: `${query} marinetraffic vesselfinder AIS position MMSI IMO`, purpose: 'Add AIS/registry corroboration', priority: 'high' });
   if (missing.needEquasis) baseline.push({ query: `${query} Equasis registry profile vessel details`, purpose: 'Fetch Equasis registry profile', priority: 'high' });
   if (missing.needIdentifiers) baseline.push({ query: `${query} IMO MMSI call sign identifiers`, purpose: 'Find vessel identifiers (IMO/MMSI/Call Sign)', priority: 'high' });
-  if (missing.needOwnerOperator) baseline.push({ query: `${query} owner operator management company`, purpose: 'Find owner/operator/manager', priority: 'medium' });
+  
+  // Enhanced owner/operator search with multiple targeted queries
+  if (missing.needOwnerOperator) {
+    baseline.push({ 
+      query: `${query} "operated by" "owned by" ship owner company`, 
+      purpose: 'Find owner/operator with exact phrase matching', 
+      priority: 'high' 
+    });
+    baseline.push({ 
+      query: `${query} vessel owner shipping company fleet operator`, 
+      purpose: 'Find parent company and fleet operator', 
+      priority: 'high' 
+    });
+    baseline.push({ 
+      query: `${query} ship management technical manager`, 
+      purpose: 'Find technical management company', 
+      priority: 'medium' 
+    });
+  }
 
   if (!openaiKey) return baseline.slice(0, 3);
   try {
@@ -735,38 +769,59 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         }
       }
 
-      // PHASE 3 FIX: Vessel Reflexion loop with convergence guarantees
-      // Max 2 iterations with quality gates to prevent infinite loops and junk accumulation
+      // Vessel Reflexion loop with smart gap detection and convergence
+      // Iteratively fills data gaps: identifiers, registry, owner/operator
+      // Max 2 iterations with progress tracking to prevent infinite loops
       if (isVesselQuery) {
         let reflexionIteration = 0;
         const MAX_REFLEXION_ITERATIONS = 2;
-        let lastGapCount = 999; // Track progress
+        let lastGapCount = 999;
+        let previousGaps = new Set<string>();
         
         while (reflexionIteration < MAX_REFLEXION_ITERATIONS) {
           const minimal = rankedSources.map((s: any) => ({ title: s.title || '', url: s.url || '', content: s.content || '' }));
           const validation = validateVesselEntity(queryToSend, minimal);
           
-          // Check what's missing
+          // Enhanced gap detection with specificity
           const haveIdentifiers = validation.matchedBy.includes('IMO') || validation.matchedBy.includes('MMSI') || validation.matchedBy.includes('CallSign');
           const needIdentifiers = !haveIdentifiers;
           const needRegistry = !hasRegistrySource;
           const needEquasis = !hasEquasisCoverage(rankedSources as any);
           const needOwnerOperator = !hasOwnerOperatorHints(minimal as any);
-          const needsRefine = needIdentifiers || needRegistry || needEquasis || needOwnerOperator;
           
-          // Count gaps
-          const currentGapCount = [needIdentifiers, needRegistry, needEquasis, needOwnerOperator].filter(Boolean).length;
+          // Build gap signature for progress tracking
+          const currentGaps = new Set<string>();
+          if (needIdentifiers) currentGaps.add('identifiers');
+          if (needRegistry) currentGaps.add('registry');
+          if (needEquasis) currentGaps.add('equasis');
+          if (needOwnerOperator) currentGaps.add('owner');
           
-          // PHASE 3: Convergence check - stop if no progress or no gaps
+          const currentGapCount = currentGaps.size;
+          const needsRefine = currentGapCount > 0;
+          
+          // Smart stopping conditions
           if (!needsRefine) {
-            console.log(`   ✅ Reflexion: All required fields present`);
+            console.log(`   ✅ Reflexion: All required fields present (identifiers, registry, equasis, owner/operator)`);
             break;
           }
           
-          if (reflexionIteration > 0 && currentGapCount >= lastGapCount) {
-            console.log(`   ⚠️ Reflexion: No progress (gaps: ${currentGapCount}/${lastGapCount}), stopping`);
-            break;
+          // Check if we're making progress
+          if (reflexionIteration > 0) {
+            const gapsResolved = lastGapCount - currentGapCount;
+            const stuckOnSameGaps = [...currentGaps].every(gap => previousGaps.has(gap));
+            
+            if (gapsResolved <= 0) {
+              console.log(`   ⚠️ Reflexion: No gaps resolved (${currentGapCount} remain), stopping`);
+              break;
+            }
+            
+            if (stuckOnSameGaps && gapsResolved < 2) {
+              console.log(`   ⚠️ Reflexion: Insufficient progress on same gaps, stopping`);
+              break;
+            }
           }
+          
+          previousGaps = new Set(currentGaps);
           
           reflexionIteration++;
           lastGapCount = currentGapCount;
@@ -845,6 +900,21 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         
         if (reflexionIteration > 0) {
           console.log(`   🏁 Reflexion complete: ${reflexionIteration} iterations, final confidence ${confidence.label} (${confidence.score})`);
+          
+          // Log final data coverage
+          const finalMinimal = rankedSources.map((s: any) => ({ title: s.title || '', url: s.url || '', content: s.content || '' }));
+          const finalValidation = validateVesselEntity(queryToSend, finalMinimal);
+          const finalHaveIdentifiers = finalValidation.matchedBy.includes('IMO') || finalValidation.matchedBy.includes('MMSI') || finalValidation.matchedBy.includes('CallSign');
+          const finalHaveRegistry = hasRegistrySource;
+          const finalHaveEquasis = hasEquasisCoverage(rankedSources as any);
+          const finalHaveOwner = hasOwnerOperatorHints(finalMinimal as any);
+          
+          console.log(`   📊 Final vessel data coverage:`);
+          console.log(`      ${finalHaveIdentifiers ? '✅' : '❌'} Identifiers (IMO/MMSI/CallSign)`);
+          console.log(`      ${finalHaveRegistry ? '✅' : '❌'} Registry source`);
+          console.log(`      ${finalHaveEquasis ? '✅' : '❌'} Equasis coverage`);
+          console.log(`      ${finalHaveOwner ? '✅' : '❌'} Owner/Operator data`);
+          console.log(`      📚 Total sources: ${rankedSources.length}`);
         }
       }
 
@@ -1314,41 +1384,41 @@ ${state.requiresTechnicalDepth ? `
 - Official Number: [extract if available or omit]
 
 **Ownership & Management:**
-- Owner: [extract company name or "Not found"] [[N]](url)
-- Operator/Manager: [extract company name or "Not found"] [[N]](url)
+- Owner: [extract company name or "Not found"] [N]
+- Operator/Manager: [extract company name or "Not found"] [N]
 - Technical Manager: [extract if available or omit]
 
 **Classification:**
-- Class Society: [e.g., "Lloyd's Register", "DNV", "ABS" or "Not found"] [[N]](url)
+- Class Society: [e.g., "Lloyd's Register", "DNV", "ABS" or "Not found"] [N]
 - Class Notation: [e.g., "100A1" or "Not found"]
 
 **Principal Dimensions:**
-- Length Overall (LOA): [X meters] [[N]](url)
-- Breadth: [X meters] [[N]](url)
+- Length Overall (LOA): [X meters] [N]
+- Breadth: [X meters] [N]
 - Depth: [X meters if available]
 - Draft: [X meters if available]
 
 **Tonnages:**
-- Gross Tonnage (GT): [X tons] [[N]](url)
+- Gross Tonnage (GT): [X tons] [N]
 - Net Tonnage (NT): [X tons if available]
-- Deadweight (DWT): [X tons] [[N]](url)
+- Deadweight (DWT): [X tons] [N]
 - Lightship: [X tons if available]
 
 **Build Information:**
-- Shipyard: [shipyard name and location] [[N]](url)
-- Build Year: [YYYY] [[N]](url)
+- Shipyard: [shipyard name and location] [N]
+- Build Year: [YYYY] [N]
 - Delivery Date: [date if available]
 - Keel Laid: [date if available]
 - Hull Number: [if available]
 
 **Propulsion & Machinery:**
-- Main Engines: [make/model, count, power (kW/HP)] [[N]](url)
-- Propellers/Propulsion: [type, count] [[N]](url)
+- Main Engines: [make/model, count, power (kW/HP)] [N]
+- Propellers/Propulsion: [type, count] [N]
 - Generators: [make/model, count, power if available]
 - Bow/Stern Thrusters: [if mentioned in sources]
 
 **Current Status:**
-- Location: [as per AIS data with timestamp qualifier] [[N]](url)
+- Location: [as per AIS data with timestamp qualifier] [N]
 - Speed: [knots if available]
 - Destination: [if available]
 - ETA: [if available]
@@ -1360,8 +1430,9 @@ ${state.requiresTechnicalDepth ? `
 3. Cross-reference between sources to piece together complete information
 4. Infer from context (e.g., "PSV operations" implies vessel type)
 5. ONLY write "Not found in sources" after exhaustive search of ALL sources
-6. Cite EVERY factual statement with [[N]](url) using ACTUAL source URLs
+6. Cite EVERY factual statement with [N] where N = source number (1-10)
 7. This VESSEL PROFILE section is MANDATORY and must appear FIRST before any analysis
+8. A REFERENCES section will be automatically added at the end with full URLs
 ` : (isVesselQuery ? `
 
 **🚢 THIS IS A BRIEF VESSEL QUERY - Provide CLEAN OVERVIEW (NO detailed VESSEL PROFILE):**
@@ -1378,12 +1449,12 @@ ${state.requiresTechnicalDepth ? `
 
 ## TECHNICAL SPECIFICATIONS
 [ONLY list specs you found - use narrative or clean bullet format]
-- IMO Number: [number] [[N]](url)
-- MMSI: [number] [[N]](url)
-- Flag State: [country] [[N]](url)
-- Owner/Operator: [company name if found] [[N]](url)
-- Build Year: [year if found] [[N]](url)
-- Draft: [if found] [[N]](url)
+- IMO Number: [number] [N]
+- MMSI: [number] [N]
+- Flag State: [country] [N]
+- Owner/Operator: [company name if found] [N]
+- Build Year: [year if found] [N]
+- Draft: [if found] [N]
 [Add other specs ONLY if found: dimensions, tonnages, engines, vessel type]
 [NEVER write "Not found in sources" - just omit missing fields]
 
@@ -1401,8 +1472,44 @@ ${state.requiresTechnicalDepth ? `
 2. Use narrative prose, not exhaustive field-by-field lists
 3. Keep concise (400-500 words total)
 4. Focus on what you CAN tell the user, not what you cannot
-5. Cite every fact with [[N]](url)
+5. Cite every fact with [N] (REFERENCES section added automatically)
 ` : '');
+
+    // Pre-extract owner/operator data before synthesis
+    // This ensures GPT-4 never misses this critical information
+    let ownerOperatorExtraction: OwnerOperatorData | null = null;
+    let ownerOperatorPromptAddition = '';
+    
+    if (isVesselQuery && state.sources.length > 0) {
+      console.log(`   🔍 PHASE 1: Pre-extracting owner/operator from ${state.sources.length} sources...`);
+      ownerOperatorExtraction = extractOwnerOperator(state.sources);
+      
+      if (ownerOperatorExtraction) {
+        console.log(`   ✅ Owner/Operator extracted via ${ownerOperatorExtraction.extractionMethod}:`);
+        console.log(`      Owner: ${ownerOperatorExtraction.owner || 'N/A'}`);
+        console.log(`      Operator: ${ownerOperatorExtraction.operator || 'N/A'}`);
+        console.log(`      Manager: ${ownerOperatorExtraction.manager || 'N/A'}`);
+        console.log(`      Source: [${ownerOperatorExtraction.sourceIndex + 1}] ${ownerOperatorExtraction.sourceUrl}`);
+        console.log(`      Confidence: ${ownerOperatorExtraction.confidence}`);
+        
+        // Build prompt addition with pre-extracted data
+        ownerOperatorPromptAddition = `
+
+**🎯 PRE-EXTRACTED OWNER/OPERATOR DATA:**
+
+The following ownership data has been automatically extracted from Source [${ownerOperatorExtraction.sourceIndex + 1}]:
+${ownerOperatorExtraction.owner ? `- **Owner**: ${ownerOperatorExtraction.owner} [${ownerOperatorExtraction.sourceIndex + 1}]` : ''}
+${ownerOperatorExtraction.operator ? `- **Operator**: ${ownerOperatorExtraction.operator} [${ownerOperatorExtraction.sourceIndex + 1}]` : ''}
+${ownerOperatorExtraction.manager ? `- **Manager**: ${ownerOperatorExtraction.manager} [${ownerOperatorExtraction.sourceIndex + 1}]` : ''}
+${ownerOperatorExtraction.technicalManager ? `- **Technical Manager**: ${ownerOperatorExtraction.technicalManager} [${ownerOperatorExtraction.sourceIndex + 1}]` : ''}
+
+**CRITICAL INSTRUCTION**: Use this pre-extracted data for the "Ownership & Management" section. This data has been verified and extracted with ${ownerOperatorExtraction.confidence} confidence using ${ownerOperatorExtraction.extractionMethod} extraction.
+
+`;
+      } else {
+        console.log(`   ⚠️ Owner/Operator NOT found in sources - will rely on GPT-4 extraction`);
+      }
+    }
 
     const synthesisPrompt = `${MARITIME_SYSTEM_PROMPT}${contextAddition}
 
@@ -1411,6 +1518,8 @@ ${state.researchContext}
 ${technicalDepthFlag}
 
 ${vesselRequirements}
+
+${ownerOperatorPromptAddition}
 
 **USER QUERY**: ${userQuery}
 
@@ -1470,12 +1579,36 @@ ${!state.requiresTechnicalDepth ? `
 **EXTRACTION REQUIREMENT: You must extract EVERY available detail from ALL sources below.**
 
 ${state.sources.map((s: any, i: number) => {
-  // Provide substantial content (1200 chars) for comprehensive extraction
-  const contentPreview = (s.content || '').substring(0, 1200);
-  const hasMore = (s.content || '').length > 1200;
+  // Enhanced content extraction for vessel queries
+  // Vessel queries: 3000 chars with table extraction
+  // Other queries: 1500 chars standard preview
+  const previewLength = isVesselQuery ? 3000 : 1500;
+  
+  // Use smart preview that preserves complete sentences
+  const contentPreview = getSmartPreview(s.content || '', previewLength);
+  const hasMore = (s.content || '').length > previewLength;
+  
+  // For vessel queries, try to extract structured data from tables
+  let structuredDataHint = '';
+  if (isVesselQuery && s.content && s.content.includes('<table')) {
+    try {
+      const extracted = extractEnhancedContent(s.content, previewLength, true);
+      if (extracted.structuredData && Object.keys(extracted.structuredData).length > 0) {
+        const keyFields = Object.entries(extracted.structuredData)
+          .filter(([key]) => /imo|mmsi|owner|operator|flag|type|loa|length|beam|tonnage|built/.test(key))
+          .slice(0, 5);
+        if (keyFields.length > 0) {
+          structuredDataHint = `\n   **Structured Data Found**: ${keyFields.map(([k, v]) => `${k}=${v}`).join(', ')}`;
+        }
+      }
+    } catch (e) {
+      // Extraction failed, continue with normal preview
+    }
+  }
+  
   return `**Source [${i+1}]**: ${s.title || 'Source ' + (i+1)}
    URL: ${s.url}
-   Content: ${contentPreview}${hasMore ? '...' : ''}
+   Content: ${contentPreview}${hasMore ? '...' : ''}${structuredDataHint}
    ${hasMore ? '[CONTINUED - Additional data available]' : ''}
    **ACTION**: Read this source carefully and extract ALL vessel specifications, dimensions, dates, names, and technical details.`;
 }).join('\n\n')}
@@ -1496,12 +1629,12 @@ ${state.sources.map((s: any, i: number) => {
    - Class society and notation
    - All dimensions and tonnages
 
-3. **Citation Format**:
-   - Add [[N]](url) after EVERY fact where N = source number (1-${state.sources.length})
-   - Example: "Length: 41 meters [[1]](url)"
-   - The [[N]](url) creates a clickable link - the URL is hidden by frontend
+3. **Citation Format (IEEE Style)**:
+   - Add [N] after EVERY fact where N = source number (1-${state.sources.length})
+   - Example: "Length: 41 meters [1]"
+   - Citations are simple numbered references - full URLs will be in REFERENCES section
    - Cite ALL specifications, dimensions, names, dates, and technical details
-   - Use ACTUAL source URLs from the list above
+   - A REFERENCES section will be automatically generated at the end
    
 4. **CRITICAL - Avoid "Not found" when possible**:
    - ONLY write "Not found in sources" if you've checked ALL ${state.sources.length} sources thoroughly
@@ -1848,6 +1981,24 @@ ${state.sources.map((s: any, i: number) => {
       if (validation.errors.length > 0) {
         console.error(`   ❌ Citation validation errors:`, validation.errors);
       }
+    }
+    
+    // Convert to modern citation format with REFERENCES section
+    const modernCitationResult = ensureModernCitationFormat(fullContent, state.sources);
+    if (modernCitationResult.wasConverted) {
+      console.log(`   📚 Converted to modern IEEE citation format`);
+      console.log(`   📚 Citations: ${modernCitationResult.citationCount}, REFERENCES section added`);
+      fullContent = modernCitationResult.content;
+      
+      // Validate modern format
+      const formatValidation = validateCitationFormat(fullContent, state.sources);
+      if (formatValidation.warnings.length > 0) {
+        console.warn(`   ⚠️ Citation format warnings:`, formatValidation.warnings);
+      }
+      
+      // Log citation statistics
+      const stats = getCitationStats(fullContent);
+      console.log(`   📊 Citation stats: ${stats.totalCitations} total, ${stats.uniqueCitations.size} unique sources, ${stats.citationDensity.toFixed(2)} per 100 words`);
     }
     
     // Phase B & C: Calculate confidence and generate follow-ups
