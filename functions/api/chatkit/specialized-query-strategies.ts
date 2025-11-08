@@ -69,41 +69,74 @@ function generateVesselStrategy(query: string, entities: string[]): SpecializedS
           `${vesselName} vessel IMO MMSI call sign marinetraffic`,
           `${vesselName} vessel specifications equasis registry`,
           `${vesselName} ship particulars vesselfinder`,
-          `${vesselName} vessel registration flag state`,
+          `${vesselName} vessel registration flag state port registry`,
         ],
         purpose: 'Get official vessel identifiers and registration data'
+      },
+      {
+        name: 'Ownership & Management',
+        priority: 'critical',
+        queries: [
+          `${vesselName} ship owner operator company profile`,
+          `${vesselName} vessel management company fleet operator`,
+          `${vesselName} owner linkedin maritime shipping company`,
+          `${vesselName} vessel operator homepage contact information`,
+          `${vesselName} ship management technical manager ISM`,
+        ],
+        purpose: 'Get ownership and operational management details'
+      },
+      {
+        name: 'Maritime News & Press',
+        priority: 'high',
+        queries: [
+          `${vesselName} vessel news tradewinds splash247 maritime executive`,
+          `${vesselName} ship delivery press release announcement`,
+          `${vesselName} vessel contract award offshore energy`,
+          `${vesselName} maritime news article incident report`,
+        ],
+        purpose: 'Get news coverage, press releases, and incidents'
+      },
+      {
+        name: 'Technical Specifications',
+        priority: 'high',
+        queries: [
+          `${vesselName} technical specifications dimensions tonnages PDF`,
+          `${vesselName} main engines propulsion machinery datasheet`,
+          `${vesselName} shipyard builder delivery date contract`,
+          `${vesselName} vessel classification society DNV ABS Lloyd`,
+        ],
+        purpose: 'Get detailed technical specifications'
       },
       {
         name: 'AIS Tracking',
         priority: 'high',
         queries: [
           `${vesselName} AIS position tracking current location`,
-          `${vesselName} vessel destination ETA port calls`,
+          `${vesselName} vessel destination ETA port calls route`,
         ],
         purpose: 'Get real-time position and voyage data'
       },
       {
-        name: 'Technical Specifications',
-        priority: 'high',
+        name: 'Fleet & Company Data',
+        priority: 'medium',
         queries: [
-          `${vesselName} technical specifications dimensions tonnages`,
-          `${vesselName} main engines propulsion machinery`,
-          `${vesselName} shipyard builder delivery date`,
+          `${vesselName} fleet list company vessels operations PDF`,
+          `${vesselName} vessel charter contract employment`,
+          `${vesselName} ship company profile maritime directory`,
         ],
-        purpose: 'Get comprehensive technical specifications'
+        purpose: 'Get fleet context and company information'
       },
       {
-        name: 'Ownership & Management',
-        priority: 'high',
+        name: 'Forums & Community',
+        priority: 'medium',
         queries: [
-          `${vesselName} vessel owner operator management company`,
-          `${vesselName} ship owner company fleet`,
-          `${vesselName} vessel operator maritime company`,
+          `${vesselName} vessel gcaptain forum discussion maritime`,
+          `${vesselName} ship crew experience reviews seafarer`,
         ],
-        purpose: 'Get ownership and operational details'
+        purpose: 'Get real-world operational experience'
       }
     ],
-    totalQueries: 11
+    totalQueries: 25
   };
 }
 

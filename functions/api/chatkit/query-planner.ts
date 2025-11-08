@@ -108,14 +108,21 @@ export async function planQuery(
     const specializedStrategy = generateSpecializedStrategy(query, entityDetection.type, entityDetection.entities);
     const specializedQueries = strategyToQueryList(specializedStrategy);
     
+    // Adaptive query limits based on entity type
+    // Vessels need more queries for diverse sources (news, forums, PDFs, company sites)
+    // Equipment needs comprehensive coverage (OEM, forums, manuals, experience)
+    const maxQueries = entityDetection.type === 'vessel' ? 20 : 
+                       entityDetection.type === 'equipment' ? 15 : 12;
+    
     // Convert to our SubQuery format
-    const subQueries: SubQuery[] = specializedQueries.slice(0, 12).map(sq => ({
+    const subQueries: SubQuery[] = specializedQueries.slice(0, maxQueries).map(sq => ({
       query: sq.query,
       purpose: sq.purpose,
       priority: sq.priority as 'high' | 'medium' | 'low'
     }));
     
-    console.log(`   ✅ Generated ${subQueries.length} specialized queries for ${entityDetection.type}`);
+    console.log(`   ✅ Generated ${subQueries.length} specialized queries for ${entityDetection.type} (max: ${maxQueries})`);
+    console.log(`   📊 Query diversity: ${new Set(subQueries.map(sq => sq.purpose.split(':')[0])).size} categories`);
     
     return {
       mainQuery: query,
