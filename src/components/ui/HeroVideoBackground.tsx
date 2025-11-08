@@ -222,12 +222,18 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
             videoBRef.current?.pause()
           } else {
             // Resume only if not transitioning and video is actually paused
-            const activeVideo = getActiveVideo()
-            if (activeVideo?.paused && !isTransitioningRef.current && !scheduledOverlapRef.current) {
-              activeVideo.play().catch((error) => {
-                console.error('❌ IntersectionObserver play error:', error)
-              })
-            }
+            // Small delay to avoid race conditions with scroll-triggered pauses
+            setTimeout(() => {
+              const activeVideo = getActiveVideo()
+              if (activeVideo?.paused && !isTransitioningRef.current && !scheduledOverlapRef.current) {
+                activeVideo.play().catch((error) => {
+                  // Ignore AbortError - it just means another pause() was called
+                  if (error.name !== 'AbortError') {
+                    console.error('IntersectionObserver play error:', error)
+                  }
+                })
+              }
+            }, 100)
           }
         })
       },
