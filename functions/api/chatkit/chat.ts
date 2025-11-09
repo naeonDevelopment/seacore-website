@@ -1,9 +1,14 @@
 /**
  * ChatKit Chat Endpoint - Maritime Intelligence Agent
  * LLM-driven orchestrator with unified tools (Gemini + Deep Research)
+ * 
+ * PHASE 1 SECURITY: CORS, input validation, error sanitization, size limits
  */
 
 import { handleChatWithAgent, type ChatRequest } from './agent-orchestrator';
+import { getCorsHeaders } from './cors-config';
+import { performSecurityCheck } from './input-security';
+import { createErrorResponse } from './error-sanitizer';
 
 interface Env {
   OPENAI_API_KEY: string;
@@ -22,16 +27,29 @@ interface Env {
 export async function onRequestPost(context: { request: Request; env: Env }) {
   const { request, env } = context;
 
-  // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
+  // ✅ SECURITY: Strict CORS with origin whitelist
+  const corsHeaders = getCorsHeaders(request);
 
   // Handle OPTIONS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // ✅ SECURITY: Request size limit (100 KB)
+  const MAX_REQUEST_SIZE = 100 * 1024;
+  const contentLength = request.headers.get('content-length');
+  if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'Request too large',
+        code: 'REQUEST_TOO_LARGE',
+        maxSize: '100 KB'
+      }),
+      { 
+        status: 413, 
+        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      }
+    );
   }
 
   try {
@@ -48,6 +66,40 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         JSON.stringify({ error: 'Missing required fields: messages, sessionId' }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
+    }
+
+    // ✅ SECURITY: Input validation enforcement
+    const lastUserMessage = messages[messages.length - 1];
+    if (lastUserMessage?.role === 'user') {
+      const securityCheck = performSecurityCheck(
+        lastUserMessage.content,
+        sessionId,
+        { 
+          maxRequests: 10,
+          windowMs: 60000,
+          strictMode: false // Set to true for maximum security
+        }
+      );
+
+      if (!securityCheck.allowed) {
+        console.warn('[SECURITY] Input validation failed:', {
+          sessionId: sessionId.substring(0, 8) + '...',
+          reason: securityCheck.reason,
+          risk: securityCheck.validation.risk
+        });
+        
+        return new Response(
+          JSON.stringify({
+            error: 'Security validation failed',
+            code: 'INVALID_INPUT',
+            reason: securityCheck.reason
+          }),
+          { 
+            status: 400, 
+            headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+          }
+        );
+      }
     }
 
     console.log(`\n${'='.repeat(80)}`);
@@ -84,18 +136,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     });
 
   } catch (error: any) {
-    console.error('❌ Chat endpoint error:', error);
-    
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Internal server error',
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-      }
-    );
+    // ✅ SECURITY: Sanitized error responses
+    return createErrorResponse(error, 500, corsHeaders, 'chat_endpoint');
   }
 }
 

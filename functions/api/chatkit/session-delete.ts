@@ -1,10 +1,18 @@
 /**
  * Session Delete Endpoint
  * Explicitly cleans up KV cache when sessions are deleted
+ * 
+ * PHASE 1 SECURITY: CORS, error sanitization
  */
+
+import { getCorsHeaders } from './cors-config';
+import { createErrorResponse } from './error-sanitizer';
 
 export async function onRequestDelete(context: any) {
   const { request, env } = context;
+  
+  // ✅ SECURITY: Strict CORS
+  const corsHeaders = getCorsHeaders(request);
   
   try {
     // Parse session ID from request
@@ -14,7 +22,7 @@ export async function onRequestDelete(context: any) {
     if (!sessionId) {
       return new Response(JSON.stringify({ error: 'Missing sessionId parameter' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
     
@@ -26,7 +34,7 @@ export async function onRequestDelete(context: any) {
         message: 'Session deleted (KV not configured)' 
       }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
     
@@ -44,32 +52,25 @@ export async function onRequestDelete(context: any) {
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        ...corsHeaders,
       },
     });
     
   } catch (error) {
-    console.error('Session delete error:', error);
-    return new Response(JSON.stringify({ 
-      error: 'Failed to delete session cache',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // ✅ PHASE 1 SECURITY: Sanitized error responses
+    return createErrorResponse(error, 500, corsHeaders, 'session_delete');
   }
 }
 
 // Handle OPTIONS preflight
-export async function onRequestOptions() {
+export async function onRequestOptions(context: any) {
+  const { request } = context;
+  const corsHeaders = getCorsHeaders(request);
+  
   return new Response(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      ...corsHeaders,
       'Access-Control-Max-Age': '86400',
     },
   });
