@@ -20,12 +20,25 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   const isTransitioningRef = useRef(false)
   const videoAIndexRef = useRef<number>(0)
   const videoBIndexRef = useRef<number>(-1)
+  const hasInitialPlayStartedRef = useRef(false)
 
   const videoSources = useMemo(() => [
     getAssetPath('assets/hero/h_h_1.mp4'),
     getAssetPath('assets/hero/h_h_2.mp4'),
     getAssetPath('assets/hero/h_h_3.mp4')
   ], [])
+
+  const log = (message: string, ...args: unknown[]) => {
+    console.log(`🎥 Hero: ${message}`, ...args)
+  }
+
+  const logWarn = (message: string, ...args: unknown[]) => {
+    console.warn(`⚠️ Hero: ${message}`, ...args)
+  }
+
+  const logError = (message: string, ...args: unknown[]) => {
+    console.error(`❌ Hero: ${message}`, ...args)
+  }
 
   const getInactiveVideo = () => {
     return activePlayer === 'A' ? videoBRef : videoARef
@@ -77,6 +90,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     const nextIndex = getNextIndex()
     const inactiveVideoRef = getInactiveVideo()
     const inactiveIndexRef = getInactiveIndexRef()
+    log(`Starting crossfade ${currentVideoIndex} → ${nextIndex} (player ${activePlayer === 'A' ? 'B' : 'A'}) | timeRemaining=${timeRemaining.toFixed(3)}s`)
 
     const awaitFirstFrame = (video: HTMLVideoElement): Promise<void> => {
       return new Promise((resolve) => {
@@ -98,14 +112,28 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       
       if (inactiveVideoRef.current) {
         const v = inactiveVideoRef.current
+        log(`Preparing incoming video index ${nextIndex} | readyState=${v.readyState} | paused=${v.paused} | time=${v.currentTime.toFixed(3)}s`)
         
         // Only play if video is paused and at start
         if (v.paused && v.currentTime < 0.1) {
           v.currentTime = 0
           try {
             await v.play()
+            log(`Incoming video ${nextIndex} started playing`)
           } catch (error) {
-            console.error('Video crossfade play error:', error)
+            if ((error as DOMException)?.name === 'AbortError') {
+              logWarn(`Incoming video ${nextIndex} play aborted (likely pause race). Retrying shortly.`)
+              setTimeout(() => {
+                if (!v.paused) return
+                v.play().catch((retryError) => {
+                  if ((retryError as DOMException)?.name !== 'AbortError') {
+                    logError(`Incoming video ${nextIndex} retry failed`, retryError)
+                  }
+                })
+              }, 150)
+            } else {
+              logError(`Incoming video ${nextIndex} play error`, error)
+            }
           }
         }
       }
@@ -129,6 +157,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       setTimeout(() => {
         if (outgoingVideo && !outgoingVideo.paused) {
           outgoingVideo.pause()
+          log(`Paused outgoing video index ${currentVideoIndex}`)
         }
         setCurrentVideoIndex(nextIndex)
         
@@ -141,6 +170,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         
         isTransitioningRef.current = false
         scheduledOverlapRef.current = false
+        log(`Crossfade complete. Active video index is now ${nextIndex}`)
       }, FADE_DURATION_MS)
     }
 
@@ -150,14 +180,49 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         scheduledOverlapRef.current = false
         return 
       }
-      if (inactiveVideoRef.current.readyState >= 3) {
+      const inactiveVideo = inactiveVideoRef.current
+
+      if (inactiveVideo.readyState >= 3 || inactiveVideo.duration > 0) {
+        log(`Inactive video index ${nextIndex} ready immediately (readyState=${inactiveVideo.readyState}). Starting crossfade.`)
         startCrossfade()
-      } else {
-        const onReady = () => {
-          inactiveVideoRef.current?.removeEventListener('canplaythrough', onReady)
-          startCrossfade()
+        return
+      }
+
+      log(`Waiting for inactive video index ${nextIndex} to become ready (current readyState=${inactiveVideo.readyState})`)
+
+      let resolved = false
+
+      const cleanup = () => {
+        inactiveVideo.removeEventListener('canplaythrough', onCanPlayThrough)
+        inactiveVideo.removeEventListener('loadeddata', onLoadedData)
+        if (timeoutId) {
+          clearTimeout(timeoutId)
         }
-        inactiveVideoRef.current.addEventListener('canplaythrough', onReady, { once: true })
+      }
+
+      const onReady = (eventName: string) => () => {
+        if (resolved) return
+        resolved = true
+        log(`Inactive video index ${nextIndex} ready via ${eventName}`)
+        cleanup()
+        startCrossfade()
+      }
+
+      const onCanPlayThrough = onReady('canplaythrough')
+      const onLoadedData = onReady('loadeddata')
+
+      inactiveVideo.addEventListener('canplaythrough', onCanPlayThrough, { once: true })
+      inactiveVideo.addEventListener('loadeddata', onLoadedData, { once: true })
+
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      if (typeof window !== 'undefined') {
+        timeoutId = window.setTimeout(() => {
+          if (resolved) return
+          resolved = true
+          logWarn(`Timeout waiting for inactive video index ${nextIndex}. Forcing crossfade.`)
+          cleanup()
+          startCrossfade()
+        }, 2500)
       }
     }
 
@@ -168,6 +233,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         inactiveVideoRef.current.src = videoSources[nextIndex]
         inactiveVideoRef.current.preload = 'auto'
         inactiveVideoRef.current.load()
+        log(`Loaded inactive video index ${nextIndex} into player ${inactiveVideoRef === videoBRef ? 'B' : 'A'}`)
       }
       ensureReadyThenStart()
     } else {
@@ -182,6 +248,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       // Reset transition flags if they got stuck
       isTransitioningRef.current = false
       scheduledOverlapRef.current = false
+      logWarn(`Video player ${player} ended without transition. Resetting state guards.`)
     }
   }
 
@@ -226,11 +293,15 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
             setTimeout(() => {
               const activeVideo = getActiveVideo()
               if (activeVideo?.paused && !isTransitioningRef.current && !scheduledOverlapRef.current) {
-                activeVideo.play().catch((error) => {
+                activeVideo.play().then(() => {
+                  log('IntersectionObserver resumed active video')
+                }).catch((error: DOMException) => {
                   // Ignore AbortError - it just means another pause() was called
-                  if (error.name !== 'AbortError') {
-                    console.error('IntersectionObserver play error:', error)
+                  if (error.name === 'AbortError') {
+                    logWarn('IntersectionObserver play aborted (likely due to immediate pause).')
+                    return
                   }
+                  logError('IntersectionObserver play error', error)
                 })
               }
             }, 100)
@@ -250,28 +321,75 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   // Initialize first video
   useEffect(() => {
     if (!videoARef.current) return
-    
+
     const videoA = videoARef.current
+    let cancelled = false
+    let attempts = 0
+
+    const attemptPlay = (trigger: string) => {
+      if (cancelled || hasInitialPlayStartedRef.current) return
+      if (!videoA.paused) {
+        hasInitialPlayStartedRef.current = true
+        log(`Initial video already playing when triggered by ${trigger}`)
+        return
+      }
+
+      attempts += 1
+      log(`Attempting to play initial video (trigger: ${trigger}, attempt: ${attempts})`)
+
+      videoA.play()
+        .then(() => {
+          if (cancelled) return
+          hasInitialPlayStartedRef.current = true
+          log('Initial video 0 playing')
+        })
+        .catch((playError: DOMException) => {
+          if (cancelled) return
+
+          if (playError.name === 'AbortError') {
+            logWarn(`Initial play aborted (${trigger}). Retrying...`)
+            if (attempts < 6) {
+              setTimeout(() => attemptPlay(`retry-${trigger}`), 150)
+            }
+            return
+          }
+
+          logError('Initial video play error', playError)
+          if (attempts < 6) {
+            setTimeout(() => attemptPlay(`retry-${trigger}`), 250)
+          }
+        })
+    }
+
+    const onPlaying = () => {
+      if (cancelled) return
+      if (!hasInitialPlayStartedRef.current) {
+        hasInitialPlayStartedRef.current = true
+        log('Initial video confirmed playing (playing event)')
+      }
+    }
+
+    const onCanPlayThrough = () => attemptPlay('canplaythrough')
+    const onLoadedData = () => attemptPlay('loadeddata')
+
+    log(`Initializing hero video player with ${videoSources.length} videos`)
     videoAIndexRef.current = 0
     videoA.src = videoSources[0]
+    log(`Primed initial video 0 from ${videoSources[0]}`)
     videoA.preload = 'auto'
     videoA.load()
-    
-    let hasPlayed = false
-    const playVideo = () => {
-      if (hasPlayed) return
-      hasPlayed = true
-      
-      videoA.play().catch((error) => {
-        console.error('Initial video play error:', error)
-        hasPlayed = false
-      })
-    }
-    
-    videoA.addEventListener('canplaythrough', playVideo, { once: true })
-    
+
+    attemptPlay('immediate')
+
+    videoA.addEventListener('playing', onPlaying)
+    videoA.addEventListener('canplaythrough', onCanPlayThrough)
+    videoA.addEventListener('loadeddata', onLoadedData)
+
     return () => {
-      videoA.removeEventListener('canplaythrough', playVideo)
+      cancelled = true
+      videoA.removeEventListener('playing', onPlaying)
+      videoA.removeEventListener('canplaythrough', onCanPlayThrough)
+      videoA.removeEventListener('loadeddata', onLoadedData)
     }
   }, [videoSources])
 
