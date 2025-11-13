@@ -28,6 +28,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     getAssetPath('assets/hero/h_h_3.mp4')
   ], [])
 
+  const posterSrc = useMemo(() => getAssetPath('assets/hero/hero-poster.svg'), [])
+
   const log = (message: string, ...args: unknown[]) => {
     console.log(`🎥 Hero: ${message}`, ...args)
   }
@@ -63,6 +65,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   // Overlap/crossfade settings
   const OVERLAP_SECONDS = 1.5
   const FADE_DURATION_MS = 1500
+  const MIN_INITIAL_BUFFER_SECONDS = 0.6
   const [isAVisible, setIsAVisible] = useState(true)
   const [isBVisible, setIsBVisible] = useState(false)
   const scheduledOverlapRef = useRef(false)
@@ -231,6 +234,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       if (inactiveIndexRef.current !== nextIndex) {
         inactiveIndexRef.current = nextIndex
         inactiveVideoRef.current.src = videoSources[nextIndex]
+        if (posterSrc) {
+          inactiveVideoRef.current.poster = posterSrc
+        }
         inactiveVideoRef.current.preload = 'auto'
         inactiveVideoRef.current.load()
         log(`Loaded inactive video index ${nextIndex} into player ${inactiveVideoRef === videoBRef ? 'B' : 'A'}`)
@@ -268,6 +274,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         if (inactiveVideo.current && inactiveIndexRef.current !== nextIndex) {
           inactiveIndexRef.current = nextIndex
           inactiveVideo.current.src = videoSources[nextIndex]
+          if (posterSrc) {
+            inactiveVideo.current.poster = posterSrc
+          }
           inactiveVideo.current.preload = 'auto'
           inactiveVideo.current.load()
         }
@@ -277,6 +286,56 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     const interval = setInterval(preloadNext, 150)
     return () => clearInterval(interval)
   }, [currentVideoIndex, activePlayer, videoSources])
+
+  // Opportunistically warm video cache during idle time (skip if user prefers data savings)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (typeof navigator !== 'undefined' && 'connection' in navigator) {
+      const connection = (navigator as any).connection
+      if (connection?.saveData) {
+        log('Skipping hero video prefetch due to Save-Data preference')
+        return
+      }
+    }
+
+    const controller = new AbortController()
+    const targets = videoSources.slice(1) // video 0 handled via <link rel=\"preload\">
+
+    const prefetch = (src: string) => {
+      if (!src) return
+      fetch(src, {
+        method: 'GET',
+        mode: 'no-cors',
+        signal: controller.signal,
+        headers: { Purpose: 'prefetch' }
+      }).catch(() => {
+        // Silent failure - network hints only
+      })
+    }
+
+    const schedule = () => {
+      targets.forEach(prefetch)
+    }
+
+    let idleHandle: number | null = null
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      idleHandle = (window as any).requestIdleCallback(schedule, { timeout: 1500 })
+    } else {
+      timeoutHandle = window.setTimeout(schedule, 250)
+    }
+
+    return () => {
+      controller.abort()
+      if (idleHandle !== null && typeof (window as any).cancelIdleCallback === 'function') {
+        (window as any).cancelIdleCallback(idleHandle)
+      }
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle)
+      }
+    }
+  }, [videoSources])
 
   // Intersection Observer - pause when out of view, resume when in view
   useEffect(() => {
@@ -318,20 +377,58 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return () => observer.disconnect()
   }, [activePlayer])
 
-  // Initialize first video
+  // Initialize first video with buffered autoplay guard
   useEffect(() => {
-    if (!videoARef.current) return
-
     const videoA = videoARef.current
+    if (!videoA) return
+
     let cancelled = false
     let attempts = 0
+    let bufferRetryTimeout: ReturnType<typeof setTimeout> | undefined
+    const startedAt = performance.now()
+    const INITIAL_BUFFER_TIMEOUT_MS = 3200
 
-    const attemptPlay = (trigger: string) => {
+    const hasSufficientInitialBuffer = () => {
+      if (videoA.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        return true
+      }
+
+      if (videoA.buffered.length > 0) {
+        try {
+          const bufferedEnd = videoA.buffered.end(videoA.buffered.length - 1)
+          return bufferedEnd >= MIN_INITIAL_BUFFER_SECONDS
+        } catch (bufferError) {
+          logWarn('Unable to inspect initial buffer range', bufferError)
+        }
+      }
+
+      return false
+    }
+
+    const scheduleRetry = (reason: string, delayMs: number) => {
+      if (bufferRetryTimeout) {
+        clearTimeout(bufferRetryTimeout)
+      }
+      bufferRetryTimeout = window.setTimeout(() => attemptPlay(reason), delayMs)
+    }
+
+    function attemptPlay(trigger: string) {
       if (cancelled || hasInitialPlayStartedRef.current) return
+
       if (!videoA.paused) {
         hasInitialPlayStartedRef.current = true
         log(`Initial video already playing when triggered by ${trigger}`)
         return
+      }
+
+      if (!hasSufficientInitialBuffer()) {
+        const elapsed = performance.now() - startedAt
+        if (elapsed < INITIAL_BUFFER_TIMEOUT_MS) {
+          log(`Initial buffer below ${MIN_INITIAL_BUFFER_SECONDS}s (trigger: ${trigger}, elapsed: ${Math.round(elapsed)}ms). Waiting before play.`)
+          scheduleRetry(`buffer-wait-${trigger}`, 160)
+          return
+        }
+        logWarn(`Initial buffer threshold not met after ${Math.round(elapsed)}ms. Forcing play.`)
       }
 
       attempts += 1
@@ -349,14 +446,14 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           if (playError.name === 'AbortError') {
             logWarn(`Initial play aborted (${trigger}). Retrying...`)
             if (attempts < 6) {
-              setTimeout(() => attemptPlay(`retry-${trigger}`), 150)
+              scheduleRetry(`retry-${trigger}`, 180)
             }
             return
           }
 
           logError('Initial video play error', playError)
           if (attempts < 6) {
-            setTimeout(() => attemptPlay(`retry-${trigger}`), 250)
+            scheduleRetry(`retry-${trigger}`, 260)
           }
         })
     }
@@ -371,12 +468,16 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
 
     const onCanPlayThrough = () => attemptPlay('canplaythrough')
     const onLoadedData = () => attemptPlay('loadeddata')
+    const onProgress = () => attemptPlay('progress')
 
     log(`Initializing hero video player with ${videoSources.length} videos`)
     videoAIndexRef.current = 0
     videoA.src = videoSources[0]
+    if (posterSrc) {
+      videoA.poster = posterSrc
+    }
     log(`Primed initial video 0 from ${videoSources[0]}`)
-    videoA.preload = 'auto'
+    videoA.preload = 'metadata'
     videoA.load()
 
     attemptPlay('immediate')
@@ -384,14 +485,19 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     videoA.addEventListener('playing', onPlaying)
     videoA.addEventListener('canplaythrough', onCanPlayThrough)
     videoA.addEventListener('loadeddata', onLoadedData)
+    videoA.addEventListener('progress', onProgress)
 
     return () => {
       cancelled = true
+      if (bufferRetryTimeout) {
+        clearTimeout(bufferRetryTimeout)
+      }
       videoA.removeEventListener('playing', onPlaying)
       videoA.removeEventListener('canplaythrough', onCanPlayThrough)
       videoA.removeEventListener('loadeddata', onLoadedData)
+      videoA.removeEventListener('progress', onProgress)
     }
-  }, [videoSources])
+  }, [videoSources, posterSrc])
 
 
   return (
@@ -405,7 +511,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
-        preload="auto"
+        poster={posterSrc}
+        preload="metadata"
         onTimeUpdate={() => handleTimeUpdate('A')}
         onEnded={() => handleVideoEnd('A')}
         onError={() => {
@@ -429,6 +536,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         className="absolute inset-0 w-full h-full z-10"
         muted
         playsInline
+        poster={posterSrc}
         preload="metadata"
         onTimeUpdate={() => handleTimeUpdate('B')}
         onEnded={() => handleVideoEnd('B')}

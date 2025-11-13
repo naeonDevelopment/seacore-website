@@ -1,0 +1,44 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fleetcore hero placeholder">
+  <defs>
+    <linearGradient id="hero-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="45%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+    <radialGradient id="hero-radial" cx="30%" cy="20%" r="70%">
+      <stop offset="0%" stop-color="rgba(56, 189, 248, 0.8)" />
+      <stop offset="40%" stop-color="rgba(59, 130, 246, 0.45)" />
+      <stop offset="100%" stop-color="rgba(15, 23, 42, 0)" />
+    </radialGradient>
+    <radialGradient id="hero-radial-secondary" cx="70%" cy="80%" r="65%">
+      <stop offset="0%" stop-color="rgba(16, 185, 129, 0.65)" />
+      <stop offset="55%" stop-color="rgba(16, 185, 129, 0.25)" />
+      <stop offset="100%" stop-color="rgba(15, 23, 42, 0)" />
+    </radialGradient>
+    <linearGradient id="grid-line" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255, 255, 255, 0.05)" />
+      <stop offset="100%" stop-color="rgba(148, 163, 184, 0.02)" />
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#hero-gradient)" />
+  <rect width="1920" height="1080" fill="url(#hero-radial)" />
+  <rect width="1920" height="1080" fill="url(#hero-radial-secondary)" />
+  <g stroke="url(#grid-line)" stroke-width="1">
+    <path d="M0 150 L1920 150" />
+    <path d="M0 330 L1920 330" />
+    <path d="M0 510 L1920 510" />
+    <path d="M0 690 L1920 690" />
+    <path d="M0 870 L1920 870" />
+    <path d="M240 0 L240 1080" />
+    <path d="M540 0 L540 1080" />
+    <path d="M840 0 L840 1080" />
+    <path d="M1140 0 L1140 1080" />
+    <path d="M1440 0 L1440 1080" />
+    <path d="M1740 0 L1740 1080" />
+  </g>
+  <g opacity="0.25">
+    <circle cx="360" cy="220" r="180" fill="rgba(56, 189, 248, 0.35)" />
+    <circle cx="1560" cy="820" r="220" fill="rgba(16, 185, 129, 0.35)" />
+  </g>
+</svg>
+

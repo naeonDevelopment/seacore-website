@@ -90,7 +90,7 @@ export const geminiTool = tool(
           contents: [{
             parts: [{ text: enrichedQuery }]
           }],
-          generationConfig,  // PHASE 1: Add deterministic config
+          generationConfig,  // Add deterministic config
           systemInstruction: {
             parts: [{
               text: `You are a SENIOR CHIEF ENGINEER and TECHNICAL SUPERINTENDENT with 20+ years maritime experience across:
@@ -263,7 +263,7 @@ CONTEXT HANDLING:
         console.warn(`   ⚠️ ZERO usable sources after normalization. Raw keys:`, Object.keys(groundingMetadata || {}));
       }
       
-      // PHASE 1: Add source quality assessment for observability
+      // Add source quality assessment for observability
       const sourceQualityAnalysis = sources.map(s => {
         const url = s.url?.toLowerCase() || '';
         let tier: 'T1' | 'T2' | 'T3' = 'T3';
