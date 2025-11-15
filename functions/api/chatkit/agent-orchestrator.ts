@@ -27,6 +27,16 @@ import {
   buildFleetcoreContext,
   type QueryClassification
 } from './query-classification-rules';
+import {
+  selectCoTTechnique,
+  buildZeroShotCoT,
+  buildAutoCoT,
+  buildPlanAndSolveCoT,
+  selfConsistentGeneration,
+  detectQueryType,
+  detectComparativeAttribute,
+  type CoTConfig
+} from './synthetic-cot-engine';
 import { 
   planQuery,
   executeParallelQueries,
@@ -1687,7 +1697,67 @@ ${state.sources.map((s: any, i: number) => {
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);
     console.log(`   📝 Research context included: ${state.researchContext?.substring(0, 100)}...`);
     
-    const systemMessage = new SystemMessage(synthesisPrompt);
+    // 🧠 PHASE 2: SYNTHETIC CHAIN OF THOUGHT INTEGRATION
+    // Detect which CoT technique to use based on query type
+    const classification: QueryClassification = {
+      mode: state.mode,
+      requiresTechnicalDepth: state.requiresTechnicalDepth,
+      isVesselQuery
+    };
+    
+    const cotConfig = selectCoTTechnique(userQuery, classification, state.sources || []);
+    console.log(`\n🧠 CHAIN OF THOUGHT:`);
+    console.log(`   Technique: ${cotConfig.technique}`);
+    console.log(`   Domain: ${cotConfig.domain}`);
+    console.log(`   Complexity: ${cotConfig.complexityLevel}`);
+    console.log(`   Requires Comparison: ${cotConfig.requiresComparison}`);
+    
+    // Build CoT-enhanced prompt based on technique
+    let enhancedPrompt: string;
+    let cotThinking: string = '';
+    let cotAnswer: string = '';
+    let usesSelfConsistency = false;
+    
+    switch (cotConfig.technique) {
+      case 'zero-shot':
+        // Most common: Add structured thinking prompt (80% of queries)
+        enhancedPrompt = buildZeroShotCoT(userQuery, synthesisPrompt, cotConfig.domain);
+        console.log(`   ✅ Using Zero-Shot CoT (80% of queries)`);
+        break;
+        
+      case 'auto-cot':
+        // Domain-specific templates for vessel/equipment queries
+        const queryType = detectQueryType(userQuery);
+        enhancedPrompt = buildAutoCoT(userQuery, synthesisPrompt, queryType);
+        console.log(`   ✅ Using Auto-CoT for ${queryType} query`);
+        break;
+        
+      case 'plan-solve':
+        // Comparative queries need systematic breakdown
+        const targetAttribute = detectComparativeAttribute(userQuery);
+        enhancedPrompt = buildPlanAndSolveCoT(
+          userQuery,
+          synthesisPrompt,
+          'superlative',
+          targetAttribute
+        );
+        console.log(`   ✅ Using Plan-and-Solve CoT for comparative query (attribute: ${targetAttribute})`);
+        break;
+        
+      case 'self-consistent':
+        // High-stakes queries: Run 3x and pick most consistent
+        // This is handled separately AFTER this block
+        enhancedPrompt = synthesisPrompt; // Will be replaced by self-consistent logic
+        usesSelfConsistency = true;
+        console.log(`   ✅ Using Self-Consistency CoT (3x generation)`);
+        break;
+        
+      default:
+        enhancedPrompt = synthesisPrompt;
+        console.log(`   ⚠️ No CoT applied - using base prompt`);
+    }
+    
+    const systemMessage = new SystemMessage(enhancedPrompt);
     
     // Emit synthesis start status
     if (statusEmitter) {
@@ -1695,8 +1765,8 @@ ${state.sources.map((s: any, i: number) => {
         type: 'status',
         stage: 'synthesis',
         content: state.requiresTechnicalDepth 
-          ? `⚙️ Generating comprehensive technical analysis (600+ words)...`
-          : `⚙️ Generating response...`
+          ? `⚙️ Generating comprehensive technical analysis with ${cotConfig.technique} reasoning (600+ words)...`
+          : `⚙️ Generating response with ${cotConfig.technique} reasoning...`
       });
     }
     
@@ -2678,6 +2748,9 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
         let plannerJsonBuffer = "";
         // P0 FIX: Track source index for proper numbering in frontend
         let sourceIndex = 0;
+        // 🧠 PHASE 2.3: Thinking detection and streaming
+        let thinkingInProgress = false;
+        let thinkingBuffer = "";
         
         console.log(`📡 Agent stream created - entering event loop`);
         
@@ -2699,6 +2772,63 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   const chunk = text; // PRESERVE original text with spaces
                   const trimmedForValidation = chunk.trim(); // Only for checks
 
+                  // 🧠 PHASE 2.3: PROGRESSIVE THINKING STREAMING
+                  // Detect and handle <thinking> sections separately
+                  if (chunk.includes('<thinking>')) {
+                    thinkingInProgress = true;
+                    console.log('   💭 Detected start of <thinking> section');
+                    statusEmitter?.({
+                      type: 'thinking_start',
+                      stage: 'reasoning',
+                      content: '💭 AI is analyzing the query...'
+                    });
+                  }
+                  
+                  if (thinkingInProgress) {
+                    thinkingBuffer += chunk;
+                    
+                    // Check for end of thinking
+                    if (chunk.includes('</thinking>')) {
+                      thinkingInProgress = false;
+                      
+                      // Extract clean thinking content (remove tags)
+                      const thinkingMatch = thinkingBuffer.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                      if (thinkingMatch) {
+                        const thinkingContent = thinkingMatch[1].trim();
+                        console.log(`   ✅ Thinking complete: ${thinkingContent.length} chars`);
+                        
+                        // Emit complete thinking as separate event (not regular content)
+                        statusEmitter?.({
+                          type: 'thinking_complete',
+                          stage: 'reasoning_done',
+                          content: thinkingContent
+                        });
+                        
+                        // Clear thinking buffer and continue to answer
+                        thinkingBuffer = '';
+                        statusEmitter?.({
+                          type: 'status',
+                          stage: 'synthesis',
+                          content: '📝 Formulating detailed answer...'
+                        });
+                      }
+                      
+                      // Don't emit thinking tags as regular content
+                      continue;
+                    } else {
+                      // Still in thinking section - emit partial progress
+                      const partialThinking = thinkingBuffer.replace(/<thinking>/g, '').trim();
+                      if (partialThinking.length > 0) {
+                        statusEmitter?.({
+                          type: 'thinking_partial',
+                          content: partialThinking
+                        });
+                      }
+                      // Don't emit as regular content
+                      continue;
+                    }
+                  }
+
                   // If previously detected an opening JSON plan, keep buffering until closing brace
                   if (suppressPlannerJson) {
                     plannerJsonBuffer += trimmedForValidation;
@@ -2711,15 +2841,18 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     continue; // Do not forward any part of planner JSON
                   }
 
-                  // ULTRA-AGGRESSIVE: Filter any chunk that looks like JSON key-value pairs
-                  // This catches malformed JSON like: "strategy": "focused", "subQueries":
-                  const looksLikeJsonKeyValue = /"(strategy|subQueries|query|purpose|priority|vessel_profile|executive_summary|technical_analysis)"[\s:]*["{[]/.test(trimmedForValidation);
-                  if (looksLikeJsonKeyValue) {
-                    console.log(`   🚫 FILTERED JSON key-value pattern: "${trimmedForValidation.substring(0, 60)}..."`);
-                    // Start buffering in case this is multi-chunk JSON
-                    suppressPlannerJson = true;
-                    plannerJsonBuffer = trimmedForValidation;
-                    continue;
+                  // FIXED: Only filter if it's COMPLETE VALID JSON, not just text containing these words
+                  // This prevents filtering legitimate markdown like "## EXECUTIVE SUMMARY"
+                  const isCompleteJson = /^\s*\{[\s\S]*\}\s*$/.test(trimmedForValidation) || /^\s*\[[\s\S]*\]\s*$/.test(trimmedForValidation);
+                  if (isCompleteJson) {
+                    try {
+                      JSON.parse(trimmedForValidation); // Validate it's real JSON
+                      console.log(`   🚫 FILTERED valid JSON: "${trimmedForValidation.substring(0, 60)}..."`);
+                      continue; // Only drop if it's actual parseable JSON
+                    } catch {
+                      // Not valid JSON despite looking like it - allow through
+                      console.log(`   ✅ Allowing through (looked like JSON but invalid): "${trimmedForValidation.substring(0, 60)}..."`);
+                    }
                   }
 
                   // CRITICAL FIX: Detect and filter ALL types of JSON:

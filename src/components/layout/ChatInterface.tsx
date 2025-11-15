@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, FileText, Sparkles, Square } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Globe, RotateCcw, ChevronDown, ChevronUp, Sun, Moon, CheckCircle2, XCircle, FileText, Sparkles, Square, Brain, Zap } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,6 +13,7 @@ interface Message {
   isStreaming?: boolean;
   isThinking?: boolean;
   thinkingContent?: string;
+  cotTechnique?: string; // Chain of thought technique used (zero-shot, auto-cot, plan-solve, self-consistent)
   memoryNarrative?: string; // Conversation context (disappears when content starts)
 }
 
@@ -774,6 +775,58 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                     isResearchingRef.current = true; // Sync ref
                   }
                   // If browsing is disabled, keep showing "Thinking..." with isLoading
+                  continue;
+                }
+                
+                // 🧠 PHASE 2.4: Handle thinking events from synthetic CoT
+                if (parsed?.type === 'thinking_start') {
+                  console.log('💭 [Thinking Started]');
+                  streamedThinking = '';
+                  thinkingStartTimeRef.current = Date.now();
+                  continue;
+                }
+                
+                if (parsed?.type === 'thinking_partial') {
+                  // Accumulate partial thinking content
+                  streamedThinking = parsed.content || '';
+                  continue;
+                }
+                
+                if (parsed?.type === 'thinking_complete') {
+                  // Finalize thinking content
+                  const thinkingContent = parsed.content || streamedThinking;
+                  console.log(`✅ [Thinking Complete] ${thinkingContent.length} chars`);
+                  
+                  // Update or create assistant message with thinking content
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const idx = streamingIndexRef.current;
+                    
+                    if (idx != null && idx >= 0 && idx < updated.length) {
+                      // Update existing message
+                      updated[idx] = {
+                        ...updated[idx],
+                        thinkingContent,
+                        isThinking: false
+                      };
+                    } else {
+                      // Create new assistant message with thinking
+                      const assistantMessage = {
+                        role: 'assistant' as const,
+                        content: '',
+                        timestamp: new Date(),
+                        isStreaming: true,
+                        isThinking: false,
+                        thinkingContent
+                      };
+                      streamingIndexRef.current = updated.length;
+                      updated.push(assistantMessage);
+                    }
+                    
+                    return updated;
+                  });
+                  
+                  streamedThinking = '';
                   continue;
                 }
                 
@@ -1744,6 +1797,71 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                       </span>
                     </motion.div>
                   )}
+                  
+                  {/* 🧠 PHASE 2.4: THINKING INDICATOR - Cursor Style */}
+                  {message.thinkingContent && (() => {
+                    const [thinkingExpanded, setThinkingExpanded] = useState(false);
+                    
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="thinking-section mb-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800/50 shadow-sm"
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                              AI Reasoning Process
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => setThinkingExpanded(!thinkingExpanded)}
+                            className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 rounded px-2 py-1"
+                            aria-label={thinkingExpanded ? "Collapse thinking" : "Expand thinking"}
+                          >
+                            {thinkingExpanded ? 'Collapse' : 'Expand'}
+                          </button>
+                        </div>
+                        
+                        <AnimatePresence>
+                          {thinkingExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="text-sm text-blue-700 dark:text-blue-300 space-y-2 font-mono"
+                            >
+                              {message.thinkingContent.split('\n').map((line, i) => {
+                                const numberMatch = line.match(/^(\d+)\./);
+                                if (numberMatch) {
+                                  return (
+                                    <div key={i} className="flex gap-2">
+                                      <span className="text-blue-500 dark:text-blue-400 font-bold flex-shrink-0">
+                                        {numberMatch[1]}.
+                                      </span>
+                                      <span className="flex-1">{line.replace(/^\d+\.\s*/, '')}</span>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div key={i} className="flex gap-2">
+                                    <span className="flex-1">{line}</span>
+                                  </div>
+                                );
+                              })}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        
+                        <div className="mt-2 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          <span>Technique: {message.cotTechnique || 'Zero-Shot CoT'}</span>
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
                 
                   {/* Memory narrative - conversation context (subtle, greyed, disappears when answer starts) */}
                   {message.memoryNarrative && (

@@ -61,9 +61,13 @@ export function enforceCitations(
   
   // Count existing citations (after repair)
   const existingCitations = countCitations(workingContent);
+  // FIXED: Increase citation coverage to 40% of available sources (30-50% range)
   const baseMin = options?.minRequired !== undefined
     ? options.minRequired
-    : (options?.technicalDepth ? 5 : 3);
+    : Math.max(
+        Math.ceil(sources.length * 0.4), // 40% of sources
+        options?.technicalDepth ? 5 : 3  // Minimum of 3-5
+      );
   const minRequired = Math.min(baseMin, sources.length);
   
   console.log(`\n📎 CITATION ENFORCEMENT:`);
@@ -139,32 +143,46 @@ function validateAndRepairCitations(content: string, sources: Source[]): {
   let repairsCount = 0;
   const errors: string[] = [];
   
-  // Convert legacy format 1: [[N]](url) → [N]
-  const legacyFormat1 = /\[\[(\d+)\]\]\([^)]*\)/g;
-  repaired = repaired.replace(legacyFormat1, (match, indexStr) => {
+  // FIXED: Preserve URL format for clickable citations
+  // Convert legacy format 1: [[N]](url) → [N](url) - preserve URL
+  const legacyFormat1 = /\[\[(\d+)\]\]\(([^)]*)\)/g;
+  repaired = repaired.replace(legacyFormat1, (match, indexStr, url) => {
     const index = parseInt(indexStr, 10);
     if (index < 1 || index > sources.length) {
       errors.push(`Citation out of bounds: [${index}] (sources: ${sources.length})`);
       return match;
     }
     repairsCount++;
-    return `[${index}]`;
+    return `[${index}](${url})`; // Preserve URL
   });
   
-  // Convert legacy format 2: [N](url) → [N]
-  const legacyFormat2 = /\[(\d+)\]\([^)]+\)/g;
-  repaired = repaired.replace(legacyFormat2, (match, indexStr) => {
+  // FIXED: Validate and preserve [N](url) format - add URL if missing
+  const citationWithUrl = /\[(\d+)\]\(([^)]+)\)/g;
+  repaired = repaired.replace(citationWithUrl, (match, indexStr, url) => {
+    const index = parseInt(indexStr, 10);
+    if (index < 1 || index > sources.length) {
+      errors.push(`Citation out of bounds: [${index}] (sources: ${sources.length})`);
+      return match;
+    }
+    // Valid citation with URL - keep as is
+    return match;
+  });
+  
+  // FIXED: Convert bare citations [N] → [N](url) - add URL from sources
+  const bareFormat = /\[(\d+)\](?!\()/g;
+  repaired = repaired.replace(bareFormat, (match, indexStr) => {
     const index = parseInt(indexStr, 10);
     if (index < 1 || index > sources.length) {
       errors.push(`Citation out of bounds: [${index}] (sources: ${sources.length})`);
       return match;
     }
     repairsCount++;
-    return `[${index}]`;
+    const sourceUrl = sources[index - 1]?.url || '';
+    return `[${index}](${sourceUrl})`; // Add URL from sources
   });
   
-  // Convert legacy format 3: [[N]] → [N]
-  const legacyFormat3 = /\[\[(\d+)\]\]/g;
+  // Convert legacy format 3: [[N]] → [N](url)
+  const legacyFormat3 = /\[\[(\d+)\]\](?!\()/g;
   repaired = repaired.replace(legacyFormat3, (match, indexStr) => {
     const index = parseInt(indexStr, 10);
     if (index < 1 || index > sources.length) {
@@ -172,7 +190,8 @@ function validateAndRepairCitations(content: string, sources: Source[]): {
       return match;
     }
     repairsCount++;
-    return `[${index}]`;
+    const sourceUrl = sources[index - 1]?.url || '';
+    return `[${index}](${sourceUrl})`; // Add URL from sources
   });
   
   return { repairedContent: repaired, repairsCount, errors };
