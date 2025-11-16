@@ -1423,6 +1423,21 @@ ${state.requiresTechnicalDepth ? `
 3. Keep concise (400-500 words total)
 4. Focus on what you CAN tell the user, not what you cannot
 5. Cite every fact with [N] (REFERENCES section added automatically)
+
+**⚠️ CRITICAL FORMATTING RULES ⚠️**
+1. Add blank line BEFORE every ## header
+2. Add blank line AFTER every ## header
+3. Proper format example:
+
+## EXECUTIVE SUMMARY
+
+[Content here with proper spacing]
+
+## TECHNICAL SPECIFICATIONS
+
+[Content here with proper spacing]
+
+DO NOT let sections bleed together like "OPERATIONAL STATUSAs of..."
 ` : '';
 
     // Pre-extract owner/operator data before synthesis

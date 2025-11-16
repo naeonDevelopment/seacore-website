@@ -24,8 +24,36 @@ export interface GapAnalysis {
 
 /**
  * Check if a field is missing from content
+ * ENHANCED: More aggressive detection for owner/operator (critical field)
  */
 function isMissing(content: string, field: string): boolean {
+  // Special aggressive detection for Owner/Operator (CRITICAL field)
+  if (field === 'Owner' || field === 'Operator') {
+    // Check for explicit owner/operator mentions with actual company names
+    const hasOwnerMention = 
+      content.match(/owner[:\s]+[A-Z][a-z]+/i) ||  // "Owner: Company Name"
+      content.match(/owned by\s+[A-Z]/i) ||         // "owned by Company"
+      content.match(/operator[:\s]+[A-Z][a-z]+/i) || // "Operator: Company"
+      content.match(/operated by\s+[A-Z]/i) ||      // "operated by Company"
+      content.match(/managed by\s+[A-Z]/i) ||       // "managed by Company"
+      content.match(/management[:\s]+[A-Z]/i);      // "Management: Company"
+    
+    // If no actual company name found, consider it missing
+    if (!hasOwnerMention) {
+      console.log(`   🚨 CRITICAL GAP: ${field} not found - triggering targeted research`);
+      return true;
+    }
+    
+    // Even if found, check if it's a real name or placeholder
+    if (content.includes(`${field}: Not found`) || 
+        content.includes(`${field}:**Not found`)) {
+      return true;
+    }
+    
+    return false; // Has real owner/operator data
+  }
+  
+  // Standard detection for other fields
   return (
     !content.includes(field) || 
     content.includes(`${field}: Not found`) ||

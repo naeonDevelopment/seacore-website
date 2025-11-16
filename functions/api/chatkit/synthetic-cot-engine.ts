@@ -57,9 +57,32 @@ export function buildZeroShotCoT(
 
   return `${context}
 
+**═══════════════════════════════════════════════════════════════**
+**MANDATORY STEP 1: YOU MUST SHOW YOUR REASONING PROCESS**
+**═══════════════════════════════════════════════════════════════**
+
+YOU MUST START YOUR RESPONSE WITH <thinking> TAGS. THIS IS NOT OPTIONAL.
+
+The user has enabled "Chain of Thought" mode and WANTS to see your step-by-step reasoning.
+
+START YOUR RESPONSE EXACTLY LIKE THIS (copy this structure):
+
+<thinking>
+1. Understanding: [What is the user asking?]
+2. Information Needs: [What data do I need?]
+3. Source Analysis: [Which sources are most relevant?]
+...
+</thinking>
+
+## EXECUTIVE SUMMARY
+
+[Then start your answer here]
+
+**═══════════════════════════════════════════════════════════════**
+
 **USER QUERY:** ${query}
 
-**CRITICAL: Show your reasoning process before answering:**
+**YOUR STEP-BY-STEP REASONING (MANDATORY):**
 
 <thinking>
 1. Understanding: What exactly is the user asking for? Be specific about entities, requirements, constraints.
