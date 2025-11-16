@@ -37,6 +37,11 @@ import {
   detectComparativeAttribute,
   type CoTConfig
 } from './synthetic-cot-engine';
+import {
+  analyzeResearchGaps,
+  extractVesselName,
+  type GapAnalysis
+} from './research-gap-analyzer';
 import { 
   planQuery,
   executeParallelQueries,
@@ -1568,6 +1573,13 @@ ${(isVesselQuery && state.requiresTechnicalDepth) ? `- YOUR FIRST SECTION MUST B
 - Your FIRST character must be # (markdown header)
 - Your output must be pure markdown content only
 
+**⚠️ CRITICAL: DO NOT GENERATE A REFERENCES SECTION ⚠️**
+- Citations should be INLINE only: [1](url), [2](url), [3](url)
+- Do NOT add a "REFERENCES:" or "SOURCES:" section at the end
+- Do NOT list sources at the bottom
+- The system will automatically add a references section
+- Your response should end with your last content section (e.g., MARITIME CONTEXT)
+
 **YOUR TASK:**
 You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise but complete overview (400-500 words)'}.
 
@@ -2104,6 +2116,156 @@ ${state.sources.map((s: any, i: number) => {
       const mappingMarkdown = formatMappingAsMarkdown(fleetcoreMapping);
       finalContent = fullContent + mappingMarkdown;
       console.log(`   ✨ Added fleetcore mapping for ${fleetcoreMapping.entityName} (${fleetcoreMapping.features.length} features)`);
+    }
+    
+    // 🔄 REFLEXION LOOP: Self-healing research for vessel queries
+    // Guarantees zero "Not found" by iteratively filling data gaps
+    if (isVesselQuery && fullContent) {
+      const MAX_ITERATIONS = 3;
+      let currentIteration = 1;
+      let enhancedContent = fullContent;
+      let allSources = [...(state.sources || [])];
+      
+      const vesselName = extractVesselName(userQuery) || userQuery;
+      
+      while (currentIteration <= MAX_ITERATIONS) {
+        console.log(`\n🔄 REFLEXION ITERATION ${currentIteration}:`);
+        
+        // Analyze for gaps
+        const gapAnalysis: GapAnalysis = analyzeResearchGaps(
+          enhancedContent,
+          vesselName,
+          allSources,
+          currentIteration
+        );
+        
+        console.log(`   Completeness: ${gapAnalysis.completeness}%`);
+        console.log(`   Missing fields: ${gapAnalysis.missingFields.length}`);
+        gapAnalysis.missingFields.forEach(g => {
+          console.log(`      - ${g.field} (${g.importance})`);
+        });
+        
+        // Stop if complete or no more research needed
+        if (!gapAnalysis.needsAdditionalResearch) {
+          console.log(`   ✅ Data complete (${gapAnalysis.completeness}%) - stopping`);
+          break;
+        }
+        
+        console.log(`   🎯 Triggering targeted research for ${gapAnalysis.missingFields.length} gaps`);
+        
+        // Emit status
+        if (statusEmitter) {
+          statusEmitter({
+            type: 'status',
+            stage: 'reflexion',
+            content: `🔍 Iteration ${currentIteration}: ${gapAnalysis.completeness}% complete - researching ${gapAnalysis.missingFields.length} missing fields...`
+          });
+        }
+        
+        // Generate targeted queries (prioritize critical and high)
+        const targetedGaps = gapAnalysis.missingFields
+          .filter(g => g.importance === 'critical' || g.importance === 'high')
+          .slice(0, 3); // Max 3 per iteration
+        
+        // Execute additional research
+        const newSources: any[] = [];
+        for (const gap of targetedGaps) {
+          try {
+            console.log(`      Searching: ${gap.field}`);
+            
+            const result = await geminiTool.invoke({
+              query: gap.searchQuery,
+              entityContext: `Finding missing data: ${gap.field} for vessel ${userQuery}`
+            }, config);
+            
+            const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+            if (parsed.sources && parsed.sources.length > 0) {
+              console.log(`      ✅ Found ${parsed.sources.length} sources for ${gap.field}`);
+              newSources.push(...parsed.sources);
+            }
+          } catch (error: any) {
+            console.warn(`      ⚠️ Search failed for ${gap.field}: ${error.message}`);
+          }
+        }
+        
+        console.log(`   📚 Collected ${newSources.length} new sources`);
+        
+        // If no new sources found, stop iterating
+        if (newSources.length === 0) {
+          console.log(`   ⚠️ No new sources found - stopping iteration`);
+          break;
+        }
+        
+        // Merge sources
+        allSources = [...allSources, ...newSources];
+        
+        // Emit new sources to frontend
+        if (statusEmitter) {
+          newSources.forEach((source, idx) => {
+            statusEmitter({
+              type: 'source',
+              action: 'selected',
+              url: source.url,
+              title: source.title || 'Source',
+              index: allSources.length - newSources.length + idx
+            });
+          });
+        }
+        
+        // Re-build research context with all sources
+        const enhancedResearchContext = buildSourcesContext(allSources);
+        
+        // Re-synthesize with complete sources
+        console.log(`   🔁 Re-synthesizing with ${allSources.length} total sources`);
+        
+        const reSynthesisPrompt = `${synthesisPrompt}
+
+**🔄 ITERATION ${currentIteration + 1}: Additional Sources Provided**
+You previously generated a response but were missing: ${targetedGaps.map(g => g.field).join(', ')}.
+We have conducted additional targeted research and now have ${newSources.length} MORE sources with this specific data.
+
+**CRITICAL INSTRUCTIONS:**
+1. Review the NEW sources below (marked with [NEW])
+2. Extract the missing data: ${targetedGaps.map(g => g.field).join(', ')}
+3. Update your response to include ALL found data
+4. DO NOT repeat "Not found" for fields now available in new sources
+
+**NEW SOURCES (Iteration ${currentIteration}):**
+${newSources.map((s, i) => `[NEW-${i+1}] ${s.title}: ${s.content?.substring(0, 500) || s.snippet || ''}`).join('\n\n')}
+
+Now provide the COMPLETE response with all available data.`;
+
+        // Re-invoke LLM with enhanced prompt
+        const reSynthesisSystemMessage = new SystemMessage(reSynthesisPrompt);
+        
+        try {
+          const stream = await llm.stream([reSynthesisSystemMessage, ...state.messages], config);
+          let reContent = '';
+          
+          for await (const chunk of stream) {
+            reContent += chunk.content;
+          }
+          
+          console.log(`   ✅ Re-synthesis complete: ${reContent.length} chars`);
+          enhancedContent = reContent;
+          fullContent = reContent; // Update main content
+          finalContent = reContent; // Update final content
+          
+        } catch (error: any) {
+          console.error(`   ❌ Re-synthesis failed: ${error.message}`);
+          break;
+        }
+        
+        currentIteration++;
+      }
+      
+      console.log(`\n✅ REFLEXION COMPLETE after ${currentIteration - 1} iterations`);
+      const finalAnalysis = analyzeResearchGaps(fullContent, vesselName, allSources);
+      console.log(`   Final completeness: ${finalAnalysis.completeness}%`);
+      console.log(`   Total sources used: ${allSources.length}`);
+      
+      // Update state with all sources
+      state.sources = allSources;
     }
     
     return { 

@@ -86,16 +86,21 @@ export function buildAutoCoT(
   const templates = {
     vessel: `
 <thinking>
-1. Vessel Identification: Name, IMO, MMSI from sources
-2. Classification: Type (cargo, tanker, container, etc.), flag state, class society
-3. Specification Extraction: LOA, beam, draft, GT, DWT, capacity
-4. Ownership Analysis: Registered owner, beneficial owner, operator, technical manager
-5. Propulsion System: Main engines (make/model/power), auxiliary systems
-6. Operational Context: Trade routes, typical cargo, fleet position
-7. Build Information: Shipyard, year, hull number
-8. Current Status: Location, speed, destination from AIS
-9. Maritime Significance: Why important? Market position? Innovations?
-10. Validation: Do all specs align? Any data conflicts?
+1. Vessel Identification: Search for name, IMO, MMSI in ALL sources
+2. ⚠️ CRITICAL CHECK: Do I have IMO number? (YES/NO)
+3. ⚠️ CRITICAL CHECK: Do I have MMSI? (YES/NO)
+4. Classification: Type (cargo, tanker, container, etc.), flag state, class society
+5. Specification Extraction: LOA, beam, draft, GT, DWT, capacity
+6. ⚠️ HIGH PRIORITY CHECK: Do I have Owner/Operator? (YES/NO)
+7. Propulsion System: Main engines (make/model/power), auxiliary systems
+8. Build Information: Shipyard, year, hull number
+9. Current Status: Location, speed, destination from AIS
+10. GAP ANALYSIS: List ALL missing critical fields:
+    - Missing IMO? → Need targeted search: "vessel name IMO site:marinetraffic.com"
+    - Missing Owner? → Need targeted search: "vessel name owner site:equasis.org"
+    - Missing specs? → Need targeted search: "vessel name specifications"
+11. COMPLETENESS SCORE: What % of expected data do I have? (Aim for 95%+)
+12. RECOMMENDATION: Should we trigger additional research? (YES if <80% OR missing IMO/MMSI/Owner)
 </thinking>`,
     
     equipment: `

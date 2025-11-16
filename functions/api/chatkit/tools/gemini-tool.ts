@@ -258,9 +258,35 @@ CONTEXT HANDLING:
       console.log(`   📊 groundingChunks:`, groundingMetadata?.groundingChunks?.length || 0);
       
       // Extract sources using unified extractor
-      const sources: UnifiedSource[] = extractSourcesFromGeminiResponse(data, query, answer || undefined);
+      const rawSources: UnifiedSource[] = extractSourcesFromGeminiResponse(data, query, answer || undefined);
+      
+      // ✅ CRITICAL FIX: Filter out Google search URLs (Issue #3)
+      // Problem: Sources array contains "google.com/search?q=..." instead of real destinations
+      // Solution: Reject any Google search URLs and log warnings
+      const sources: UnifiedSource[] = rawSources.filter(s => {
+        const url = s.url?.toLowerCase() || '';
+        
+        // Reject Google search URLs
+        if (url.includes('google.com/search') || url.includes('www.google.com/search')) {
+          console.warn(`   🚫 REJECTED: Google search URL (not a real source): ${s.url.substring(0, 80)}`);
+          return false;
+        }
+        
+        // Reject empty or placeholder URLs
+        if (!url || url === '#' || url === 'about:blank') {
+          console.warn(`   🚫 REJECTED: Invalid URL: ${s.url}`);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (rawSources.length > sources.length) {
+        console.log(`   ⚠️ Filtered out ${rawSources.length - sources.length} invalid URLs (Google search pages, etc.)`);
+      }
+      
       if (sources.length === 0) {
-        console.warn(`   ⚠️ ZERO usable sources after normalization. Raw keys:`, Object.keys(groundingMetadata || {}));
+        console.warn(`   ⚠️ ZERO usable sources after normalization + validation. Raw keys:`, Object.keys(groundingMetadata || {}));
       }
       
       // Add source quality assessment for observability

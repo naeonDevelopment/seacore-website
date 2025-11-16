@@ -680,7 +680,7 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
       // Log what we're sending to backend
       console.log('📤 [Sending to Backend]', {
         enableBrowsing: currentUseBrowsingRef.current,
-        enableChainOfThought: false,
+        enableChainOfThought: true, // ✅ ENABLED: Cursor-style CoT for all queries
         messageCount: messages.length + 1,
         query: userMessage.content.substring(0, 100)
       });
@@ -694,7 +694,7 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
             content: m.content,
           })),
           enableBrowsing: currentUseBrowsingRef.current,
-          enableChainOfThought: false,
+          enableChainOfThought: true, // ✅ ENABLED: Universal CoT
           researchComplexity: 'simple',
           sessionId, // Include session ID for cache management
         }),

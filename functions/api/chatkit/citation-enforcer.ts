@@ -38,6 +38,32 @@ export interface CitationEnforcementResult {
 }
 
 /**
+ * Strip duplicate REFERENCES/SOURCES sections that LLM might generate
+ * Only the citation-enforcer should add the final REFERENCES section
+ */
+export function stripDuplicateReferences(content: string): string {
+  // Remove any LLM-generated REFERENCES or SOURCES sections at the end
+  // Pattern matches:
+  // - ## REFERENCES or ## SOURCES (with optional colon)
+  // - **REFERENCES:** or **SOURCES:** 
+  // - REFERENCES: or SOURCES: (standalone)
+  // Followed by list items, numbered items, or links
+  
+  let cleaned = content;
+  
+  // Remove markdown heading version: ## REFERENCES or ## SOURCES
+  cleaned = cleaned.replace(/\n\n##\s*(REFERENCES|SOURCES):?\s*\n[\s\S]*$/i, '');
+  
+  // Remove bold version: **REFERENCES:** or **SOURCES:**
+  cleaned = cleaned.replace(/\n\n\*\*\s*(REFERENCES|SOURCES):?\s*\*\*\s*\n[\s\S]*$/i, '');
+  
+  // Remove standalone version: REFERENCES: or SOURCES:
+  cleaned = cleaned.replace(/\n\n(REFERENCES|SOURCES):?\s*\n[\s\S]*$/i, '');
+  
+  return cleaned.trim();
+}
+
+/**
  * Main citation enforcement function
  * Analyzes content and injects citations if needed
  */
@@ -46,6 +72,9 @@ export function enforceCitations(
   sources: Source[],
   options?: { technicalDepth?: boolean; minRequired?: number }
 ): CitationEnforcementResult {
+  
+  // PHASE 0: Strip any duplicate REFERENCES sections from LLM
+  content = stripDuplicateReferences(content);
   
   // PHASE 4A: Step 1 - Validate and auto-repair malformed citations FIRST
   const repairResult = validateAndRepairCitations(content, sources);
