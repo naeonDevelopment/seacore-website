@@ -55,46 +55,54 @@ export function buildZeroShotCoT(
 7. Technical Validation: Do specs/dimensions/tonnage make logical sense?
 8. Operational Significance: Why does this matter in maritime operations?` : '';
 
-  return `${context}
-
+  // CRITICAL: Put CoT instruction FIRST, before all context
+  return `**═══════════════════════════════════════════════════════════════**
+**CRITICAL: YOUR RESPONSE MUST START WITH <thinking> TAGS**
+**THIS IS MANDATORY. DO NOT SKIP. THE USER EXPECTS TO SEE YOUR REASONING.**
 **═══════════════════════════════════════════════════════════════**
-**MANDATORY STEP 1: YOU MUST SHOW YOUR REASONING PROCESS**
-**═══════════════════════════════════════════════════════════════**
 
-YOU MUST START YOUR RESPONSE WITH <thinking> TAGS. THIS IS NOT OPTIONAL.
+BEFORE ANYTHING ELSE, write your reasoning inside <thinking> tags.
 
-The user has enabled "Chain of Thought" mode and WANTS to see your step-by-step reasoning.
-
-START YOUR RESPONSE EXACTLY LIKE THIS (copy this structure):
+Your response MUST start EXACTLY like this:
 
 <thinking>
 1. Understanding: [What is the user asking?]
 2. Information Needs: [What data do I need?]
-3. Source Analysis: [Which sources are most relevant?]
+3. Source Analysis: [Which sources are most relevant?]${maritimeThinking}
+${domain === 'maritime' ? '9' : '4'}. Cross-Verification: [Are facts consistent?]
+${domain === 'maritime' ? '10' : '5'}. Synthesis Strategy: [How to structure?]
+${domain === 'maritime' ? '11' : '6'}. Citation Planning: [Which sources for which facts?]
+${domain === 'maritime' ? '12' : '7'}. Quality Assurance: [Will this fully answer the question?]
+</thinking>
+
+## EXECUTIVE SUMMARY
+
+[AFTER the thinking section above, start your answer here...]
+
+**═══════════════════════════════════════════════════════════════**
+
+**EXAMPLE OF CORRECT FORMAT:**
+
+<thinking>
+1. Understanding: User wants information about [specific topic]
+2. Information Needs: I need to find [specific data points]
+3. Source Analysis: Sources 1, 5, 7 are most authoritative...
 ...
 </thinking>
 
 ## EXECUTIVE SUMMARY
 
-[Then start your answer here]
+The [answer begins here with factual content and citations]...
 
 **═══════════════════════════════════════════════════════════════**
 
+NOW ANSWER THIS QUERY (remember: START WITH <thinking> TAGS):
+
 **USER QUERY:** ${query}
 
-**YOUR STEP-BY-STEP REASONING (MANDATORY):**
+${context}
 
-<thinking>
-1. Understanding: What exactly is the user asking for? Be specific about entities, requirements, constraints.
-2. Information Needs: What facts/data are required to answer this comprehensively?
-3. Source Analysis: Which of the provided sources contain relevant information? Prioritize authoritative sources.${maritimeThinking}
-${domain === 'maritime' ? '9' : '4'}. Cross-Verification: Are facts consistent across sources? Any contradictions to address?
-${domain === 'maritime' ? '10' : '5'}. Synthesis Strategy: How should I structure the answer? What sections/headings?
-${domain === 'maritime' ? '11' : '6'}. Citation Planning: Which sources support which facts? Aim for 5-8 citations.
-${domain === 'maritime' ? '12' : '7'}. Quality Assurance: Will this answer fully satisfy the user's information need?
-</thinking>
-
-Now provide your comprehensive answer with inline citations [1](url)[2](url)[3](url)...`;
+REMINDER: Your response must start with <thinking>...</thinking> before any other content.`;
 }
 
 /**

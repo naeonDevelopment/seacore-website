@@ -608,13 +608,13 @@ export function classifyQuery(
   
   // CRITICAL: Technical depth + entity → Use verification mode for comprehensive analysis
   // Example: "tell me more details about the engines - maintenance, reports and specifics"
-  // NOTE: Deep research mode disabled - using verification mode with Gemini instead
+  // Deep research enabled when user toggles "Online Research"
   if (needsTechnicalDepth && hasEntity && technicalDepthScore >= 4) {
     console.log(`   ✅ HIGH TECHNICAL DEPTH with entity (score: ${technicalDepthScore}/10)`);
-    console.log(`   🔍 VERIFICATION MODE: Technical depth analysis (deep research disabled)`);
-    console.log(`   === MODE CLASSIFICATION END: VERIFICATION (TECHNICAL DEPTH) ===\n`);
+    console.log(`   🔬 RESEARCH MODE: Multi-source comprehensive analysis ${enableBrowsing ? 'ENABLED' : '(use Gemini only)'}`);
+    console.log(`   === MODE CLASSIFICATION END: ${enableBrowsing ? 'RESEARCH' : 'VERIFICATION'} (TECHNICAL DEPTH) ===\n`);
     return {
-      mode: 'verification',
+      mode: enableBrowsing ? 'research' : 'verification',
       preserveFleetcoreContext: true,
       enrichQuery: true,
       isHybrid: false,

@@ -2,7 +2,7 @@
  * Session Delete Endpoint
  * Explicitly cleans up KV cache when sessions are deleted
  * 
- * PHASE 1 SECURITY: CORS, error sanitization
+ * SECURITY: CORS, error sanitization
  */
 
 import { getCorsHeaders } from './cors-config';

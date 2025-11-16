@@ -1648,6 +1648,35 @@ ${state.sources.map((s: any, i: number) => {
    - Cross-reference multiple sources for accuracy
    - ${isVesselQuery ? 'EVERY field in VESSEL PROFILE must be extracted from sources' : 'Extract ALL available technical specifications'}
 
+**═══════════════════════════════════════════════════════════════**
+**CRITICAL FORMATTING RULES (ENFORCE STRICTLY)**
+**═══════════════════════════════════════════════════════════════**
+
+1. Add TWO blank lines BEFORE every ## header
+2. Add ONE blank line AFTER every ## header
+3. NEVER let headers touch content directly
+
+CORRECT FORMAT EXAMPLE:
+```
+
+## EXECUTIVE SUMMARY
+
+The vessel measures 400 meters...
+
+
+## TECHNICAL SPECIFICATIONS
+
+Length Overall: 399m...
+```
+
+WRONG FORMAT (DO NOT DO THIS):
+```
+## EXECUTIVE SUMMARYThe vessel measures...
+## TECHNICAL SPECIFICATIONSLength Overall:...
+```
+
+**═══════════════════════════════════════════════════════════════**
+
 **REMINDER**: ${isVesselQuery ? 'Start with ## VESSEL PROFILE section, then continue with other sections.' : 'Start with ## EXECUTIVE SUMMARY.'}`;
     
     console.log(`   📝 Synthesis prompt length: ${synthesisPrompt.length} chars`);

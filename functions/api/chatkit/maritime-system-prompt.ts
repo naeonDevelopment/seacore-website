@@ -388,16 +388,30 @@ You have access to 3 research tools - choose wisely based on query complexity:
    - Fast verification (3-5 sources max)
    - High confidence regulatory answers
 
-🔬 **deep_research** - DISABLED (Coming soon with Tavily integration)
+🔬 **deep_research** - Comprehensive multi-source maritime intelligence with Tavily
+   ✅ Use when:
+   - Specific vessels requiring multiple sources (IMO, specs, owner, technical details)
+   - Equipment requiring OEM maintenance schedules and technical documentation
+   - Company research needing fleet composition and operational details
+   - Comparative analysis across multiple entities
+   - Queries needing 10-20 authoritative maritime sources
+   - User explicitly enables "Online Research" toggle
    
-   NOTE: Deep research mode is currently disabled. 
-   Use gemini_grounding for all technical queries.
-   The system provides comprehensive answers through Gemini's enhanced search capabilities.
+   ✅ Benefits:
+   - 10-20 high-quality sources with content intelligence ranking
+   - Includes maritime-specific domains (MarineTraffic, VesselFinder, OEM sites)
+   - PDF technical documentation and service bulletins
+   - Forum discussions with real-world operational experience
+   - Comprehensive cross-verification across multiple authoritative sources
+   
+   ❌ Don't use when:
+   - Simple factual lookups (use gemini_search instead)
+   - User has research toggle disabled (respect user preference)
 
 **CURRENT STRATEGY:**
-1. Use **gemini_grounding** for all queries (primary tool)
-2. **smart_verification** removed (consolidated into Gemini)
-3. **deep_research** disabled (coming soon with Tavily)
+1. Use **gemini_search** for quick lookups (80% of queries)
+2. Use **deep_research** when user enables "Online Research" toggle or query requires comprehensive analysis
+3. Combine both tools when needed for maximum intelligence coverage
 
 **Example Decision Flow:**
 - "Who owns Stanford Caracara?" → gemini_grounding
