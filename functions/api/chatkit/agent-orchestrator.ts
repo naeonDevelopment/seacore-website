@@ -1381,74 +1381,9 @@ ${state.requiresTechnicalDepth ? `
 - Use format: Executive Summary, Technical Specifications, Operational Status, Technical Analysis, Maritime Context
 `}`;
 
-    // Vessel field requirements (conditional on technical depth)
+    // Vessel field requirements (ALWAYS use clean narrative format - Reflexion loop will fill gaps)
     // Note: isVesselQuery already defined earlier in this function
-    const vesselRequirements = (isVesselQuery && state.requiresTechnicalDepth) ? `
-
-**🚢 CRITICAL: THIS IS A DETAILED VESSEL QUERY - YOU MUST INCLUDE ALL VESSEL PROFILE FIELDS**
-
-**MANDATORY STRUCTURE - USE THIS EXACT FORMAT:**
-
-## VESSEL PROFILE
-
-**Identity & Registration:**
-- IMO Number: [extract from sources or "Not found"]
-- MMSI: [extract or "Not found"]
-- Call Sign: [extract or "Not found"]
-- Flag State: [extract or "Not found"]
-- Official Number: [extract if available or omit]
-
-**Ownership & Management:**
-- Owner: [extract company name or "Not found"] [N]
-- Operator/Manager: [extract company name or "Not found"] [N]
-- Technical Manager: [extract if available or omit]
-
-**Classification:**
-- Class Society: [e.g., "Lloyd's Register", "DNV", "ABS" or "Not found"] [N]
-- Class Notation: [e.g., "100A1" or "Not found"]
-
-**Principal Dimensions:**
-- Length Overall (LOA): [X meters] [N]
-- Breadth: [X meters] [N]
-- Depth: [X meters if available]
-- Draft: [X meters if available]
-
-**Tonnages:**
-- Gross Tonnage (GT): [X tons] [N]
-- Net Tonnage (NT): [X tons if available]
-- Deadweight (DWT): [X tons] [N]
-- Lightship: [X tons if available]
-
-**Build Information:**
-- Shipyard: [shipyard name and location] [N]
-- Build Year: [YYYY] [N]
-- Delivery Date: [date if available]
-- Keel Laid: [date if available]
-- Hull Number: [if available]
-
-**Propulsion & Machinery:**
-- Main Engines: [make/model, count, power (kW/HP)] [N]
-- Propellers/Propulsion: [type, count] [N]
-- Generators: [make/model, count, power if available]
-- Bow/Stern Thrusters: [if mentioned in sources]
-
-**Current Status:**
-- Location: [as per AIS data with timestamp qualifier] [N]
-- Speed: [knots if available]
-- Destination: [if available]
-- ETA: [if available]
-- Status: [e.g., "En route", "At anchor", "In port"]
-
-**CRITICAL EXTRACTION RULES:**
-1. READ ALL ${state.sources.length} SOURCES THOROUGHLY before marking anything "Not found"
-2. Extract partial information if complete data unavailable (e.g., "Built 2022" even without shipyard)
-3. Cross-reference between sources to piece together complete information
-4. Infer from context (e.g., "PSV operations" implies vessel type)
-5. ONLY write "Not found in sources" after exhaustive search of ALL sources
-6. Cite EVERY factual statement with [N] where N = source number (1-10)
-7. This VESSEL PROFILE section is MANDATORY and must appear FIRST before any analysis
-8. A REFERENCES section will be automatically added at the end with full URLs
-` : (isVesselQuery ? `
+    const vesselRequirements = isVesselQuery ? `
 
 **🚢 THIS IS A BRIEF VESSEL QUERY - Provide CLEAN OVERVIEW (NO detailed VESSEL PROFILE):**
 
@@ -1540,28 +1475,22 @@ ${ownerOperatorPromptAddition}
 
 **CRITICAL: ${isVesselQuery ? '🚢 THIS IS A VESSEL QUERY 🚢' : 'THIS IS A GENERAL QUERY'}**
 
-${(isVesselQuery && state.requiresTechnicalDepth) ? `
-**⚠️⚠️⚠️ MANDATORY - YOUR FIRST SECTION MUST BE ## VESSEL PROFILE ⚠️⚠️⚠️**
+${isVesselQuery ? `
+**⚠️ START WITH ## EXECUTIVE SUMMARY ⚠️**
 
-DO NOT START WITH "EXECUTIVE SUMMARY". START WITH "VESSEL PROFILE".` : (isVesselQuery ? `
-**⚠️ BRIEF MODE: START WITH ## EXECUTIVE SUMMARY ⚠️**
-
-DO NOT use detailed VESSEL PROFILE structure. Use narrative format.` : '')}
+Use clean narrative format with ONLY found data. DO NOT write "Not found in sources".
+The Reflexion loop will automatically detect and fill any missing critical data through additional research.` : ''}
 
 **CRITICAL OUTPUT FORMAT REQUIREMENTS:**
-${(isVesselQuery && state.requiresTechnicalDepth) ? `- YOUR FIRST SECTION MUST BE: ## VESSEL PROFILE (detailed structure with all fields)
-- Extract ALL fields from sources (or write "Not found in sources")
-- THEN: ## EXECUTIVE SUMMARY
-- THEN: ## TECHNICAL ANALYSIS
-- THEN: ## MARITIME CONTEXT` : (isVesselQuery ? `- YOUR FIRST SECTION MUST BE: ## EXECUTIVE SUMMARY (brief mode)
-- DO NOT use VESSEL PROFILE structure
+${isVesselQuery ? `- YOUR FIRST SECTION MUST BE: ## EXECUTIVE SUMMARY
 - ONLY include information you found - omit missing fields entirely
 - THEN: ## TECHNICAL SPECIFICATIONS (clean list - no "Not found")
 - THEN: ## OPERATIONAL STATUS
 - THEN: ## TECHNICAL ANALYSIS
-- THEN: ## MARITIME CONTEXT` : `- START with: ## EXECUTIVE SUMMARY
+- THEN: ## MARITIME CONTEXT
+- DO NOT write "Not found in sources" - the Reflexion loop will fill gaps automatically` : `- START with: ## EXECUTIVE SUMMARY
 - THEN: ## KEY SPECIFICATIONS
-- THEN: Additional sections`)}
+- THEN: Additional sections`}
 
 **⚠️ CRITICAL: ABSOLUTELY NO JSON OUTPUT ⚠️**
 - DO NOT generate JSON objects like {"strategy": ..., "subQueries": ...}
