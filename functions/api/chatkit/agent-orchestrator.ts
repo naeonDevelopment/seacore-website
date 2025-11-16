@@ -1423,7 +1423,7 @@ ${state.requiresTechnicalDepth ? `
 3. Keep concise (400-500 words total)
 4. Focus on what you CAN tell the user, not what you cannot
 5. Cite every fact with [N] (REFERENCES section added automatically)
-` : '');
+` : '';
 
     // Pre-extract owner/operator data before synthesis
     // This ensures GPT-4 never misses this critical information
