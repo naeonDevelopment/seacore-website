@@ -33,9 +33,8 @@ Returns:
 
 ### Files
 - `langgraph-agent.ts` (753 lines) - LangGraph StateGraph implementation
-- `agent-router.ts` - Feature flag routing
 - `chat-langgraph.ts` - New endpoint
-- `chat.ts` (2673 lines) - Legacy agent (kept for fallback)
+- `chat.ts` (2673 lines) - Legacy agent (kept for fallback reference only)
 
 ### Flow
 ```

@@ -224,34 +224,21 @@ function detectSQLInjection(input: string): { detected: boolean; patterns: strin
  * - Normalize whitespace
  * - Preserve legitimate technical terms (IMO, MMSI, vessel names)
  */
-export function sanitizeInput(input: string): string {
+export function sanitizeUserInput(input: string): { content: string; detectedPatterns: string[] } {
   let sanitized = input;
+  const detectedPatterns: string[] = [];
   
-  // Remove script tags
+  if (/<script[\s\S]*?>[\s\S]*?<\/script>/i.test(sanitized)) detectedPatterns.push('script_tag');
+  if (/javascript\s*:/i.test(sanitized)) detectedPatterns.push('javascript_protocol');
+  
   sanitized = sanitized.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
-  
-  // Remove event handlers
   sanitized = sanitized.replace(/\s*on\w+\s*=\s*["']?[^"']*["']?/gi, '');
-  
-  // Remove javascript: protocol
   sanitized = sanitized.replace(/javascript\s*:/gi, '');
-  
-  // Escape HTML entities (but allow common symbols)
-  sanitized = sanitized
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
-  
-  // Normalize whitespace
+  sanitized = sanitized.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   sanitized = sanitized.trim().replace(/\s+/g, ' ');
+  if (sanitized.length > 10000) sanitized = sanitized.substring(0, 10000);
   
-  // Limit length to prevent DoS (10,000 chars max for maritime queries)
-  if (sanitized.length > 10000) {
-    sanitized = sanitized.substring(0, 10000);
-  }
-  
-  return sanitized;
+  return { content: sanitized, detectedPatterns };
 }
 
 // =====================
@@ -319,7 +306,8 @@ export function validateInput(input: string): ValidationResult {
   }
   
   // Sanitize input
-  const sanitized = sanitizeInput(input);
+  const sanitizedResult = sanitizeUserInput(input);
+  const sanitized = sanitizedResult.content;
   
   return {
     valid: errors.length === 0,

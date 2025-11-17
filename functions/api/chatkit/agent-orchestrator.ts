@@ -55,6 +55,7 @@ import {
   setCachedResult,
   getCacheStats
 } from './kv-cache';
+import { getCachedResultWithSemantics } from './semantic-cache';
 import { 
   enforceCitations,
   validateCitations
@@ -92,14 +93,6 @@ import {
   compressOldTurns,
   logSummarization
 } from './conversation-summarization';
-import { 
-  verifyAndAnswer as verificationPipeline,
-  extractEntities,
-  normalizeData,
-  performComparativeAnalysis,
-  extractClaims,
-  verifyClaims
-} from './verification-system';
 import { generateFollowUps, trackFollowUpUsage, type FollowUpSuggestion } from './follow-up-generator';
 import { calculateConfidenceIndicator, assessSourceQuality, getConfidenceMessage, type QualityMetrics, type ConfidenceIndicator } from './confidence-indicators';
 import { 
@@ -390,6 +383,10 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => null,
   }),
+  planTrace: Annotation<QueryPlan | null>({
+    reducer: (_, next) => next,
+    default: () => null,
+  }),
   sources: Annotation<Source[]>({
     reducer: (_, next) => next,
     default: () => [],
@@ -572,24 +569,59 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         console.log(`      Context length: ${entityContext.length} chars`);
       }
       
-      // PHASE 2: Query Planning + Parallel Execution + KV Cache
+      // PHASE 2: Query Planning + Parallel Execution + KV/Semantic Cache
+      let planTraceForState: QueryPlan | null = null;
       try {
         const kvStore = env.CHAT_SESSIONS;
-        const cachedResult = await getCachedResult(kvStore, queryToSend, entityContext);
+        let cachedResult: Awaited<ReturnType<typeof getCachedResult>> | null = null;
+        let cacheType: 'semantic' | 'exact' | null = null;
+        let cacheSimilarity: number | undefined;
+        
+        if (kvStore) {
+          if (env.OPENAI_API_KEY) {
+            const cacheAttempt = await getCachedResultWithSemantics(
+              kvStore,
+              queryToSend,
+              entityContext || undefined,
+              env.OPENAI_API_KEY,
+              () => getCachedResult(kvStore, queryToSend, entityContext)
+            );
+            
+            if (cacheAttempt.result) {
+              cachedResult = cacheAttempt.result;
+              cacheType = cacheAttempt.cacheType;
+              cacheSimilarity = cacheAttempt.similarity;
+            }
+          }
+          
+          if (!cachedResult) {
+            cachedResult = await getCachedResult(kvStore, queryToSend, entityContext);
+            cacheType = cachedResult ? 'exact' : null;
+          }
+        }
         
         if (cachedResult) {
-        const stats = getCacheStats(cachedResult);
-        console.log(`   ⚡ CACHE HIT (age: ${stats.age}s, ttl: ${stats.ttl}s)`);
+        const stats = cacheType === 'exact' ? getCacheStats(cachedResult) : null;
+        console.log(
+          cacheType === 'semantic'
+            ? `   ⚡ SEMANTIC CACHE HIT${cacheSimilarity ? ` (${(cacheSimilarity * 100).toFixed(1)}% match)` : ''}`
+            : `   ⚡ CACHE HIT${stats ? ` (age: ${stats.age}s, ttl: ${stats.ttl}s)` : ''}`
+        );
         
         // PHASE 3: Calculate confidence from cached sources
         const confidence = calculateConfidence(cachedResult.sources);
         console.log(`   📊 Confidence (cached): ${confidence.label} (${confidence.score}/100)`);
         
         if (statusEmitter) {
+          const cacheMessage =
+            cacheType === 'semantic'
+              ? `✓ Semantic cache hit${cacheSimilarity ? ` (${(cacheSimilarity * 100).toFixed(0)}% match)` : ''}`
+              : `✓ Cache hit${stats ? ` (${stats.age}s old)` : ''}`;
+          
           statusEmitter({
             type: 'thinking',
             step: 'cache_hit',
-            content: `✓ Using cached results (${stats.age}s old)`
+            content: cacheMessage
           });
           statusEmitter({
             type: 'confidence',
@@ -617,6 +649,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           geminiAnswer: cachedResult.answer,
           sources: cachedResult.sources,
           researchContext,
+          planTrace: planTraceForState,
           requiresTechnicalDepth: classification.requiresTechnicalDepth,
           technicalDepthScore: classification.technicalDepthScore,
           safetyOverride: classification.safetyOverride || false,
@@ -645,6 +678,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         return (order[a.priority] ?? 9) - (order[b.priority] ?? 9);
       });
       const budgetedSubQueries = prioritized.slice(0, MAX_SUBQUERIES);
+      planTraceForState = { ...queryPlan, subQueries: budgetedSubQueries };
       if (statusEmitter) {
         statusEmitter({
           type: 'thought',
@@ -693,6 +727,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       
       let rankedSources = aggregateAndRank(allSources, { query: queryToSend });
       let didDeepResearch = false;
+      const criticNotes: string[] = [];
       if (statusEmitter) {
         statusEmitter({
           type: 'thought',
@@ -759,7 +794,16 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
       }, {} as Record<string, number>);
       const totalAfter = rankedSources.length;
       const qLower = (queryToSend || '').toLowerCase();
-      const isVesselQuery = /\b(imo|mmsi)\b/.test(qLower) || /\b([a-z]+(?:\s+[a-z]+)*\s+\d{1,3})\b/i.test(qLower);
+      const resolvedEntityType = classification.resolvedQuery?.activeEntity?.type;
+      const hasImoOrMmsi = /\b(imo|mmsi)\b/.test(qLower);
+      const hasVesselKeyword = /\b(vessel|ship|cargo|tanker|bulk|container|maersk|mv|ms|mt|ss|hms)\b/i.test(qLower);
+      const hasVesselNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z0-9][A-Za-z0-9\-]+)+)\b/.test(queryToSend);
+      const isVesselQuery = Boolean(
+        resolvedEntityType === 'vessel' ||
+        hasImoOrMmsi ||
+        hasVesselKeyword ||
+        hasVesselNamePattern
+      );
       const hasRegistrySource = rankedSources.some((s: any) => /marinetraffic|vesselfinder|equasis/.test((s.url || '').toLowerCase()));
       const meetsEvidence = isVesselQuery ? hasRegistrySource : ((tierCounts['T1'] || 0) >= 1 || (tierCounts['T2'] || 0) >= 2);
       if ((!meetsEvidence || confidence.label === 'low') && !didDeepResearch) {
@@ -930,6 +974,21 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           console.log(`      ${finalHaveEquasis ? '✅' : '❌'} Equasis coverage`);
           console.log(`      ${finalHaveOwner ? '✅' : '❌'} Owner/Operator data`);
           console.log(`      📚 Total sources: ${rankedSources.length}`);
+          
+          if (!finalHaveIdentifiers || !finalHaveOwner) {
+            const criticIssues: string[] = [];
+            if (!finalHaveIdentifiers) criticIssues.push('IMO/MMSI data');
+            if (!finalHaveOwner) criticIssues.push('owner/operator');
+            const criticMessage = `⚠️ Critic: Missing ${criticIssues.join(' + ')}`;
+            console.warn(`   ${criticMessage}`);
+            statusEmitter?.({
+              type: 'thinking',
+              step: 'critic',
+              content: criticMessage
+            });
+            const criticNote = `${criticMessage}. Prioritize authoritative registry sources before final synthesis.`;
+            criticNotes.push(criticNote);
+          }
         }
       }
 
@@ -965,6 +1024,10 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
         });
       }
       
+      if (criticNotes.length > 0) {
+        researchContext += `CRITIC NOTES:\n${criticNotes.map(note => `- ${note}`).join('\n')}\n\n`;
+      }
+      
       if (classification.preserveFleetcoreContext) {
         const fleetcoreContext = buildFleetcoreContext(sessionMemory || undefined);
         if (fleetcoreContext) researchContext += fleetcoreContext;
@@ -993,6 +1056,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           geminiAnswer: null,
           sources: rankedSources,
           researchContext,
+          planTrace: planTraceForState,
           requiresTechnicalDepth: classification.requiresTechnicalDepth,
           technicalDepthScore: classification.technicalDepthScore,
           safetyOverride: classification.safetyOverride || false,
@@ -1009,6 +1073,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
           geminiAnswer: null,
           sources: [],
           researchContext: fallbackContext,
+          planTrace: planTraceForState,
           requiresTechnicalDepth: classification.requiresTechnicalDepth,
           technicalDepthScore: classification.technicalDepthScore,
           safetyOverride: classification.safetyOverride || false,
@@ -1032,6 +1097,7 @@ async function routerNode(state: State, config: any): Promise<Partial<State>> {
     requiresTechnicalDepth: classification.requiresTechnicalDepth,
     technicalDepthScore: classification.technicalDepthScore,
     safetyOverride: classification.safetyOverride || false,
+    planTrace: null,
   };
 }
 
@@ -1253,103 +1319,7 @@ If you don't have specific information, be honest and suggest the user enable on
     if (extractedEntities.length > 0) {
       console.log(`   🚢 Detected vessel entities: ${extractedEntities.join(', ')}`);
     }
-    const shouldRunVerificationPipeline = 
-      (isVesselQuery && state.sources.length >= 3) ||
-      (state.sources.length >= 3 && // Multiple sources available
-       (userQuery.match(/\b(largest|biggest|smallest|compare|versus|vs|which|best)\b/i) || // Comparative query
-        state.sources.length >= 5)); // Rich source set
-    // FAST STREAM: Skip heavy verification pipeline to reduce TTFB
-    const fastStream = (env as any)?.FAST_STREAM_MODE === true;
-    const shouldRunVerificationPipelineEffective = shouldRunVerificationPipeline && !fastStream;
-    if (fastStream) {
-      console.log('   ⚡ FAST_STREAM_MODE: Skipping verification pipeline for faster streaming');
-    }
-
-    if (shouldRunVerificationPipelineEffective) {
-      console.log(`   🔬 Running verification pipeline (${state.sources.length} sources)`);
-      
-      if (statusEmitter) {
-        statusEmitter({
-          type: 'thinking',
-          step: 'verification_pipeline',
-          content: 'Extracting entities and claims...'
-        });
-      }
-      
-      try {
-        // Stage 1: Entity extraction
-        const entities = await extractEntities(userQuery, state.sources, env.OPENAI_API_KEY);
-        console.log(`   ✓ Extracted ${entities.length} entities`);
-        
-        if (statusEmitter && entities.length > 0) {
-          statusEmitter({
-            type: 'thinking',
-            step: 'entity_extraction',
-            content: `Found ${entities.length} entities: ${entities.slice(0, 3).map(e => e.name).join(', ')}`
-          });
-        }
-        
-        // Stage 2: Data normalization
-        const normalizedData = await normalizeData(userQuery, state.sources, entities, env.OPENAI_API_KEY);
-        console.log(`   ✓ Normalized ${normalizedData.length} data points`);
-        
-        if (statusEmitter && normalizedData.length > 0) {
-          statusEmitter({
-            type: 'thinking',
-            step: 'data_normalization',
-            content: `Normalized ${normalizedData.length} specifications`
-          });
-        }
-        
-        // Stage 3: Comparative analysis (if applicable)
-        const comparativeAnalysis = await performComparativeAnalysis(
-          userQuery,
-          normalizedData,
-          entities,
-          env.OPENAI_API_KEY
-        );
-        
-        if (comparativeAnalysis && statusEmitter) {
-          statusEmitter({
-            type: 'thinking',
-            step: 'comparative_analysis',
-            content: `Winner: ${comparativeAnalysis.winner?.entity || 'Analyzing...'}`
-          });
-        }
-        
-        // Stage 4: Claim extraction
-        const claims = await extractClaims(userQuery, state.sources, normalizedData, env.OPENAI_API_KEY);
-        console.log(`   ✓ Extracted ${claims.length} verifiable claims`);
-        
-        if (statusEmitter && claims.length > 0) {
-          statusEmitter({
-            type: 'thinking',
-            step: 'claim_extraction',
-            content: `Extracted ${claims.length} verifiable claims`
-          });
-        }
-        
-        // Stage 5: Verification
-        const verification = verifyClaims(claims, 'high', comparativeAnalysis);
-        console.log(`   ✓ Verification: ${verification.verified ? 'PASSED' : 'FAILED'} (${verification.confidence.toFixed(0)}%)`);
-        
-        if (statusEmitter) {
-          const status = verification.verified ? '✓ Verified' : '⚠ Needs review';
-          statusEmitter({
-            type: 'thinking',
-            step: 'verification_result',
-            content: `${status} - Confidence: ${verification.confidence.toFixed(0)}%`
-          });
-        }
-        
-        // Enhance research context with verification metadata
-        console.log(`   📊 Verification complete: ${claims.length} claims, ${entities.length} entities, ${normalizedData.length} data points`);
-        
-      } catch (error: any) {
-        console.error(`   ❌ Verification pipeline error:`, error.message);
-        // Continue with standard synthesis if pipeline fails
-      }
-    }
+    // Verification pipeline removed in favor of lightweight critic (Phase 1)
     
     // SIMPLIFIED synthesis prompt matching legacy pattern with technical depth flag
     const technicalDepthFlag = `**TECHNICAL DEPTH REQUIRED: ${state.requiresTechnicalDepth ? 'TRUE' : 'FALSE'}** (Score: ${state.technicalDepthScore}/10)
@@ -2740,6 +2710,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   
   console.log(`\n🚀 AGENT REQUEST | Session: ${sessionId} | Browsing: ${enableBrowsing}`);
   
+  const suppressThinkingEvents = env?.SUPPRESS_THINKING_EVENTS === 'true';
+  
   // Load session memory
   let sessionMemory: SessionMemory | null = null;
   let sessionMemoryManager: SessionMemoryManager | null = null;
@@ -2767,7 +2739,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
       const encoder = new TextEncoder();
       const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
       // Runtime flags: suppress process/thinking events in SSE for clean UI
-      const EMIT_THINKING_EVENTS = false;
+      const EMIT_THINKING_EVENTS = !suppressThinkingEvents;
       
       // PHASE A1 & A2: Create status/thinking emitter
       const sanitizeThinking = (text: string): string => {

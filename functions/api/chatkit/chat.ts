@@ -6,6 +6,7 @@
  */
 
 import { handleChatWithAgent, type ChatRequest } from './agent-orchestrator';
+import { sanitizeUserInput } from './input-security';
 import { getCorsHeaders } from './cors-config';
 import { performSecurityCheck } from './input-security';
 import { createErrorResponse } from './error-sanitizer';
@@ -71,8 +72,18 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     // ✅ SECURITY: Input validation enforcement
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage?.role === 'user') {
+      const sanitized = sanitizeUserInput(lastUserMessage.content);
       const securityCheck = performSecurityCheck(
-        lastUserMessage.content,
+        sanitized.content,
+        sessionId,
+        { 
+          maxRequests: 10,
+          windowMs: 60000,
+          strictMode: false // Set to true for maximum security
+        }
+      );
+      const securityCheck = performSecurityCheck(
+        sanitized.content,
         sessionId,
         { 
           maxRequests: 10,

@@ -465,6 +465,8 @@ export function classifyQuery(
   // Check for pure platform queries FIRST, even if browsing enabled
   const isPlatform = isPlatformQuery(queryForClassification);
   const hasEntity = hasEntityMention(queryForClassification) || resolvedQuery.hasContext;
+  const isComparativeQuery = /\b(biggest|bigger|large(?:st)?|longest|highest|fastest|slowest|best|worst|largest|compare|versus|vs\.?|most|least)\b/i.test(queryForClassification);
+  const tokenCount = queryForClassification.split(/\s+/).filter(Boolean).length;
   
   // Pure platform queries → ALWAYS knowledge mode (sloppy user protection)
   // Even with browsing enabled, these should use training data
@@ -499,29 +501,28 @@ export function classifyQuery(
   
   // Technical/business queries with browsing enabled → verification mode
   // These queries benefit from real-time Gemini data
-  if (enableBrowsing && (hasEntity || needsTechnicalDepth)) {
-    console.log(`   ✅ PRIORITY 1: Research toggle enabled + entity/technical query`);
-    console.log(`   🔍 VERIFICATION MODE: Gemini search for detailed information`);
-    console.log(`   📝 Entity detected: ${hasEntity}, Technical depth: ${needsTechnicalDepth}`);
-    console.log(`   === MODE CLASSIFICATION END: VERIFICATION ===\n`);
-    return {
-      mode: 'verification',
-      preserveFleetcoreContext: true,
-      enrichQuery: true,
-      isHybrid: isPlatform && hasEntity,  // Hybrid if both platform + entity
-      resolvedQuery,
-      requiresTechnicalDepth: needsTechnicalDepth,
-      technicalDepthScore
-    };
-  }
-  
-  // Browsing enabled but vague/general query → knowledge mode (sloppy user protection)
-  // Example: "tell me about maintenance" with browsing on but no entity
-  if (enableBrowsing && !hasEntity && !needsTechnicalDepth) {
-    console.log(`   ✅ PRIORITY 1b: Browsing enabled but query too vague`);
-    console.log(`   🎯 KNOWLEDGE MODE: Defaulting to training data (common-sense protection)`);
-    console.log(`   📝 Rationale: No entity or technical depth detected - user likely wants general info`);
-    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE ===\n`);
+  if (enableBrowsing && !isPurePlatformRequest) {
+    const shouldResearch = hasEntity || needsTechnicalDepth || isComparativeQuery || tokenCount >= 6;
+    
+    if (shouldResearch) {
+      console.log(`   ✅ PRIORITY 1: Research toggle enabled`);
+      console.log(`   🔬 RESEARCH MODE: Gemini + Tavily multi-source analysis`);
+      console.log(`   📝 Flags — entity: ${hasEntity}, technical depth: ${needsTechnicalDepth}, comparative: ${isComparativeQuery}`);
+      console.log(`   === MODE CLASSIFICATION END: RESEARCH (TOGGLE) ===\n`);
+      return {
+        mode: 'research',
+        preserveFleetcoreContext: true,
+        enrichQuery: true,
+        isHybrid: isPlatform && hasEntity,
+        resolvedQuery,
+        requiresTechnicalDepth: needsTechnicalDepth,
+        technicalDepthScore
+      };
+    }
+    
+    console.log(`   ✅ Browsing enabled but query too short/vague (<6 tokens, no entity)`);
+    console.log(`   🎯 KNOWLEDGE MODE: Staying on training data to avoid noisy research`);
+    console.log(`   === MODE CLASSIFICATION END: KNOWLEDGE (TOGGLE) ===\n`);
     return {
       mode: 'none',
       preserveFleetcoreContext: false,
@@ -809,7 +810,7 @@ export function generateClassificationLog(
   const modeDescription = {
     'none': 'KNOWLEDGE MODE - Training data',
     'verification': 'VERIFICATION MODE - Gemini grounding',
-    'research': 'RESEARCH MODE - Deep multi-source (DISABLED)'
+  'research': 'RESEARCH MODE - Deep multi-source (Gemini + Tavily)'
   };
   
   let log = `\n${modeEmoji[classification.mode]} MODE CLASSIFICATION\n`;
