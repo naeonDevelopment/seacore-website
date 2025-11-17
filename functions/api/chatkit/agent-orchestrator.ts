@@ -1153,24 +1153,28 @@ async function synthesizerNode(state: State, config: any): Promise<Partial<State
     }
   }
   
-  // CRITICAL: streaming: true enables token-by-token output via LangGraph callbacks
-  // PHASE 1: Deterministic settings for verification mode (temperature=0)
-  const temperature = state.mode === 'verification' 
-    ? 0.0  // DETERMINISTIC: Verification mode uses grounded sources, must be consistent
-    : 0.3; // CREATIVE: Knowledge mode can vary slightly for natural language
-  
-  const llm = new ChatOpenAI({
-    modelName: "gpt-4o",
-    temperature,
-    topP: 1.0,  // PHASE 1: Explicit top_p for deterministic sampling
-    openAIApiKey: env.OPENAI_API_KEY,
-    streaming: true, // Enable token streaming for all modes
-  });
-  
-  console.log(`   ⚙️ LLM settings: temperature=${temperature}, topP=1.0, mode=${state.mode}`);
-  
-  // MODE: NONE - Answer from training data
-  if (state.mode === 'none') {
+    // CRITICAL: streaming: true enables token-by-token output via LangGraph callbacks
+    // PHASE 1: Deterministic settings for verification mode (temperature=0)
+    const temperature = state.mode === 'verification' 
+      ? 0.0  // DETERMINISTIC: Verification mode uses grounded sources, must be consistent
+      : 0.3; // CREATIVE: Knowledge mode can vary slightly for natural language
+    
+    const llm = new ChatOpenAI({
+      modelName: "gpt-4o",
+      temperature,
+      topP: 1.0,  // PHASE 1: Explicit top_p for deterministic sampling
+      openAIApiKey: env.OPENAI_API_KEY,
+      streaming: true, // Enable token streaming for all modes
+    });
+    
+    console.log(`   ⚙️ LLM settings: temperature=${temperature}, topP=1.0, mode=${state.mode}`);
+    
+    // PHASE 3 FIX: Define timeout constant for verification mode
+    const LLM_TIMEOUT_MS = 60000; // 60 seconds max for LLM response (increased from 45s)
+    const WARNING_INTERVALS = [30000, 45000, 55000]; // Progressive warning times
+    
+    // MODE: NONE - Answer from training data
+    if (state.mode === 'none') {
     console.log(`   🎯 Synthesizing NONE mode - training data only`);
     
     const platformContext = `\n\n=== PLATFORM QUERY ===
@@ -1180,17 +1184,37 @@ DO NOT suggest using external research - provide detailed information directly.`
     const systemMessage = new SystemMessage(MARITIME_SYSTEM_PROMPT + contextAddition + platformContext);
     
     // CRITICAL: Use stream() and pass config for LangGraph callback system
-    // Add timeout protection to prevent infinite hangs
-    const LLM_TIMEOUT_MS = 45000; // 45 seconds max for LLM response
+    // PHASE 3 FIX: Add timeout protection with progressive warnings
+    const LLM_TIMEOUT_MS = 60000; // 60 seconds max for LLM response (increased from 45s)
+    const WARNING_INTERVALS = [30000, 45000, 55000]; // Progressive warning times
+    
+    let timeoutWarningSent = new Set<number>();
     const streamPromise = (async () => {
       const stream = await llm.stream([systemMessage, ...state.messages], config);
       let fullContent = '';
       let chunkCount = 0;
+      const startTime = Date.now();
       console.log(`   📡 Starting LLM stream (mode: none)`);
       
       for await (const chunk of stream) {
         fullContent += chunk.content;
         chunkCount++;
+        
+        // PHASE 3 FIX: Emit progressive timeout warnings
+        const elapsed = Date.now() - startTime;
+        for (const warningTime of WARNING_INTERVALS) {
+          if (elapsed >= warningTime && !timeoutWarningSent.has(warningTime)) {
+            timeoutWarningSent.add(warningTime);
+            const remaining = Math.ceil((LLM_TIMEOUT_MS - elapsed) / 1000);
+            statusEmitter?.({
+              type: 'status',
+              stage: 'synthesis',
+              content: `⏱️ Still processing... ${remaining}s remaining`,
+              progress: Math.min(90, Math.floor((elapsed / LLM_TIMEOUT_MS) * 100))
+            });
+            console.log(`   ⏱️ Timeout warning at ${warningTime}ms (${remaining}s remaining)`);
+          }
+        }
         
         // NOTE: Do NOT proxy tokens here - LangGraph's stream handler already sends AIMessageChunk
         // Proxying here causes double emission (each token sent twice)
@@ -1214,7 +1238,7 @@ DO NOT suggest using external research - provide detailed information directly.`
     } catch (error: any) {
       if (error.message === 'LLM_STREAM_TIMEOUT') {
         console.error(`   ❌ LLM stream timeout after ${LLM_TIMEOUT_MS}ms`);
-        fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again. For vessel/equipment queries I automatically verify with trusted web sources and include citations.`;
+        fullContent = `I apologize, but I'm experiencing a response delay. This query is taking longer than expected. Please try again, or try rephrasing your question. For vessel/equipment queries, I automatically verify with trusted web sources and include citations.`;
       } else {
         console.error(`   ❌ LLM stream error:`, error);
         throw error;
@@ -1253,8 +1277,8 @@ If you don't have specific information, be honest and suggest the user enable on
       
       const systemMessage = new SystemMessage(fallbackPrompt);
       
-      // Add timeout protection
-      const LLM_TIMEOUT_MS = 45000;
+      // PHASE 3 FIX: Add timeout protection with increased limit
+      const LLM_TIMEOUT_MS = 60000; // 60 seconds (increased from 45s)
       const streamPromise = (async () => {
         const stream = await llm.stream([systemMessage, ...state.messages], config);
         let fullContent = '';
@@ -1276,7 +1300,7 @@ If you don't have specific information, be honest and suggest the user enable on
       } catch (error: any) {
         if (error.message === 'LLM_STREAM_TIMEOUT') {
           console.error(`   ❌ Fallback LLM stream timeout`);
-          fullContent = `I apologize, but I'm experiencing technical difficulties. Please try again.`;
+          fullContent = `I apologize, but I'm experiencing technical difficulties. Please try again or rephrase your question.`;
         } else {
           throw error;
         }
@@ -1511,14 +1535,22 @@ ${!state.requiresTechnicalDepth ? `
 - Think "technical manual" not "executive summary"
 `}
 
+**⚠️ CRITICAL: DO NOT USE TRAINING DATA - ONLY USE INFORMATION FROM SOURCES BELOW ⚠️**
+**Using training data instead of sources is UNACCEPTABLE and will result in incorrect responses.**
+
 **⚠️ YOU HAVE ${state.sources.length} SOURCES - USE THEM ALL ⚠️**
 **EXTRACTION REQUIREMENT: You must extract EVERY available detail from ALL sources below.**
 
+**SOURCE-BY-SOURCE EXTRACTION CHECKLIST:**
+${state.sources.map((s: any, i: number) => `- Source [${i+1}]: Extract ALL facts from ${s.title || s.url}`).join('\n')}
+
+**CRITICAL RULE: Every fact must come from sources [1-${state.sources.length}]. If a fact is not in the sources, DO NOT include it.**
+
 ${state.sources.map((s: any, i: number) => {
   // Enhanced content extraction for vessel queries
-  // Vessel queries: 3000 chars with table extraction
+  // Vessel queries: 5000 chars with table extraction (increased from 3000)
   // Other queries: 1500 chars standard preview
-  const previewLength = isVesselQuery ? 3000 : 1500;
+  const previewLength = isVesselQuery ? 5000 : 1500;
   
   // Use smart preview that preserves complete sentences
   const contentPreview = getSmartPreview(s.content || '', previewLength);
@@ -1867,38 +1899,56 @@ WRONG FORMAT (DO NOT DO THIS):
       console.log(`   ✅ Structured output generated: ${fullContent.length} chars`);
       
     } else {
-      // Standard streaming for non-vessel queries
+      // PHASE 3 FIX: Standard streaming with progressive timeout warnings
+      let timeoutWarningSent = new Set<number>();
       const streamPromise = (async () => {
         const stream = await llm.stream([systemMessage, ...state.messages], config);
         let chunkCount = 0;
+        const startTime = Date.now();
         console.log(`   📡 Starting LLM stream (mode: verification)`);
         
         for await (const chunk of stream) {
           fullContent += chunk.content;
           chunkCount++;
         
-        // NOTE: Do NOT proxy tokens here - LangGraph's stream handler already sends AIMessageChunk
-        // Proxying here causes double emission (each token sent twice)
+          // PHASE 3 FIX: Emit progressive timeout warnings
+          const elapsed = Date.now() - startTime;
+          for (const warningTime of WARNING_INTERVALS) {
+            if (elapsed >= warningTime && !timeoutWarningSent.has(warningTime)) {
+              timeoutWarningSent.add(warningTime);
+              const remaining = Math.ceil((LLM_TIMEOUT_MS - elapsed) / 1000);
+              statusEmitter?.({
+                type: 'status',
+                stage: 'synthesis',
+                content: `⏱️ Still processing... ${remaining}s remaining`,
+                progress: Math.min(90, Math.floor((elapsed / LLM_TIMEOUT_MS) * 100))
+              });
+              console.log(`   ⏱️ Timeout warning at ${warningTime}ms (${remaining}s remaining)`);
+            }
+          }
         
-        if (chunkCount === 1) {
-          console.log(`   💬 First chunk received - streaming active`);
-        }
+          // NOTE: Do NOT proxy tokens here - LangGraph's stream handler already sends AIMessageChunk
+          // Proxying here causes double emission (each token sent twice)
         
-        // ENHANCED: Emit progress updates every 20 chunks (roughly every 0.5-1 second)
-        // More frequent updates = better user feedback during generation
-        if (statusEmitter && chunkCount % 20 === 0) {
-          const progress = Math.min(95, Math.floor((fullContent.length / TARGET_LENGTH) * 100));
-          console.log(`   💬 Progress: chunk #${chunkCount}, ${fullContent.length} chars (${progress}%)`);
-          statusEmitter({
-            type: 'status',
-            stage: 'synthesis',
-            content: state.requiresTechnicalDepth
-              ? `⚙️ Generating technical analysis... ${progress}%`
-              : `⚙️ Generating response... ${progress}%`,
-            progress: progress
-          });
+          if (chunkCount === 1) {
+            console.log(`   💬 First chunk received - streaming active`);
+          }
+          
+          // PHASE 3 FIX: Emit progress updates more frequently (every 10 chunks instead of 20)
+          // More frequent updates = better user feedback during generation
+          if (statusEmitter && chunkCount % 10 === 0) {
+            const progress = Math.min(95, Math.floor((fullContent.length / TARGET_LENGTH) * 100));
+            console.log(`   💬 Progress: chunk #${chunkCount}, ${fullContent.length} chars (${progress}%)`);
+            statusEmitter({
+              type: 'status',
+              stage: 'synthesis',
+              content: state.requiresTechnicalDepth
+                ? `⚙️ Generating technical analysis... ${progress}%`
+                : `⚙️ Generating response... ${progress}%`,
+              progress: progress
+            });
+          }
         }
-      }
       
         console.log(`   ✅ Stream complete: ${chunkCount} chunks, ${fullContent.length} chars`);
         return { fullContent, chunkCount };
@@ -1916,7 +1966,7 @@ WRONG FORMAT (DO NOT DO THIS):
       } catch (error: any) {
         if (error.message === 'LLM_STREAM_TIMEOUT') {
           console.error(`   ❌ LLM stream timeout after ${LLM_TIMEOUT_MS}ms`);
-          fullContent = `I apologize, but I'm experiencing a response delay. Please try your question again, or enable the "Online Research" toggle for comprehensive analysis.`;
+          fullContent = `I apologize, but I'm experiencing a response delay. This query is taking longer than expected. Please try again, or try rephrasing your question. For vessel/equipment queries, I automatically verify with trusted web sources and include citations.`;
           chunkCount = 0;
         } else {
           console.error(`   ❌ LLM stream error:`, error);
@@ -2024,6 +2074,52 @@ WRONG FORMAT (DO NOT DO THIS):
       // Log citation statistics
       const stats = getCitationStats(fullContent);
       console.log(`   📊 Citation stats: ${stats.totalCitations} total, ${stats.uniqueCitations.size} unique sources, ${stats.citationDensity.toFixed(2)} per 100 words`);
+    }
+    
+    // PHASE 1 FIX: Enforce owner/operator in vessel queries
+    if (isVesselQuery && ownerOperatorExtraction) {
+      const ownerOperatorLower = fullContent.toLowerCase();
+      const hasOwner = ownerOperatorExtraction.owner && ownerOperatorLower.includes(ownerOperatorExtraction.owner.toLowerCase());
+      const hasOperator = ownerOperatorExtraction.operator && ownerOperatorLower.includes(ownerOperatorExtraction.operator.toLowerCase());
+      const hasManager = ownerOperatorExtraction.manager && ownerOperatorLower.includes(ownerOperatorExtraction.manager.toLowerCase());
+      
+      if (!hasOwner && !hasOperator && !hasManager) {
+        console.log(`   ⚠️ Owner/Operator extracted but missing from response - injecting...`);
+        const sourceIndex = ownerOperatorExtraction.sourceIndex + 1;
+        const ownerOperatorSection = `\n\n## OWNERSHIP & MANAGEMENT\n\n`;
+        let ownerOperatorContent = '';
+        
+        if (ownerOperatorExtraction.owner) {
+          ownerOperatorContent += `**Owner**: ${ownerOperatorExtraction.owner} [${sourceIndex}]\n\n`;
+        }
+        if (ownerOperatorExtraction.operator) {
+          ownerOperatorContent += `**Operator**: ${ownerOperatorExtraction.operator} [${sourceIndex}]\n\n`;
+        }
+        if (ownerOperatorExtraction.manager) {
+          ownerOperatorContent += `**Manager**: ${ownerOperatorExtraction.manager} [${sourceIndex}]\n\n`;
+        }
+        if (ownerOperatorExtraction.technicalManager) {
+          ownerOperatorContent += `**Technical Manager**: ${ownerOperatorExtraction.technicalManager} [${sourceIndex}]\n\n`;
+        }
+        
+        // Insert before MARITIME CONTEXT or at end if not found
+        const maritimeContextIndex = fullContent.indexOf('## MARITIME CONTEXT');
+        if (maritimeContextIndex !== -1) {
+          fullContent = fullContent.slice(0, maritimeContextIndex) + ownerOperatorSection + ownerOperatorContent + fullContent.slice(maritimeContextIndex);
+        } else {
+          fullContent += ownerOperatorSection + ownerOperatorContent;
+        }
+        
+        console.log(`   ✅ Owner/Operator section injected with citation [${sourceIndex}]`);
+      } else {
+        console.log(`   ✅ Owner/Operator already present in response`);
+      }
+    } else if (isVesselQuery && !ownerOperatorExtraction) {
+      // Check if response explicitly states owner/operator not found
+      const hasExplicitNotFound = /\b(owner|operator|management).*not.*found|not.*available|unknown/i.test(fullContent);
+      if (!hasExplicitNotFound) {
+        console.log(`   ⚠️ Vessel query but no owner/operator extraction - response may be incomplete`);
+      }
     }
     
     // Phase B & C: Calculate confidence and generate follow-ups
@@ -2697,9 +2793,9 @@ export const agent = workflow.compile({ checkpointer });
 // HANDLER
 // =====================
 
-// Streaming configuration (optimized for smooth playback)
-const SSE_CHUNK_SIZE = 150; // chars per SSE event (increased from 50 for smoother flow)
-const SSE_THROTTLE_INTERVAL_MS = 5; // ms between chunks (reduced from 8 for faster delivery)
+// PHASE 3 FIX: Streaming configuration (optimized for performance)
+const SSE_CHUNK_SIZE = 300; // chars per SSE event (increased from 150 for better throughput)
+const SSE_THROTTLE_INTERVAL_MS = 10; // ms between chunks (increased from 5ms - less aggressive throttling)
 const SSE_THROTTLE_EVERY_N_CHUNKS = 10; // throttle every N chunks (increased to reduce throttling frequency)
 
 /**
@@ -2879,32 +2975,38 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                   const chunk = text; // PRESERVE original text with spaces
                   const trimmedForValidation = chunk.trim(); // Only for checks
 
-                  // 🧠 PHASE 2.3: PROGRESSIVE THINKING STREAMING
+                  // PHASE 5 FIX: Enhanced thinking detection and streaming
                   // Detect and handle <thinking> sections separately
-                  if (chunk.includes('<thinking>')) {
+                  // PHASE 5 FIX: More flexible detection - check for opening tag (case-insensitive, with/without spaces)
+                  const hasThinkingStart = /<thinking\s*>|<thinking>/i.test(chunk);
+                  if (hasThinkingStart && !thinkingInProgress) {
                     thinkingInProgress = true;
+                    thinkingBuffer = chunk; // Start buffer with this chunk
                     console.log('   💭 Detected start of <thinking> section');
                     statusEmitter?.({
                       type: 'thinking_start',
                       stage: 'reasoning',
                       content: '💭 AI is analyzing the query...'
                     });
+                    // Don't emit thinking tag as regular content
+                    continue;
                   }
                   
                   if (thinkingInProgress) {
                     thinkingBuffer += chunk;
                     
-                    // Check for end of thinking
-                    if (chunk.includes('</thinking>')) {
+                    // PHASE 5 FIX: More flexible end detection - check for closing tag (case-insensitive)
+                    const hasThinkingEnd = /<\/thinking\s*>|<\/thinking>/i.test(chunk);
+                    if (hasThinkingEnd) {
                       thinkingInProgress = false;
                       
-                      // Extract clean thinking content (remove tags)
-                      const thinkingMatch = thinkingBuffer.match(/<thinking>([\s\S]*?)<\/thinking>/);
-                      if (thinkingMatch) {
+                      // PHASE 5 FIX: Extract clean thinking content (remove tags) - more flexible regex
+                      const thinkingMatch = thinkingBuffer.match(/<thinking[^>]*>([\s\S]*?)<\/thinking[^>]*>/i);
+                      if (thinkingMatch && thinkingMatch[1]) {
                         const thinkingContent = thinkingMatch[1].trim();
                         console.log(`   ✅ Thinking complete: ${thinkingContent.length} chars`);
                         
-                        // Emit complete thinking as separate event (not regular content)
+                        // PHASE 5 FIX: Emit complete thinking as separate event (not regular content)
                         statusEmitter?.({
                           type: 'thinking_complete',
                           stage: 'reasoning_done',
@@ -2918,14 +3020,33 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                           stage: 'synthesis',
                           content: '📝 Formulating detailed answer...'
                         });
+                      } else {
+                        // PHASE 5 FIX: Fallback - extract content even if regex fails
+                        const fallbackContent = thinkingBuffer
+                          .replace(/<thinking[^>]*>/gi, '')
+                          .replace(/<\/thinking[^>]*>/gi, '')
+                          .trim();
+                        if (fallbackContent.length > 0) {
+                          console.log(`   ✅ Thinking complete (fallback extraction): ${fallbackContent.length} chars`);
+                          statusEmitter?.({
+                            type: 'thinking_complete',
+                            stage: 'reasoning_done',
+                            content: fallbackContent
+                          });
+                          thinkingBuffer = '';
+                        }
                       }
                       
                       // Don't emit thinking tags as regular content
                       continue;
                     } else {
-                      // Still in thinking section - emit partial progress
-                      const partialThinking = thinkingBuffer.replace(/<thinking>/g, '').trim();
-                      if (partialThinking.length > 0) {
+                      // PHASE 5 FIX: Still in thinking section - emit partial progress more frequently
+                      const partialThinking = thinkingBuffer
+                        .replace(/<thinking[^>]*>/gi, '')
+                        .replace(/<\/thinking[^>]*>/gi, '')
+                        .trim();
+                      if (partialThinking.length > 0 && partialThinking.length % 50 === 0) {
+                        // Emit progress every ~50 chars of thinking
                         statusEmitter?.({
                           type: 'thinking_partial',
                           content: partialThinking
@@ -2934,6 +3055,20 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                       // Don't emit as regular content
                       continue;
                     }
+                  }
+                  
+                  // PHASE 5 FIX: Fallback detection - if we see numbered thinking steps without tags
+                  // This handles cases where model generates thinking without XML tags
+                  if (!thinkingInProgress && /^\d+\.\s*(Understanding|Information|Source|Analysis|Synthesis|Citation|Quality)/i.test(trimmedForValidation)) {
+                    console.log('   💭 Detected thinking content without tags (fallback)');
+                    thinkingInProgress = true;
+                    thinkingBuffer = chunk;
+                    statusEmitter?.({
+                      type: 'thinking_start',
+                      stage: 'reasoning',
+                      content: '💭 AI is analyzing the query...'
+                    });
+                    continue;
                   }
 
                   // If previously detected an opening JSON plan, keep buffering until closing brace
@@ -3113,8 +3248,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                       })}\n\n`
                     ));
                     validCount++;
-                    // Stagger source emissions for progressive reveal
-                    await sleep(150);
+                    // PHASE 3 FIX: Stagger source emissions for progressive reveal (reduced delay)
+                    await sleep(50); // Reduced from 150ms to 50ms
                   } else {
                     console.log(`   🚫 Blocked invalid source: ${url.substring(0, 60)}`);
                   }
@@ -3165,8 +3300,9 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                         score: source.score || 0.5
                     })}\n\n`
                   ));
-                  validCount++;
-                  await sleep(150);
+                    validCount++;
+                    // PHASE 3 FIX: Reduced delay for faster source emission
+                    await sleep(50); // Reduced from 150ms to 50ms
                 } else {
                   console.log(`   🚫 Blocked invalid source: ${url.substring(0, 60)}`);
                 }
@@ -3226,7 +3362,7 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
           }
         }
 
-        // If we did stream tokens, but the final synthesized message differs (e.g., citation enforcement),
+        // PHASE 4 FIX: If we did stream tokens, but the final synthesized message differs (e.g., citation enforcement),
         // send a final overwrite event so the frontend replaces the content with the enforced version.
         if (hasStreamedContent && finalState?.messages) {
           const messagesUpdate = finalState.messages;
@@ -3235,12 +3371,48 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
             const enforced = typeof lastMessage.content === 'string'
               ? lastMessage.content
               : JSON.stringify(lastMessage.content);
-            if (enforced && enforced.length > 0 && enforced !== fullResponse) {
-              console.log(`   🔄 Sending final enforced content overwrite (${enforced.length} chars)`);
+            
+            // PHASE 4 FIX: Character-by-character comparison (not just length)
+            // Normalize whitespace for comparison but preserve original for sending
+            const normalizedStreamed = fullResponse.replace(/\s+/g, ' ').trim();
+            const normalizedEnforced = enforced.replace(/\s+/g, ' ').trim();
+            const contentDiffers = normalizedStreamed !== normalizedEnforced;
+            
+            if (enforced && enforced.length > 0 && contentDiffers) {
+              const diffLength = Math.abs(enforced.length - fullResponse.length);
+              console.log(`   🔄 Sending final enforced content overwrite:`);
+              console.log(`      Streamed: ${fullResponse.length} chars`);
+              console.log(`      Enforced: ${enforced.length} chars`);
+              console.log(`      Difference: ${diffLength} chars`);
+              
+              // PHASE 4 FIX: Always send overwrite event if content differs
               controller.enqueue(encoder.encode(
                 `data: ${JSON.stringify({ type: 'content', overwrite: true, content: enforced })}\n\n`
               ));
               fullResponse = enforced;
+              console.log(`   ✅ Overwrite event sent successfully`);
+            } else if (enforced && enforced.length > 0) {
+              console.log(`   ✅ Streamed content matches enforced content - no overwrite needed`);
+            } else {
+              console.warn(`   ⚠️ Enforced content is empty or invalid`);
+            }
+          } else {
+            console.warn(`   ⚠️ Final state has no messages - cannot send overwrite`);
+          }
+        } else if (!hasStreamedContent && finalState?.messages) {
+          // PHASE 4 FIX: If streaming didn't work, ensure we still send the final content
+          const messagesUpdate = finalState.messages;
+          if (Array.isArray(messagesUpdate) && messagesUpdate.length > 0) {
+            const lastMessage = messagesUpdate[messagesUpdate.length - 1];
+            const finalContent = typeof lastMessage.content === 'string'
+              ? lastMessage.content
+              : JSON.stringify(lastMessage.content);
+            if (finalContent && finalContent.length > 0) {
+              console.log(`   📦 Sending final content (streaming didn't work): ${finalContent.length} chars`);
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: 'content', overwrite: true, content: finalContent })}\n\n`
+              ));
+              fullResponse = finalContent;
             }
           }
         }

@@ -55,17 +55,8 @@ export function buildZeroShotCoT(
 7. Technical Validation: Do specs/dimensions/tonnage make logical sense?
 8. Operational Significance: Why does this matter in maritime operations?` : '';
 
-  // CRITICAL: Put CoT instruction FIRST, before all context
-  return `**═══════════════════════════════════════════════════════════════**
-**CRITICAL: YOUR RESPONSE MUST START WITH <thinking> TAGS**
-**THIS IS MANDATORY. DO NOT SKIP. THE USER EXPECTS TO SEE YOUR REASONING.**
-**═══════════════════════════════════════════════════════════════**
-
-BEFORE ANYTHING ELSE, write your reasoning inside <thinking> tags.
-
-Your response MUST start EXACTLY like this:
-
-<thinking>
+  // PHASE 5 FIX: Put CoT instruction FIRST, before all context - ENFORCE STRICTLY
+  return `<thinking>
 1. Understanding: [What is the user asking?]
 2. Information Needs: [What data do I need?]
 3. Source Analysis: [Which sources are most relevant?]${maritimeThinking}
@@ -77,32 +68,18 @@ ${domain === 'maritime' ? '12' : '7'}. Quality Assurance: [Will this fully answe
 
 ## EXECUTIVE SUMMARY
 
-[AFTER the thinking section above, start your answer here...]
+[Your answer begins here with factual content and citations...]
 
 **═══════════════════════════════════════════════════════════════**
-
-**EXAMPLE OF CORRECT FORMAT:**
-
-<thinking>
-1. Understanding: User wants information about [specific topic]
-2. Information Needs: I need to find [specific data points]
-3. Source Analysis: Sources 1, 5, 7 are most authoritative...
-...
-</thinking>
-
-## EXECUTIVE SUMMARY
-
-The [answer begins here with factual content and citations]...
-
+**CRITICAL INSTRUCTION: YOUR RESPONSE MUST START WITH THE <thinking> SECTION ABOVE**
+**DO NOT SKIP THE THINKING SECTION. IT IS MANDATORY.**
 **═══════════════════════════════════════════════════════════════**
-
-NOW ANSWER THIS QUERY (remember: START WITH <thinking> TAGS):
 
 **USER QUERY:** ${query}
 
 ${context}
 
-REMINDER: Your response must start with <thinking>...</thinking> before any other content.`;
+**REMINDER: Copy the <thinking>...</thinking> section from above and fill it in with your actual reasoning, THEN start your answer with ## EXECUTIVE SUMMARY.**`;
 }
 
 /**

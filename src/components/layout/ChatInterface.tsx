@@ -50,19 +50,26 @@ const LoadingIndicator: React.FC<{
   activeResearchId: string | null;
   researchSessions: Map<string, ResearchSession>;
 }> = ({ isResearching, useBrowsing, activeResearchId, researchSessions }) => {
-  // Use useMemo to get status message reactively
-  const statusMessage = useMemo(() => {
-    if (!activeResearchId) return '';
+  // PHASE 6 FIX: Use useMemo to get status message and progress reactively
+  const statusData = useMemo(() => {
+    if (!activeResearchId) return { message: '', progress: 0 };
     const session = researchSessions.get(activeResearchId);
-    return session?.transientAnalysis || '';
+    const message = session?.transientAnalysis || '';
+    // PHASE 6 FIX: Extract progress percentage from status message if present
+    const progressMatch = message.match(/(\d+)%/);
+    const progress = progressMatch ? parseInt(progressMatch[1], 10) : 0;
+    return { message, progress };
   }, [activeResearchId, researchSessions]);
+  
+  const statusMessage = statusData.message;
+  const progress = statusData.progress;
   
   // Log status updates for debugging
   useEffect(() => {
     if (statusMessage) {
-      console.log('🔄 [LoadingIndicator] Status updated:', statusMessage);
+      console.log('🔄 [LoadingIndicator] Status updated:', statusMessage, progress > 0 ? `(${progress}%)` : '');
     }
-  }, [statusMessage]);
+  }, [statusMessage, progress]);
   
   return (
     <motion.div
@@ -80,17 +87,28 @@ const LoadingIndicator: React.FC<{
           <div className="flex flex-col gap-1 min-w-0 flex-1">
             <AnimatePresence mode="wait">
               {statusMessage ? (
-                // Show the actual status from backend
+                // PHASE 6 FIX: Show the actual status from backend with progress bar
                 <motion.div 
                   key="status"
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 5 }}
-                  className="flex items-start gap-1.5"
+                  className="flex flex-col gap-2 w-full"
                 >
                   <span className="text-xs sm:text-sm text-maritime-700 dark:text-maritime-300 font-semibold leading-relaxed">
                     {statusMessage}
                   </span>
+                  {/* PHASE 6 FIX: Progress bar if progress > 0 */}
+                  {progress > 0 && (
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        className="h-full bg-gradient-to-r from-maritime-500 to-blue-600 rounded-full"
+                      />
+                    </div>
+                  )}
                 </motion.div>
               ) : isResearching ? (
                 <motion.div 
@@ -137,13 +155,19 @@ const LoadingIndicator: React.FC<{
 /**
  * Parse REFERENCES section and convert bare [N] citations to [N](url) format
  * This handles the new IEEE-style citation format from the backend
+ * PHASE 2 FIX: Enhanced validation and edge case handling
  */
 function preprocessCitations(content: string): string {
-  // Extract REFERENCES section
-  const referencesMatch = content.match(/##\s*REFERENCES\s*\n\n([\s\S]*?)(?:\n\n##|$)/i);
+  // Extract REFERENCES section (more flexible matching)
+  const referencesMatch = content.match(/##\s*REFERENCES?\s*\n+([\s\S]*?)(?:\n\n##|$)/i);
   
   if (!referencesMatch) {
-    // No REFERENCES section, return as-is
+    // No REFERENCES section, check if citations already have URLs
+    // If we see [N](url) format, return as-is
+    if (/\[\d+\]\(https?:\/\//.test(content)) {
+      return content;
+    }
+    // Otherwise, return as-is (citations may be added later)
     return content;
   }
   
@@ -151,28 +175,57 @@ function preprocessCitations(content: string): string {
   const citationMap = new Map<string, string>();
   
   // Parse each reference line: [N] SiteName, "Title," URL
+  // Also handle variations: [N] URL, [N] "Title" URL, etc.
   const referenceLines = referencesSection.split('\n');
   for (const line of referenceLines) {
-    const match = line.match(/^\[(\d+)\]\s+.*?,\s+".*?",\s+(https?:\/\/[^\s]+)/);
+    // Pattern 1: [N] SiteName, "Title," URL
+    let match = line.match(/^\[(\d+)\]\s+.*?,\s+".*?",\s+(https?:\/\/[^\s]+)/);
     if (match) {
       const [, num, url] = match;
       citationMap.set(num, url);
+      continue;
+    }
+    
+    // Pattern 2: [N] URL (direct URL)
+    match = line.match(/^\[(\d+)\]\s+(https?:\/\/[^\s]+)/);
+    if (match) {
+      const [, num, url] = match;
+      citationMap.set(num, url);
+      continue;
+    }
+    
+    // Pattern 3: [N] "Title" URL
+    match = line.match(/^\[(\d+)\]\s+"[^"]+",\s+(https?:\/\/[^\s]+)/);
+    if (match) {
+      const [, num, url] = match;
+      citationMap.set(num, url);
+      continue;
     }
   }
   
   if (citationMap.size === 0) {
+    console.warn('[Citation Preprocess] No citations found in REFERENCES section');
     return content;
   }
   
   // Replace bare [N] citations with [N](url)
   // Match [N] that's NOT already part of a markdown link
-  let processed = content.replace(/\[(\d+)\](?!\()/g, (match, num) => {
+  // PHASE 2 FIX: More robust regex to handle edge cases
+  let processed = content.replace(/\[(\d{1,3})\](?!\()/g, (match, num) => {
     const url = citationMap.get(num);
     if (url) {
       return `[${num}](${url})`;
     }
+    // If citation number not found in map, keep as-is (might be intentional)
+    console.warn(`[Citation Preprocess] Citation [${num}] not found in REFERENCES section`);
     return match;
   });
+  
+  // PHASE 2 FIX: Validate that citations were converted
+  const bareCitations = processed.match(/\[(\d{1,3})\](?!\()/g);
+  if (bareCitations && bareCitations.length > 0) {
+    console.warn(`[Citation Preprocess] ${bareCitations.length} bare citations remain after preprocessing:`, bareCitations.slice(0, 5));
+  }
   
   return processed;
 }
@@ -786,45 +839,67 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                   continue;
                 }
                 
+                // PHASE 5 FIX: Handle thinking events from synthetic CoT
                 if (parsed?.type === 'thinking_partial') {
-                  // Accumulate partial thinking content
+                  // PHASE 5 FIX: Accumulate partial thinking content (replace, don't append)
                   streamedThinking = parsed.content || '';
+                  
+                  // PHASE 5 FIX: Update UI immediately for partial thinking
+                  if (streamingIndexRef.current !== null) {
+                    const idx = streamingIndexRef.current;
+                    setMessages((prev) => {
+                      const updated = [...prev];
+                      if (idx >= 0 && idx < updated.length) {
+                        updated[idx] = {
+                          ...updated[idx],
+                          thinkingContent: streamedThinking,
+                          isThinking: true
+                        };
+                      }
+                      return updated;
+                    });
+                  }
                   continue;
                 }
                 
                 if (parsed?.type === 'thinking_complete') {
-                  // Finalize thinking content
+                  // PHASE 5 FIX: Finalize thinking content
                   const thinkingContent = parsed.content || streamedThinking;
                   console.log(`✅ [Thinking Complete] ${thinkingContent.length} chars`);
                   
-                  // Update or create assistant message with thinking content
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const idx = streamingIndexRef.current;
-                    
-                    if (idx != null && idx >= 0 && idx < updated.length) {
-                      // Update existing message
-                      updated[idx] = {
-                        ...updated[idx],
-                        thinkingContent,
-                        isThinking: false
-                      };
-                    } else {
-                      // Create new assistant message with thinking
-                      const assistantMessage = {
-                        role: 'assistant' as const,
-                        content: '',
-                        timestamp: new Date(),
-                        isStreaming: true,
-                        isThinking: false,
-                        thinkingContent
-                      };
-                      streamingIndexRef.current = updated.length;
-                      updated.push(assistantMessage);
-                    }
-                    
-                    return updated;
-                  });
+                  // PHASE 5 FIX: Ensure thinking content is not empty
+                  if (thinkingContent && thinkingContent.length > 0) {
+                    // Update or create assistant message with thinking content
+                    setMessages((prev) => {
+                      const updated = [...prev];
+                      const idx = streamingIndexRef.current;
+                      
+                      if (idx != null && idx >= 0 && idx < updated.length) {
+                        // Update existing message
+                        updated[idx] = {
+                          ...updated[idx],
+                          thinkingContent,
+                          isThinking: true // PHASE 5 FIX: Keep thinking visible until content starts
+                        };
+                      } else {
+                        // Create new assistant message with thinking
+                        const assistantMessage = {
+                          role: 'assistant' as const,
+                          content: '',
+                          timestamp: new Date(),
+                          isStreaming: true,
+                          isThinking: true, // PHASE 5 FIX: Show thinking
+                          thinkingContent
+                        };
+                        streamingIndexRef.current = updated.length;
+                        updated.push(assistantMessage);
+                      }
+                      
+                      return updated;
+                    });
+                  } else {
+                    console.warn('[ChatInterface] Thinking complete but content is empty');
+                  }
                   
                   streamedThinking = '';
                   continue;
@@ -1083,10 +1158,29 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                     // No need for delayed clearing - status disappears when content starts
                   }
                   
-                  // Handle final overwrite (enforced citations) vs incremental streaming
+                  // PHASE 4 FIX: Handle final overwrite (enforced citations) vs incremental streaming
                   if (parsed.overwrite) {
                     // Replace entire content with final enforced version
-                    streamedContent = parsed.content || '';
+                    const newContent = parsed.content || '';
+                    console.log(`[ChatInterface] Overwrite received: ${newContent.length} chars (was ${streamedContent.length} chars)`);
+                    streamedContent = newContent;
+                    
+                    // PHASE 4 FIX: Clear streaming state on overwrite to ensure clean transition
+                    // This ensures the UI properly reflects the final enforced content
+                    if (streamingIndexRef.current !== null) {
+                      const idx = streamingIndexRef.current;
+                      setMessages((prev) => {
+                        const updated = [...prev];
+                        if (idx >= 0 && idx < updated.length) {
+                          updated[idx] = {
+                            ...updated[idx],
+                            content: newContent,
+                            isStreaming: false, // Mark as complete since this is final overwrite
+                          };
+                        }
+                        return updated;
+                      });
+                    }
                   } else {
                     // Accumulate incremental content
                     streamedContent += parsed.content;
@@ -1882,10 +1976,12 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              // P1 FIX: Custom citation link renderer for [[N]](url) format
+                              // PHASE 2 FIX: Enhanced citation link renderer with better validation
                               a: ({ node, href, children, ...props }) => {
-                                // CRITICAL: ReactMarkdown passes children in various formats
-                                // Debug: console.log('[Citation Debug]', { children, type: typeof children, isArray: Array.isArray(children) });
+                                // PHASE 2 FIX: Debug logging (can be disabled in production)
+                                if (process.env.NODE_ENV === 'development') {
+                                  // console.log('[Citation Debug]', { children, href, type: typeof children, isArray: Array.isArray(children) });
+                                }
                                 
                                 let childText = '';
                                 if (Array.isArray(children)) {
@@ -1912,25 +2008,39 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                                 
                                 const trimmed = childText.trim();
                                 
-                                // Detect citation format: [1], [12], [[1]] etc.
-                                // Match [N] where N is 1-3 digits
+                                // PHASE 2 FIX: Enhanced citation detection - handle [1], [12], [[1]], etc.
+                                // Match [N] where N is 1-3 digits, allowing multiple brackets
                                 const isCitation = /^\[+\d{1,3}\]+$/.test(trimmed);
                                 
-                                if (isCitation && href) {
-                                  // Extract just the number
+                                // PHASE 2 FIX: Also check if href looks like a citation URL (from REFERENCES section)
+                                const isCitationUrl = href && (
+                                  /marinetraffic\.com|vesselfinder\.com|equasis\.org|imo\.org/i.test(href) ||
+                                  /\/ais\/details\/ships\/|\/vessels\/details\//.test(href)
+                                );
+                                
+                                if ((isCitation || isCitationUrl) && href) {
+                                  // Extract just the number (handle [[1]] -> 1)
                                   const num = trimmed.replace(/\[|\]/g, '');
-                                  return (
-                                    <a 
-                                      href={href} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="citation-link inline-flex items-baseline text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 no-underline hover:underline font-semibold transition-colors duration-200 text-sm"
-                                      title={href}
-                                      {...props}
-                                    >
-                                      [{num}]
-                                    </a>
-                                  );
+                                  
+                                  // PHASE 2 FIX: Validate citation number is reasonable (1-999)
+                                  const citationNum = parseInt(num, 10);
+                                  if (isNaN(citationNum) || citationNum < 1 || citationNum > 999) {
+                                    // Invalid citation number, treat as regular link
+                                    console.warn(`[Citation Renderer] Invalid citation number: ${num}`);
+                                  } else {
+                                    return (
+                                      <a 
+                                        href={href} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="citation-link inline-flex items-baseline text-maritime-600 dark:text-maritime-400 hover:text-maritime-700 dark:hover:text-maritime-300 no-underline hover:underline font-semibold transition-colors duration-200 text-sm px-0.5 rounded"
+                                        title={href}
+                                        {...props}
+                                      >
+                                        [{num}]
+                                      </a>
+                                    );
+                                  }
                                 }
                                 
                                 // Regular link - open in new tab with icon
