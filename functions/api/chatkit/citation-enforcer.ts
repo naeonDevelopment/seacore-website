@@ -185,13 +185,19 @@ function validateAndRepairCitations(content: string, sources: Source[]): {
     return `[${index}](${url})`; // Preserve URL
   });
   
-  // FIXED: Validate and preserve [N](url) format - add URL if missing
+  // PHASE 1 FIX: Validate and preserve [N](url) format - ensure URL is valid
   const citationWithUrl = /\[(\d+)\]\(([^)]+)\)/g;
   repaired = repaired.replace(citationWithUrl, (match, indexStr, url) => {
     const index = parseInt(indexStr, 10);
     if (index < 1 || index > sources.length) {
       errors.push(`Citation out of bounds: [${index}] (sources: ${sources.length})`);
       return match;
+    }
+    // PHASE 1 FIX: Ensure URL is not empty - if empty, replace with source URL
+    if (!url || url.trim() === '') {
+      repairsCount++;
+      const sourceUrl = sources[index - 1]?.url || '';
+      return `[${index}](${sourceUrl})`;
     }
     // Valid citation with URL - keep as is
     return match;

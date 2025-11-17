@@ -1547,12 +1547,11 @@ ${isVesselQuery ? `- YOUR FIRST SECTION MUST BE: ## EXECUTIVE SUMMARY
 - Your FIRST character must be # (markdown header)
 - Your output must be pure markdown content only
 
-**⚠️ CRITICAL: DO NOT GENERATE A REFERENCES SECTION ⚠️**
-- Citations should be INLINE only: [1](url), [2](url), [3](url)
-- Do NOT add a "REFERENCES:" or "SOURCES:" section at the end
-- Do NOT list sources at the bottom
-- The system will automatically add a references section
-- Your response should end with your last content section (e.g., MARITIME CONTEXT)
+**⚠️ CRITICAL: CITATION FORMAT ⚠️**
+- Citations should be INLINE with URLs: [1](url), [2](url), [3](url)
+- You MAY include a REFERENCES section at the end if you prefer, but inline citations with URLs are preferred
+- If you include REFERENCES, format as: [1] SiteName, "Title," URL
+- The system will ensure all citations have clickable URLs
 
 **YOUR TASK:**
 You are a ${state.requiresTechnicalDepth ? 'Chief Engineer with 20+ years hands-on experience' : 'Technical Director providing executive briefings'}. Extract facts from the ${state.sources.length} verified sources below and synthesize a ${state.requiresTechnicalDepth ? 'comprehensive technical analysis (600-800 words)' : 'concise but complete overview (400-500 words)'}.
@@ -1584,6 +1583,18 @@ ${state.sources.map((s: any, i: number) => `- Source [${i+1}]: Extract ALL facts
 
 **⚠️ YOU HAVE ${state.sources.length} SOURCES - YOU MUST USE AT LEAST ${Math.ceil(state.sources.length * 0.6)} OF THEM ⚠️**
 **DO NOT rely on only 1-2 sources. Extract information from MULTIPLE sources and cite them all.**
+
+**❌ WRONG APPROACH (DO NOT DO THIS):**
+- Using only 1 source: "The vessel is 34 meters long [1]"
+- Generic statements: "Crew boats typically require maintenance"
+- Missing citations: "Dynamic 17 operates in the Persian Gulf" (no citation)
+- Using training data: "Most crew boats are built in 2009" (not from sources)
+
+**✅ CORRECT APPROACH (DO THIS):**
+- Multiple sources: "The vessel is 34 meters long [1] and has a beam of 7.85 meters [2]"
+- Specific facts: "Dynamic 17, operated by [Company Name] [3], was built in 2009 [1]"
+- Every fact cited: "The vessel is registered under St Kitts & Nevis flag [1] and operates in the Persian Gulf [2]"
+- Source-specific: "According to MarineTraffic [1], the vessel's MMSI is 341234001"
 
 ${state.sources.map((s: any, i: number) => {
   // Enhanced content extraction for vessel queries
@@ -1785,15 +1796,17 @@ WRONG FORMAT (DO NOT DO THIS):
     
     const systemMessage = new SystemMessage(enhancedPrompt);
     
-    // Emit synthesis start status
+    // PHASE 5 FIX: Emit synthesis start status immediately with progress indicator
     if (statusEmitter) {
       statusEmitter({
         type: 'status',
         stage: 'synthesis',
         content: state.requiresTechnicalDepth 
           ? `⚙️ Generating comprehensive technical analysis with ${cotConfig.technique} reasoning (600+ words)...`
-          : `⚙️ Generating response with ${cotConfig.technique} reasoning...`
+          : `⚙️ Generating response with ${cotConfig.technique} reasoning...`,
+        progress: 0
       });
+      console.log(`   📢 Emitted synthesis start status`);
     }
     
     // CRITICAL FIX: DISABLE Structured Output - it's too rigid and causes "Not found" for everything
@@ -1973,17 +1986,21 @@ WRONG FORMAT (DO NOT DO THIS):
             console.log(`   💬 First chunk received - streaming active`);
           }
           
-          // PHASE 3 FIX: Emit progress updates more frequently (every 10 chunks instead of 20)
+          // PHASE 5 FIX: Emit progress updates more frequently (every 5 chunks instead of 10)
           // More frequent updates = better user feedback during generation
-          if (statusEmitter && chunkCount % 10 === 0) {
+          if (statusEmitter && chunkCount % 5 === 0) {
             const progress = Math.min(95, Math.floor((fullContent.length / TARGET_LENGTH) * 100));
+            const elapsed = Date.now() - startTime;
+            const estimatedTotal = (elapsed / progress) * 100;
+            const remaining = Math.max(0, Math.ceil((estimatedTotal - elapsed) / 1000));
+            
             console.log(`   💬 Progress: chunk #${chunkCount}, ${fullContent.length} chars (${progress}%)`);
             statusEmitter({
               type: 'status',
               stage: 'synthesis',
               content: state.requiresTechnicalDepth
-                ? `⚙️ Generating technical analysis... ${progress}%`
-                : `⚙️ Generating response... ${progress}%`,
+                ? `⚙️ Generating technical analysis... ${progress}%${remaining > 0 ? ` (~${remaining}s remaining)` : ''}`
+                : `⚙️ Generating response... ${progress}%${remaining > 0 ? ` (~${remaining}s remaining)` : ''}`,
               progress: progress
             });
           }
@@ -2111,9 +2128,9 @@ WRONG FORMAT (DO NOT DO THIS):
     // Raise minimum citations for vessel queries to match source count (use all sources)
     const lastUser = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
     const vesselQueryFlag = /\b(vessel|ship|imo\s*\d{7}|mmsi\s*\d{9}|crew\s*boat)\b/i.test(String((lastUser as any)?.content || ''));
-    // PHASE 1 FIX: Use more sources - require citations from at least 60% of sources for vessel queries
+    // PHASE 1 FIX: Require citations from ALL sources for vessel queries (not just 60%)
     const minRequired = vesselQueryFlag 
-      ? Math.max(3, Math.ceil(state.sources.length * 0.6)) // Use 60% of sources minimum
+      ? Math.max(3, state.sources.length) // Use ALL sources for vessel queries
       : undefined;
     const citationResult = enforceCitations(fullContent, state.sources, { technicalDepth: state.requiresTechnicalDepth, minRequired });
     if (citationResult.wasEnforced) {
@@ -2123,6 +2140,18 @@ WRONG FORMAT (DO NOT DO THIS):
       console.log(`   ✅ Citations sufficient: ${citationResult.citationsFound}/${citationResult.citationsRequired}`);
     }
     
+    // PHASE 1 FIX: Validate minimum citations for vessel queries
+    if (vesselQueryFlag) {
+      const citationCount = (fullContent.match(/\[\d+\]/g) || []).length;
+      const minCitations = Math.max(3, state.sources.length);
+      if (citationCount < minCitations) {
+        console.warn(`   ⚠️ WARNING: Only ${citationCount} citations found, expected at least ${minCitations} for vessel query`);
+        // Don't reject, but log warning - enforcement should have added more
+      } else {
+        console.log(`   ✅ Citation validation passed: ${citationCount} citations (minimum: ${minCitations})`);
+      }
+    }
+    
     // Validate citations are well-formed
     const validation = validateCitations(fullContent, state.sources);
     if (!validation.valid) {
@@ -2130,6 +2159,22 @@ WRONG FORMAT (DO NOT DO THIS):
       if (validation.errors.length > 0) {
         console.error(`   ❌ Citation validation errors:`, validation.errors);
       }
+    }
+    
+    // PHASE 3 FIX: Ensure all citations have URLs before modern format conversion
+    // This guarantees clickable citations even if model didn't include URLs
+    const bareCitations = fullContent.match(/\[(\d+)\](?!\()/g);
+    if (bareCitations && bareCitations.length > 0) {
+      console.log(`   🔗 Found ${bareCitations.length} bare citations - adding URLs...`);
+      fullContent = fullContent.replace(/\[(\d+)\](?!\()/g, (match, indexStr) => {
+        const index = parseInt(indexStr, 10);
+        if (index >= 1 && index <= state.sources.length) {
+          const sourceUrl = state.sources[index - 1]?.url || '';
+          return `[${index}](${sourceUrl})`;
+        }
+        return match;
+      });
+      console.log(`   ✅ Added URLs to ${bareCitations.length} citations`);
     }
     
     // Convert to modern citation format with REFERENCES section
@@ -2880,7 +2925,9 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
   
   console.log(`\n🚀 AGENT REQUEST | Session: ${sessionId} | Browsing: ${enableBrowsing}`);
   
-  const suppressThinkingEvents = env?.SUPPRESS_THINKING_EVENTS === 'true';
+  // PHASE 2 FIX: Always emit thinking events (remove suppression)
+  // Thinking events are critical for user feedback and transparency
+  const suppressThinkingEvents = false; // Always false - never suppress thinking
   
   // Load session memory
   let sessionMemory: SessionMemory | null = null;
@@ -2908,8 +2955,8 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
     async start(controller) {
       const encoder = new TextEncoder();
       const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-      // Runtime flags: suppress process/thinking events in SSE for clean UI
-      const EMIT_THINKING_EVENTS = !suppressThinkingEvents;
+      // PHASE 2 FIX: Always emit thinking events for transparency
+      const EMIT_THINKING_EVENTS = true; // Always true - never suppress
       
       // PHASE A1 & A2: Create status/thinking emitter
       const sanitizeThinking = (text: string): string => {
@@ -3114,13 +3161,14 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                       // Don't emit thinking tags as regular content
                       continue;
                     } else {
-                      // PHASE 5 FIX: Still in thinking section - emit partial progress more frequently
+                      // PHASE 2 FIX: Still in thinking section - emit partial progress more frequently (every 20 chars)
                       const partialThinking = thinkingBuffer
                         .replace(/<thinking[^>]*>/gi, '')
                         .replace(/<\/thinking[^>]*>/gi, '')
                         .trim();
-                      if (partialThinking.length > 0 && partialThinking.length % 50 === 0) {
-                        // Emit progress every ~50 chars of thinking
+                      if (partialThinking.length > 0 && partialThinking.length % 20 === 0) {
+                        // PHASE 2 FIX: Emit progress every ~20 chars of thinking (increased frequency)
+                        console.log(`   💭 Emitting thinking_partial: ${partialThinking.length} chars`);
                         statusEmitter?.({
                           type: 'thinking_partial',
                           content: partialThinking
@@ -3131,10 +3179,16 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
                     }
                   }
                   
-                  // PHASE 5 FIX: Fallback detection - if we see numbered thinking steps without tags
+                  // PHASE 2 FIX: Enhanced fallback detection - if we see numbered thinking steps without tags
                   // This handles cases where model generates thinking without XML tags
-                  if (!thinkingInProgress && /^\d+\.\s*(Understanding|Information|Source|Analysis|Synthesis|Citation|Quality)/i.test(trimmedForValidation)) {
-                    console.log('   💭 Detected thinking content without tags (fallback)');
+                  const thinkingPatterns = [
+                    /^\d+\.\s*(Understanding|Information|Source|Analysis|Synthesis|Citation|Quality)/i,
+                    /^(First|Second|Third|Next|Then|Finally).*?(analyze|consider|examine|review|check)/i,
+                    /^(I need to|Let me|I should|I will).*?(understand|analyze|check|verify|extract)/i
+                  ];
+                  
+                  if (!thinkingInProgress && thinkingPatterns.some(pattern => pattern.test(trimmedForValidation))) {
+                    console.log('   💭 Detected thinking content without tags (fallback):', trimmedForValidation.substring(0, 50));
                     thinkingInProgress = true;
                     thinkingBuffer = chunk;
                     statusEmitter?.({
@@ -3261,7 +3315,13 @@ export async function handleChatWithAgent(request: ChatRequest): Promise<Readabl
 
                   hasStreamedContent = true; // Mark that token streaming is working
                   fullResponse += contentToEmit; // PRESERVE spaces!
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: contentToEmit })}\n\n`));
+                  
+                  // PHASE 4 FIX: Emit token immediately for real-time streaming
+                  const eventData = `data: ${JSON.stringify({ type: 'content', content: contentToEmit })}\n\n`;
+                  controller.enqueue(encoder.encode(eventData));
+                  
+                  // PHASE 4 FIX: Note - ReadableStream doesn't support flush(), but enqueue() should send immediately
+                  // The browser's EventSource should receive tokens as they're enqueued
 
                   if (eventCount <= 5) {
                     console.log(`   💬 Token #${eventCount}: "${text.substring(0, 30)}..."`);
