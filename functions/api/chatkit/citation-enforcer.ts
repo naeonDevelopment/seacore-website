@@ -223,6 +223,35 @@ function validateAndRepairCitations(content: string, sources: Source[]): {
     return `[${index}](${sourceUrl})`; // Add URL from sources
   });
   
+  // PHASE 1 FIX: Repair malformed citations missing opening bracket: "]N]" or "N]" → "[N]"
+  const malformedCitation1 = /(\s|^)(\d+)\](?!\()/g;
+  repaired = repaired.replace(malformedCitation1, (match, before, indexStr) => {
+    const index = parseInt(indexStr, 10);
+    if (index < 1 || index > sources.length) {
+      return match; // Invalid citation number, leave as-is
+    }
+    repairsCount++;
+    const sourceUrl = sources[index - 1]?.url || '';
+    return `${before}[${index}](${sourceUrl})`;
+  });
+  
+  // PHASE 1 FIX: Repair citations with only closing bracket at end of sentences: "...2]." → "...[2]."
+  const malformedCitation2 = /(\w)(\d+)\]([.!?]|\s|$)/g;
+  repaired = repaired.replace(malformedCitation2, (match, beforeChar, indexStr, after) => {
+    // Only fix if it looks like a citation (number followed by ])
+    const index = parseInt(indexStr, 10);
+    if (index < 1 || index > sources.length) {
+      return match; // Invalid citation number, leave as-is
+    }
+    // Check if this is likely a citation (number 1-99 followed by ])
+    if (index > 0 && index <= 99) {
+      repairsCount++;
+      const sourceUrl = sources[index - 1]?.url || '';
+      return `${beforeChar}[${index}](${sourceUrl})${after}`;
+    }
+    return match;
+  });
+  
   return { repairedContent: repaired, repairsCount, errors };
 }
 

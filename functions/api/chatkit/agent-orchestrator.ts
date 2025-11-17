@@ -1431,7 +1431,43 @@ ${state.requiresTechnicalDepth ? `
 
 [Content here with proper spacing]
 
-DO NOT let sections bleed together like "OPERATIONAL STATUSAs of..."
+**CRITICAL FORMATTING - DO NOT let sections bleed together:**
+
+WRONG (DO NOT DO THIS):
+```
+OPERATIONAL STATUSAs of the last report...
+MAINTENANCE ANALYSISDynamic25, being a crew boat...
+REAL-WORLD INSIGHTSCrew boats like...
+MARITIME CONTEXTDynamic25 plays...
+```
+
+CORRECT (DO THIS):
+```
+
+## OPERATIONAL STATUS
+
+As of the last report...
+
+
+## MAINTENANCE ANALYSIS
+
+Dynamic25, being a crew boat...
+
+
+## REAL-WORLD INSIGHTS
+
+Crew boats like...
+
+
+## MARITIME CONTEXT
+
+Dynamic25 plays...
+```
+
+**EVERY HEADER MUST HAVE:**
+- TWO blank lines BEFORE it (press Enter twice)
+- ONE blank line AFTER it (press Enter once)
+- NO text touching the header directly
 ` : '';
 
     // Pre-extract owner/operator data before synthesis
@@ -1545,6 +1581,9 @@ ${!state.requiresTechnicalDepth ? `
 ${state.sources.map((s: any, i: number) => `- Source [${i+1}]: Extract ALL facts from ${s.title || s.url}`).join('\n')}
 
 **CRITICAL RULE: Every fact must come from sources [1-${state.sources.length}]. If a fact is not in the sources, DO NOT include it.**
+
+**⚠️ YOU HAVE ${state.sources.length} SOURCES - YOU MUST USE AT LEAST ${Math.ceil(state.sources.length * 0.6)} OF THEM ⚠️**
+**DO NOT rely on only 1-2 sources. Extract information from MULTIPLE sources and cite them all.**
 
 ${state.sources.map((s: any, i: number) => {
   // Enhanced content extraction for vessel queries
@@ -1977,6 +2016,37 @@ WRONG FORMAT (DO NOT DO THIS):
       console.log(`   ✅ Synthesized (${fullContent.length} chars, ${chunkCount} chunks)`);
     }
     
+    // PHASE 1 FIX: Post-process formatting to fix header spacing issues
+    const fixHeaderSpacing = (text: string): string => {
+      if (!text) return text;
+      
+      // Fix headers that run into content without ##: "OPERATIONAL STATUSAs of..." -> "## OPERATIONAL STATUS\n\nAs of..."
+      // Match uppercase headers followed immediately by content
+      let fixed = text.replace(/(^|\n\n)([A-Z][A-Z\s&]{3,40})([A-Za-z])/g, (match, before, header, firstChar) => {
+        // Skip if it's already a markdown header
+        if (before.includes('##')) return match;
+        // Skip if header is too short or looks like a word
+        if (header.length < 5 || header.split(' ').length === 1) return match;
+        // Convert to markdown header with proper spacing
+        return `${before}## ${header.trim()}\n\n${firstChar}`;
+      });
+      
+      // Fix headers that have ## but run into content: "## HEADERContent" -> "## HEADER\n\nContent"
+      fixed = fixed.replace(/(##\s+[A-Z][A-Z\s&]+)([A-Za-z])/g, (match, header, firstChar) => {
+        return `${header}\n\n${firstChar}`;
+      });
+      
+      // Ensure headers have blank lines after them if missing: "## HEADER\nContent" -> "## HEADER\n\nContent"
+      fixed = fixed.replace(/(##\s+[A-Z][A-Z\s&]+)\n([A-Za-z])/g, '$1\n\n$2');
+      
+      // Ensure headers have blank lines before them if missing
+      fixed = fixed.replace(/([^\n])\n(##\s+[A-Z][A-Z\s&]+)/g, '$1\n\n$2');
+      
+      console.log(`   🔧 Fixed header spacing issues`);
+      return fixed;
+    };
+    fullContent = fixHeaderSpacing(fullContent);
+    
     // Strip any leaked JSON/planner blocks before enforcement
     const stripLeadingJson = (text: string): string => {
       if (!text) return text;
@@ -2038,10 +2108,14 @@ WRONG FORMAT (DO NOT DO THIS):
     fullContent = stripLeadingJson(fullContent);
     
     // PHASE 4: Citation Enforcement - Ensure inline citations are present
-    // Raise minimum citations for vessel queries to 5 (bounded by source count)
+    // Raise minimum citations for vessel queries to match source count (use all sources)
     const lastUser = state.messages.filter(m => m.constructor.name === 'HumanMessage').slice(-1)[0];
     const vesselQueryFlag = /\b(vessel|ship|imo\s*\d{7}|mmsi\s*\d{9}|crew\s*boat)\b/i.test(String((lastUser as any)?.content || ''));
-    const citationResult = enforceCitations(fullContent, state.sources, { technicalDepth: state.requiresTechnicalDepth, minRequired: vesselQueryFlag ? 5 : undefined });
+    // PHASE 1 FIX: Use more sources - require citations from at least 60% of sources for vessel queries
+    const minRequired = vesselQueryFlag 
+      ? Math.max(3, Math.ceil(state.sources.length * 0.6)) // Use 60% of sources minimum
+      : undefined;
+    const citationResult = enforceCitations(fullContent, state.sources, { technicalDepth: state.requiresTechnicalDepth, minRequired });
     if (citationResult.wasEnforced) {
       console.log(`   📎 Citation enforcement: added ${citationResult.citationsAdded} citations (${citationResult.citationsFound}→${citationResult.citationsFound + citationResult.citationsAdded})`);
       fullContent = citationResult.enforcedContent;
