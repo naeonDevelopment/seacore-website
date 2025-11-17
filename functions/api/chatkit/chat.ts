@@ -6,10 +6,10 @@
  */
 
 import { handleChatWithAgent, type ChatRequest } from './agent-orchestrator';
-import { sanitizeUserInput } from './input-security';
+import { sanitizeUserInput, validateInput } from './input-security';
 import { getCorsHeaders } from './cors-config';
-import { performSecurityCheck } from './input-security';
 import { createErrorResponse } from './error-sanitizer';
+import { checkMultiTierRateLimit, createRateLimitResponse, getRateLimitHeaders } from './rate-limiter';
 
 interface Env {
   OPENAI_API_KEY: string;
@@ -69,41 +69,46 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
+    // ✅ SECURITY: Multi-tier rate limiting (KV-based, works across Workers)
+    let rateLimitResult: Awaited<ReturnType<typeof checkMultiTierRateLimit>> | null = null;
+    if (env.CHAT_SESSIONS) {
+      rateLimitResult = await checkMultiTierRateLimit(
+        request,
+        sessionId,
+        undefined, // userId (no auth yet)
+        env.CHAT_SESSIONS
+      );
+      
+      if (!rateLimitResult.allowed) {
+        const rateLimitResponse = createRateLimitResponse(rateLimitResult);
+        Object.entries(getRateLimitHeaders(rateLimitResult)).forEach(([key, value]) => {
+          rateLimitResponse.headers.set(key, value);
+        });
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          rateLimitResponse.headers.set(key, value);
+        });
+        return rateLimitResponse;
+      }
+    }
+
     // ✅ SECURITY: Input validation enforcement
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage?.role === 'user') {
       const sanitized = sanitizeUserInput(lastUserMessage.content);
-      const securityCheck = performSecurityCheck(
-        sanitized.content,
-        sessionId,
-        { 
-          maxRequests: 10,
-          windowMs: 60000,
-          strictMode: false // Set to true for maximum security
-        }
-      );
-      const securityCheck = performSecurityCheck(
-        sanitized.content,
-        sessionId,
-        { 
-          maxRequests: 10,
-          windowMs: 60000,
-          strictMode: false // Set to true for maximum security
-        }
-      );
+      const validation = validateInput(sanitized.content);
 
-      if (!securityCheck.allowed) {
+      if (!validation.valid || validation.risk === 'high') {
         console.warn('[SECURITY] Input validation failed:', {
           sessionId: sessionId.substring(0, 8) + '...',
-          reason: securityCheck.reason,
-          risk: securityCheck.validation.risk
+          errors: validation.errors,
+          risk: validation.risk
         });
         
         return new Response(
           JSON.stringify({
             error: 'Security validation failed',
             code: 'INVALID_INPUT',
-            reason: securityCheck.reason
+            reason: validation.errors.join(', ') || 'High risk input detected'
           }),
           { 
             status: 400, 
@@ -136,15 +141,21 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
 
     console.log(`✅ Using simplified orchestrator\n`);
 
-    // Return SSE stream
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        ...corsHeaders,
-      },
-    });
+    // Return SSE stream with rate limit headers (reuse result from check above)
+    const headers: Record<string, string> = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      ...corsHeaders,
+    };
+    
+    if (rateLimitResult) {
+      Object.entries(getRateLimitHeaders(rateLimitResult)).forEach(([key, value]) => {
+        headers[key] = value;
+      });
+    }
+
+    return new Response(stream, { headers });
 
   } catch (error: any) {
     // ✅ SECURITY: Sanitized error responses

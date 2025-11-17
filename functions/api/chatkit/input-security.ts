@@ -413,7 +413,10 @@ export function logSecurityEvent(event: SecurityEvent): void {
 // =====================
 
 /**
- * Complete security check: validation + rate limiting
+ * DEPRECATED: Use rate-limiter.ts for KV-based rate limiting instead
+ * This function kept for backward compatibility but rate limiting moved to chat.ts
+ * 
+ * Complete security check: validation only (rate limiting handled separately)
  */
 export function performSecurityCheck(
   input: string,
@@ -430,28 +433,10 @@ export function performSecurityCheck(
   reason?: string;
 } {
   
-  // Step 1: Rate limiting
-  const rateLimit = checkRateLimit(sessionId, options?.maxRequests, options?.windowMs);
-  
-  if (!rateLimit.allowed) {
-    return {
-      allowed: false,
-      validation: {
-        valid: false,
-        errors: [],
-        warnings: [],
-        risk: 'low',
-        detections: {},
-      },
-      rateLimit,
-      reason: rateLimit.reason,
-    };
-  }
-  
-  // Step 2: Input validation
+  // Input validation only (rate limiting moved to chat.ts using KV-based rate-limiter.ts)
   const validation = validateInput(input);
   
-  // Step 3: Security event logging
+  // Security event logging
   if (!validation.valid || validation.risk === 'high') {
     logSecurityEvent({
       timestamp: Date.now(),
@@ -462,17 +447,22 @@ export function performSecurityCheck(
     });
   }
   
-  // Step 4: Determine if request should be blocked
+  // Determine if request should be blocked
   const strictMode = options?.strictMode || false;
   const shouldBlock = 
     !validation.valid || 
     validation.risk === 'high' ||
     (strictMode && validation.warnings.length > 0);
   
+  // Return dummy rate limit (not used anymore)
   return {
     allowed: !shouldBlock,
     validation,
-    rateLimit,
+    rateLimit: {
+      allowed: true,
+      remaining: 10,
+      resetAt: Date.now() + 60000,
+    },
     reason: shouldBlock ? `Security check failed: ${validation.errors.join(', ') || validation.warnings.join(', ')}` : undefined,
   };
 }
