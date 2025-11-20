@@ -531,7 +531,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Maritime Challenges Section - Collapsible */}
-      <section className="py-20">
+      <section className="py-12 md:py-20">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -716,7 +716,7 @@ const HomePage: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             viewport={{ once: true }}
-            className="mt-16"
+            className="md:mt-16"
           >
             <div className="max-w-4xl mx-auto">
               <div className="rounded-3xl border bg-card text-card-foreground shadow-lg maritime-glass-card p-8">
@@ -735,7 +735,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* How fleetcore Solves These Challenges - Solution Architecture */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="relative overflow-hidden md:py-12">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]">
           <div className="absolute inset-0" style={{
@@ -1093,7 +1093,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enterprise Maritime Core Capabilities */}
-      <section className="pt-32 pb-24">
+      <section className="pt-24 md:pb-24">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -1152,7 +1152,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enterprise Solutions by Executive Role */}
-      <section className="relative py-24 overflow-hidden">
+      <section className="relative py-8 md:py-19 overflow-hidden">
         {/* Fallback gradients (shown while video loads) - behind video */}
         <div className="absolute inset-0 bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 z-0"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.05),transparent_50%)] z-0"></div>
@@ -1201,7 +1201,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enterprise Integration Process */}
-      <section className="py-24 pb-32">
+      <section className="py-8 md:py-24 pb-14 md:pb-32">
         <div className="container mx-auto px-4">
             <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -1305,7 +1305,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Industry Router */}
-      <section className="py-20 relative overflow-hidden">
+      <section className="py-8 md:py-20 relative overflow-hidden">
         {/* Parallax Background Image */}
         <IndustryParallaxBackground isDarkMode={isDarkMode} />
         
@@ -1340,7 +1340,10 @@ const HomePage: React.FC = () => {
                 viewport={{ once: true }}
               >
                 <Link to={industry.href}>
-                  <div className="text-center p-6 group rounded-3xl border shadow-lg cursor-pointer hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 bg-white dark:bg-slate-800 overflow-visible">
+                  <div
+                    className="text-center p-6 group rounded-3xl border shadow-lg cursor-pointer hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 bg-white dark:bg-slate-800 overflow-visible"
+                    style={{ minHeight: 170, minWidth: 170 }}
+                  >
                     <div className={cn(
                       "w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 bg-gradient-to-br",
                       getIconGradient(industry.category)
@@ -1362,7 +1365,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="pt-14 pb-6 md:py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-maritime-600/10 via-ocean-600/10 to-signal-600/10 dark:from-maritime-600/5 dark:via-ocean-600/5 dark:to-signal-600/5"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(20,184,166,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(20,184,166,0.05),transparent_50%)]"></div>
         

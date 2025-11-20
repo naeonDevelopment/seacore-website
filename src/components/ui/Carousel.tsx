@@ -1,5 +1,5 @@
 import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/utils/cn"
 import { Button } from "./Button"
@@ -18,6 +18,7 @@ interface CarouselProps {
   mobileItemWidth?: number // optional fixed item width on mobile
   useMobilePercentage?: boolean // use percentage-based width on mobile for better centering
   itemClassName?: string // optional class for each item wrapper
+  itemHeight?: number // optional fixed height for each item wrapper
 }
 
 const Carousel: React.FC<CarouselProps> = ({
@@ -33,7 +34,8 @@ const Carousel: React.FC<CarouselProps> = ({
   itemWidth,
   mobileItemWidth,
   useMobilePercentage = false,
-  itemClassName
+  itemClassName,
+  itemHeight
 }) => {
   const [currentIndex, setCurrentIndex] = React.useState(0)
   const [isHovered, setIsHovered] = React.useState(false)
@@ -63,7 +65,6 @@ const Carousel: React.FC<CarouselProps> = ({
     : itemWidth
 
   const totalItems = children.length
-  const maxIndex = Math.max(0, totalItems - activeItemsPerView)
   
   // Create infinite loop by duplicating items
   const extendedChildren = React.useMemo(() => {
@@ -130,6 +131,8 @@ const Carousel: React.FC<CarouselProps> = ({
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
+  const fallbackHeight = React.useMemo(() => (isMobile ? 600 : 720), [isMobile])
+  const normalizedItemHeight = itemHeight ?? maxItemHeight ?? fallbackHeight
 
   // Initialize to middle set for infinite loop
   React.useEffect(() => {
@@ -265,14 +268,19 @@ const Carousel: React.FC<CarouselProps> = ({
             <div
               key={`${index % totalItems}-${Math.floor(index / totalItems)}`}
               className={cn("flex-shrink-0", itemClassName, "h-auto")}
-              style={{ width: computedItemWidth, height: maxItemHeight ?? undefined, marginTop: itemClassName ? undefined : undefined }}
+              style={{ width: computedItemWidth, height: normalizedItemHeight, marginTop: itemClassName ? undefined : undefined }}
               ref={(el) => {
-                if (index < itemRefs.current.length) {
-                  itemRefs.current[index] = el
-                }
+                itemRefs.current[index] = el
               }}
             >
-              {child}
+          {React.isValidElement(child)
+            ? React.cloneElement(child, {
+                style: {
+                  ...(child.props.style || {}),
+                  height: normalizedItemHeight
+                }
+              })
+            : child}
             </div>
           ))}
         </motion.div>

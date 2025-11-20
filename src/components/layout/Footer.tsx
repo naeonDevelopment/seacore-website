@@ -9,10 +9,16 @@ import CookieSettingsButton from '@/components/ui/CookieSettingsButton'
 
 interface FooterProps {}
 
+interface FooterLink {
+  label: string
+  href: string
+  inactive?: boolean
+}
+
 export const Footer: React.FC<FooterProps> = () => {
   const currentYear = new Date().getFullYear()
 
-  const footerLinks = {
+  const footerLinks: { platform: FooterLink[]; resources: FooterLink[] } = {
     platform: [
       { label: 'Solution', href: '/solutions' },
       { label: 'Platform', href: '/platform' },
@@ -38,7 +44,7 @@ export const Footer: React.FC<FooterProps> = () => {
         {/* Main Footer Content */}
         <div className="py-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 text-center md:text-left flex flex-col items-center md:items-start">
             <div className="inline-block mb-4">
               <FleetCoreLogo variant="dark" className="h-8" />
             </div>
@@ -49,7 +55,7 @@ export const Footer: React.FC<FooterProps> = () => {
             <div className="space-y-3">
               <a 
                 href="mailto:hello@fleetcore.ai" 
-                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm group"
+                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm group justify-center md:justify-start"
               >
                 <Mail className="w-4 h-4" />
                 <span>hello@fleetcore.ai</span>
@@ -58,9 +64,9 @@ export const Footer: React.FC<FooterProps> = () => {
           </div>
 
           {/* Platform Links */}
-          <div>
+          <div className="text-center md:text-left">
             <h3 className="font-semibold text-white mb-4">Platform</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-2 md:space-y-2 flex flex-col items-center md:items-start">
               {footerLinks.platform.map((link) => (
                 <li key={link.href}>
                   <Link 
@@ -75,9 +81,9 @@ export const Footer: React.FC<FooterProps> = () => {
           </div>
 
           {/* Resources Links */}
-          <div>
+          <div className="text-center md:text-left">
             <h3 className="font-semibold text-white mb-4">Resources</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-2 md:space-y-2 flex flex-col items-center md:items-start">
               {footerLinks.resources.map((link) => (
                 <li key={link.href}>
                   {link.inactive ? (
