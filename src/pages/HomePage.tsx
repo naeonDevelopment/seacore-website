@@ -1152,7 +1152,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enterprise Solutions by Executive Role */}
-      <section className="relative py-8 md:py-19 overflow-hidden">
+      <section className="relative py-8 md:py-20 overflow-hidden">
         {/* Fallback gradients (shown while video loads) - behind video */}
         <div className="absolute inset-0 bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 z-0"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.05),transparent_50%)] z-0"></div>
