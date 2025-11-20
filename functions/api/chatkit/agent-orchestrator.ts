@@ -1434,15 +1434,15 @@ ${state.requiresTechnicalDepth ? `
 **CRITICAL FORMATTING - DO NOT let sections bleed together:**
 
 WRONG (DO NOT DO THIS):
-```
+\`\`\`
 OPERATIONAL STATUSAs of the last report...
 MAINTENANCE ANALYSISDynamic25, being a crew boat...
 REAL-WORLD INSIGHTSCrew boats like...
 MARITIME CONTEXTDynamic25 plays...
-```
+\`\`\`
 
 CORRECT (DO THIS):
-```
+\`\`\`
 
 ## OPERATIONAL STATUS
 
@@ -1462,7 +1462,7 @@ Crew boats like...
 ## MARITIME CONTEXT
 
 Dynamic25 plays...
-```
+\`\`\`
 
 **EVERY HEADER MUST HAVE:**
 - TWO blank lines BEFORE it (press Enter twice)
@@ -1709,7 +1709,7 @@ ${state.sources.map((s: any, i: number) => {
 3. NEVER let headers touch content directly
 
 CORRECT FORMAT EXAMPLE:
-```
+\`\`\`
 
 ## EXECUTIVE SUMMARY
 
@@ -1719,13 +1719,13 @@ The vessel measures 400 meters...
 ## TECHNICAL SPECIFICATIONS
 
 Length Overall: 399m...
-```
+\`\`\`
 
 WRONG FORMAT (DO NOT DO THIS):
-```
+\`\`\`
 ## EXECUTIVE SUMMARYThe vessel measures...
 ## TECHNICAL SPECIFICATIONSLength Overall:...
-```
+\`\`\`
 
 **═══════════════════════════════════════════════════════════════**
 
