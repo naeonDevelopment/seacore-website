@@ -384,7 +384,7 @@ const HomePage: React.FC = () => {
             </div>
           </motion.div>
 
-          <div className="max-w-4xl mx-auto text-center mb-12">
+          <div className="max-w-4xl pt-4 mx-auto text-center mb-12">
             {/* Content */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -407,7 +407,6 @@ const HomePage: React.FC = () => {
                     textShadow: isDarkMode
                       ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
                       : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
-                    filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
                     transform: 'translateZ(0)',
                     backfaceVisibility: 'hidden'
                   }}
@@ -531,14 +530,14 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Maritime Challenges Section - Collapsible */}
-      <section className="py-12 md:py-20">
+      <section className="py-10 md:py-24">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center md:mb-16"
           >
             <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 mb-6">
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -1093,7 +1092,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enterprise Maritime Core Capabilities */}
-      <section className="pt-24 md:pb-24">
+      <section className="pt-20 md:pb-24">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -1152,7 +1151,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enterprise Solutions by Executive Role */}
-      <section className="relative py-8 md:py-20 overflow-hidden">
+      <section className="relative py-10 md:py-20 overflow-hidden">
         {/* Fallback gradients (shown while video loads) - behind video */}
         <div className="absolute inset-0 bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 z-0"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.05),transparent_50%)] z-0"></div>
@@ -1201,7 +1200,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enterprise Integration Process */}
-      <section className="py-8 md:py-24 pb-14 md:pb-32">
+      <section className="py-10 md:py-24 pb-14 md:pb-32">
         <div className="container mx-auto px-4">
             <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -1305,7 +1304,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Industry Router */}
-      <section className="py-8 md:py-20 relative overflow-hidden">
+      <section className="py-10 md:py-20 relative overflow-hidden">
         {/* Parallax Background Image */}
         <IndustryParallaxBackground isDarkMode={isDarkMode} />
         
@@ -1365,7 +1364,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Final CTA Section */}
-      <section className="pt-14 pb-6 md:py-24 relative overflow-hidden">
+      <section className="pt-10 pb-6 md:py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-maritime-600/10 via-ocean-600/10 to-signal-600/10 dark:from-maritime-600/5 dark:via-ocean-600/5 dark:to-signal-600/5"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(20,184,166,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(20,184,166,0.05),transparent_50%)]"></div>
         

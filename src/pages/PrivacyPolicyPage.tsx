@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
-import { cn } from '@/utils/cn'
 import { Helmet } from 'react-helmet-async'
 
 interface PrivacyPolicyPageProps {}
@@ -365,7 +364,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
         <meta name="twitter:image" content="https://fleetcore.ai/og/privacy_policy.png" />
       </Helmet>
       {/* Hero Section */}
-      <section className="relative pt-16 lg:pt-32 pb-20 overflow-hidden">
+      <section className="relative pt-24 pb-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-blue-950/20 dark:via-purple-950/20 dark:to-pink-950/20"></div>
         
         <div className="container mx-auto px-4 relative z-10">
@@ -404,7 +403,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
       </section>
 
       {/* Table of Contents */}
-      <section className="py-12 bg-slate-50 dark:bg-slate-900/50">
+      <section className="md:py-12 bg-slate-50 dark:bg-slate-900/50">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">

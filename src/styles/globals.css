@@ -117,12 +117,14 @@
   }
   
   .maritime-gradient-text {
-    @apply bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold;
+    @apply bg-clip-text text-transparent font-semibold;
+    background-image: linear-gradient(90deg, #a425eb 0%, #a425eb 100%);
     transition: all 0.3s ease-out;
   }
   
   .maritime-gradient-text:hover {
-    @apply bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 bg-clip-text text-transparent;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(90deg, #a425eb 0%, #a425eb 100%);
   }
   
   .ocean-depth-bg {

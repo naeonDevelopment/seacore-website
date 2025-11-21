@@ -434,4 +434,3 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
 };
 
 export default AssistantPage;
-

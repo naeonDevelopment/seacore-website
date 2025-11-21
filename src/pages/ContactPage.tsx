@@ -280,7 +280,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       <ScrollGradientBackground sections={gradientSections} />
 
       {/* Hero Section */}
-      <section className="relative pt-16 lg:pt-32 pb-20 overflow-hidden min-h-[85vh] flex items-center">
+      <section className="relative pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
         {/* Background */}
         <ContactHeroBackground isDarkMode={isDarkMode} />
         
@@ -329,7 +329,6 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                   textShadow: isDarkMode
                     ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
                     : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
-                  filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
                   transform: 'translateZ(0)',
                   backfaceVisibility: 'hidden'
                 }}
@@ -382,7 +381,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       </section>
 
       {/* Contact Methods */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-10 md:py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -460,7 +459,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       </section>
 
       {/* Calendly Booking Section */}
-      <section id="booking" className="py-24 relative overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+      <section id="booking" className="py-10 md:py-24 relative overflow-hidden bg-slate-50 dark:bg-slate-900/50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -566,7 +565,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       </section>
 
       {/* Social Media Section */}
-      <section className="py-24 relative overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+      <section className="py-10 md:py-24 relative overflow-hidden bg-slate-50 dark:bg-slate-900/50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -668,7 +667,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       </section>
 
       {/* Final CTA */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-10 md:py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}

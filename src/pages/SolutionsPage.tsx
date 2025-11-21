@@ -270,7 +270,7 @@ const SolutionsPage: React.FC = () => {
       <ScrollGradientBackground sections={gradientSections} />
       
       {/* Hero Section - AI-Powered Maritime Technical Operating System */}
-      <section className="relative pt-16 lg:pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
+      <section className="relative pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
         {/* Static Image Background */}
         <SolutionsHeroBackground isDarkMode={isDarkMode} />
 
@@ -323,7 +323,6 @@ const SolutionsPage: React.FC = () => {
                   textShadow: isDarkMode
                     ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
                     : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
-                  filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
                   transform: 'translateZ(0)',
                   backfaceVisibility: 'hidden'
                 }}
@@ -349,7 +348,6 @@ const SolutionsPage: React.FC = () => {
                   textShadow: isDarkMode
                     ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
                     : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
-                  filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
                   transform: 'translateZ(0)',
                   backfaceVisibility: 'hidden'
                 }}
@@ -416,7 +414,7 @@ const SolutionsPage: React.FC = () => {
       </section>
 
       {/* Section 1: The Problem with Traditional Systems */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-10 md:py-24 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]">
           <div className="absolute inset-0" style={{
@@ -502,7 +500,7 @@ const SolutionsPage: React.FC = () => {
       </section>
 
       {/* Section 2: AI Capabilities Deep Dive */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-10 md:py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -570,7 +568,7 @@ const SolutionsPage: React.FC = () => {
       </section>
 
       {/* Section 4: Why "Operating System" Analogy */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-10 md:py-24 relative overflow-hidden">
         {/* Parallax Background */}
         <ArchitectureParallaxBackground isDarkMode={isDarkMode} />
         
@@ -634,7 +632,7 @@ const SolutionsPage: React.FC = () => {
       </section>
 
       {/* Section 5: The Impact & CTA */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-10 md:py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/10 to-pink-600/10 dark:from-blue-600/5 dark:via-purple-600/5 dark:to-pink-600/5"></div>
 
         <div className="container mx-auto px-4 relative">

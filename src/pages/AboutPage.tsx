@@ -12,10 +12,6 @@ import {
   MapPin,
   Network,
   Award,
-  BookOpen,
-  FileText,
-  Download,
-  ExternalLink,
   Anchor,
   Brain,
   Database,
@@ -276,7 +272,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
       <ScrollGradientBackground sections={gradientSections} />
 
       {/* Hero Section */}
-      <section id="hero" className="relative pt-16 lg:pt-32 pb-20 overflow-hidden min-h-[85vh] flex items-center">
+      <section id="hero" className="relative pt-24 pb-20 overflow-hidden min-h-[85vh] flex items-center">
         {/* Background */}
         <AboutHeroBackground isDarkMode={isDarkMode} />
         
@@ -325,7 +321,6 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
                   textShadow: isDarkMode
                     ? '0 0 60px rgba(0,0,0,0.3), 0 0 120px rgba(0,0,0,0.2), 0 4px 30px rgba(0,0,0,0.25)'
                     : '0 0 60px rgba(255,255,255,0.4), 0 0 120px rgba(255,255,255,0.3), 0 4px 30px rgba(255,255,255,0.35)',
-                  filter: isDarkMode ? 'brightness(1.6) saturate(1.05)' : 'brightness(0.7) saturate(1.2)',
                   transform: 'translateZ(0)',
                   backfaceVisibility: 'hidden'
                 }}
@@ -380,7 +375,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
       </section>
 
       {/* Story Section - Vertical Timeline */}
-      <section id="story" className="py-24 relative overflow-hidden">
+      <section id="story" className="py-10 md:py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -557,7 +552,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
       </section>
 
       {/* Global Reach Section */}
-      <section id="presence" className="py-24 relative overflow-hidden">
+      <section id="presence" className="py-10 md:py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -614,7 +609,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
       </section>
 
       {/* Strategy Section */}
-      <section id="strategy" className="py-24 relative overflow-hidden">
+      <section id="strategy" className="py-10 md:py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -693,7 +688,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
       </section>
 
       {/* Vision Section - Horizontal Timeline */}
-      <section id="vision" className="py-24 relative overflow-hidden">
+      <section id="vision" className="py-10 md:py-24 relative overflow-hidden">
         {/* Parallax Background */}
         <VisionSectionBackground isDarkMode={isDarkMode} />
         
@@ -771,7 +766,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
       </section>
 
       {/* Final CTA */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-10 md:py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
