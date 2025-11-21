@@ -371,6 +371,7 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
   // Filter for source display: 'all', 'accepted', 'rejected'
   // DEFAULT TO 'all' TO SEE ALL SOURCES INITIALLY
   const [sourceFilter, setSourceFilter] = useState<'all' | 'accepted' | 'rejected'>('all');
+  const [thinkingExpandedMap, setThinkingExpandedMap] = useState<Record<string, boolean>>({});
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1494,6 +1495,8 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
             // Get research session for this message if it's an assistant message
             const messageId = message.timestamp?.getTime?.()?.toString() || '';
             const researchSession = message.role === 'assistant' ? researchSessions.get(messageId) : null;
+            const thinkingKey = messageId || `thinking-${index}`;
+            const isThinkingExpanded = !!thinkingExpandedMap[thinkingKey];
             
             // PHASE 3 FIX: Only show research panel when we have actual sources loaded
             // Don't show it just because research is active - prevents empty panel flash
@@ -1898,69 +1901,70 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                   )}
                   
                   {/* 🧠 PHASE 2.4: THINKING INDICATOR - Cursor Style */}
-                  {message.thinkingContent && (() => {
-                    const [thinkingExpanded, setThinkingExpanded] = useState(false);
-                    
-                    return (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="thinking-section mb-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800/50 shadow-sm"
-                      >
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="flex items-center gap-2">
-                            <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
-                            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                              AI Reasoning Process
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => setThinkingExpanded(!thinkingExpanded)}
-                            className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 rounded px-2 py-1"
-                            aria-label={thinkingExpanded ? "Collapse thinking" : "Expand thinking"}
-                          >
-                            {thinkingExpanded ? 'Collapse' : 'Expand'}
-                          </button>
+                  {message.thinkingContent && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="thinking-section mb-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800/50 shadow-sm"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                            AI Reasoning Process
+                          </span>
                         </div>
-                        
-                        <AnimatePresence>
-                          {thinkingExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className="text-sm text-blue-700 dark:text-blue-300 space-y-2 font-mono"
-                            >
-                              {message.thinkingContent.split('\n').map((line, i) => {
-                                const numberMatch = line.match(/^(\d+)\./);
-                                if (numberMatch) {
-                                  return (
-                                    <div key={i} className="flex gap-2">
-                                      <span className="text-blue-500 dark:text-blue-400 font-bold flex-shrink-0">
-                                        {numberMatch[1]}.
-                                      </span>
-                                      <span className="flex-1">{line.replace(/^\d+\.\s*/, '')}</span>
-                                    </div>
-                                  );
-                                }
+                        <button
+                          onClick={() => {
+                            setThinkingExpandedMap((prev) => ({
+                              ...prev,
+                              [thinkingKey]: !prev[thinkingKey],
+                            }));
+                          }}
+                          className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 rounded px-2 py-1"
+                          aria-label={isThinkingExpanded ? "Collapse thinking" : "Expand thinking"}
+                        >
+                          {isThinkingExpanded ? 'Collapse' : 'Expand'}
+                        </button>
+                      </div>
+                      
+                      <AnimatePresence>
+                        {isThinkingExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="text-sm text-blue-700 dark:text-blue-300 space-y-2 font-mono"
+                          >
+                            {message.thinkingContent.split('\n').map((line, i) => {
+                              const numberMatch = line.match(/^(\d+)\./);
+                              if (numberMatch) {
                                 return (
                                   <div key={i} className="flex gap-2">
-                                    <span className="flex-1">{line}</span>
+                                    <span className="text-blue-500 dark:text-blue-400 font-bold flex-shrink-0">
+                                      {numberMatch[1]}.
+                                    </span>
+                                    <span className="flex-1">{line.replace(/^\d+\.\s*/, '')}</span>
                                   </div>
                                 );
-                              })}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                        
-                        <div className="mt-2 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                          <Zap className="w-3 h-3" />
-                          <span>Technique: {message.cotTechnique || 'Zero-Shot CoT'}</span>
-                        </div>
-                      </motion.div>
-                    );
-                  })()}
+                              }
+                              return (
+                                <div key={i} className="flex gap-2">
+                                  <span className="flex-1">{line}</span>
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      
+                      <div className="mt-2 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        <span>Technique: {message.cotTechnique || 'Zero-Shot CoT'}</span>
+                      </div>
+                    </motion.div>
+                  )}
                 
                   {/* Memory narrative - conversation context (subtle, greyed, disappears when answer starts) */}
                   {message.memoryNarrative && (
