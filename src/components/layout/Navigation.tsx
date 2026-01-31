@@ -1,10 +1,9 @@
 import React from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
   Sun,
-  Moon,
-  Bot
+  Moon
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo'
@@ -18,7 +17,6 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => {
   const location = useLocation()
-  const navigate = useNavigate()
   const { scrollDirection } = useScrollDirection({ threshold: 20 })
 
   const navigationItems = [
@@ -59,6 +57,14 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
   
   // Debug logging
   React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const qs = new URLSearchParams(window.location.search)
+      const debugEnabled = qs.has('debugNav') || (window as any).__DEBUG_NAV === true
+      if (!debugEnabled) return
+    } catch {
+      if ((window as any).__DEBUG_NAV !== true) return
+    }
     console.log('Scroll Direction:', scrollDirection, '| Header:', showMobileHeader, '| Dock:', showDock)
   }, [scrollDirection, showMobileHeader, showDock])
 
@@ -110,16 +116,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
               >
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
-              
-              <Button 
-                variant="gradient" 
-                size="sm"
-                onClick={() => navigate('/assistant')}
-                className="inline-flex items-center justify-center gap-2"
-              >
-                <Bot className="w-4 h-4" />
-                Ask AI
-              </Button>
             </div>
           </div>
         </div>
@@ -161,16 +157,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
                 aria-label="Toggle theme"
               >
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </Button>
-              
-              <Button 
-                variant="gradient" 
-                size="icon"
-                onClick={() => navigate('/assistant')}
-                className="w-10 h-10"
-                aria-label="Ask AI"
-              >
-                <Bot className="w-5 h-5" />
               </Button>
             </div>
           </div>

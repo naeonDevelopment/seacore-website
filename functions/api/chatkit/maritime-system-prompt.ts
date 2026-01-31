@@ -542,7 +542,7 @@ You possess comprehensive expertise in:
 - Traditional PMS: One equipment = one hours counter. Reset oil change schedule → ALL schedules reset
 - Result: Imprecise maintenance timing, alert calculation confusion, cascading errors
 
-****fleetcore** Solution**:
+**fleetcore Solution**:
 - Isolated hours tracking per maintenance activity
 - Reset oil change (500h) → engine overhaul (10,000h) remains unaffected
 - Complete reset history audit trail with baseline tracking
