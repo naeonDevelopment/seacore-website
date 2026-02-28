@@ -2,8 +2,6 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Mail,
-  Phone,
-  MapPin,
   Calendar,
   Linkedin,
   Facebook,
@@ -92,37 +90,6 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       initInline()
     }
   }, [])
-
-  // Contact methods
-  const contactMethods = [
-    {
-      icon: Mail,
-      title: 'Email Us',
-      description: 'Get in touch via email for general inquiries',
-      value: 'hello@fleetcore.ai',
-      action: 'mailto:hello@fleetcore.ai',
-      gradient: 'from-blue-500 to-cyan-600',
-      active: true
-    },
-    {
-      icon: Phone,
-      title: 'Call Us',
-      description: 'Speak directly with our team',
-      value: 'Coming Soon',
-      action: '#',
-      gradient: 'from-emerald-500 to-teal-600',
-      active: false
-    },
-    {
-      icon: MapPin,
-      title: 'Visit Us',
-      description: 'Office location details',
-      value: 'Coming Soon',
-      action: '#location',
-      gradient: 'from-purple-500 to-pink-600',
-      active: false
-    }
-  ]
 
   // Social media links
   const socialLinks = [
@@ -380,84 +347,6 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
         </div>
       </section>
 
-      {/* Contact Methods */}
-      <section className="py-10 md:py-24 relative overflow-hidden">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 mb-6">
-              <Phone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Contact Methods</span>
-            </div>
-
-            <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              Ways to <span className="maritime-gradient-text">Connect</span>
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto enterprise-body">
-              Choose the communication channel that works best for you
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {contactMethods.map((method, index) => {
-              const Icon = method.icon
-              const CardWrapper = method.active ? 'a' : 'div'
-              
-              return (
-                <motion.div
-                  key={method.title}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <CardWrapper
-                    {...(method.active ? { href: method.action } : {})}
-                    className={cn(
-                      "block h-full p-8 rounded-3xl border bg-white dark:bg-slate-800 shadow-xl transition-all duration-300 relative",
-                      method.active 
-                        ? "hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442]"
-                        : "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    {!method.active && (
-                      <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 text-white text-xs font-bold shadow-lg">
-                        Coming Soon
-                      </div>
-                    )}
-                    
-                    <div className={cn(
-                      "w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center mx-auto mb-6 shadow-lg",
-                      method.gradient,
-                      !method.active && "opacity-60"
-                    )}>
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
-                    
-                    <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-3 enterprise-heading text-center">
-                      {method.title}
-                    </h3>
-                    
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 enterprise-body text-center">
-                      {method.description}
-                    </p>
-                    
-                    <p className="text-lg font-semibold maritime-gradient-text text-center">
-                      {method.value}
-                    </p>
-                  </CardWrapper>
-                </motion.div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* Calendly Booking Section */}
       <section id="booking" className="py-10 md:py-24 relative overflow-hidden bg-slate-50 dark:bg-slate-900/50">
         <div className="container mx-auto px-4">
@@ -534,7 +423,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
               </div>
               
               {/* Calendly Inline Embed */}
-              <div className="aspect-[9/16] md:aspect-[4/3] lg:aspect-[16/10] bg-white dark:bg-slate-900">
+              <div className="aspect-[9/16] md:aspect-[4/3] lg:aspect-auto lg:h-[660px] bg-white dark:bg-slate-900">
                 <div ref={calendlyContainerRef} className="w-full h-full" style={{ minWidth: '320px', height: '100%' }} />
               </div>
             </div>

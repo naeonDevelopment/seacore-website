@@ -27,6 +27,10 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
       icon: Database,
       content: [
         {
+          subtitle: 'Data Controller',
+          text: 'The Data Controller for your personal information is FLEETCORE LTD (trade name: fleetcore), a Private Company Limited by Shares registered in the Abu Dhabi Global Market (ADGM), United Arab Emirates — Company Registration No. 35547, registered office: Office 2201.C11-D04, Floor 22, Sky Tower, Shams Abu Dhabi, Al Reem Island, Abu Dhabi, United Arab Emirates. Contact: hello@fleetcore.ai'
+        },
+        {
           subtitle: 'Personal Information',
           text: 'When you interact with fleetcore, we may collect the following personal information:',
           list: [
@@ -99,6 +103,16 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
             'Respond to legal requests and prevent fraud',
             'Enforce our terms of service and protect user rights',
             'Maintain audit trails for regulatory compliance'
+          ]
+        },
+        {
+          subtitle: 'Lawful Basis for Processing',
+          text: 'Under the ADGM Data Protection Regulations 2021 (Art. 5), we rely on the following legal bases:',
+          list: [
+            'Contract performance (Art. 5(1)(b)): Service delivery, account management, maintenance scheduling and platform operation',
+            'Legitimate interests (Art. 5(1)(f)): Platform improvement, analytics, AI model development, fraud prevention and security — our legitimate interests are not overridden by your rights',
+            'Legal obligation (Art. 5(1)(c)): Responding to legal requests, maintaining audit trails, SOLAS/MARPOL compliance recordkeeping',
+            'Consent (Art. 5(1)(a)): Marketing communications and non-essential analytics cookies — you may withdraw consent at any time without affecting prior lawful processing'
           ]
         }
       ]
@@ -200,14 +214,18 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
           text: 'You can request restriction of processing or object to certain uses of your data, such as analytics or profiling.'
         },
         {
-          subtitle: 'Regional Rights',
-          text: 'Depending on your location, you may have additional rights:',
+          subtitle: 'ADGM Data Protection Rights (Primary Applicable Law)',
+          text: 'As a company registered in the Abu Dhabi Global Market, we are subject to the ADGM Data Protection Regulations 2021 (DPR 2021). Under Art. 13–19, all data subjects have the right to: access (Art. 13), rectification (Art. 14), erasure (Art. 15), restriction of processing (Art. 16), data portability (Art. 18), and objection to processing (Art. 19). You also have the right to withdraw consent at any time (Art. 6(3)); withdrawal does not affect the lawfulness of prior processing.',
           list: [
             'GDPR (EU/EEA): Right to data portability, right to be forgotten, right to restrict processing',
-            'CCPA (California): Right to know what data is collected, right to opt-out of sale (we do not sell data)',
             'UK GDPR: Similar rights to EU GDPR',
+            'CCPA (California): Right to know what data is collected, right to opt-out of sale (we do not sell data)',
             'Other jurisdictions: Contact us for information about your local privacy rights'
           ]
+        },
+        {
+          subtitle: 'Right to Lodge a Complaint (Art. 11(2)(d))',
+          text: 'You have the right to lodge a complaint with the ADGM Commissioner of Data Protection (Office of Data Protection — ODP) without prejudice to any other administrative or judicial remedy. The ODP can be reached at: https://www.adgm.com/operating-in-adgm/office-of-data-protection/overview. You may also refer the ODP\'s handling of your complaint to the ADGM Court within 3 months of their decision.'
         }
       ]
     },
@@ -281,10 +299,11 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
           subtitle: 'Transfer Safeguards',
           text: 'We ensure adequate protection for international data transfers through:',
           list: [
-            'Standard Contractual Clauses (SCCs) approved by the European Commission',
-            'Adequacy decisions for countries with equivalent data protection laws',
-            'Privacy Shield frameworks where applicable',
-            'Contractual obligations with data processors in third countries'
+            'ADGM Standard Contractual Clauses (SCCs) adopted by the ADGM Commissioner of Data Protection on 11 August 2021 (Art. 42(2) ADGM DPR 2021)',
+            'EU Standard Contractual Clauses (EU Commission 2021 SCCs) where the ADGM Commissioner has approved their equivalency under Art. 42(2)',
+            'Adequacy decisions: transfers to jurisdictions assessed as adequate by the ADGM Commissioner (including EU and UK) under Art. 41',
+            'Binding Corporate Rules (BCRs) approved under Art. 43 ADGM DPR 2021',
+            'Explicit consent of the data subject after being informed of the risks (Art. 44(1)(a)), for infrequent transfers only'
           ]
         },
         {
@@ -391,11 +410,11 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
             <div className="flex flex-wrap gap-4 justify-center text-sm text-slate-600 dark:text-slate-400">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                <span><strong>Last Updated:</strong> January 20, 2025</span>
+                <span><strong>Last Updated:</strong> 27 February 2026</span>
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4" />
-                <span><strong>Effective Date:</strong> January 1, 2025</span>
+                <span><strong>Effective Date:</strong> 27 February 2026</span>
               </div>
             </div>
           </motion.div>
@@ -527,14 +546,28 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
                   <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   <div>
                     <div className="text-sm font-medium text-slate-700 dark:text-slate-300">Location</div>
-                    <span className="text-slate-600 dark:text-slate-400">Dubai, United Arab Emirates</span>
+                    <span className="text-slate-600 dark:text-slate-400">Abu Dhabi Global Market (ADGM), Abu Dhabi, United Arab Emirates</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <div className="text-sm font-medium text-slate-700 dark:text-slate-300">Supervisory Authority</div>
+                    <a
+                      href="https://www.adgm.com/registration-authority/complaints/submit-a-complaint"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                    >
+                      ADGM Office of Data Protection — Lodge a Complaint
+                    </a>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    We will respond to privacy inquiries within 30 days. For urgent data protection concerns, 
-                    please mark your email as "URGENT: Privacy Request."
+                    We will respond to privacy inquiries within two months of receipt (Art. 10(3) ADGM DPR 2021). For complex or numerous requests, this may be extended by one further month; we will notify you within two months of receipt if an extension is required. For urgent data protection concerns, please mark your email as "URGENT: Privacy Request."
                   </p>
                 </div>
               </div>

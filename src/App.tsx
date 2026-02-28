@@ -10,6 +10,7 @@ import AboutPage from '@/pages/AboutPage'
 import ContactPage from '@/pages/ContactPage'
 import AssistantPage from '@/pages/AssistantPage'
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage'
+import ImprintPage from '@/pages/ImprintPage'
 import CookieConsentModal from '@/components/ui/CookieConsentModal'
 import { initializeConsent } from '@/utils/cookieConsent'
 import '@/styles/globals.css'
@@ -61,6 +62,9 @@ function AppLayout({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDark
             
             {/* Privacy Policy Route */}
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+
+            {/* Imprint Route */}
+            <Route path="/imprint" element={<ImprintPage />} />
             
             {/* 404 Route */}
             <Route path="*" element={<div className="pt-24 p-8 text-center">Page Not Found</div>} />

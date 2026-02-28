@@ -1,7 +1,8 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { 
-  Mail, 
+  Mail,
+  MapPin,
   Linkedin
 } from 'lucide-react'
 import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo'
@@ -26,6 +27,7 @@ export const Footer: React.FC<FooterProps> = () => {
     ],
     resources: [
       { label: 'Contact', href: '/contact' },
+      { label: 'Imprint', href: '/imprint' },
       { label: 'Privacy Policy', href: '/privacy-policy' }
     ]
   }
@@ -57,9 +59,13 @@ export const Footer: React.FC<FooterProps> = () => {
                 href="mailto:hello@fleetcore.ai" 
                 className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm group justify-center md:justify-start"
               >
-                <Mail className="w-4 h-4" />
+                <Mail className="w-4 h-4 shrink-0" />
                 <span>hello@fleetcore.ai</span>
               </a>
+              <div className="flex items-start gap-2 text-slate-400 text-sm justify-center md:justify-start">
+                <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>Office 2201.C11-D04, Floor 22, Sky Tower,<br />Shams Abu Dhabi, Al Reem Island,<br />Abu Dhabi, United Arab Emirates</span>
+              </div>
             </div>
           </div>
 
