@@ -11,15 +11,15 @@ enabled = true
 # KV Namespace for Session Caching (short-term memory)
 [[kv_namespaces]]
 binding = "CHAT_SESSIONS"
-id = "cb4530d9f96b49929d357a7d15c1864a"
-preview_id = "01291c648a5a4669950780c9e180aa26"
+id = "7e1ea6a8f95344f1b9819d4b0c4c33be"
+preview_id = "3ec465ff79734cc8a833e16c6ea111f8"
 
 # D1 Database for Persistent Memory (cross-session storage)
 [[d1_databases]]
 binding = "MARITIME_MEMORY"
 database_name = "maritime-intelligence-memory"
-database_id = "4db2707d-463b-4991-933e-a58a73a42aa9"
-preview_database_id = "4db2707d-463b-4991-933e-a58a73a42aa9"
+database_id = "1f59ed38-d6cf-470e-bbd4-eea26528390c"
+preview_database_id = "2c8b49de-1dc3-4885-a92b-e86ee51481d3"
 
 # Vectorize Index for Semantic Search
 [[vectorize]]
