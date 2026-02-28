@@ -2254,7 +2254,7 @@ WRONG FORMAT (DO NOT DO THIS):
     
     // FleetCore entity mapping is disabled per user feedback.
     // To re-enable, restore generateEntityFleetcoreMapping call here.
-    const finalContent = fullContent;
+    let finalContent = fullContent;
     
     // 🔄 REFLEXION LOOP: Self-healing research for vessel queries
     // Guarantees zero "Not found" by iteratively filling data gaps
