@@ -21,8 +21,8 @@ const ProcessStep: React.FC<ProcessStepProps> = ({
   title,
   description,
   features,
-  icon: Icon,
-  gradient,
+  icon: _Icon,
+  gradient: _gradient,
   delay = 0,
   isLast = false,
   className

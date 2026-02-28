@@ -12,9 +12,11 @@ declare namespace JSX {
   }
 }
 
-// Extend Window for Calendly (existing)
+// Global Window extensions
 interface Window {
   Calendly?: {
+    initInlineWidget: (options: { url: string; parentElement: HTMLElement }) => void;
     initPopupWidget: (options: { url: string; parentElement?: HTMLElement; embedType?: string }) => void;
   };
+  __activeSessionId?: string;
 }

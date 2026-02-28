@@ -101,7 +101,7 @@ export function generateKeywords(
  */
 export function generateInternalLinks(
   currentPage: string,
-  pageContent: string
+  _pageContent: string
 ): InternalLink[] {
   const linkMap: Record<string, InternalLink[]> = {
     '/': [
@@ -247,7 +247,7 @@ export function generateInternalLinks(
  */
 export function generateRelatedContent(
   currentPage: string,
-  userInterests: string[] = []
+  _userInterests: string[] = []
 ): RelatedContent[] {
   const contentMap: Record<string, RelatedContent[]> = {
     '/': [
@@ -318,7 +318,8 @@ export function generateBreadcrumbs(pathname: string): Breadcrumb[] {
     '/about': 'About',
     '/contact': 'Contact',
     '/assistant': 'AI Assistant',
-    '/privacy-policy': 'Privacy Policy'
+    '/privacy-policy': 'Privacy Policy',
+    '/imprint': 'Imprint'
   };
 
   if (pathname !== '/' && pathMap[pathname]) {

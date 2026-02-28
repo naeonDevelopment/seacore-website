@@ -159,8 +159,11 @@ export function preloadVideo(src: string, type: string = 'video/mp4'): Promise<v
     video.onloadeddata = () => resolve();
     video.onerror = reject;
     video.preload = 'metadata';
-    video.src = src;
-    video.type = type;
+    // Use a <source> element to set type, as HTMLVideoElement does not have a .type property
+    const source = document.createElement('source');
+    source.src = src;
+    source.type = type;
+    video.appendChild(source);
   });
 }
 

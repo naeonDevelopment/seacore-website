@@ -26,30 +26,27 @@ const SAFE_ERROR_MAP: Record<string, string> = {
 };
 
 /**
- * Sanitize error for client response
- * Logs full error server-side, returns safe message to client
+ * Sanitize error for client response.
+ * Logs full error server-side; returns a safe generic message to the client.
+ * Pass isDev=true (e.g. env.ENVIRONMENT === 'development') to include debug info.
  */
-export function sanitizeError(error: any, context?: string): SanitizedError {
-  // Log full error server-side (for debugging)
+export function sanitizeError(error: unknown, context?: string, isDev = false): SanitizedError {
+  const err = error as Record<string, unknown> | null | undefined;
   console.error('[ERROR]', {
     context: context || 'unknown',
-    message: error?.message,
-    name: error?.name,
+    message: err?.message,
+    name: err?.name,
     timestamp: new Date().toISOString(),
-    // Only log stack in development
-    ...(process.env.NODE_ENV === 'development' && { stack: error?.stack })
+    ...(isDev && { stack: err?.stack }),
   });
-  
-  const errorMessage = error?.message || error?.toString() || 'Unknown error';
-  const safeMessage = SAFE_ERROR_MAP[errorMessage] || 'An error occurred while processing your request';
-  
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  
+
+  const errorMessage = (err?.message as string) || String(error) || 'Unknown error';
+  const safeMessage = SAFE_ERROR_MAP[errorMessage] ?? 'An error occurred while processing your request';
+
   return {
     error: safeMessage,
-    code: error?.code || 'INTERNAL_ERROR',
-    // Only include debug info in development
-    ...(isDevelopment && { debug: errorMessage })
+    code: (err?.code as string) || 'INTERNAL_ERROR',
+    ...(isDev && { debug: errorMessage }),
   };
 }
 
@@ -57,12 +54,13 @@ export function sanitizeError(error: any, context?: string): SanitizedError {
  * Create error response with sanitized message
  */
 export function createErrorResponse(
-  error: any, 
-  status: number = 500, 
+  error: unknown,
+  status: number = 500,
   headers: Record<string, string> = {},
-  context?: string
+  context?: string,
+  isDev = false
 ): Response {
-  const sanitized = sanitizeError(error, context);
+  const sanitized = sanitizeError(error, context, isDev);
   
   return new Response(
     JSON.stringify(sanitized),

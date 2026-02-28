@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, X, Menu, Trash2, List } from 'lucide-react';
+import { Plus, MessageSquare, X, Trash2, List } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Session } from '@/hooks/useSessions';
 

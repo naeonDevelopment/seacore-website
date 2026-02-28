@@ -8,6 +8,7 @@ import { FleetCoreLogo } from '@/components/ui/FleetCoreLogo';
 import { useSessions } from '@/hooks/useSessions';
 import { cn } from '@/utils/cn';
 
+
 interface AssistantPageProps {
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -40,7 +41,7 @@ const AssistantPage: React.FC<AssistantPageProps> = ({ darkMode, toggleDarkMode 
   
   // Expose activeSessionId to window for ChatInterface cache management
   useEffect(() => {
-    (window as any).__activeSessionId = activeSessionId;
+    window.__activeSessionId = activeSessionId;
   }, [activeSessionId]);
 
   // Detect mobile

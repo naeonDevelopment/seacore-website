@@ -8,7 +8,7 @@ import React from 'react';
 import { useLazyLoad } from '@/hooks/useLazyLoad';
 import { cn } from '@/utils/cn';
 
-interface OptimizedImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'loading'> {
+interface OptimizedImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'loading' | 'onError' | 'onLoad'> {
   src: string;
   alt: string;
   width?: number;

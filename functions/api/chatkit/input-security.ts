@@ -320,58 +320,11 @@ export function validateInput(input: string): ValidationResult {
 }
 
 // =====================
-// RATE LIMITING
+// RATE LIMITING — REMOVED
 // =====================
-
-/**
- * Rate limit tracker using in-memory Map
- * Production: Use Redis or Cloudflare KV
- */
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-/**
- * Check rate limit for a session
- * Default: 10 requests per minute
- */
-export function checkRateLimit(
-  sessionId: string,
-  maxRequests: number = 10,
-  windowMs: number = 60000 // 1 minute
-): RateLimitResult {
-  const now = Date.now();
-  const key = sessionId;
-  
-  // Get current rate limit state
-  let state = rateLimitStore.get(key);
-  
-  // Reset if window expired
-  if (!state || now >= state.resetAt) {
-    state = {
-      count: 0,
-      resetAt: now + windowMs,
-    };
-  }
-  
-  // Check if limit exceeded
-  if (state.count >= maxRequests) {
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt: state.resetAt,
-      reason: `Rate limit exceeded (${maxRequests} requests per ${windowMs / 1000}s)`,
-    };
-  }
-  
-  // Increment count and store
-  state.count++;
-  rateLimitStore.set(key, state);
-  
-  return {
-    allowed: true,
-    remaining: maxRequests - state.count,
-    resetAt: state.resetAt,
-  };
-}
+// The in-memory checkRateLimit (Map-based) has been removed because Cloudflare Workers
+// are stateless: each instance has its own memory, so per-instance Maps cannot enforce
+// global rate limits. Use rate-limiter.ts (KV-based) for all rate limiting.
 
 // =====================
 // AUDIT LOGGING

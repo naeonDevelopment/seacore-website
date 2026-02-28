@@ -2252,29 +2252,9 @@ WRONG FORMAT (DO NOT DO THIS):
       statusEmitter
     );
     
-    // P0 FIX: Fleetcore mapping disabled per user request
-    // User feedback: "remove this section from the answers"
-    // ENHANCEMENT: Generate individualized fleetcore mapping for entities
-    // This is the KEY ADDITION - automatically append entity-specific fleetcore applications
-    const ENABLE_FLEETCORE_MAPPING = false; // TODO: Make this a user preference
-    
-    let fleetcoreMapping: FleetcoreApplicationMapping | null = null;
-    if (ENABLE_FLEETCORE_MAPPING) {
-      fleetcoreMapping = await generateEntityFleetcoreMapping(
-        userQuery,
-        fullContent,
-        sessionMemory,
-        statusEmitter
-      );
-    }
-    
-    // If we generated a mapping, append it to the response
-    let finalContent = fullContent;
-    if (ENABLE_FLEETCORE_MAPPING && fleetcoreMapping) {
-      const mappingMarkdown = formatMappingAsMarkdown(fleetcoreMapping);
-      finalContent = fullContent + mappingMarkdown;
-      console.log(`   ✨ Added fleetcore mapping for ${fleetcoreMapping.entityName} (${fleetcoreMapping.features.length} features)`);
-    }
+    // FleetCore entity mapping is disabled per user feedback.
+    // To re-enable, restore generateEntityFleetcoreMapping call here.
+    const finalContent = fullContent;
     
     // 🔄 REFLEXION LOOP: Self-healing research for vessel queries
     // Guarantees zero "Not found" by iteratively filling data gaps

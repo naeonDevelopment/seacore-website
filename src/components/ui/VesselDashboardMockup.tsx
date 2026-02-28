@@ -1,16 +1,12 @@
 import React, { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/utils/cn'
-import { 
-  BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  PieChart, 
-  Pie, 
-  Cell, 
-  XAxis, 
-  YAxis, 
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
   ResponsiveContainer,
   Area,
   AreaChart
@@ -22,7 +18,6 @@ import {
   Brain, 
   Settings, 
   HelpCircle,
-  Activity,
   Database,
   Shield
 } from 'lucide-react'
@@ -57,11 +52,7 @@ const pieData = [
 ]
 
 const VesselDashboardMockup: React.FC<VesselDashboardMockupProps> = ({ className, isDarkMode = false }) => {
-  const [hoveredElement, setHoveredElement] = useState<string | null>(null)
-  const [scrollY, setScrollY] = useState(0)
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    setScrollY(e.currentTarget.scrollTop)
+  const handleScroll = (_e: React.UIEvent<HTMLDivElement>) => {
     // Hide all tooltips during scroll to prevent positioning issues
     const tooltipElements = document.querySelectorAll('[data-tooltip-trigger]');
     tooltipElements.forEach((element) => {

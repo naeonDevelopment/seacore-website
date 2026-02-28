@@ -36,25 +36,26 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // ✅ SECURITY: Request size limit (100 KB)
+  // ✅ SECURITY: Actual body size check (not spoofable Content-Length header)
   const MAX_REQUEST_SIZE = 100 * 1024;
-  const contentLength = request.headers.get('content-length');
-  if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
-    return new Response(
-      JSON.stringify({ 
-        error: 'Request too large',
-        code: 'REQUEST_TOO_LARGE',
-        maxSize: '100 KB'
-      }),
-      { 
-        status: 413, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-      }
-    );
-  }
 
   try {
-    const body = await request.json() as {
+    const rawBuffer = await request.arrayBuffer();
+    if (rawBuffer.byteLength > MAX_REQUEST_SIZE) {
+      return new Response(
+        JSON.stringify({
+          error: 'Request too large',
+          code: 'REQUEST_TOO_LARGE',
+          maxSize: '100 KB'
+        }),
+        {
+          status: 413,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        }
+      );
+    }
+
+    const body = JSON.parse(new TextDecoder().decode(rawBuffer)) as {
       messages: Array<{ role: string; content: string }>;
       sessionId: string;
       enableBrowsing?: boolean;
@@ -91,28 +92,26 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       }
     }
 
-    // ✅ SECURITY: Input validation enforcement
-    const lastUserMessage = messages[messages.length - 1];
-    if (lastUserMessage?.role === 'user') {
-      const sanitized = sanitizeUserInput(lastUserMessage.content);
+    // ✅ SECURITY: Validate ALL user messages, not only the last one
+    for (const msg of messages) {
+      if (msg.role !== 'user') continue;
+      const sanitized = sanitizeUserInput(msg.content);
       const validation = validateInput(sanitized.content);
-
       if (!validation.valid || validation.risk === 'high') {
         console.warn('[SECURITY] Input validation failed:', {
           sessionId: sessionId.substring(0, 8) + '...',
           errors: validation.errors,
-          risk: validation.risk
+          risk: validation.risk,
         });
-        
         return new Response(
           JSON.stringify({
             error: 'Security validation failed',
             code: 'INVALID_INPUT',
-            reason: validation.errors.join(', ') || 'High risk input detected'
+            reason: 'High risk input detected',
           }),
-          { 
-            status: 400, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders },
           }
         );
       }

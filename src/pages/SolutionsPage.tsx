@@ -2,28 +2,21 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { 
+import {
   ArrowRight,
-  Brain,
   Database,
   Calendar,
   Zap,
   Shield,
   TrendingUp,
-  CheckCircle,
   AlertTriangle,
   Clock,
-  DollarSign,
   Settings,
-  BarChart3,
   Network,
   Layers,
-  Bot,
   Cpu,
   LineChart,
   Activity,
-  Target,
-  Workflow,
   GitBranch,
   Globe,
   Package,

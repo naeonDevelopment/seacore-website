@@ -76,7 +76,7 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
   return (
     <>
       {/* Desktop Header - Always Visible */}
-      <nav className="hidden lg:block fixed top-0 left-0 right-0 z-[2147483500] maritime-glass border-b border-white/20 dark:border-slate-700/30">
+      <nav className="hidden lg:block fixed top-0 left-0 right-0 z-50 maritime-glass border-b border-white/20 dark:border-slate-700/30">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -135,7 +135,7 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
           willChange: 'transform',
           backfaceVisibility: 'hidden' as const
         }}
-        className="lg:hidden fixed top-0 left-0 right-0 z-[2147483500] maritime-glass border-b border-white/20 dark:border-slate-700/30"
+        className="lg:hidden fixed top-0 left-0 right-0 z-50 maritime-glass border-b border-white/20 dark:border-slate-700/30"
       >
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
@@ -177,7 +177,7 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
           willChange: 'transform',
           backfaceVisibility: 'hidden' as const
         }}
-        className="fixed bottom-0 left-0 right-0 z-[2147482500] lg:hidden pb-4 px-3"
+        className="fixed bottom-0 left-0 right-0 z-40 lg:hidden pb-4 px-3"
       >
         <div className={cn(
           "maritime-glass border border-white/20 dark:border-slate-700/30",

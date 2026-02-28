@@ -474,9 +474,9 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
                 <div className="space-y-6 ml-16">
                   {section.content.map((item, itemIndex) => (
                     <div key={itemIndex} className="space-y-3">
-                      {item.subtitle && (
+                      {'subtitle' in item && item.subtitle && (
                         <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
-                          {item.subtitle}
+                          {item.subtitle as string}
                         </h3>
                       )}
                       {item.text && (

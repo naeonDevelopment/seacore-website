@@ -59,13 +59,12 @@ export async function checkRateLimit(
       resetAt
     };
   } catch (error) {
-    console.error('[RATE_LIMIT] KV error:', error);
-    // Fail open: Allow request if KV is down (log for monitoring)
-    console.warn('[RATE_LIMIT] Allowing request due to KV error');
+    console.error('[RATE_LIMIT] KV error — failing closed to prevent rate limit bypass:', error);
     return {
-      allowed: true,
-      remaining: limit,
-      resetAt: now + windowSeconds
+      allowed: false,
+      remaining: 0,
+      resetAt: now + windowSeconds,
+      retryAfter: 10,
     };
   }
 }
@@ -155,12 +154,15 @@ export async function checkMultiTierRateLimit(
  * Generate rate limit headers for response
  * Standard RateLimit headers (RFC 6585)
  */
+// IP-tier limit (the most restrictive exposed to clients)
+const IP_RATE_LIMIT = 30;
+
 export function getRateLimitHeaders(result: RateLimitResult): Record<string, string> {
   return {
-    'X-RateLimit-Limit': '30', // Requests per window
+    'X-RateLimit-Limit': IP_RATE_LIMIT.toString(),
     'X-RateLimit-Remaining': result.remaining.toString(),
     'X-RateLimit-Reset': result.resetAt.toString(),
-    ...(result.retryAfter && { 'Retry-After': result.retryAfter.toString() })
+    ...(result.retryAfter && { 'Retry-After': result.retryAfter.toString() }),
   };
 }
 

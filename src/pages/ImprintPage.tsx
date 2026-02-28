@@ -238,9 +238,17 @@ export const ImprintPage: React.FC<ImprintPageProps> = () => {
         <meta property="og:description" content="Legal notice and company information for FLEETCORE LTD, registered in the Abu Dhabi Global Market (ADGM), UAE." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/imprint" />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:image" content="https://fleetcore.ai/og/home.png" />
+        <meta property="og:image:secure_url" content="https://fleetcore.ai/og/home.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="fleetcore — Agentic Maritime Intelligence Platform" />
+        <meta property="og:locale" content="en_US" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="fleetcore Imprint — Legal Notice" />
         <meta name="twitter:description" content="Legal notice and company information for FLEETCORE LTD, registered in ADGM, Abu Dhabi, UAE." />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/home.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

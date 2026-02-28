@@ -662,7 +662,7 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
 
                   {/* Features Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {category.features.map((feature, featureIndex) => {
+                    {category.features.map((feature) => {
                       const FeatureIcon = feature.icon
                       return (
                         <div

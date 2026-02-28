@@ -328,13 +328,26 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
   const streamingIndexRef = useRef<number | null>(null);
   const lastMessageCountRef = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  const pendingTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [, setCurrentThinkingStep] = useState<number>(0); // kept for future CoT animations
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const thinkingStartTimeRef = useRef<number | null>(null);
   const firstContentTimeRef = useRef<number | null>(null);
-  
+
   // Tracking ref for source display logging (prevent log spam)
   const lastSourceDisplayLogRef = useRef<{ count: number; filter: string; messageId: string } | null>(null);
+
+  // Cleanup: mark unmounted and clear all pending timeouts to prevent post-unmount state updates
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pendingTimeoutsRef.current.forEach(clearTimeout);
+      pendingTimeoutsRef.current = [];
+      abortControllerRef.current?.abort();
+    };
+  }, []);
   
   // CRITICAL FIX: Use external research sessions if provided, otherwise use internal state
   const [internalResearchSessions, setInternalResearchSessions] = useState<Map<string, ResearchSession>>(new Map());
@@ -955,13 +968,15 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                             const idx = streamingIndexRef.current;
                             if (idx != null) {
                               // Brief delay so user sees sources, then collapse
-                              setTimeout(() => {
+                              const tid1 = setTimeout(() => {
+                                if (!mountedRef.current) return;
                                 setExpandedSources((prev) => {
                                   const ns = new Set(prev);
                                   ns.delete(idx as number);
                                   return ns;
                                 });
                               }, 1200);
+                              pendingTimeoutsRef.current.push(tid1);
                             } else {
                               // Content not started yet; collapse after panel opens
                               (session as any).autoCollapsePending = true;
@@ -1140,13 +1155,15 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
                           if (session && (hasManySources || pendingAuto)) {
                             (session as any).autoCollapsePending = false;
                             updated.set(assistantMessageId, session);
-                            setTimeout(() => {
+                            const tid2 = setTimeout(() => {
+                              if (!mountedRef.current) return;
                               setExpandedSources((prev2) => {
                                 const ns2 = new Set(prev2);
                                 ns2.delete(newMessageIndex);
                                 return ns2;
                               });
                             }, 1200);
+                            pendingTimeoutsRef.current.push(tid2);
                           }
                           return updated;
                         });
@@ -1359,13 +1376,15 @@ I'm your **AI Maritime Maintenance Expert** – powered by specialized maritime 
           // AUTO-COLLAPSE: Close the panel 2 seconds after answer finishes streaming
           // This keeps the chat clean while allowing users to see sources during research
           if (completedIdx !== null) {
-            setTimeout(() => {
+            const tid3 = setTimeout(() => {
+              if (!mountedRef.current) return;
               setExpandedSources((prev) => {
                 const ns = new Set(prev);
                 ns.delete(completedIdx as number);
                 return ns;
               });
-            }, 2000); // 2 seconds after answer completes
+            }, 2000);
+            pendingTimeoutsRef.current.push(tid3);
           }
           
           // DON'T reset activeResearchIdRef yet - keep for potential follow-ups

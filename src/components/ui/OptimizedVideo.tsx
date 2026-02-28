@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useLazyLoad } from '@/hooks/useLazyLoad';
 import { cn } from '@/utils/cn';
 
-interface OptimizedVideoProps extends Omit<React.VideoHTMLAttributes<HTMLVideoElement>, 'loading'> {
+interface OptimizedVideoProps extends Omit<React.VideoHTMLAttributes<HTMLVideoElement>, 'loading' | 'onError' | 'onLoad'> {
   src: string;
   poster?: string;
   priority?: boolean;
@@ -66,7 +66,7 @@ export const OptimizedVideo: React.FC<OptimizedVideoProps> = ({
   }, [adaptiveQuality, fallbackImage]);
 
   // Handle video errors and show fallback
-  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+  const handleVideoError = (_event: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     console.warn('Video failed to load, showing fallback');
     if (fallbackImage) {
       setShowFallback(true);
