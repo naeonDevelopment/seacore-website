@@ -80,6 +80,8 @@ function generateBotHTML(pathname: string): string {
       return generateContactContent();
     case '/privacy-policy':
       return generatePrivacyPolicyContent();
+    case '/imprint':
+      return generatePrivacyPolicyContent();
     default:
       return generateHomeContent();
   }
@@ -93,7 +95,7 @@ export async function onRequest(context: EventContext) {
     const pathname = url.pathname;
     
     // SPA routes that need bot optimization
-    const spaRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy'];
+    const spaRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy', '/imprint'];
     
     // Static asset caching - aggressive performance
     const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm)$/i.test(pathname);
@@ -140,7 +142,7 @@ export async function onRequest(context: EventContext) {
       const response = await context.next();
       const newResponse = new Response(response.body, response);
       
-      newResponse.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, stale-while-revalidate=3600');
+      newResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       newResponse.headers.set('X-Content-Type-Options', 'nosniff');
       newResponse.headers.set('X-Served-To', 'User');
       
