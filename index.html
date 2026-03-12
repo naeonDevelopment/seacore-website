@@ -258,8 +258,17 @@
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://js.stripe.com" />
     <link rel="preconnect" href="https://www.recaptcha.net" />
+    <!-- Hero section: above-the-fold — preload poster image first, then video.
+         Poster uses fetchpriority="high" so it paints instantly before video decodes.
+         Video preload is intentionally downgraded to fetchpriority="low" to avoid
+         competing with critical render-blocking resources (fonts, JS) during LCP.
+         The HeroVideoBackground component upgrades actual fetch priority at runtime
+         once the critical render path is unblocked. -->
     <link rel="preload" as="image" href="/assets/hero/h_h_1-firstframe.jpg" fetchpriority="high" />
-    <link rel="preload" as="video" href="/assets/hero/h_h_1.mp4" type="video/mp4" fetchpriority="high" crossorigin="anonymous" />
+    <link rel="preload" as="video" href="/assets/hero/h_h_1.mp4" type="video/mp4" fetchpriority="low" crossorigin="anonymous" />
+    <!-- Executive section: below-the-fold — NO document-level preload.
+         Loading is deferred to near-viewport (350 px) via IntersectionObserver
+         inside ExecutiveRoleVideoBackground, preventing startup bandwidth contention. -->
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { getAssetPath } from '@/utils/assetPath'
+import { getConnectionHints, STABILITY_WINDOW_MS } from '@/utils/videoReadiness'
 
 interface HeroVideoBackgroundProps {
   isDarkMode?: boolean
@@ -88,6 +89,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   const debugEventsRef = useRef<DebugEvent[]>([])
   const ttffMsRef = useRef<number | null>(null) // time-to-first-frame
   const tPlayMsRef = useRef<number | null>(null) // time-to-playing
+  const smoothStartMsRef = useRef<number | null>(null) // time-to-first-smooth-play
 
   const getBufferedRanges = (video: HTMLVideoElement): BufferedRange[] => {
     const ranges: BufferedRange[] = []
@@ -193,6 +195,7 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
           generatedAtIso: new Date().toISOString(),
           ttffMs: ttffMsRef.current,
           timeToPlayingMs: tPlayMsRef.current,
+          smoothStartMs: smoothStartMsRef.current,
           currentVideoIndex,
           activePlayer,
           events: debugEventsRef.current
@@ -581,55 +584,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     return () => clearInterval(interval)
   }, [currentVideoIndex, activePlayer, videoSources])
 
-  // Opportunistically warm video cache during idle time (skip if user prefers data savings)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (typeof navigator !== 'undefined' && 'connection' in navigator) {
-      const connection = (navigator as any).connection
-      if (connection?.saveData) {
-        log('Skipping hero video prefetch due to Save-Data preference')
-        return
-      }
-    }
-
-    const controller = new AbortController()
-    const targets = videoSources.slice(1) // video 0 handled via <link rel=\"preload\">
-
-    const prefetch = (src: string) => {
-      if (!src) return
-      fetch(src, {
-        method: 'GET',
-        mode: 'no-cors',
-        signal: controller.signal,
-        headers: { Purpose: 'prefetch' }
-      }).catch(() => {
-        // Silent failure - network hints only
-      })
-    }
-
-    const schedule = () => {
-      targets.forEach(prefetch)
-    }
-
-    let idleHandle: number | null = null
-    let timeoutHandle: number | null = null
-
-    if (typeof (window as any).requestIdleCallback === 'function') {
-      idleHandle = (window as any).requestIdleCallback(schedule, { timeout: 1500 })
-    } else {
-      timeoutHandle = window.setTimeout(schedule, 250)
-    }
-
-    return () => {
-      controller.abort()
-      if (idleHandle !== null && typeof (window as any).cancelIdleCallback === 'function') {
-        (window as any).cancelIdleCallback(idleHandle)
-      }
-      if (timeoutHandle !== null) {
-        window.clearTimeout(timeoutHandle)
-      }
-    }
-  }, [videoSources])
+  // Sibling video prefetch is now deferred to the init effect and only fires after
+  // the first smooth playback is confirmed. This prevents bandwidth contention during
+  // hero startup. See: scheduleSiblingPrefetch() inside the init useEffect below.
 
   // Intersection Observer - pause when out of view, resume when in view
   useEffect(() => {
@@ -688,6 +645,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
     let cancelled = false
     let attempts = 0
     let bufferRetryTimeout: number | undefined
+    let stabilityTimer: number | undefined
+    const prefetchController = new AbortController()
     const startedAt = performance.now()
     const INITIAL_BUFFER_TIMEOUT_MS = 3200
 
@@ -713,6 +672,35 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
         window.clearTimeout(bufferRetryTimeout)
       }
       bufferRetryTimeout = window.setTimeout(() => attemptPlay(reason), delayMs)
+    }
+
+    /**
+     * Schedules a non-blocking prefetch for hero sibling videos (h_h_2, h_h_3).
+     * Only called after the first video is confirmed to be playing smoothly.
+     * Uses requestIdleCallback so it never competes with active decode/paint work.
+     */
+    const scheduleSiblingPrefetch = () => {
+      const { saveData, effectiveType } = getConnectionHints()
+      if (saveData || effectiveType === 'slow-2g' || effectiveType === '2g') {
+        log('Skipping sibling prefetch: constrained connection')
+        return
+      }
+      const targets = videoSources.slice(1) // video 0 already streaming
+      const prefetch = (src: string) => {
+        if (!src) return
+        fetch(src, {
+          method: 'GET',
+          mode: 'no-cors',
+          signal: prefetchController.signal,
+          headers: { Purpose: 'prefetch' }
+        }).catch(() => {/* silent - network hint only */})
+      }
+      const schedule = () => { targets.forEach(prefetch) }
+      if (typeof (window as any).requestIdleCallback === 'function') {
+        ;(window as any).requestIdleCallback(schedule, { timeout: 3000 })
+      } else {
+        window.setTimeout(schedule, 300)
+      }
     }
 
     function attemptPlay(trigger: string) {
@@ -757,6 +745,27 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
             snapshot: snapshotVideo(videoAEl),
             extra: { trigger, attempt: attempts, timeToPlayingMs: tPlayMsRef.current }
           })
+
+          // Stability window: wait STABILITY_WINDOW_MS without a `waiting` event
+          // before declaring smooth start and triggering sibling prefetch.
+          // This prevents bandwidth contention between initial hero decode and sibling fetch.
+          if (stabilityTimer !== undefined) return // already running
+          const onWaiting = () => {
+            if (stabilityTimer !== undefined) clearTimeout(stabilityTimer)
+            stabilityTimer = undefined
+          }
+          videoAEl.addEventListener('waiting', onWaiting, { once: true })
+          stabilityTimer = window.setTimeout(() => {
+            videoAEl.removeEventListener('waiting', onWaiting)
+            if (cancelled || smoothStartMsRef.current !== null) return
+            smoothStartMsRef.current = performance.now() - startedAt
+            pushDebugEvent({
+              player: 'A',
+              type: 'smooth_start',
+              extra: { smoothStartMs: smoothStartMsRef.current }
+            })
+            scheduleSiblingPrefetch()
+          }, STABILITY_WINDOW_MS)
         })
         .catch((playError: DOMException) => {
           if (cancelled) return
@@ -832,9 +841,9 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
 
     return () => {
       cancelled = true
-      if (bufferRetryTimeout) {
-        window.clearTimeout(bufferRetryTimeout)
-      }
+      if (bufferRetryTimeout) window.clearTimeout(bufferRetryTimeout)
+      if (stabilityTimer !== undefined) window.clearTimeout(stabilityTimer)
+      prefetchController.abort()
       videoAEl.removeEventListener('playing', onPlaying)
       videoAEl.removeEventListener('canplaythrough', onCanPlayThrough)
       videoAEl.removeEventListener('loadeddata', onLoadedData)
