@@ -9,46 +9,14 @@
     <link rel="manifest" href="/favicon/site.webmanifest">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- #region agent log - TDZ debug instrumentation -->
+    <!-- #region agent log - TDZ debug instrumentation (console-based, no network) -->
     <script>
-      window.__debugTDZ = true;
       window.addEventListener('error', function(e) {
-        fetch('http://127.0.0.1:7612/ingest/8d204304-9cf4-47d6-964a-569190a5d50a', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json', 'X-Debug-Session-Id': '12afc6'},
-          body: JSON.stringify({
-            sessionId: '12afc6',
-            location: 'index.html:global-onerror',
-            message: 'Global JS error caught',
-            data: {
-              msg: e.message,
-              filename: e.filename,
-              lineno: e.lineno,
-              colno: e.colno,
-              errorName: e.error ? e.error.name : null,
-              errorStack: e.error ? String(e.error.stack).slice(0, 500) : null,
-              readyState: document.readyState
-            },
-            timestamp: Date.now(),
-            hypothesisId: 'H-A-B-C-D',
-            runId: 'run1'
-          })
-        }).catch(function(){});
-      });
-      window.addEventListener('unhandledrejection', function(e) {
-        fetch('http://127.0.0.1:7612/ingest/8d204304-9cf4-47d6-964a-569190a5d50a', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json', 'X-Debug-Session-Id': '12afc6'},
-          body: JSON.stringify({
-            sessionId: '12afc6',
-            location: 'index.html:unhandledrejection',
-            message: 'Unhandled promise rejection',
-            data: {reason: String(e.reason).slice(0, 300)},
-            timestamp: Date.now(),
-            hypothesisId: 'H-C',
-            runId: 'run1'
-          })
-        }).catch(function(){});
+        if (e.filename && e.filename.includes('vendor-misc')) {
+          console.error('[DEBUG-12afc6][H-A] vendor-misc TDZ error', JSON.stringify({msg:e.message,file:e.filename,line:e.lineno,col:e.colno,stack:e.error?String(e.error.stack).slice(0,400):null,ts:Date.now()}));
+        } else {
+          console.error('[DEBUG-12afc6][H-D] other JS error', JSON.stringify({msg:e.message,file:e.filename,line:e.lineno,ts:Date.now()}));
+        }
       });
     </script>
     <!-- #endregion -->

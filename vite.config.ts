@@ -41,7 +41,7 @@ export default defineConfig({
             if (id.includes('lucide-react') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
               return 'vendor-ui'
             }
-            if (id.includes('zod') || id.includes('react-helmet-async') || id.includes('react-fast-compare') || id.includes('invariant')) {
+            if (id.includes('zod') || id.includes('react-helmet-async')) {
               return 'vendor-misc'
             }
             return 'vendor-other'
