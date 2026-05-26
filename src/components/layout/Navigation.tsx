@@ -106,7 +106,15 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
             </div>
 
             {/* Desktop Actions */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <a
+                href="https://blog.fleetcore.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-maritime-600 dark:hover:text-maritime-400 hover:bg-maritime-50/50 dark:hover:bg-maritime-950/30 transition-all duration-200"
+              >
+                Blog
+              </a>
               <Button
                 variant="ghost"
                 size="icon"
@@ -148,7 +156,15 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
             </Link>
 
             {/* Mobile Actions */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
+              <a
+                href="https://blog.fleetcore.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-maritime-600 dark:hover:text-maritime-400 transition-all duration-200"
+              >
+                Blog
+              </a>
               <Button
                 variant="ghost"
                 size="icon"
