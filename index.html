@@ -9,6 +9,50 @@
     <link rel="manifest" href="/favicon/site.webmanifest">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
+    <!-- #region agent log - TDZ debug instrumentation -->
+    <script>
+      window.__debugTDZ = true;
+      window.addEventListener('error', function(e) {
+        fetch('http://127.0.0.1:7612/ingest/8d204304-9cf4-47d6-964a-569190a5d50a', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Debug-Session-Id': '12afc6'},
+          body: JSON.stringify({
+            sessionId: '12afc6',
+            location: 'index.html:global-onerror',
+            message: 'Global JS error caught',
+            data: {
+              msg: e.message,
+              filename: e.filename,
+              lineno: e.lineno,
+              colno: e.colno,
+              errorName: e.error ? e.error.name : null,
+              errorStack: e.error ? String(e.error.stack).slice(0, 500) : null,
+              readyState: document.readyState
+            },
+            timestamp: Date.now(),
+            hypothesisId: 'H-A-B-C-D',
+            runId: 'run1'
+          })
+        }).catch(function(){});
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        fetch('http://127.0.0.1:7612/ingest/8d204304-9cf4-47d6-964a-569190a5d50a', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Debug-Session-Id': '12afc6'},
+          body: JSON.stringify({
+            sessionId: '12afc6',
+            location: 'index.html:unhandledrejection',
+            message: 'Unhandled promise rejection',
+            data: {reason: String(e.reason).slice(0, 300)},
+            timestamp: Date.now(),
+            hypothesisId: 'H-C',
+            runId: 'run1'
+          })
+        }).catch(function(){});
+      });
+    </script>
+    <!-- #endregion -->
+
     <!-- Google Consent Mode v2 - MUST LOAD FIRST (BEFORE GTM) -->
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -262,17 +306,9 @@
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://js.stripe.com" />
     <link rel="preconnect" href="https://www.recaptcha.net" />
-    <!-- Hero section: above-the-fold — preload poster image first, then video.
-         Poster uses fetchpriority="high" so it paints instantly before video decodes.
-         Video preload is intentionally downgraded to fetchpriority="low" to avoid
-         competing with critical render-blocking resources (fonts, JS) during LCP.
-         The HeroVideoBackground component upgrades actual fetch priority at runtime
-         once the critical render path is unblocked. -->
-    <link rel="preload" as="image" href="/assets/hero/h_h_1-firstframe.jpg" fetchpriority="high" />
-    <link rel="preload" as="video" href="/assets/hero/h_h_1.mp4" type="video/mp4" fetchpriority="low" crossorigin="anonymous" />
-    <!-- Executive section: below-the-fold — NO document-level preload.
-         Loading is deferred to near-viewport (350 px) via IntersectionObserver
-         inside ExecutiveRoleVideoBackground, preventing startup bandwidth contention. -->
+    <!-- Hero video preloads removed from global HTML — this is a SPA and the preload
+         would fire on every route, not just the homepage. HeroVideoBackground handles
+         its own resource prioritisation at component mount. -->
     
     <!-- Google Fonts — async load to eliminate render-blocking -->
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
