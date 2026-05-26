@@ -9,18 +9,6 @@
     <link rel="manifest" href="/favicon/site.webmanifest">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- #region agent log - TDZ debug instrumentation (console-based, no network) -->
-    <script>
-      window.addEventListener('error', function(e) {
-        if (e.filename && e.filename.includes('vendor-misc')) {
-          console.error('[DEBUG-12afc6][H-A] vendor-misc TDZ error', JSON.stringify({msg:e.message,file:e.filename,line:e.lineno,col:e.colno,stack:e.error?String(e.error.stack).slice(0,400):null,ts:Date.now()}));
-        } else {
-          console.error('[DEBUG-12afc6][H-D] other JS error', JSON.stringify({msg:e.message,file:e.filename,line:e.lineno,ts:Date.now()}));
-        }
-      });
-    </script>
-    <!-- #endregion -->
-
     <!-- Google Consent Mode v2 - MUST LOAD FIRST (BEFORE GTM) -->
     <script>
       window.dataLayer = window.dataLayer || [];

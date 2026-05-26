@@ -109,8 +109,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
             <div className="flex items-center space-x-3">
               <a
                 href="https://blog.fleetcore.ai"
-                target="_blank"
-                rel="noopener noreferrer"
                 className="px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors duration-200"
               >
                 Blog
@@ -159,8 +157,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
             <div className="flex items-center space-x-1">
               <a
                 href="https://blog.fleetcore.ai"
-                target="_blank"
-                rel="noopener noreferrer"
                 className="px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors duration-200"
               >
                 Blog
