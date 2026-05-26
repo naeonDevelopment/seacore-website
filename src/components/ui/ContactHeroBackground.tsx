@@ -12,7 +12,7 @@ const getAssetPath = (path: string) => {
 
 export const ContactHeroBackground: React.FC<ContactHeroBackgroundProps> = ({ isDarkMode }) => {
   // Use Contact hero image
-  const imageSrc = getAssetPath('assets/hero_contact/hero_contact.png')
+  const imageSrc = getAssetPath('assets/hero_contact/hero_contact.webp')
 
   return (
     <>

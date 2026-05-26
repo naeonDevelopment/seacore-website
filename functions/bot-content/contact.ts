@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-const LAST_UPDATED = '2025-10-24';
+const LAST_UPDATED = '2026-05-26';
 
 export function generateContactContent(): string {
   return `
@@ -17,6 +17,42 @@ export function generateContactContent(): string {
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/contact">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    "name": "Contact fleetcore",
+    "url": "https://fleetcore.ai/contact",
+    "dateModified": "${LAST_UPDATED}",
+    "description": "Contact fleetcore to schedule a 30-minute demonstration of the agentic maritime maintenance OS or inquire about enterprise fleet pricing.",
+    "publisher": {
+      "@type": "Organization",
+      "@id": "https://fleetcore.ai/#organization",
+      "name": "fleetcore"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How do I contact fleetcore?",
+        "acceptedAnswer": { "@type": "Answer", "text": "fleetcore can be reached via the contact form at fleetcore.ai/contact or by scheduling a 30-minute demo at calendly.com/hello-fleetcore/30min. The company is based in Abu Dhabi, UAE (ADGM registered)." }
+      },
+      {
+        "@type": "Question",
+        "name": "What does the fleetcore demo include?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The 30-minute technical demonstration covers platform architecture, schedule-specific hours tracking, SOLAS/MARPOL compliance automation, OEM intelligence integration for MAN B&W, Wärtsilä, Caterpillar, and Kongsberg equipment, and enterprise pricing discussion." }
+      }
+    ]
+  }
+  </script>
+
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; color: #1e293b; }
     h1 { color: #0f172a; font-size: 2.5em; margin-bottom: 0.5em; }
@@ -29,10 +65,12 @@ export function generateContactContent(): string {
 </head>
 <body>
 
-  <h1>Contact fleetcore</h1>
-  <p style="font-size: 1.2em; color: #475569;">Get in touch for technical demonstrations, partnership inquiries, and enterprise pricing information.</p>
+  <p><strong>Contact fleetcore to schedule a 30-minute technical demonstration of the agentic maritime maintenance OS.</strong> fleetcore is an ADGM-registered maritime technology company in Abu Dhabi, UAE, serving ship management companies, vessel operators, and fleet owners globally. The demo covers schedule-specific hours tracking, SOLAS/MARPOL/ISM compliance automation, OEM intelligence integration for MAN B&W, Wärtsilä, Caterpillar, and Kongsberg equipment, and enterprise pricing for fleets of any size.</p>
 
-  <h2>📅 Schedule a Demo</h2>
+  <h1>Contact fleetcore: Schedule a Demo or Enterprise Inquiry</h1>
+  <p style="font-size: 1.2em; color: #475569;">Get in touch for technical demonstrations, partnership inquiries, and enterprise pricing for maritime fleet operators.</p>
+
+  <h2>How do I schedule a fleetcore platform demonstration?</h2>
   <p><strong>30-Minute Technical Demonstration</strong></p>
   <ul>
     <li>Platform architecture overview</li>
@@ -133,14 +171,35 @@ export function generateContactContent(): string {
   
   <p><strong>AI Available 24/7:</strong> Click the chat button in the corner for instant answers about features, pricing, implementation, or technical questions.</p>
 
-  <h2>🚀 Enterprise Deployment Program</h2>
-  <p><strong>Maritime operators interested in early adoption:</strong></p>
+  <h2>Enterprise Deployment Program</h2>
+  <p><strong>Maritime operators interested in deploying fleetcore:</strong></p>
   <ul>
     <li>Priority access to production platform</li>
     <li>Direct input on feature prioritization</li>
-    <li>Dedicated implementation support</li>
-    <li>Enterprise pricing discussion</li>
+    <li>Dedicated implementation support — vessel onboarding in hours</li>
+    <li>Enterprise pricing per vessel or per fleet — contact for quote</li>
   </ul>
+
+  <h2>Frequently Asked Questions: Contacting fleetcore</h2>
+
+  <h3>Where is fleetcore located and what are the contact details?</h3>
+  <p>fleetcore is headquartered at Office 2201.C11-D04, Floor 22, Sky Tower, Shams Abu Dhabi, Al Reem Island, Abu Dhabi, United Arab Emirates. ADGM registered. Email contact available via the contact form at fleetcore.ai/contact. Demo scheduling: <a href="https://calendly.com/hello-fleetcore/30min">calendly.com/hello-fleetcore/30min</a>. LinkedIn: <a href="https://www.linkedin.com/company/fleetcore">linkedin.com/company/fleetcore</a>.</p>
+
+  <h3>What does the 30-minute fleetcore demo include?</h3>
+  <p>The 30-minute technical demonstration covers: (1) Platform architecture overview — agentic AI, multi-tenant enterprise design; (2) Live walkthrough of schedule-specific hours tracking (industry-first innovation); (3) SOLAS Chapter II-2 and MARPOL Annex VI compliance automation; (4) OEM intelligence integration demonstration — MAN B&W, Wärtsilä, Caterpillar, Kongsberg; (5) Fleet-wide analytics dashboard; (6) Q&A with the engineering team on fleet-specific implementation requirements.</p>
+
+  <h3>What information should I prepare before contacting fleetcore?</h3>
+  <p>To provide the most relevant demo and pricing, prepare: fleet size (number of vessels), vessel types (tanker, bulk carrier, PSV, AHTS, etc.), current maintenance software in use (AMOS, SERTICA, DNV Nauticus, spreadsheets), primary pain points (compliance, hours tracking, OEM integration), and implementation timeline requirements. Enterprise pricing is per-vessel; fleet size discounts apply for 10+ vessels.</p>
+
+  <h2>Navigate fleetcore</h2>
+  <nav>
+    <ul>
+      <li><a href="/">fleetcore overview — maritime maintenance OS, 100+ OEM manufacturers</a></li>
+      <li><a href="/platform">Technical platform architecture — AI agents, schedule-specific tracking, compliance</a></li>
+      <li><a href="/solutions">Maritime maintenance solutions — why fleetcore vs AMOS, SERTICA, DNV Nauticus</a></li>
+      <li><a href="/about">About fleetcore — ADGM maritime technology company, Abu Dhabi UAE</a></li>
+    </ul>
+  </nav>
 
 </body>
 </html>

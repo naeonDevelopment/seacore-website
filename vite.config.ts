@@ -27,10 +27,25 @@ export default defineConfig({
     sourcemap: false, // Disabled for production to avoid CSP eval issues
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          animations: ['framer-motion'],
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react/') || id.includes('react-router')) {
+              return 'vendor-react'
+            }
+            if (id.includes('framer-motion')) {
+              return 'vendor-motion'
+            }
+            if (id.includes('recharts') || id.includes('d3-') || id.includes('victory')) {
+              return 'vendor-charts'
+            }
+            if (id.includes('lucide-react') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
+              return 'vendor-ui'
+            }
+            if (id.includes('zod') || id.includes('react-helmet-async') || id.includes('react-fast-compare') || id.includes('invariant')) {
+              return 'vendor-misc'
+            }
+            return 'vendor-other'
+          }
         },
       },
     },

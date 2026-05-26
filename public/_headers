@@ -1,3 +1,7 @@
+# Prevent staging/preview URL indexing
+https://*.pages.dev/*
+  X-Robots-Tag: noindex
+
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Frame-Options: SAMEORIGIN

@@ -210,6 +210,8 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/contact" />
         <meta property="og:image" content="https://fleetcore.ai/og/contact.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

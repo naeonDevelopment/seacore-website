@@ -14,6 +14,7 @@ import { generateSolutionsContent } from './bot-content/solutions';
 import { generateAboutContent } from './bot-content/about';
 import { generateContactContent } from './bot-content/contact';
 import { generatePrivacyPolicyContent } from './bot-content/privacy-policy';
+import { generateImprintContent } from './bot-content/imprint';
 
 // Cloudflare Pages EventContext interface
 interface EventContext<Env = any> {
@@ -42,13 +43,16 @@ function isBot(userAgent: string): boolean {
     'DuckDuckBot', 'Baiduspider', 'YandexBot',
     'Slurp', 'Yahoo',
     
-    // AI search engines & LLM crawlers (2024-2025)
-    'GPTBot', 'ChatGPT-User',  // OpenAI
-    'Claude-Web', 'ClaudeBot', 'anthropic-ai',  // Anthropic
+    // AI search engines & LLM crawlers (2024-2026)
+    'GPTBot', 'ChatGPT-User', 'OAI-SearchBot',  // OpenAI
+    'Claude-Web', 'ClaudeBot', 'Claude-SearchBot', 'Claude-User', 'anthropic-ai',  // Anthropic
     'PerplexityBot', 'Perplexity',  // Perplexity AI
     'Google-Extended', 'GoogleOther',  // Google Bard/Gemini
+    'Applebot-Extended',  // Apple Intelligence (added 2024)
     'cohere-ai',  // Cohere
     'Meta-ExternalAgent',  // Meta AI
+    'Bytespider',  // ByteDance
+    'CCBot',  // Common Crawl
     
     // Social media crawlers
     'facebookexternalhit', 'Twitterbot', 'LinkedInBot',
@@ -81,7 +85,7 @@ function generateBotHTML(pathname: string): string {
     case '/privacy-policy':
       return generatePrivacyPolicyContent();
     case '/imprint':
-      return generatePrivacyPolicyContent();
+      return generateImprintContent();
     default:
       return generateHomeContent();
   }

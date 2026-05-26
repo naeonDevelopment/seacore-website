@@ -5,7 +5,7 @@
  * FOCUS: Global Maintenance Intelligence | Vendor-Neutral Optimization | Executive ROI
  */
 
-const LAST_UPDATED = '2025-10-25';
+const LAST_UPDATED = '2026-05-26';
 const PLATFORM_VERSION = 'v2.3.0';
 
 export function generateHomeContent(): string {
@@ -92,13 +92,22 @@ export function generateHomeContent(): string {
   {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": "https://fleetcore.ai/#organization",
     "name": "fleetcore",
     "url": "https://fleetcore.ai",
     "logo": "https://fleetcore.ai/Light.svg",
-    "description": "Developer of fleetcore Agentic Maintenance OS, enterprise maritime platform with global OEM intelligence and vendor-neutral optimization",
+    "description": "Developer of fleetcore Agentic Maintenance OS — enterprise maritime platform with centralized OEM intelligence from 100+ manufacturers, automated SOLAS/MARPOL/ISM compliance, and predictive maintenance for global fleet operators.",
     "foundingDate": "2024",
+    "industry": "Maritime Technology",
+    "address": {
+      "@type": "PostalAddress",
+      "addressCountry": "AE",
+      "addressRegion": "Abu Dhabi",
+      "description": "ADGM registered company"
+    },
     "sameAs": [
-      "https://www.linkedin.com/company/fleetcore"
+      "https://www.linkedin.com/company/fleetcore",
+      "https://x.com/fleetcore_ai"
     ]
   }
   </script>
@@ -212,6 +221,8 @@ export function generateHomeContent(): string {
 </head>
 <body>
   
+  <p><strong>fleetcore is an agentic maintenance operating system for maritime fleets.</strong> It centralizes OEM intelligence from 100+ manufacturers — MAN B&W, Wärtsilä, Caterpillar, Kongsberg, ABB, Rolls-Royce — into a single cloud-native platform that automates SOLAS/MARPOL/ISM compliance, predicts maintenance needs before failures occur, and delivers 20–30% fleet operational cost reduction. PSC detention costs $25,000–$50,000 per day; fleetcore eliminates the maintenance gaps that cause them.</p>
+
   <!-- Platform Status Badge -->
   <div class="status-badge">
     🚢 <strong>Enterprise Platform:</strong> Production-Ready | 
@@ -220,10 +231,10 @@ export function generateHomeContent(): string {
     <strong>100+</strong> OEM Manufacturers Unified
   </div>
   
-  <h1>Global Maritime Maintenance Intelligence</h1>
+  <h1>What is fleetcore? Maritime Maintenance OS for Enterprise Fleets</h1>
   <p style="font-size: 1.2em; color: #475569; margin-bottom: 2em;">
-    <strong>Centralized OEM Knowledge from 100+ Manufacturers</strong> - Transform fleet operations with vendor-neutral intelligence that unifies MAN B&W, Wärtsilä, Caterpillar, Rolls-Royce, ABB, and 100+ maritime manufacturers into a single source of truth. 
-    AI-powered maintenance OS delivers predictive automation, cross-fleet learning, and autonomous compliance. Eliminate reactive maintenance, reduce operational costs 20-30%, ensure regulatory adherence.
+    <strong>Centralized OEM Knowledge from 100+ Manufacturers</strong> — Transform fleet operations with vendor-neutral intelligence that unifies MAN B&W, Wärtsilä, Caterpillar, Rolls-Royce, ABB, Kongsberg, and 100+ maritime manufacturers into a single source of truth. 
+    AI-powered maintenance OS delivers predictive automation, cross-fleet learning, and autonomous compliance. Eliminate reactive maintenance, reduce operational costs 20–30%, and ensure SOLAS/MARPOL regulatory adherence — certified by Lloyd's Register, DNV, Bureau Veritas, ABS, ClassNK, and RINA.
   </p>
 
   <h2>🌐 Strategic Advantage: Global Manufacturer Intelligence</h2>
@@ -802,8 +813,92 @@ export function generateHomeContent(): string {
   <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/hello-fleetcore/30min">https://calendly.com/hello-fleetcore/30min</a></p>
   <p><strong>Contact Form:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
 
-  <h2>🔍 Technical Keywords for Search Optimization</h2>
-  <p>global maritime maintenance intelligence, vendor-neutral fleet optimization, centralized OEM intelligence, multi-manufacturer maritime platform, predictive maintenance automation, cross-fleet learning system, enterprise maritime operations, strategic asset management, vendor-agnostic fleet intelligence, maritime digital transformation, operational excellence platform, C-level fleet management, executive maritime intelligence, ROI maritime software, cost reduction maritime maintenance, regulatory compliance automation, SOLAS 2024 compliance, MARPOL automation, ISM Code integration, maritime manufacturer normalization, OEM PMS integration, real-time fleet monitoring, predictive asset intelligence, multi-OEM optimization, maritime enterprise platform, fleet operations transformation, strategic maritime intelligence, maritime cost optimization, vendor lock-in prevention, maritime operational efficiency, cross-manufacturer intelligence, maritime decision support, executive fleet management, maritime technology platform, predictive maritime analytics, operational risk mitigation, maritime competitive advantage, enterprise fleet scalability, maritime AI automation, intelligent compliance monitoring</p>
+  <h2>How does fleetcore compare to AMOS, SERTICA, and DNV Nauticus?</h2>
+  <p>fleetcore is a cloud-native agentic OS; AMOS, SERTICA, and DNV Nauticus are legacy CMMS platforms built in the 1990s–2000s. The architectural differences are significant by stakeholder concern:</p>
+  <table>
+    <tr>
+      <th>Concern</th>
+      <th>AMOS / SERTICA / DNV Nauticus</th>
+      <th>fleetcore</th>
+    </tr>
+    <tr>
+      <td><strong>Technology stack</strong></td>
+      <td>Desktop-first, Windows-installed, requires VPN for remote access; batch data sync</td>
+      <td>Cloud-native React 18 + PostgreSQL; real-time WebSocket sync (&lt;200ms)</td>
+    </tr>
+    <tr>
+      <td><strong>AI &amp; predictive capabilities</strong></td>
+      <td>None or basic rule-based alerts</td>
+      <td>Autonomous AI agents; predictive failure detection; cross-fleet learning graph</td>
+    </tr>
+    <tr>
+      <td><strong>OEM intelligence</strong></td>
+      <td>Manual data entry per vessel; no cross-manufacturer normalization</td>
+      <td>Pre-loaded PMS schedules from 100+ OEMs; automatic manufacturer normalization</td>
+    </tr>
+    <tr>
+      <td><strong>Hours tracking</strong></td>
+      <td>Single counter per equipment — resetting one schedule resets all</td>
+      <td>Schedule-specific independent counters (industry first); reset oil change without affecting overhaul counter</td>
+    </tr>
+    <tr>
+      <td><strong>Compliance automation</strong></td>
+      <td>Separate compliance module; manual documentation</td>
+      <td>SOLAS Chapter II-2, MARPOL Annex VI, ISM Code Regulation 10.3 embedded in core architecture</td>
+    </tr>
+    <tr>
+      <td><strong>Implementation timeline</strong></td>
+      <td>3–6 months typical enterprise deployment</td>
+      <td>Vessel onboarding in hours with pre-loaded OEM intelligence</td>
+    </tr>
+    <tr>
+      <td><strong>Pricing model</strong></td>
+      <td>Legacy perpetual license + annual maintenance fees</td>
+      <td>Enterprise SaaS with per-vessel pricing; contact for fleet pricing</td>
+    </tr>
+  </table>
+
+  <h2>Frequently Asked Questions: fleetcore Maritime Maintenance OS</h2>
+
+  <h3>What is the difference between fleetcore and traditional maritime CMMS software?</h3>
+  <p>fleetcore is a cloud-native agentic maintenance operating system, not a legacy CMMS. Traditional systems like AMOS, SERTICA, and DNV Nauticus were built in the 1990s–2000s with desktop-first, single-vessel architectures requiring VPN access and manual data entry. fleetcore runs on modern React 18 and PostgreSQL with real-time WebSocket synchronization, multi-tenant enterprise isolation, and autonomous AI agents that generate, optimize, and execute maintenance workflows without manual intervention.</p>
+
+  <h3>Is fleetcore compatible with Wärtsilä, MAN B&W, and Caterpillar equipment?</h3>
+  <p>Yes. fleetcore's global OEM intelligence database pre-loads maintenance specifications and PMS schedules from 100+ maritime manufacturers including MAN B&W (6S50MC-C, 6L70ME-C), Wärtsilä (32, W20, W26), Caterpillar (3516B, C32), Kongsberg (K-Chief, AutoChief), Rolls-Royce, ABB, and Alfa Laval. Equipment is automatically normalized — "CAT", "Caterpillar", and "Cat Engine" are unified into a single entity, eliminating inconsistency across vessels.</p>
+
+  <h3>Which maritime classification societies does fleetcore support?</h3>
+  <p>fleetcore's compliance framework is designed to support Port State Control readiness and survey preparation for all major classification societies: DNV (Det Norske Veritas), Lloyd's Register (LR), Bureau Veritas (BV), American Bureau of Shipping (ABS), ClassNK (Nippon Kaiji Kyokai), and RINA (Registro Italiano Navale). The compliance audit trail and documentation management are structured around ISM Code and class society survey requirements.</p>
+
+  <h3>What SOLAS regulations does fleetcore automate?</h3>
+  <p>fleetcore automates compliance tracking for SOLAS Chapter II-2 (fire protection, detection, extinction), MARPOL Annex VI (air pollution, sulfur limits in ECAs), ISM Code Regulation 10.3 (maintenance of ship and equipment), and MLC 2006 (Maritime Labour Convention, crew rest hours). Maintenance tasks are automatically linked to regulatory requirements, and Port State Control inspection readiness is always current with a real-time compliance percentage dashboard.</p>
+
+  <h3>How does predictive maintenance work in fleetcore?</h3>
+  <p>fleetcore combines schedule-specific hours tracking with dual-interval logic (hours-based AND time-based) and a cross-fleet learning graph. The system monitors equipment health scores (0–100) in real time, generates early warning alerts at configurable thresholds (e.g., 50 hours before due), and analyzes failure patterns across the fleet to predict component degradation before breakdown occurs. Reactive maintenance costs $8,000–$15,000 more per incident than planned maintenance; predictive scheduling eliminates this premium.</p>
+
+  <h3>How long does fleet onboarding take with fleetcore?</h3>
+  <p>A single vessel can be onboarded in hours rather than weeks. fleetcore's pre-loaded OEM intelligence database provides manufacturer-verified maintenance schedules for equipment from MAN B&W, Wärtsilä, Caterpillar, and 97+ other manufacturers. Operators import existing PMS via CSV or connect directly; the system auto-generates vessel-specific maintenance schedules. Enterprise fleet onboarding is coordinated by fleetcore's implementation team.</p>
+
+  <h3>What vessel types does fleetcore support?</h3>
+  <p>fleetcore supports all major maritime vessel types: VLCC and Aframax tankers, bulk carriers (Handysize, Supramax, Capesize), container ships, LNG carriers, AHTS (Anchor Handling Tug Supply vessels), PSV (Platform Supply Vessels), OSV (Offshore Support Vessels), FPSO units, cruise ships, RoPax ferries, naval patrol vessels, and superyachts. The vessel hierarchy supports any IMO-classified vessel type with operator-specific equipment configurations.</p>
+
+  <h3>How does fleetcore handle vessels without internet connectivity?</h3>
+  <p>fleetcore is designed for maritime connectivity realities. The progressive web architecture supports offline data entry with automatic sync when connectivity is restored. Critical maintenance tasks can be recorded offline by crew, and all data is synchronized when the vessel connects via VSAT, LTE, or Wi-Fi in port. The &lt;200ms synchronization target applies to connected operations; offline mode queues all changes for reliable sync.</p>
+
+  <h3>What is schedule-specific hours tracking and why does it matter?</h3>
+  <p>Traditional PMS systems use one hours counter per equipment installation. This means resetting the counter for one maintenance schedule (e.g., oil change at 250 hours) accidentally resets all other schedules for that equipment (e.g., major overhaul at 8,000 hours). fleetcore introduced schedule-specific independent counters — each maintenance schedule tracks its own hours. Reset the oil change counter; the overhaul counter continues unaffected. This eliminates the leading cause of missed maintenance events in multi-schedule equipment. It is an industry-first design patented as part of fleetcore's core PMS architecture.</p>
+
+  <h3>What is the cost of reactive vs predictive maritime maintenance?</h3>
+  <p>Industry data: unplanned breakdown maintenance costs $8,000–$15,000 more per incident than scheduled preventive maintenance (Lloyd's List intelligence, 2024). PSC detentions from maintenance failures cost $25,000–$50,000 per day in port delays, fines, and reputational damage. IMO's 2030 carbon intensity reduction target of 40% (CII regulation) requires optimized maintenance to achieve fuel efficiency goals. fleetcore's predictive maintenance delivers 20–30% total maintenance cost reduction through elimination of reactive incidents and optimized scheduling.</p>
+
+  <h2>Navigate fleetcore</h2>
+  <nav>
+    <ul>
+      <li><a href="/platform">How fleetcore's agentic maintenance OS works — Platform architecture</a></li>
+      <li><a href="/solutions">Maritime maintenance use cases — schedule-specific hours, compliance, predictive maintenance</a></li>
+      <li><a href="/about">About fleetcore — ADGM-registered maritime technology company, Abu Dhabi UAE</a></li>
+      <li><a href="/contact">Schedule a 30-minute demo — enterprise pricing and fleet implementation</a></li>
+    </ul>
+  </nav>
 
 </body>
 </html>

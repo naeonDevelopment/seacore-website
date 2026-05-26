@@ -310,14 +310,16 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>fleetcore: Agentic Maintenance Operating System | Global Maritime Intelligence Platform</title>
-        <meta name="description" content="Transform fleet operations with centralized OEM intelligence from 100+ manufacturers and real-world global maintenance data. AI-powered maintenance OS delivers vendor-neutral optimization, predictive automation, and cross-fleet learning. Eliminate reactive maintenance, reduce costs 20-30%, ensure compliance." />
+        <title>fleetcore — Maritime Maintenance OS | 100+ OEM Manufacturers</title>
+        <meta name="description" content="Agentic maintenance OS for maritime fleets. Centralizes OEM intelligence from 100+ manufacturers, automates SOLAS/MARPOL compliance, reduces fleet maintenance costs by 20–30%." />
         <link rel="canonical" href="https://fleetcore.ai/" />
         <meta property="og:title" content="fleetcore: Agentic Maintenance Operating System" />
         <meta property="og:description" content="Centralized OEM intelligence from 100+ maritime manufacturers. Vendor-neutral maintenance OS delivers predictive automation, cross-fleet optimization, regulatory compliance. Transform reactive operations into strategic asset management." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/" />
         <meta property="og:image" content="https://fleetcore.ai/og/home.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
         <meta name="twitter:title" content="fleetcore: Agentic Maintenance Operating System" />

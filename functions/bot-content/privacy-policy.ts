@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-const LAST_UPDATED = '2025-10-24';
+const LAST_UPDATED = '2026-05-26';
 
 export function generatePrivacyPolicyContent(): string {
   return `
@@ -17,6 +17,24 @@ export function generatePrivacyPolicyContent(): string {
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/privacy-policy">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": "https://fleetcore.ai/privacy-policy",
+    "name": "fleetcore Privacy Policy",
+    "url": "https://fleetcore.ai/privacy-policy",
+    "dateModified": "${LAST_UPDATED}",
+    "description": "Privacy Policy for fleetcore Agentic Maintenance OS — enterprise maritime platform. GDPR compliant, multi-tenant data isolation, encryption at rest and in transit.",
+    "publisher": {
+      "@type": "Organization",
+      "@id": "https://fleetcore.ai/#organization",
+      "name": "fleetcore"
+    }
+  }
+  </script>
+
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; color: #1e293b; }
     h1 { color: #0f172a; font-size: 2.5em; margin-bottom: 0.5em; }
@@ -196,6 +214,16 @@ export function generatePrivacyPolicyContent(): string {
     <li><strong>Audit Trails:</strong> Comprehensive logging of all data access and modifications with timestamp and user attribution</li>
     <li><strong>Backup & Recovery:</strong> Automated backups with point-in-time recovery capabilities</li>
   </ul>
+
+  <h2>Navigate fleetcore</h2>
+  <nav>
+    <ul>
+      <li><a href="/">fleetcore overview — maritime maintenance OS for enterprise fleet operators</a></li>
+      <li><a href="/platform">Platform architecture — agentic AI, SOLAS/MARPOL compliance, OEM integration</a></li>
+      <li><a href="/solutions">Maritime maintenance solutions — schedule-specific hours, predictive maintenance</a></li>
+      <li><a href="/contact">Contact fleetcore — enterprise pricing and demo scheduling</a></li>
+    </ul>
+  </nav>
 
 </body>
 </html>

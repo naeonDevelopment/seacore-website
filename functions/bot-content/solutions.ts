@@ -5,7 +5,7 @@
  * ACCURACY VERIFIED: Honest comparison, no fake metrics
  */
 
-const LAST_UPDATED = '2025-10-24';
+const LAST_UPDATED = '2026-05-26';
 
 export function generateSolutionsContent(): string {
   return `
@@ -20,6 +20,35 @@ export function generateSolutionsContent(): string {
   <meta name="revised" content="${LAST_UPDATED}">
   
   <link rel="canonical" href="https://fleetcore.ai/solutions">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is schedule-specific hours tracking?",
+        "acceptedAnswer": { "@type": "Answer", "text": "An industry-first design where each maintenance schedule (e.g., oil change, major overhaul) has its own independent hours counter. Resetting one schedule does not affect others, eliminating the leading cause of missed major maintenance events in traditional CMMS systems like AMOS and SERTICA." }
+      },
+      {
+        "@type": "Question",
+        "name": "How does fleetcore automate SOLAS and MARPOL compliance?",
+        "acceptedAnswer": { "@type": "Answer", "text": "fleetcore embeds SOLAS Chapter II-2, MARPOL Annex VI, ISM Code Regulation 10.3, and MLC 2006 directly into the maintenance workflow engine. Required tasks are auto-generated with regulatory references attached, and PSC inspection readiness reports are available on demand." }
+      },
+      {
+        "@type": "Question",
+        "name": "Which class societies does fleetcore support?",
+        "acceptedAnswer": { "@type": "Answer", "text": "fleetcore's audit trail and documentation satisfies survey requirements for DNV, Lloyd's Register, Bureau Veritas (BV), American Bureau of Shipping (ABS), ClassNK, and RINA." }
+      },
+      {
+        "@type": "Question",
+        "name": "How long does fleet onboarding take?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Single vessel onboarding takes hours, not weeks. Pre-loaded OEM intelligence for MAN B&W, Wärtsilä, Caterpillar, Kongsberg and 96+ manufacturers enables rapid setup. Enterprise fleet rollouts are supported with dedicated implementation assistance." }
+      }
+    ]
+  }
+  </script>
   
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; color: #1e293b; }
@@ -40,14 +69,16 @@ export function generateSolutionsContent(): string {
 </head>
 <body>
 
+  <p><strong>fleetcore Solutions replaces reactive maintenance with an agentic maintenance operating system.</strong> Traditional maritime CMMS platforms like AMOS, SERTICA, and DNV Nauticus use a single equipment hours counter — resetting one maintenance schedule resets all others. fleetcore's schedule-specific hours tracking (an industry first) solves this, reducing PSC detention risk and cutting total fleet maintenance costs by 20–30%. It automates compliance with SOLAS Chapter II-2, MARPOL Annex VI, and ISM Code Regulation 10.3 for vessels certified by DNV, Lloyd's Register, Bureau Veritas, and ABS.</p>
+
   <div class="status-badge">
     💡 <strong>Solutions Overview</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Enterprise Platform</strong>
   </div>
 
-  <h1>Not Just Another CMMS. An Operating System for Maritime Maintenance.</h1>
-  <p style="font-size: 1.2em; color: #475569;">Why maritime operators are choosing fleetcore over traditional maintenance software</p>
+  <h1>What maintenance problems does fleetcore solve for maritime fleets?</h1>
+  <p style="font-size: 1.2em; color: #475569;">Why maritime operators are choosing fleetcore over traditional maintenance software including AMOS, SERTICA, and DNV Nauticus</p>
 
-  <h2>🔴 The Traditional Maritime CMMS Problem</h2>
+  <h2>What are the fundamental limitations of legacy maritime CMMS platforms?</h2>
   
   <div class="problem-box">
     <h3>Fundamental Limitations of Legacy Systems</h3>
@@ -368,6 +399,36 @@ export function generateSolutionsContent(): string {
   
   <p><strong>Contact:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
   <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/hello-fleetcore/30min">https://calendly.com/hello-fleetcore/30min</a></p>
+
+  <h2>Frequently Asked Questions: fleetcore Maritime Solutions</h2>
+
+  <h3>What is schedule-specific hours tracking and why does traditional CMMS fail at this?</h3>
+  <p>Legacy systems like AMOS and SERTICA assign one hours counter per equipment installation. When a technician resets the 250-hour oil change counter, the 8,000-hour overhaul counter for the same engine resets too. fleetcore assigns independent counters to each maintenance schedule. Reset the oil change; the overhaul counter keeps accumulating. Audits consistently identify this as the root cause of missed major maintenance events in class society surveys.</p>
+
+  <h3>How does fleetcore automate SOLAS and MARPOL compliance?</h3>
+  <p>fleetcore embeds SOLAS Chapter II-2 (fire protection), MARPOL Annex VI (air pollution prevention, sulfur content in ECAs), ISM Code Regulation 10.3 (maintenance procedures), and MLC 2006 (crew working hours) directly into the maintenance workflow engine. Required tasks are generated automatically with regulatory references attached. The compliance dashboard shows a real-time percentage for each regulation, and Port State Control inspection reports can be exported on demand. PSC detentions cost $25,000–$50,000 per day — fleetcore eliminates the compliance gaps that cause them.</p>
+
+  <h3>Which vessel types and fleet sizes does fleetcore support?</h3>
+  <p>fleetcore supports all IMO-classified vessel types: VLCC and Aframax tankers, bulk carriers (Handysize to Capesize), container ships, LNG carriers, AHTS, PSV, OSV, FPSO units, cruise ships, RoPax ferries, naval patrol vessels, and superyachts. The multi-tenant enterprise architecture supports individual vessels up to global fleets of 500+ vessels across multiple organizations. There is no technical upper limit on vessel count — the Supabase PostgreSQL backend scales horizontally.</p>
+
+  <h3>What is the implementation timeline for deploying fleetcore on a vessel?</h3>
+  <p>Single vessel onboarding: hours. fleetcore's pre-loaded OEM intelligence database includes maintenance specifications for MAN B&W (6S50MC-C, 6L70ME-C), Wärtsilä (W32, W20), Caterpillar (3516B), Kongsberg (K-Chief, AutoChief), and 95+ other manufacturers. Technicians import existing PMS data via CSV or structured input, and the system auto-generates the maintenance schedule. Enterprise multi-vessel fleet rollouts are coordinated with dedicated implementation support. Compare to 3–6 months for legacy CMMS implementations.</p>
+
+  <h3>How does fleetcore reduce maintenance costs by 20–30%?</h3>
+  <p>The cost reduction comes from three sources: (1) Elimination of reactive maintenance premiums — unplanned breakdowns cost $8,000–$15,000 more per incident than scheduled maintenance (Lloyd's List intelligence, 2024); (2) Optimized parts procurement through predictive ordering based on maintenance schedules and consumption patterns; (3) Reduced PSC detention risk — PSC detentions average $25,000–$50,000 per day. IMO's 2030 CII carbon intensity target of 40% reduction also requires optimized maintenance for fuel efficiency compliance.</p>
+
+  <h3>How does fleetcore support DNV, Lloyd's Register, Bureau Veritas, and ABS surveys?</h3>
+  <p>fleetcore's audit trail and documentation system is designed to satisfy class society survey requirements for DNV, Lloyd's Register (LR), Bureau Veritas (BV), American Bureau of Shipping (ABS), ClassNK, and RINA. Every maintenance task is logged with user attribution, timestamps, parts consumed, and work done descriptions. Class society survey schedules and certification expiry dates are tracked with automated renewal alerts. Surveyors can review complete maintenance history through the inspection readiness report generated directly from the platform.</p>
+
+  <h2>Navigate fleetcore</h2>
+  <nav>
+    <ul>
+      <li><a href="/">fleetcore overview — maritime maintenance OS, OEM intelligence, fleet operators</a></li>
+      <li><a href="/platform">Technical platform architecture — agentic AI, dual-interval scheduling, cross-fleet learning</a></li>
+      <li><a href="/about">About fleetcore — ADGM maritime technology company, Abu Dhabi UAE</a></li>
+      <li><a href="/contact">Schedule a 30-minute demo — enterprise pricing and implementation</a></li>
+    </ul>
+  </nav>
 
 </body>
 </html>

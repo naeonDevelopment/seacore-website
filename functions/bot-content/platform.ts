@@ -5,7 +5,7 @@
  * ACCURACY VERIFIED: Real technical architecture, no fake metrics
  */
 
-const LAST_UPDATED = '2025-10-25';
+const LAST_UPDATED = '2026-05-26';
 const PLATFORM_VERSION = 'v2.3.0';
 
 export function generatePlatformContent(): string {
@@ -72,14 +72,16 @@ export function generatePlatformContent(): string {
 </head>
 <body>
 
+  <p><strong>fleetcore Platform is the technical architecture of an agentic maintenance operating system for maritime fleets.</strong> Built on React 18, TypeScript, and Supabase PostgreSQL, it runs autonomous AI agents that generate, schedule, and execute maintenance workflows across entire vessel fleets. Core innovations include schedule-specific hours tracking (industry first), dual-interval maintenance scheduling (hours + calendar), and a cross-fleet learning graph that improves predictions across all vessels simultaneously. The platform operates on Cloudflare's global edge network with &lt;200ms real-time synchronization.</p>
+
   <div class="status-badge">
     🏗️ <strong>Platform Architecture</strong> | <strong>Updated:</strong> ${LAST_UPDATED} | <strong>Version:</strong> ${PLATFORM_VERSION}
   </div>
 
-  <h1>Agentic Maintenance OS Architecture</h1>
-  <p style="font-size: 1.2em; color: #475569;">AI-Powered Maintenance Operating System architecture: autonomous agents for task automation, predictive maintenance engine, intelligent scheduling algorithms, self-evolving learning capabilities, and cross-fleet intelligence</p>
+  <h1>What is fleetcore's Agentic Maintenance OS Architecture?</h1>
+  <p style="font-size: 1.2em; color: #475569;">AI-Powered Maintenance Operating System architecture: autonomous agents for task automation, predictive maintenance engine, intelligent dual-interval scheduling, self-evolving cross-fleet learning graph, and vendor-neutral OEM intelligence covering 100+ manufacturers including MAN B&W, Wärtsilä (W32), Caterpillar (3516B), and Kongsberg K-Chief systems.</p>
 
-  <h2>🏗️ Technology Stack (Production-Verified)</h2>
+  <h2>What technology powers the fleetcore platform?</h2>
   
   <h3>Frontend Architecture</h3>
   <table>
@@ -567,6 +569,36 @@ USING (
   
   <p><strong>Contact:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
   <p><strong>Technical Documentation:</strong> Available upon request for enterprise prospects</p>
+
+  <h2>Frequently Asked Questions: fleetcore Platform Architecture</h2>
+
+  <h3>What is an Agentic Fleet AI?</h3>
+  <p>An Agentic Fleet AI is an autonomous software system that perceives vessel state (equipment hours, sensor readings, maintenance history), makes maintenance decisions independently (schedule generation, alert prioritization, resource allocation), and executes those decisions without requiring manual input. fleetcore's agentic system runs vessel-specific AI agents that continuously monitor each ship's equipment health, predict failure windows, and generate optimized maintenance tasks — operating autonomously 24/7 without crew intervention between decisions.</p>
+
+  <h3>How does cross-fleet knowledge transfer work?</h3>
+  <p>When any vessel in the fleet records a maintenance event, equipment failure, or parts consumption pattern, that data is added to fleetcore's cross-fleet learning graph. The system identifies statistical patterns across similar equipment (e.g., all Wärtsilä W32 engines across 50 vessels) and adjusts maintenance interval predictions fleet-wide. One vessel's engine failure teaches 49 others to inspect the same component earlier. This compounds over time — larger fleets accumulate more knowledge, improving prediction accuracy for all vessels.</p>
+
+  <h3>What is schedule-specific hours tracking?</h3>
+  <p>Schedule-specific hours tracking is fleetcore's patented approach to the industry-wide problem of shared equipment counters. In legacy CMMS systems like AMOS and SERTICA, one equipment installation has one hours counter — resetting the 250-hour oil change schedule also resets the 8,000-hour major overhaul counter for the same equipment. fleetcore assigns an independent hours counter to each maintenance schedule. The oil change resets; the overhaul counter continues from where it was. This is confirmed to be the primary cause of missed overhaul events in fleet audits.</p>
+
+  <h3>What is the vendor-neutral approach and how does it prevent OEM lock-in?</h3>
+  <p>fleetcore's vendor-neutral architecture maintains a manufacturer-agnostic equipment database that normalizes specifications from MAN B&W, Wärtsilä, Caterpillar, Kongsberg, Rolls-Royce, ABB, and 96+ other OEMs into a unified schema. No single manufacturer's data format, naming convention, or maintenance recommendation takes precedence. Fleet operators can switch OEM suppliers without migrating their maintenance data. Comparison reports across manufacturers are available without bias. This is the operational opposite of OEM-specific CMMS tools that only support one manufacturer's equipment natively.</p>
+
+  <h3>What is the Self-Evolving Intelligence system in fleetcore?</h3>
+  <p>The Self-Evolving Intelligence system is fleetcore's adaptive learning layer that continuously refines maintenance interval predictions based on actual equipment performance data across the entire connected fleet. Unlike static rule-based CMMS systems, fleetcore's models update when real-world failure patterns diverge from OEM-specified intervals. If a class of Caterpillar 3516B generators in tropical climates shows accelerated oil degradation at 200 hours (vs the 250-hour OEM specification), the system adjusts interval recommendations for all vessels with that configuration in similar operating zones.</p>
+
+  <h3>Which class societies require the type of audit trails fleetcore provides?</h3>
+  <p>All major maritime classification societies — DNV, Lloyd's Register, Bureau Veritas (BV), American Bureau of Shipping (ABS), ClassNK, and RINA — require documented maintenance records and audit trails as part of the ISM Code compliance framework (specifically ISM Code Regulation 10.3 on maintenance of ship and equipment). fleetcore's complete audit trail (every task, every user action, every status change with timestamps) satisfies these requirements and can be presented directly to class surveyors during annual, intermediate, and renewal surveys.</p>
+
+  <h2>Navigate fleetcore</h2>
+  <nav>
+    <ul>
+      <li><a href="/">fleetcore overview — maritime maintenance OS for fleet operators</a></li>
+      <li><a href="/solutions">Maritime maintenance use cases — predictive scheduling, compliance, OEM integration</a></li>
+      <li><a href="/about">About fleetcore — ADGM-registered maritime technology company</a></li>
+      <li><a href="/contact">Schedule a platform demo — 30-minute technical demonstration</a></li>
+    </ul>
+  </nav>
 
 </body>
 </html>

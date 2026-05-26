@@ -35,13 +35,13 @@ export const Footer: React.FC<FooterProps> = () => {
   const socialLinks = [
     {
       name: 'LinkedIn',
-      href: 'https://linkedin.com/company/fleetcore-ai',
+      href: 'https://www.linkedin.com/company/fleetcore',
       icon: Linkedin
     }
   ]
 
   return (
-    <footer className="bg-slate-900 text-white pb-24 lg:pb-0">
+    <footer className="bg-slate-900 text-white pb-6">
       <div className="container mx-auto px-4">
         {/* Main Footer Content */}
         <div className="py-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -56,11 +56,15 @@ export const Footer: React.FC<FooterProps> = () => {
             </p>
             <div className="space-y-3">
               <a 
-                href="mailto:hello@fleetcore.ai" 
+                href="#contact-email"
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.location.href = `mailto:${'hello'}@${'fleetcore.ai'}`
+                }}
                 className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm group justify-center md:justify-start"
               >
                 <Mail className="w-4 h-4 shrink-0" />
-                <span>hello@fleetcore.ai</span>
+                <span>hello&#64;fleetcore.ai</span>
               </a>
               <div className="flex items-start gap-2 text-slate-400 text-sm justify-center md:justify-start">
                 <MapPin className="w-4 h-4 shrink-0 mt-0.5" />

@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
     <link rel="manifest" href="/favicon/site.webmanifest">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -107,19 +109,21 @@
     {
       "@context": "https://schema.org",
       "@type": "Organization",
+      "@id": "https://fleetcore.ai/#organization",
       "name": "fleetcore",
       "url": "https://fleetcore.ai",
       "logo": "https://fleetcore.ai/Light.svg",
-      "description": "Leading provider of agentic maritime intelligence solutions for predictive maintenance and regulatory compliance.",
+      "description": "Developer of fleetcore Agentic Maintenance OS — enterprise maritime platform with centralized OEM intelligence from 100+ manufacturers, automated SOLAS/MARPOL/ISM compliance, and predictive maintenance for global fleet operators.",
       "foundingDate": "2024",
       "industry": "Maritime Technology",
-      "numberOfEmployees": "50-100",
       "address": {
         "@type": "PostalAddress",
-        "addressCountry": "US"
+        "addressCountry": "AE",
+        "addressRegion": "Abu Dhabi",
+        "description": "ADGM registered company"
       },
       "sameAs": [
-        "https://linkedin.com/company/fleetcore-ai",
+        "https://www.linkedin.com/company/fleetcore",
         "https://x.com/fleetcore_ai"
       ]
     }
@@ -270,8 +274,9 @@
          Loading is deferred to near-viewport (350 px) via IntersectionObserver
          inside ExecutiveRoleVideoBackground, preventing startup bandwidth contention. -->
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <!-- Google Fonts — async load to eliminate render-blocking -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap" /></noscript>
     
     <!-- Calendly will be loaded dynamically after user consent -->
     <style>
@@ -397,8 +402,7 @@
       }
     </style>
     
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://fleetcore.ai/" />
+    <!-- Canonical URL is managed per-page by React Helmet -->
     
     <!-- Theme Color -->
     <meta name="theme-color" content="#0ea5e9" />

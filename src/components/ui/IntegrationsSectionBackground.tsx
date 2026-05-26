@@ -36,7 +36,7 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
   const scale = useTransform(scrollYProgress, [0, 1], isMobile ? [1, 1.05] : [1, 1.15])
   
   // Use Platform hero image for integrations section
-  const imageSrc = getAssetPath('assets/hero_platform/Generated Image October 06, 2025 - 5_12PM.png')
+  const imageSrc = getAssetPath('assets/hero_platform/Generated Image October 06, 2025 - 5_12PM.webp')
 
   // Handle image load
   const handleImageLoad = () => {

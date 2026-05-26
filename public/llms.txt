@@ -1,0 +1,27 @@
+# fleetcore — Maritime Maintenance Intelligence Platform
+# https://fleetcore.ai
+
+> fleetcore is an agentic maintenance operating system for maritime fleets. It unifies OEM intelligence from 100+ manufacturers (MAN B&W, Wärtsilä, Caterpillar, Kongsberg, Rolls-Royce, ABB), automates SOLAS/MARPOL/ISM compliance, and delivers predictive maintenance with 20–30% cost reduction. Built for commercial shipping operators, offshore fleet managers, and cruise lines.
+
+## Key Pages
+
+- [Homepage](https://fleetcore.ai/): Platform overview, ROI proposition, and comparison to traditional CMMS systems like AMOS, SERTICA, and DNV Nauticus
+- [Platform](https://fleetcore.ai/platform): Technical architecture — agentic AI capabilities, dual-interval scheduling, cross-fleet learning, vendor-neutral OEM intelligence
+- [Solutions](https://fleetcore.ai/solutions): Use cases by fleet type — schedule-specific hours tracking, predictive maintenance, regulatory compliance automation
+- [About](https://fleetcore.ai/about): Company background, maritime domain expertise, ADGM-registered, Abu Dhabi UAE
+- [Contact](https://fleetcore.ai/contact): Demo scheduling (30-min Calendly) and enterprise inquiries
+
+## Key Facts
+
+- Founded: 2024
+- Headquarters: Abu Dhabi, UAE (ADGM registered)
+- OEM coverage: 100+ maritime manufacturers unified in one platform
+- Compliance: SOLAS Chapter II-2, MARPOL Annex VI, ISM Code Regulation 10.3, MLC 2006
+- Class society support: DNV, Lloyd's Register, Bureau Veritas, ABS, ClassNK, RINA
+- Cost reduction: 20–30% fleet maintenance cost reduction vs reactive maintenance model
+
+## Contact
+
+- Demo: https://calendly.com/hello-fleetcore/30min
+- Website: https://fleetcore.ai/contact
+- LinkedIn: https://www.linkedin.com/company/fleetcore

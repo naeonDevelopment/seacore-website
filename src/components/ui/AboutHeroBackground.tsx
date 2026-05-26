@@ -14,7 +14,7 @@ const AboutHeroBackground: React.FC<AboutHeroBackgroundProps> = ({
   const [isLoaded, setIsLoaded] = useState(false)
   
   // Use About hero image
-  const imageSrc = getAssetPath('assets/hero_about/hero_about.png')
+  const imageSrc = getAssetPath('assets/hero_about/hero_about.webp')
 
   // Debug logging
   useEffect(() => {

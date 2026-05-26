@@ -12,7 +12,7 @@ const getAssetPath = (path: string) => {
 
 export const PlatformHeroBackground: React.FC<PlatformHeroBackgroundProps> = ({ isDarkMode }) => {
   // Use Integration section image for hero
-  const imageSrc = getAssetPath('assets/section_integrations/Generated Image October 06, 2025 - 5_16PM.png')
+  const imageSrc = getAssetPath('assets/section_integrations/Generated Image October 06, 2025 - 5_16PM.webp')
 
   return (
     <>

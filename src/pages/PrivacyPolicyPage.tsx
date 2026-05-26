@@ -356,6 +356,8 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = () => {
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/privacy-policy" />
         <meta property="og:image" content="https://fleetcore.ai/og/privacy_policy.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

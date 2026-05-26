@@ -1,0 +1,10 @@
+# ads.txt — fleetcore.ai
+# Authorized Digital Sellers
+# https://iabtechlab.com/ads-txt/
+#
+# Add your Google AdSense publisher ID below when available:
+# google.com, pub-XXXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+#
+# This file is intentionally minimal until ad monetization is active.
+# Presence of ads.txt prevents ad fraud by denying unauthorized sellers.
+placeholder.example.com, placeholder, DIRECT, placeholder

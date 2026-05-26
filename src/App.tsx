@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense, Component, ReactNode } from 'react'
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navigation from '@/components/layout/Navigation'
 import Footer from '@/components/layout/Footer'
 import ScrollToTop from '@/components/layout/ScrollToTop'
@@ -13,9 +13,9 @@ const SolutionsPage = lazy(() => import('@/pages/SolutionsPage'))
 const PlatformPage = lazy(() => import('@/pages/PlatformPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
 const ContactPage = lazy(() => import('@/pages/ContactPage'))
-const AssistantPage = lazy(() => import('@/pages/AssistantPage'))
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'))
 const ImprintPage = lazy(() => import('@/pages/ImprintPage'))
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 interface ErrorBoundaryState { hasError: boolean; error: Error | null }
 class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
@@ -42,18 +42,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   }
 }
 
-// Layout component that conditionally renders navigation
 function AppLayout({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMode: () => void }) {
-  const location = useLocation();
-  const isAssistantPage = location.pathname === '/assistant';
-
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {!isAssistantPage && <Navigation darkMode={darkMode} toggleDarkMode={toggleDarkMode} />}
+      <Navigation darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
 
       <main>
         <ErrorBoundary>
-          <Suspense fallback={<div className="pt-24 p-8 text-center text-muted-foreground">Loading…</div>}>
+          <Suspense fallback={<div className="min-h-screen pt-24 p-8 text-center text-muted-foreground">Loading…</div>}>
             <Routes>
               <Route path="/" element={<HomePage />} />
 
@@ -84,9 +80,6 @@ function AppLayout({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDark
               {/* Contact Route */}
               <Route path="/contact" element={<ContactPage />} />
 
-              {/* AI Assistant Route */}
-              <Route path="/assistant" element={<AssistantPage darkMode={darkMode} toggleDarkMode={toggleDarkMode} />} />
-
               {/* Privacy Policy Route */}
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
@@ -94,13 +87,13 @@ function AppLayout({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDark
               <Route path="/imprint" element={<ImprintPage />} />
 
               {/* 404 Route */}
-              <Route path="*" element={<div className="pt-24 p-8 text-center">Page Not Found</div>} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>
       </main>
 
-      {!isAssistantPage && <Footer />}
+      <Footer />
     </div>
   );
 }
