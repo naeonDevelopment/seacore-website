@@ -36,7 +36,7 @@ export const VisionSectionBackground: React.FC<VisionSectionBackgroundProps> = (
   const scale = useTransform(scrollYProgress, [0, 1], isMobile ? [1, 1.05] : [1, 1.15])
   
   // Use Vision section image
-  const imageSrc = getAssetPath('assets/section_vision/our_vision.webp')
+  const imageSrc = getAssetPath('assets/section_vision/our_vision.webp?v=1')
 
   const handleImageLoad = () => {
     setIsLoaded(true)

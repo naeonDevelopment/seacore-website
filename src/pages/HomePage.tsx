@@ -341,7 +341,8 @@ const HomePage: React.FC = () => {
         <meta name="description" content="fleetcore is a maritime technical operating system with five autonomous AI agents across every workflow — predictive ML maintenance, closed-loop procurement automation, incident intelligence, compliance reporting, and conversational fleet intelligence. OEM PMS from 100+ manufacturers. SOLAS/MARPOL/ISM compliance built in. Ten comprehensive capabilities." />
         <link rel="canonical" href="https://fleetcore.ai/" />
         {/* Hero poster preload — above-the-fold LCP image; scoped to homepage via Helmet */}
-        <link rel="preload" as="image" href="/assets/hero/h_h_1-firstframe.webp?v=1" type="image/webp" fetchpriority="high" />
+        {/* crossOrigin must match the <video crossOrigin="anonymous"> fetch mode */}
+        <link rel="preload" as="image" href="/assets/hero/h_h_1-firstframe.webp?v=1" type="image/webp" fetchpriority="high" crossOrigin="anonymous" />
         <meta property="og:title" content="fleetcore: Maritime OS — 5 AI Agents Across Every Workflow" />
         <meta property="og:description" content="Five autonomous agents. Ten comprehensive capabilities. OEM intelligence from 100+ manufacturers. Censoring-aware ML predictive stack, closed-loop procurement automation, three-tier HITL governance. SOLAS/MARPOL/ISM compliance built in." />
         <meta property="og:type" content="website" />

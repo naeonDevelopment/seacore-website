@@ -35,7 +35,7 @@ const ArchitectureParallaxBackground: React.FC<ArchitectureParallaxBackgroundPro
   const scale = useTransform(scrollYProgress, [0, 1], isMobile ? [1, 1.05] : [1, 1.15])
   
   // Use architecture section image
-  const imageSrc = getAssetPath('assets/section_architecture/Generated Image October 05, 2025 - 7_33PM.webp')
+  const imageSrc = getAssetPath('assets/section_architecture/Generated Image October 05, 2025 - 7_33PM.webp?v=1')
 
   const handleImageLoad = () => {
     setIsLoaded(true)

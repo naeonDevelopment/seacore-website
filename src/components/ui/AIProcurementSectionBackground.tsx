@@ -31,7 +31,7 @@ const AIProcurementSectionBackground: React.FC<AIProcurementSectionBackgroundPro
   const y = useTransform(scrollYProgress, [0, 1], isMobile ? [0, -20] : [0, -50])
   const scale = useTransform(scrollYProgress, [0, 1], isMobile ? [1, 1.05] : [1, 1.15])
 
-  const imageSrc = getAssetPath('assets/section_ai/AI-Section.webp')
+  const imageSrc = getAssetPath('assets/section_ai/AI-Section.webp?v=1')
 
   const handleImageLoad = () => {
     setIsLoaded(true)

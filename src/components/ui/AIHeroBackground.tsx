@@ -13,7 +13,7 @@ const AIHeroBackground: React.FC<AIHeroBackgroundProps> = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false)
 
-  const imageSrc = getAssetPath('assets/hero_ai/AI-hero.webp')
+  const imageSrc = getAssetPath('assets/hero_ai/AI-hero.webp?v=1')
 
   const handleImageLoad = () => {
     setIsLoaded(true)
