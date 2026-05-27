@@ -151,13 +151,27 @@ export async function onRequest(context: EventContext) {
     const url = new URL(context.request.url);
     const rawPathname = url.pathname;
 
-    // 0. Vite bundles — never rewrite (case-sensitive hashes; skip cached 301 redirect paths)
+    // 0. Vite bundles — never rewrite (case-sensitive hashes; skip cached 301 redirect paths).
+    //    Missing hashed chunks must not fall through to SPA index.html (MIME type errors in browsers).
     if (
       rawPathname.startsWith('/assets/') ||
       /^\/favicon\.ico$/i.test(rawPathname) ||
       rawPathname.startsWith('/favicon/')
     ) {
-      return context.next();
+      const response = await context.next();
+      const contentType = response.headers.get('content-type') || '';
+      const isBundledModule = /\.(js|mjs|css)$/i.test(rawPathname);
+      if (isBundledModule && contentType.includes('text/html')) {
+        return new Response('Not Found', {
+          status: 404,
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'X-Robots-Tag': 'noindex, nofollow',
+          },
+        });
+      }
+      return response;
     }
 
     // 1. www → canonical redirect (must run before anything else)
