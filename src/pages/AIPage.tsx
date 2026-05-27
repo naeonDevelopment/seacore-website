@@ -452,7 +452,7 @@ const AIPage: React.FC = () => {
           >
             <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 mb-6">
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-              <span className="text-sm font-medium text-red-700 dark:text-red-300">Five Gaps No Competitor Has Solved</span>
+              <span className="text-sm font-medium text-red-700 dark:text-red-300">Six Gaps No Competitor Has Solved</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
               The Maritime AI Gap Is{' '}
