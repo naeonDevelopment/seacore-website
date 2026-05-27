@@ -22,6 +22,9 @@ export default defineConfig({
       'Permissions-Policy': 'payment=*, geolocation=(), microphone=(), camera=()'
     }
   },
+  define: {
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+  },
   build: {
     outDir: 'dist',
     sourcemap: false, // Disabled for production to avoid CSP eval issues
