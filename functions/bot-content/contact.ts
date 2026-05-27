@@ -3,7 +3,9 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-const LAST_UPDATED = '2026-05-26';
+import { blogContentFunnelSection, blogNavListItem } from './shared';
+
+const LAST_UPDATED = '2026-05-27';
 
 export function generateContactContent(): string {
   return `
@@ -199,9 +201,12 @@ export function generateContactContent(): string {
   <h3>What information should I prepare before contacting fleetcore?</h3>
   <p>To provide the most relevant demo and pricing, prepare: fleet size (number of vessels), vessel types (tanker, bulk carrier, PSV, AHTS, etc.), current maintenance software in use (AMOS, SERTICA, DNV Nauticus, spreadsheets), primary pain points (compliance, hours tracking, OEM integration), and implementation timeline requirements. Enterprise pricing is per-vessel; fleet size discounts apply for 10+ vessels.</p>
 
+  ${blogContentFunnelSection()}
+
   <h2>Navigate fleetcore</h2>
   <nav>
     <ul>
+      ${blogNavListItem()}
       <li><a href="/">fleetcore overview — maritime maintenance OS, 100+ OEM manufacturers</a></li>
       <li><a href="/platform">Technical platform architecture — AI agents, schedule-specific tracking, compliance</a></li>
       <li><a href="/solutions">Maritime maintenance solutions — why fleetcore vs AMOS, SERTICA, DNV Nauticus</a></li>

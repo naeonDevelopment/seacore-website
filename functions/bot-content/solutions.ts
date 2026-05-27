@@ -5,6 +5,8 @@
  * ACCURACY VERIFIED: Aligned with SolutionsPage.tsx as of 2026-05-27
  */
 
+import { blogContentFunnelSection, blogNavListItem } from './shared';
+
 const LAST_UPDATED = '2026-05-27';
 
 export function generateSolutionsContent(): string {
@@ -379,9 +381,12 @@ export function generateSolutionsContent(): string {
   <h3>Which class societies does fleetcore support?</h3>
   <p>fleetcore's Compliance Reporting Agent and audit trail satisfy survey requirements for DNV, Lloyd's Register (LR), Bureau Veritas (BV), American Bureau of Shipping (ABS), ClassNK, and RINA. Every maintenance task is logged with user attribution, timestamps, parts consumed, and work done descriptions. PSC inspection readiness reports are generated on demand.</p>
 
+  ${blogContentFunnelSection()}
+
   <h2>Navigate fleetcore</h2>
   <nav>
     <ul>
+      ${blogNavListItem()}
       <li><a href="/">fleetcore overview — AI-first maritime maintenance OS, five autonomous agents, agentic workflows</a></li>
       <li><a href="/ai">AI Intelligence — predictive ML stack, HITL governance, five agents deep-dive</a></li>
       <li><a href="/platform">Technical platform architecture — four excellence pillars, competitive comparison</a></li>

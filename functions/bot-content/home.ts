@@ -3,6 +3,8 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
+import { blogContentFunnelSection, blogNavListItem, BLOG_SAME_AS_JSON } from './shared';
+
 const LAST_UPDATED = '2026-05-27';
 
 export function generateHomeContent(): string {
@@ -87,7 +89,8 @@ export function generateHomeContent(): string {
     },
     "sameAs": [
       "https://www.linkedin.com/company/fleetcore",
-      "https://x.com/fleetcore_ai"
+      "https://x.com/fleetcore_ai",
+      ${BLOG_SAME_AS_JSON}
     ]
   }
   </script>
@@ -341,9 +344,12 @@ export function generateHomeContent(): string {
   <h3>How long does vessel onboarding take?</h3>
   <p>A single vessel can be onboarded in hours rather than weeks. Pre-loaded OEM intelligence from 100+ manufacturers provides manufacturer-verified maintenance schedules. Operators import existing PMS via CSV or connect directly; the system auto-generates vessel-specific schedules.</p>
 
+  ${blogContentFunnelSection()}
+
   <h2>Navigate fleetcore</h2>
   <nav>
     <ul>
+      ${blogNavListItem()}
       <li><a href="/ai">AI Intelligence — five autonomous agents, ML predictive stack, closed-loop procurement, conversational fleet intelligence</a></li>
       <li><a href="/platform">Platform architecture — how fleetcore's agentic maintenance OS works</a></li>
       <li><a href="/solutions">Solutions — maritime maintenance use cases, schedule-specific hours, compliance, predictive maintenance</a></li>

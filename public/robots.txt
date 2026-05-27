@@ -69,4 +69,7 @@ Disallow: /solutions/yacht-superyacht
 Disallow: /resources
 Disallow: /case-studies
 
+# Marketing site (Cloudflare Pages)
 Sitemap: https://fleetcore.ai/sitemap.xml
+# Blog (Squarespace — separate host; also add blog.fleetcore.ai property in Search Console)
+Sitemap: https://blog.fleetcore.ai/sitemap.xml

@@ -1,3 +1,10 @@
+/**
+ * Bot-optimized content for AI page (/ai)
+ * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
+ */
+
+import { blogContentFunnelSection, blogNavListItem } from './shared';
+
 export function generateAIContent(): string {
   return `
 <!DOCTYPE html>
@@ -414,6 +421,21 @@ export function generateAIContent(): string {
     <li><strong>Governance:</strong> Confidence Score (0–100) gated three-tier HITL — all write actions require role-gated human approval</li>
     <li><strong>Federated learning:</strong> Cross-fleet anonymized survival distribution aggregation — no raw maintenance records shared across organizations</li>
   </ul>
+
+  ${blogContentFunnelSection()}
+
+  <h2>Navigate fleetcore</h2>
+  <nav>
+    <ul>
+      ${blogNavListItem()}
+      <li><a href="/">Home — maritime OS overview, five agents, ten capabilities</a></li>
+      <li><a href="/platform">Platform architecture — agentic maintenance OS, OEM intelligence</a></li>
+      <li><a href="/solutions">Solutions — predictive maintenance, compliance, fleet use cases</a></li>
+      <li><a href="/about">About fleetcore — ADGM-registered, Abu Dhabi UAE</a></li>
+      <li><a href="/contact">Schedule a demo — enterprise pricing and implementation</a></li>
+    </ul>
+  </nav>
+
 </body>
 </html>
 `;

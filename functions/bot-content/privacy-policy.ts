@@ -3,7 +3,9 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-const LAST_UPDATED = '2026-05-26';
+import { blogContentFunnelSection, blogNavListItem } from './shared';
+
+const LAST_UPDATED = '2026-05-27';
 
 export function generatePrivacyPolicyContent(): string {
   return `
@@ -223,9 +225,12 @@ export function generatePrivacyPolicyContent(): string {
     <li><strong>Backup & Recovery:</strong> Automated backups with point-in-time recovery capabilities</li>
   </ul>
 
+  ${blogContentFunnelSection()}
+
   <h2>Navigate fleetcore</h2>
   <nav>
     <ul>
+      ${blogNavListItem()}
       <li><a href="/">fleetcore overview — maritime maintenance OS for enterprise fleet operators</a></li>
       <li><a href="/platform">Platform architecture — agentic AI, SOLAS/MARPOL compliance, OEM integration</a></li>
       <li><a href="/solutions">Maritime maintenance solutions — schedule-specific hours, predictive maintenance</a></li>

@@ -3,7 +3,9 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-const LAST_UPDATED = '2026-05-26';
+import { blogContentFunnelSection, blogNavListItem, BLOG_SAME_AS_JSON } from './shared';
+
+const LAST_UPDATED = '2026-05-27';
 
 export function generateAboutContent(): string {
   return `
@@ -47,7 +49,8 @@ export function generateAboutContent(): string {
     },
     "sameAs": [
       "https://www.linkedin.com/company/fleetcore",
-      "https://x.com/fleetcore_ai"
+      "https://x.com/fleetcore_ai",
+      ${BLOG_SAME_AS_JSON}
     ]
   }
   </script>
@@ -180,9 +183,12 @@ export function generateAboutContent(): string {
   <h3>What is fleetcore's approach to vendor neutrality?</h3>
   <p>fleetcore is vendor-neutral by architecture: no single OEM's data format or naming convention takes precedence. MAN B&W engines, Wärtsilä generators, Caterpillar auxiliary systems, Kongsberg bridge systems, Rolls-Royce propulsion equipment, and ABB automation systems are all normalized into the same equipment schema. Fleet operators can switch OEM suppliers without migrating maintenance data. This is the opposite of OEM-bundled CMMS tools (like those offered by some classification societies) which create proprietary data lock-in.</p>
 
+  ${blogContentFunnelSection()}
+
   <h2>Navigate fleetcore</h2>
   <nav>
     <ul>
+      ${blogNavListItem()}
       <li><a href="/">fleetcore overview — agentic maritime maintenance OS for enterprise fleets</a></li>
       <li><a href="/platform">Technical platform architecture — AI agents, OEM integration, compliance automation</a></li>
       <li><a href="/solutions">Maritime maintenance solutions — schedule-specific hours, predictive maintenance, SOLAS compliance</a></li>

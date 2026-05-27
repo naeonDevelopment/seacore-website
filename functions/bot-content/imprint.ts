@@ -3,7 +3,9 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-const LAST_UPDATED = '2026-05-26';
+import { blogContentFunnelSection, blogNavListItem } from './shared';
+
+const LAST_UPDATED = '2026-05-27';
 
 export function generateImprintContent(): string {
   return `
@@ -90,9 +92,12 @@ export function generateImprintContent(): string {
   <h2>Platform</h2>
   <p>fleetcore operates an agentic maintenance operating system for maritime fleets. The platform centralizes OEM intelligence from 100+ manufacturers — including MAN B&W, Wärtsilä, Caterpillar, Kongsberg, Rolls-Royce, and ABB — and automates compliance with SOLAS Chapter II-2, MARPOL Annex VI, ISM Code Regulation 10.3, and MLC 2006. Supports fleet certification by DNV, Lloyd's Register, Bureau Veritas (BV), ABS, ClassNK, and RINA.</p>
 
+  ${blogContentFunnelSection()}
+
   <h2>Navigate fleetcore</h2>
   <nav>
     <ul>
+      ${blogNavListItem()}
       <li><a href="/">fleetcore overview — maritime maintenance OS for enterprise fleets</a></li>
       <li><a href="/platform">Platform architecture — agentic AI, OEM intelligence, compliance automation</a></li>
       <li><a href="/solutions">Maritime maintenance solutions — predictive maintenance, SOLAS compliance</a></li>

@@ -162,6 +162,8 @@ function App() {
             "itemListElement": [
               { "@type": "SiteNavigationElement", "name": "Solutions", "url": "https://fleetcore.ai/solutions" },
               { "@type": "SiteNavigationElement", "name": "Platform", "url": "https://fleetcore.ai/platform" },
+              { "@type": "SiteNavigationElement", "name": "AI", "url": "https://fleetcore.ai/ai" },
+              { "@type": "SiteNavigationElement", "name": "Blog", "url": "https://blog.fleetcore.ai" },
               { "@type": "SiteNavigationElement", "name": "About", "url": "https://fleetcore.ai/about" },
               { "@type": "SiteNavigationElement", "name": "Contact", "url": "https://fleetcore.ai/contact" }
             ]

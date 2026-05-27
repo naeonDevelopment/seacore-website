@@ -8,11 +8,30 @@
 - [Homepage](https://fleetcore.ai/): Platform overview, ROI proposition, and comparison to traditional CMMS systems like AMOS, SERTICA, and DNV Nauticus
 - [Platform](https://fleetcore.ai/platform): Technical architecture — agentic AI capabilities, dual-interval scheduling, cross-fleet learning, vendor-neutral OEM intelligence
 - [Solutions](https://fleetcore.ai/solutions): Use cases by fleet type — schedule-specific hours tracking, predictive maintenance, regulatory compliance automation
+- [AI Agent](https://fleetcore.ai/ai): Conversational fleet intelligence with 30+ maritime-domain handlers and HITL governance
 - [About](https://fleetcore.ai/about): Company background, maritime domain expertise, ADGM-registered, Abu Dhabi UAE
 - [Contact](https://fleetcore.ai/contact): Demo scheduling (30-min Calendly) and enterprise inquiries
-- [AI Agent](https://fleetcore.ai/ai): Conversational fleet intelligence with 30+ maritime-domain handlers and HITL governance
+- [Blog](https://blog.fleetcore.ai/): Squarespace-hosted articles — answer-first guides and keyword funnels linking back to fleetcore.ai product pages
 - [Privacy Policy](https://fleetcore.ai/privacy-policy): Data collection, use, and protection practices
 - [Imprint](https://fleetcore.ai/imprint): Legal notice and ADGM company registration details
+
+## Blog & content funnels
+
+The blog lives at **https://blog.fleetcore.ai** (separate host from the marketing site). Use it for long-tail maritime maintenance questions; each post should link to the matching product page on fleetcore.ai.
+
+| Blog topic cluster | Link readers to |
+| --- | --- |
+| CMMS comparison (AMOS, SERTICA, DNV Nauticus) | https://fleetcore.ai/solutions , https://fleetcore.ai/platform |
+| Predictive maintenance, RUL, sensors, ML stack | https://fleetcore.ai/ai , https://fleetcore.ai/platform |
+| SOLAS, MARPOL, ISM, PSC, class societies | https://fleetcore.ai/solutions , https://fleetcore.ai/platform |
+| PMS, OEM manuals, schedule-specific hours | https://fleetcore.ai/platform , https://fleetcore.ai/ |
+| Procurement, spare parts, inventory automation | https://fleetcore.ai/ai , https://fleetcore.ai/solutions |
+| Maritime AI assistant, HITL governance | https://fleetcore.ai/ai |
+| Fleet type use cases (shipping, offshore, cruise) | https://fleetcore.ai/solutions |
+| Company / ADGM / leadership | https://fleetcore.ai/about |
+| Demo, pricing, implementation | https://fleetcore.ai/contact , https://calendly.com/hello-fleetcore/30min |
+
+**Sitemaps:** Marketing site — https://fleetcore.ai/sitemap.xml . Blog (all posts) — https://blog.fleetcore.ai/sitemap.xml (verify in Squarespace; submit under blog.fleetcore.ai in Search Console).
 
 ## Key Facts
 
@@ -28,3 +47,4 @@
 - Demo: https://calendly.com/hello-fleetcore/30min
 - Website: https://fleetcore.ai/contact
 - LinkedIn: https://www.linkedin.com/company/fleetcore
+- Blog: https://blog.fleetcore.ai
