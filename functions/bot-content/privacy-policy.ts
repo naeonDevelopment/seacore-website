@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-import { blogContentFunnelSection, blogNavListItem } from './shared';
+import { blogContentFunnelSection, blogNavListItem, BOT_FAVICON_HEAD_LINKS } from './shared';
 
 const LAST_UPDATED = '2026-05-27';
 
@@ -14,6 +14,7 @@ export function generatePrivacyPolicyContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${BOT_FAVICON_HEAD_LINKS}
   <title>fleetcore Privacy Policy</title>
   <meta name="description" content="How fleetcore collects, uses, and protects your data across our platform and website.">
   <meta name="robots" content="index, follow">

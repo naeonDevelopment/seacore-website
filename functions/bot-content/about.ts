@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-import { blogContentFunnelSection, blogNavListItem, BLOG_SAME_AS_JSON } from './shared';
+import { blogContentFunnelSection, blogNavListItem, BLOG_SAME_AS_JSON, BOT_FAVICON_HEAD_LINKS } from './shared';
 
 const LAST_UPDATED = '2026-05-27';
 
@@ -14,6 +14,7 @@ export function generateAboutContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${BOT_FAVICON_HEAD_LINKS}
   <title>About fleetcore | Maritime Technology Company</title>
   <meta name="description" content="Enterprise maritime platform unifying 100+ OEM manufacturers. Strategic asset management with predictive automation, cross-fleet learning, and regulatory compliance for global fleet operators.">
   <meta name="robots" content="index, follow">

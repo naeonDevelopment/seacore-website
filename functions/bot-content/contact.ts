@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-import { blogContentFunnelSection, blogNavListItem } from './shared';
+import { blogContentFunnelSection, blogNavListItem, BOT_FAVICON_HEAD_LINKS } from './shared';
 
 const LAST_UPDATED = '2026-05-27';
 
@@ -14,6 +14,7 @@ export function generateContactContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${BOT_FAVICON_HEAD_LINKS}
   <title>Contact fleetcore</title>
   <meta name="description" content="Book a fleetcore demo or contact our maritime technology team by email or phone. We respond within one business day with global support for fleet operators and technical managers.">
   <meta name="robots" content="index, follow">

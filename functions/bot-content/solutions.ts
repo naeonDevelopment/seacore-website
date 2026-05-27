@@ -5,7 +5,7 @@
  * ACCURACY VERIFIED: Aligned with SolutionsPage.tsx as of 2026-05-27
  */
 
-import { blogContentFunnelSection, blogNavListItem } from './shared';
+import { blogContentFunnelSection, blogNavListItem, BOT_FAVICON_HEAD_LINKS } from './shared';
 
 const LAST_UPDATED = '2026-05-27';
 
@@ -16,6 +16,7 @@ export function generateSolutionsContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${BOT_FAVICON_HEAD_LINKS}
   <title>fleetcore — Maritime Maintenance Solutions</title>
   <meta name="description" content="AI-first maritime maintenance OS: five autonomous agents for maintenance, procurement, incidents, compliance, and fleet conversation. Three-layer ML stack, HITL governance, SOLAS/MARPOL compliance.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">

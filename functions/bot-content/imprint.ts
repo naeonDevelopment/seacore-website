@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-import { blogContentFunnelSection, blogNavListItem } from './shared';
+import { blogContentFunnelSection, blogNavListItem, BOT_FAVICON_HEAD_LINKS } from './shared';
 
 const LAST_UPDATED = '2026-05-27';
 
@@ -14,6 +14,7 @@ export function generateImprintContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${BOT_FAVICON_HEAD_LINKS}
   <title>Imprint — fleetcore Maritime Technology | Legal Information</title>
   <meta name="description" content="Legal information and company registration details for fleetcore — ADGM-registered maritime technology company headquartered in Abu Dhabi, UAE.">
   <meta name="robots" content="index, follow">

@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-import { blogContentFunnelSection, blogNavListItem, BLOG_SAME_AS_JSON } from './shared';
+import { blogContentFunnelSection, blogNavListItem, BLOG_SAME_AS_JSON, BOT_FAVICON_HEAD_LINKS } from './shared';
 
 const LAST_UPDATED = '2026-05-27';
 
@@ -14,6 +14,7 @@ export function generateHomeContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${BOT_FAVICON_HEAD_LINKS}
   <title>fleetcore — Maritime Technical Operating System</title>
   <meta name="description" content="fleetcore is a maritime technical operating system with five autonomous AI agents across every workflow — predictive ML maintenance, closed-loop procurement automation, incident intelligence, compliance reporting, and conversational fleet intelligence. Ten comprehensive capabilities. OEM PMS from 100+ manufacturers. SOLAS/MARPOL/ISM compliance built in.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">

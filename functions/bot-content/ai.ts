@@ -3,7 +3,7 @@
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
  */
 
-import { blogContentFunnelSection, blogNavListItem } from './shared';
+import { blogContentFunnelSection, blogNavListItem, BOT_FAVICON_HEAD_LINKS } from './shared';
 
 export function generateAIContent(): string {
   return `
@@ -12,6 +12,7 @@ export function generateAIContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${BOT_FAVICON_HEAD_LINKS}
   <title>fleetcore AI Agent | Maritime Fleet Intelligence</title>
   <meta name="description" content="fleetcore's AI agent answers any fleet question in natural language — tasks, events, procurement, compliance — with 30+ maritime handlers and session memory.">
   <meta name="robots" content="index, follow">

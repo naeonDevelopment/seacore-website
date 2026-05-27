@@ -37,3 +37,16 @@ export function blogContentFunnelSection(): string {
 
 /** JSON-LD sameAs entry (no trailing comma) */
 export const BLOG_SAME_AS_JSON = `"${BLOG_BASE_URL}"`;
+
+/**
+ * Favicon links for bot-optimized HTML. Googlebot receives this HTML (not index.html);
+ * without these tags Search may show the default globe icon in results.
+ * @see https://developers.google.com/search/docs/appearance/favicon-in-search
+ */
+export const BOT_FAVICON_HEAD_LINKS = `
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="/favicon/site.webmanifest">`;
