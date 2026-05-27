@@ -89,7 +89,7 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
   const globalReach = [
     {
       icon: MapPin,
-      title: 'Dubai Based',
+      title: 'Based in Abu Dhabi',
       description: 'Strategically positioned at the crossroads of global maritime trade, with direct access to major shipping routes and maritime hubs.',
       gradient: 'from-blue-500 to-cyan-600'
     },

@@ -103,6 +103,15 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       active: true
     },
     {
+      icon: MessageSquare,
+      name: 'Blog',
+      description: 'Read our latest articles and insights',
+      url: 'https://blog.fleetcore.ai',
+      gradient: 'from-orange-500 to-red-600',
+      handle: 'blog.fleetcore.ai',
+      active: true
+    },
+    {
       icon: XLogo,
       name: 'X',
       description: 'Follow for updates and insights',
@@ -118,15 +127,6 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       description: 'Community updates and news',
       url: '#',
       gradient: 'from-blue-500 to-blue-700',
-      handle: 'Coming Soon',
-      active: false
-    },
-    {
-      icon: MessageSquare,
-      name: 'Blog',
-      description: 'Read our latest articles and insights',
-      url: '#',
-      gradient: 'from-orange-500 to-red-600',
       handle: 'Coming Soon',
       active: false
     }
