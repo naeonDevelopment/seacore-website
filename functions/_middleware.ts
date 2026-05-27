@@ -151,6 +151,15 @@ export async function onRequest(context: EventContext) {
     const url = new URL(context.request.url);
     const rawPathname = url.pathname;
 
+    // 0. Vite bundles — never rewrite (case-sensitive hashes; skip cached 301 redirect paths)
+    if (
+      rawPathname.startsWith('/assets/') ||
+      /^\/favicon\.ico$/i.test(rawPathname) ||
+      rawPathname.startsWith('/favicon/')
+    ) {
+      return context.next();
+    }
+
     // 1. www → canonical redirect (must run before anything else)
     if (url.hostname === 'www.fleetcore.ai') {
       return Response.redirect(`https://fleetcore.ai${rawPathname}${url.search}`, 301);
