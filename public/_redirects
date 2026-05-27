@@ -1,3 +1,12 @@
+# Canonical URLs (no trailing slash) — backup if middleware does not run
+/about/ /about 301
+/contact/ /contact 301
+/platform/ /platform 301
+/solutions/ /solutions 301
+/ai/ /ai 301
+/privacy-policy/ /privacy-policy 301
+/imprint/ /imprint 301
+
 # SPA fallback for client-side routing - exclude assets
 /assets/* /assets/:splat 200
 /* /index.html 200

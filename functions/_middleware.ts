@@ -126,7 +126,13 @@ export async function onRequest(context: EventContext) {
       return Response.redirect(`https://fleetcore.ai${pathname}${url.search}`, 301);
     }
 
-    // 2. Static asset caching - aggressive performance
+    // 2. Trailing slash → canonical path (avoids 404 + noindex on /about/, /contact/, etc.)
+    if (pathname.length > 1 && pathname.endsWith('/')) {
+      const canonicalPath = pathname.replace(/\/+$/, '') || '/';
+      return Response.redirect(`${url.origin}${canonicalPath}${url.search}`, 301);
+    }
+
+    // 3. Static asset caching - aggressive performance
     const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm|txt|xml|json|webmanifest)$/i.test(pathname);
 
     if (isStaticAsset) {
@@ -144,7 +150,7 @@ export async function onRequest(context: EventContext) {
       return newResponse;
     }
 
-    // 3. Bot detection and content delivery for indexed routes
+    // 4. Bot detection and content delivery for indexed routes
     if (isBot(userAgent) && BOT_ROUTES.has(pathname)) {
       console.log(`[BOT DETECTED] ${userAgent.substring(0, 50)} -> ${pathname}`);
 
@@ -166,7 +172,7 @@ export async function onRequest(context: EventContext) {
       });
     }
 
-    // 4. Known SPA routes — serve the React app with correct cache headers
+    // 5. Known SPA routes — serve the React app with correct cache headers
     if (ALL_SPA_ROUTES.has(pathname)) {
       const response = await context.next();
       const newResponse = new Response(response.body, response);
@@ -178,7 +184,7 @@ export async function onRequest(context: EventContext) {
       return newResponse;
     }
 
-    // 5. Unknown routes — serve React app (renders NotFoundPage) with HTTP 404
+    // 6. Unknown routes — serve React app (renders NotFoundPage) with HTTP 404
     //    React Router handles client-side display; HTTP 404 satisfies crawlers.
     const response = await context.next();
     const headers = new Headers(response.headers);
