@@ -31,7 +31,8 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   ], [])
 
   // Phase 3 (Option A): poster is the *first frame* of h_h_1.mp4 for best perceived load.
-  const posterSrc = useMemo(() => getAssetPath('assets/hero/h_h_1-firstframe.webp'), [])
+  // ?v=1 busts any browser-cached 404 from an earlier deploy.
+  const posterSrc = useMemo(() => getAssetPath('assets/hero/h_h_1-firstframe.webp?v=1'), [])
 
   const debugEnabledRef = useRef<boolean>(false)
 

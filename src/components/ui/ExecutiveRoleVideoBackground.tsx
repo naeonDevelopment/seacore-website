@@ -83,9 +83,10 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
 
   // ── Poster: first-frame image for intentional freeze-frame ──────────────
   // Generated via: bash scripts/video/encode_renditions.sh
+  // ?v=1 busts any browser-cached 404 from an earlier deploy.
   // If the file does not exist, the gradient serves as the freeze-frame.
   const posterSrc = useMemo(
-    () => getAssetPath('assets/section_experts/vid_section_experts1-firstframe.webp'),
+    () => getAssetPath('assets/section_experts/vid_section_experts1-firstframe.webp?v=1'),
     []
   )
 
