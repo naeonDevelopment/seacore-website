@@ -114,23 +114,46 @@ const ALL_SPA_ROUTES = new Set([
 // Routes served with full bot-optimised HTML (indexed pages only)
 const BOT_ROUTES = new Set(['/', '/solutions', '/ai', '/platform', '/about', '/contact', '/privacy-policy', '/imprint']);
 
+// Unpublished routes — robots.txt Disallow + HTTP noindex (Helmet alone is not enough for all crawlers)
+const NOINDEX_ROUTES = new Set([
+  '/solutions/commercial-shipping',
+  '/solutions/offshore-energy',
+  '/solutions/cruise-lines',
+  '/solutions/naval-defense',
+  '/solutions/port-operations',
+  '/solutions/yacht-superyacht',
+  '/resources',
+  '/resources/knowledge-base',
+  '/resources/reports',
+  '/resources/webinars',
+  '/case-studies',
+]);
+
+function canonicalizePathname(pathname: string): string {
+  const collapsed = pathname.replace(/\/{2,}/g, '/');
+  const withoutTrailing =
+    collapsed.length > 1 && collapsed.endsWith('/') ? collapsed.replace(/\/+$/, '') || '/' : collapsed;
+  return withoutTrailing.toLowerCase();
+}
+
 // Main middleware handler
 export async function onRequest(context: EventContext) {
   try {
     const userAgent = context.request.headers.get('user-agent') || '';
     const url = new URL(context.request.url);
-    const pathname = url.pathname;
+    const rawPathname = url.pathname;
 
     // 1. www → canonical redirect (must run before anything else)
     if (url.hostname === 'www.fleetcore.ai') {
-      return Response.redirect(`https://fleetcore.ai${pathname}${url.search}`, 301);
+      return Response.redirect(`https://fleetcore.ai${rawPathname}${url.search}`, 301);
     }
 
-    // 2. Trailing slash → canonical path (avoids 404 + noindex on /about/, /contact/, etc.)
-    if (pathname.length > 1 && pathname.endsWith('/')) {
-      const canonicalPath = pathname.replace(/\/+$/, '') || '/';
-      return Response.redirect(`${url.origin}${canonicalPath}${url.search}`, 301);
+    // 2. Normalize path: collapse slashes, strip trailing slash, lowercase
+    const canonicalPathname = canonicalizePathname(rawPathname);
+    if (canonicalPathname !== rawPathname) {
+      return Response.redirect(`${url.origin}${canonicalPathname}${url.search}`, 301);
     }
+    const pathname = canonicalPathname;
 
     // 3. Static asset caching - aggressive performance
     const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm|txt|xml|json|webmanifest)$/i.test(pathname);
@@ -180,6 +203,9 @@ export async function onRequest(context: EventContext) {
       newResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       newResponse.headers.set('X-Content-Type-Options', 'nosniff');
       newResponse.headers.set('X-Served-To', 'User');
+      if (NOINDEX_ROUTES.has(pathname)) {
+        newResponse.headers.set('X-Robots-Tag', 'noindex, nofollow');
+      }
 
       return newResponse;
     }

@@ -147,12 +147,7 @@ function App() {
             "@context": "https://schema.org",
             "@type": "WebSite",
             "name": "fleetcore",
-            "url": "https://fleetcore.ai/",
-            "potentialAction": {
-              "@type": "SearchAction",
-              "target": "https://fleetcore.ai/search?q={query}",
-              "query-input": "required name=query"
-            }
+            "url": "https://fleetcore.ai/"
           })}
         </script>
         <script type="application/ld+json">
