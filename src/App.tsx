@@ -10,6 +10,7 @@ import { Helmet } from 'react-helmet-async'
 
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const SolutionsPage = lazy(() => import('@/pages/SolutionsPage'))
+const AIPage = lazy(() => import('@/pages/AIPage'))
 const PlatformPage = lazy(() => import('@/pages/PlatformPage'))
 const AboutPage = lazy(() => import('@/pages/AboutPage'))
 const ContactPage = lazy(() => import('@/pages/ContactPage'))
@@ -61,6 +62,9 @@ function AppLayout({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDark
               <Route path="/solutions/naval-defense" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Naval & Defense Solutions Coming Soon</div></>} />
               <Route path="/solutions/port-operations" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Port Operations Solutions Coming Soon</div></>} />
               <Route path="/solutions/yacht-superyacht" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Yacht & Superyacht Solutions Coming Soon</div></>} />
+
+              {/* AI Route */}
+              <Route path="/ai" element={<AIPage />} />
 
               {/* Platform Route */}
               <Route path="/platform" element={<PlatformPage />} />

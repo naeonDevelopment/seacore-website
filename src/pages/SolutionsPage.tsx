@@ -20,7 +20,10 @@ import {
   GitBranch,
   Globe,
   Package,
-  FileCheck
+  FileCheck,
+  Brain,
+  Bot,
+  Lock
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
@@ -108,19 +111,21 @@ const SolutionsPage: React.FC = () => {
       gradient: 'from-orange-500 to-red-600'
     },
     {
-      title: 'Smart Parts Management',
-      description: 'Track spare parts inventory, critical spares requirements, and automated procurement recommendations. Link parts to specific equipment and maintenance tasks.',
+      title: 'AI Procurement Intelligence',
+      description: 'Procurement Intelligence Agent ingests ML-predicted RUL signals to trigger reorder events ahead of need. Automatically drafts ranked supplier inquiries, analyzes offers, and surfaces the best-value recommendation for human approval.',
       icon: Package,
-      useCase: 'Oil filter consumption pattern → auto-calculate reorder point → procurement alert 2 weeks ahead',
-      gradient: 'from-cyan-500 to-blue-600'
+      useCase: 'RUL < 300h detected → agent drafts inquiry to 3 suppliers → ranked offer analysis → 1-click approval',
+      gradient: 'from-amber-500 to-orange-600',
+      aiTag: true
     },
     {
-      title: 'Comprehensive Analytics Dashboard',
-      description: 'Real-time KPI tracking for maintenance completion rates, equipment health scores, cost analysis, and fleet-wide performance metrics.',
-      icon: LineChart,
-      useCase: 'Fleet maintenance efficiency: 92% on-time completion, $50K monthly savings vs. reactive maintenance',
-      gradient: 'from-indigo-500 to-purple-600'
-    }
+      title: 'ML Predictive Maintenance',
+      description: 'Three-layer machine learning stack processes historical maintenance records, live equipment telemetry, and third-party sensor streams to compute a composite health index and P05/P50/P95 remaining-useful-life forecast per installation.',
+      icon: Brain,
+      useCase: 'Composite health drops below threshold → P50 RUL = 280h → agent schedules maintenance window proactively',
+      gradient: 'from-violet-500 to-purple-600',
+      aiTag: true
+    },
   ]
 
   // Why Operating System analogy
@@ -145,21 +150,21 @@ const SolutionsPage: React.FC = () => {
     },
     {
       title: 'File System (Data Layer)',
-      description: 'OS provides unified file access; fleetcore provides unified maintenance data access.',
+      description: 'OS provides unified file access; fleetcore provides unified maintenance data across every vessel.',
       icon: Database,
       example: 'One query accesses data from 500 vessels, 5000 equipment items'
     },
     {
-      title: 'Device Drivers (Integrations)',
-      description: 'OS has drivers for hardware; fleetcore has adapters for any OEM, ERP, or IoT system.',
-      icon: GitBranch,
-      example: 'Plug-and-play integration with Caterpillar, MAN, Wärtsilä systems'
+      title: 'Agent Processes (Always-On)',
+      description: 'An OS runs background processes that manage the system. fleetcore runs five always-on AI agents — each owning a specific operational domain and acting autonomously within it.',
+      icon: Bot,
+      example: 'Predictive Maintenance Agent, Procurement Agent, Incident Intelligence, Compliance, Fleet Conversation — all running in parallel'
     },
     {
-      title: 'System Updates (Continuous Improvement)',
-      description: 'OS updates for security and features; fleetcore continuously improves through pattern analysis and operational feedback.',
-      icon: TrendingUp,
-      example: 'System analytics identify optimization opportunities from fleet-wide data'
+      title: 'Permission Kernel (HITL Governance)',
+      description: 'An OS kernel gates privileged operations via permission checks. fleetcore\'s HITL governance gates every agent write action through a Confidence Score — no autonomous change bypasses human review.',
+      icon: Lock,
+      example: 'Confidence Score < 70% → auto-escalate to human · ≥ 95% → streamlined approval · 100% write ops gated'
     }
   ]
 
@@ -218,11 +223,11 @@ const SolutionsPage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>Maritime Maintenance Solutions | fleetcore</title>
-        <meta name="description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
+        <title>Maritime Maintenance Solutions · 5 AI Agents · Predictive ML Stack | fleetcore</title>
+        <meta name="description" content="fleetcore replaces reactive CMMS with an AI-first maintenance OS: 5 autonomous agents across maintenance, procurement, incidents, compliance, and fleet conversation. Three-layer ML predictive stack, HITL governance, SOLAS/MARPOL compliance." />
         <link rel="canonical" href="https://fleetcore.ai/solutions" />
-        <meta property="og:title" content="Maritime Maintenance Solutions | fleetcore" />
-        <meta property="og:description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
+        <meta property="og:title" content="Maritime Maintenance Solutions · 5 AI Agents · Predictive ML Stack | fleetcore" />
+        <meta property="og:description" content="Five autonomous agents replace reactive maintenance with predictive intelligence: ML RUL forecasts, closed-loop procurement, incident response, compliance automation, and conversational fleet intelligence." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/solutions" />
         <meta property="og:image" content="https://fleetcore.ai/og/solution.png" />
@@ -244,21 +249,31 @@ const SolutionsPage: React.FC = () => {
             "mainEntity": [
               {
                 "@type": "Question",
-                "name": "How does fleetcore differ from CMMS?",
-                "acceptedAnswer": { "@type": "Answer", "text": "It’s an AI operating system that predicts failures, automates scheduling, and embeds compliance—going beyond work-order tracking." }
+                "name": "How does fleetcore differ from traditional CMMS?",
+                "acceptedAnswer": { "@type": "Answer", "text": "fleetcore is an AI-first maintenance operating system with five autonomous agents—not a CMMS. It predicts failures 200–800 hours ahead using a three-layer ML stack, automates procurement via a closed-loop agent, and gates every write action through a three-tier HITL governance model. Traditional CMMS only tracks completed work orders." }
               },
               {
                 "@type": "Question",
-                "name": "What outcomes can we expect?",
-                "acceptedAnswer": { "@type": "Answer", "text": "30–40% efficiency gains, 90%+ task auto-generation, and automated SOLAS/MARPOL tracking across fleets." }
+                "name": "What are the five AI agents in fleetcore?",
+                "acceptedAnswer": { "@type": "Answer", "text": "1) Predictive Maintenance Agent — ML RUL forecasts + proactive scheduling; 2) Procurement Intelligence Agent — automated inquiry drafts and ranked offer analysis; 3) Incident Intelligence Agent — anomaly detection and correlated alert triage; 4) Compliance Reporting Agent — SOLAS/MARPOL status and PSC readiness; 5) Conversational Fleet Intelligence Agent — natural language queries across your entire fleet." }
+              },
+              {
+                "@type": "Question",
+                "name": "What outcomes can maritime operators expect from fleetcore?",
+                "acceptedAnswer": { "@type": "Answer", "text": "30–40% efficiency gains through autonomous agent workflows, 90%+ task auto-generation, 100% SOLAS/MARPOL compliance tracking, and predictive failure prevention 200–800 hours ahead of breakdown." }
+              },
+              {
+                "@type": "Question",
+                "name": "How does fleetcore's HITL governance model work?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Every AI-driven write action is gated by a Confidence Score (0–100%). Scores below 70% trigger automatic human escalation. Scores at or above 95% enable streamlined one-click approval. No agent action bypasses human review." }
               }
             ]
           })}
         </script>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="Maritime Maintenance Solutions | fleetcore" />
-        <meta name="twitter:description" content="AI maintenance OS: replace reactive CMMS with predictive automation, compliance, and fleet-wide intelligence." />
+        <meta name="twitter:title" content="Maritime Maintenance Solutions · 5 AI Agents · Predictive ML Stack | fleetcore" />
+        <meta name="twitter:description" content="Five autonomous agents replace reactive maintenance with predictive intelligence: ML RUL forecasts, closed-loop procurement, incident response, compliance automation, and conversational fleet intelligence." />
         <meta name="twitter:image" content="https://fleetcore.ai/og/solution.png" />
       </Helmet>
       {/* Dynamic Scroll Gradient Background */}
@@ -374,8 +389,7 @@ const SolutionsPage: React.FC = () => {
                 backfaceVisibility: 'hidden'
               }}
             >
-              Traditional CMMS systems only track maintenance. fleetcore <strong>automates scheduling, prevents failures, 
-              and optimizes operations</strong> — transforming reactive chaos into proactive intelligence.
+              Traditional CMMS systems only track maintenance. fleetcore embeds <strong>five autonomous agents across every operational workflow</strong> — from predictive maintenance to procurement — so your team focuses on decisions, not data entry.
             </p>
 
             {/* Key Features Tags */}
@@ -386,9 +400,13 @@ const SolutionsPage: React.FC = () => {
                 backfaceVisibility: 'hidden'
               }}
             >
+              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium">
+                <Brain className="w-4 h-4" />
+                <span>5 Autonomous AI Agents</span>
+              </div>
               <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium">
-                <Calendar className="w-4 h-4" />
-                <span>Smart Automation</span>
+                <Activity className="w-4 h-4" />
+                <span>Predictive ML Stack</span>
               </div>
               <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium">
                 <Network className="w-4 h-4" />
@@ -397,10 +415,6 @@ const SolutionsPage: React.FC = () => {
               <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium">
                 <Shield className="w-4 h-4" />
                 <span>SOLAS Compliance</span>
-              </div>
-              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-sm font-medium">
-                <Activity className="w-4 h-4" />
-                <span>Real-Time Analytics</span>
               </div>
             </div>
 
@@ -452,7 +466,7 @@ const SolutionsPage: React.FC = () => {
               >
                 <div className="rounded-3xl border bg-white dark:bg-slate-800 shadow-lg p-8 h-full hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 group">
                   <div className="flex items-start space-x-4 mb-6">
-                    <div className={cn("p-3 rounded-xl bg-gradient-to-br", limitation.color)}>
+                    <div className={cn("p-3 rounded-xl bg-gradient-to-br flex-shrink-0", limitation.color)}>
                       <limitation.icon className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
@@ -480,15 +494,22 @@ const SolutionsPage: React.FC = () => {
             viewport={{ once: true }}
             className="mt-16 max-w-4xl mx-auto"
           >
-            <div className="rounded-3xl border bg-gradient-to-br from-purple-50/50 via-indigo-50/30 to-blue-50/50 dark:from-purple-950/20 dark:via-indigo-950/15 dark:to-blue-950/20 p-12 text-center">
+            <div className="rounded-3xl border bg-gradient-to-br from-violet-50/50 via-purple-50/30 to-indigo-50/50 dark:from-violet-950/20 dark:via-purple-950/15 dark:to-indigo-950/20 p-12 text-center">
               <h3 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4 enterprise-heading">
-                fleetcore Changes Everything
+                Five Agents. Every Problem Solved.
               </h3>
-              <p className="text-xl text-slate-600 dark:text-slate-300 enterprise-body">
+              <p className="text-xl text-slate-600 dark:text-slate-300 enterprise-body mb-6">
                 We're not improving traditional CMMS — we're replacing it with an 
-                <strong className="maritime-gradient-text"> AI-powered operating system</strong> that 
-                fundamentally transforms how maritime maintenance works.
+                <strong className="maritime-gradient-text"> AI-first operating system</strong> where five autonomous agents run in parallel across maintenance, procurement, incidents, compliance, and fleet conversation.
               </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {['Predictive Maintenance', 'Procurement Intelligence', 'Incident Response', 'Compliance Reporting', 'Fleet Conversation'].map((agent) => (
+                  <div key={agent} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-800/50 text-xs font-medium text-violet-700 dark:text-violet-300">
+                    <Bot className="w-3 h-3" />
+                    {agent}
+                  </div>
+                ))}
+              </div>
             </div>
           </motion.div>
         </div>
@@ -513,8 +534,8 @@ const SolutionsPage: React.FC = () => {
               Core System Capabilities
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
-              Six integrated subsystems that automate and optimize maritime maintenance operations,
-              delivering real-time intelligence and operational efficiency.
+              Six integrated capabilities — including two AI agent-powered layers for predictive intelligence and
+              autonomous procurement — that automate and optimize every aspect of maritime maintenance.
             </p>
           </motion.div>
 
@@ -529,11 +550,19 @@ const SolutionsPage: React.FC = () => {
                 viewport={{ once: true }}
               >
                 <div 
-                  className="rounded-3xl border bg-white dark:bg-slate-800 shadow-lg p-6 h-full hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300"
+                  className="rounded-3xl border bg-white dark:bg-slate-800 shadow-lg p-6 h-full hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300 flex flex-col"
                 >
-                  {/* Icon */}
-                  <div className={cn("w-14 h-14 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4", capability.gradient)}>
-                    <capability.icon className="w-7 h-7 text-white" />
+                  {/* Icon + AI badge row */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={cn("w-14 h-14 rounded-xl bg-gradient-to-br flex items-center justify-center", capability.gradient)}>
+                      <capability.icon className="w-7 h-7 text-white" />
+                    </div>
+                    {(capability as { aiTag?: boolean }).aiTag && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800/50 text-xs font-semibold text-violet-700 dark:text-violet-300">
+                        <Brain className="w-3 h-3" />
+                        AI Agent
+                      </div>
+                    )}
                   </div>
 
                   {/* Title */}
@@ -542,7 +571,7 @@ const SolutionsPage: React.FC = () => {
                   </h3>
 
                   {/* Description */}
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mb-4 enterprise-body leading-relaxed">
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mb-4 enterprise-body leading-relaxed flex-1">
                     {capability.description}
                   </p>
 
@@ -639,21 +668,26 @@ const SolutionsPage: React.FC = () => {
             className="max-w-5xl mx-auto"
           >
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-              <div className="text-center p-8 rounded-3xl border bg-white dark:bg-slate-800 shadow-lg">
-                <div className="text-5xl font-bold maritime-gradient-text mb-2">30-40%</div>
-                <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Efficiency Gain</div>
-                <div className="text-sm text-slate-600 dark:text-slate-400">Through automated scheduling and smart optimization</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+              <div className="text-center p-6 rounded-3xl border bg-white dark:bg-slate-800 shadow-lg">
+                <div className="text-4xl font-bold maritime-gradient-text mb-2">30-40%</div>
+                <div className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-1">Efficiency Gain</div>
+                <div className="text-xs text-slate-600 dark:text-slate-400">Automated scheduling and optimization</div>
               </div>
-              <div className="text-center p-8 rounded-3xl border bg-white dark:bg-slate-800 shadow-lg">
-                <div className="text-5xl font-bold maritime-gradient-text mb-2">90%+</div>
-                <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Tasks Auto-Generated</div>
-                <div className="text-sm text-slate-600 dark:text-slate-400">Minimal manual task creation required</div>
+              <div className="text-center p-6 rounded-3xl border bg-white dark:bg-slate-800 shadow-lg">
+                <div className="text-4xl font-bold maritime-gradient-text mb-2">90%+</div>
+                <div className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-1">Tasks Auto-Generated</div>
+                <div className="text-xs text-slate-600 dark:text-slate-400">Minimal manual task creation</div>
               </div>
-              <div className="text-center p-8 rounded-3xl border bg-white dark:bg-slate-800 shadow-lg">
-                <div className="text-5xl font-bold maritime-gradient-text mb-2">100%</div>
-                <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Compliance Tracking</div>
-                <div className="text-sm text-slate-600 dark:text-slate-400">SOLAS/MARPOL built-in monitoring</div>
+              <div className="text-center p-6 rounded-3xl border bg-white dark:bg-slate-800 shadow-lg">
+                <div className="text-4xl font-bold maritime-gradient-text mb-2">100%</div>
+                <div className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-1">Compliance Tracking</div>
+                <div className="text-xs text-slate-600 dark:text-slate-400">SOLAS/MARPOL built-in monitoring</div>
+              </div>
+              <div className="text-center p-6 rounded-3xl border bg-white dark:bg-slate-800 shadow-lg">
+                <div className="text-4xl font-bold maritime-gradient-text mb-2">5</div>
+                <div className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-1">AI Agents</div>
+                <div className="text-xs text-slate-600 dark:text-slate-400">Running autonomously across every workflow</div>
               </div>
             </div>
 
@@ -673,8 +707,7 @@ const SolutionsPage: React.FC = () => {
               </h2>
 
               <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 enterprise-body max-w-3xl mx-auto">
-                See how fleetcore's maintenance operating system can automate 90%+ of your tasks, improve efficiency by 30-40%, 
-                and ensure full compliance — all through smart automation and real-time intelligence.
+                See how fleetcore's maintenance operating system — backed by five autonomous AI agents and a three-layer ML predictive stack — automates 90%+ of your tasks, improves efficiency by 30–40%, and ensures full compliance.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -693,10 +726,16 @@ const SolutionsPage: React.FC = () => {
                   Schedule Demo
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
+                <Link to="/ai">
+                  <Button variant="ghost" size="xl">
+                    <Brain className="w-5 h-5" />
+                    Explore AI Intelligence
+                  </Button>
+                </Link>
                 <Link to="/platform">
                   <Button variant="ghost" size="xl">
                     <Globe className="w-5 h-5" />
-                    Explore Platform Features
+                    Platform Features
                   </Button>
                 </Link>
               </div>

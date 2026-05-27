@@ -1,12 +1,9 @@
 /**
  * Bot-optimized content for Home page (/)
  * Served to Googlebot, ChatGPT, Claude, Perplexity, Gemini
- * 
- * FOCUS: Global Maintenance Intelligence | Vendor-Neutral Optimization | Executive ROI
  */
 
-const LAST_UPDATED = '2026-05-26';
-const PLATFORM_VERSION = 'v2.3.0';
+const LAST_UPDATED = '2026-05-27';
 
 export function generateHomeContent(): string {
   return `
@@ -15,79 +12,62 @@ export function generateHomeContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore: Agentic Maintenance Operating System | Global Maritime Intelligence Platform</title>
-  <meta name="description" content="Transform fleet operations with centralized OEM intelligence and real-world global maintenance data. AI-powered maintenance OS delivers vendor-neutral optimization, predictive automation, and cross-fleet learning. Eliminate reactive maintenance, reduce costs by up to 40%, ensure compliance.">
+  <title>fleetcore — Maritime Technical OS | 5 AI Agents · 10 Capabilities · 100+ OEM Manufacturers</title>
+  <meta name="description" content="fleetcore is a maritime technical operating system with five autonomous AI agents across every workflow — predictive ML maintenance, closed-loop procurement automation, incident intelligence, compliance reporting, and conversational fleet intelligence. Ten comprehensive capabilities. OEM PMS from 100+ manufacturers. SOLAS/MARPOL/ISM compliance built in.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
-  
-  <!-- Open Graph -->
+
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://fleetcore.ai/">
-  <meta property="og:title" content="fleetcore: Agentic Maintenance Operating System">
-  <meta property="og:description" content="Centralized OEM intelligence from 100+ maritime manufacturers. Vendor-neutral maintenance OS delivers predictive automation, cross-fleet optimization, regulatory compliance. Transform reactive operations into strategic asset management.">
+  <meta property="og:title" content="fleetcore: Maritime OS — 5 AI Agents Across Every Workflow">
+  <meta property="og:description" content="Five autonomous agents. Ten comprehensive capabilities. OEM intelligence from 100+ manufacturers. Censoring-aware ML predictive stack, closed-loop procurement automation, three-tier HITL governance. SOLAS/MARPOL/ISM compliance built in.">
   <meta property="og:image" content="https://fleetcore.ai/og/home.png">
-  
-  <!-- Twitter -->
+
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://fleetcore.ai/">
-  <meta name="twitter:title" content="fleetcore: Agentic Maintenance OS">
-  <meta name="twitter:description" content="Global maritime maintenance intelligence: 100+ OEM manufacturers unified. Vendor-neutral optimization, predictive analytics, automated compliance. Transform fleet operations with proven 20-30% cost reduction.">
+  <meta name="twitter:title" content="fleetcore: Maritime OS — 5 AI Agents, 10 Capabilities">
+  <meta name="twitter:description" content="Five autonomous AI agents embedded across every maritime workflow. Three-layer ML predictive maintenance, closed-loop procurement automation, HITL governance. 100+ OEM manufacturers unified.">
   <meta name="twitter:image" content="https://fleetcore.ai/og/home.png">
-  
-  <!-- Canonical -->
+
   <link rel="canonical" href="https://fleetcore.ai/">
-  
-  <!-- Structured Data: SoftwareApplication -->
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "fleetcore Agentic Maintenance Operating System",
+    "name": "fleetcore Maritime Technical Operating System",
     "applicationCategory": "BusinessApplication",
-    "applicationSubCategory": "AI-Powered Maintenance OS - Autonomous Fleet Operations & Predictive Maintenance",
+    "applicationSubCategory": "AI-Powered Maritime Maintenance OS — Agentic Fleet Operations",
     "operatingSystem": "Web-based, Cloud Platform",
-    "softwareVersion": "${PLATFORM_VERSION}",
     "dateModified": "${LAST_UPDATED}",
-    "releaseNotes": "https://fleetcore.ai/platform",
     "offers": {
       "@type": "Offer",
       "availability": "https://schema.org/PreOrder",
-      "priceSpecification": {
-        "@type": "PriceSpecification",
-        "price": "Contact for pricing",
-        "priceCurrency": "USD"
-      },
-      "description": "Enterprise maritime maintenance platform - Available for deployment"
+      "description": "Enterprise maritime maintenance platform — contact for pricing"
     },
     "featureList": [
-      "Agentic Fleet AI: Autonomous vessel-specific intelligence agents",
-      "Self-Evolving Intelligence: Global learning graph across entire fleet",
-      "Predictive Maintenance Automation: 20-30% operational cost reduction",
-      "Cross-Fleet Knowledge Transfer: Every vessel learns from the entire fleet",
-      "Vendor-Neutral Multi-OEM Optimization: Unified intelligence across manufacturers",
-      "Autonomous Compliance Monitoring: SOLAS 2024, MARPOL, ISM Code automation",
-      "Precision Hours Tracking: Schedule-specific independent counters (industry first)",
-      "Real-Time Asset Intelligence: Sub-200ms fleet-wide synchronization",
-      "Intelligent Maritime Assistant: Dual-mode AI with 28+ authoritative sources",
-      "Predictive Failure Detection: Proactive intervention before breakdowns",
-      "Autonomous Scheduling: 90%+ task auto-generation with crew optimization",
-      "Universal Truth Verification: Entity extraction and comparative intelligence",
-      "Multi-Tenant Enterprise Architecture: Organization-level isolation and security",
-      "Event-Driven Operations: Automated workflows from detection to resolution",
-      "Digital Asset Intelligence: Complete operational transparency and audit trails",
-      "Cloud-Native Scalability: Modern architecture for unlimited fleet growth"
+      "Five autonomous AI agents: predictive maintenance, procurement, incident intelligence, compliance reporting, conversational fleet intelligence",
+      "Three-layer ML predictive intelligence stack with P05/P50/P95 RUL confidence bands",
+      "Censoring-aware survival analysis — eliminates right-censored data bias (30–50% accuracy gap vs. competitors)",
+      "Equipment DNA operational context embedding per installation",
+      "Live equipment data streams with multi-model streaming anomaly detection",
+      "Third-party sensor integration: vibration, thermal, combustion gas with physics-based safety overrides",
+      "Closed-loop procurement automation: reorder trigger to ranked award decision",
+      "Three-tier HITL governance: Confidence Score gated human approval at every AI action",
+      "OEM PMS from 100+ manufacturers: MAN B&W, Wärtsilä, Caterpillar, Kongsberg, ABB, Rolls-Royce",
+      "Schedule-specific independent hours tracking — industry first design",
+      "SOLAS 2024 / MARPOL / ISM Code compliance built into core architecture",
+      "Cross-fleet federated learning — privacy-preserving survival priors",
+      "Multi-tenant enterprise architecture, real-time sync under 200ms latency",
+      "Event-based unplanned maintenance with automatic PMS linking",
+      "Equipment lifecycle management: installation to decommissioning",
+      "Advanced analytics: health scoring, trend analysis, cost optimization, fleet KPIs"
     ],
     "screenshot": "https://fleetcore.ai/og/platform.png",
-    "applicationSuite": "Maritime Operations Management",
-    "availableOnDevice": ["Desktop", "Tablet", "Mobile"],
-    "browserRequirements": "Modern browsers (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)",
-    "memoryRequirements": "4GB RAM minimum, 8GB recommended",
-    "storageRequirements": "Cloud-based, no local storage required",
-    "operatingSystemRequirements": "Any OS with modern web browser support"
+    "applicationSuite": "Maritime Operations Management"
   }
   </script>
-  
-  <!-- Structured Data: Organization -->
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -96,7 +76,7 @@ export function generateHomeContent(): string {
     "name": "fleetcore",
     "url": "https://fleetcore.ai",
     "logo": "https://fleetcore.ai/Light.svg",
-    "description": "Developer of fleetcore Agentic Maintenance OS — enterprise maritime platform with centralized OEM intelligence from 100+ manufacturers, automated SOLAS/MARPOL/ISM compliance, and predictive maintenance for global fleet operators.",
+    "description": "Developer of fleetcore — maritime technical operating system with AI Intelligence. Four autonomous agents embedded across maintenance, procurement, incident, and compliance workflows. OEM intelligence from 100+ manufacturers.",
     "foundingDate": "2024",
     "industry": "Maritime Technology",
     "address": {
@@ -111,794 +91,269 @@ export function generateHomeContent(): string {
     ]
   }
   </script>
-  
-  <!-- Structured Data: WebPage -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "name": "fleetcore Maritime Navigator - Home",
-    "description": "Enterprise maritime maintenance platform with centralized OEM intelligence and predictive automation",
-    "dateModified": "${LAST_UPDATED}",
-    "version": "${PLATFORM_VERSION}",
-    "specialty": "Maritime Technology"
-  }
-  </script>
-  
+
   <style>
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-      line-height: 1.6; 
-      max-width: 1200px; 
-      margin: 0 auto; 
-      padding: 20px; 
-      color: #1e293b;
-      background: #ffffff;
-    }
-    .status-badge {
-      background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      display: inline-block;
-      margin-bottom: 24px;
-      font-weight: 600;
-      box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
-    }
-    h1 { 
-      color: #0f172a; 
-      font-size: 2.5em; 
-      margin-bottom: 0.3em;
-      line-height: 1.2;
-    }
-    h2 { 
-      color: #1e293b; 
-      font-size: 1.8em; 
-      margin-top: 1.8em; 
-      margin-bottom: 0.8em;
-      border-bottom: 3px solid #e2e8f0; 
-      padding-bottom: 0.4em;
-    }
-    h3 { 
-      color: #334155; 
-      font-size: 1.4em; 
-      margin-top: 1.4em;
-      margin-bottom: 0.6em;
-    }
-    strong { 
-      color: #0ea5e9; 
-      font-weight: 600;
-    }
-    ul, ol { 
-      margin: 1em 0; 
-      padding-left: 2em; 
-    }
-    li { 
-      margin: 0.6em 0; 
-    }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin: 1.5em 0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    th, td { 
-      border: 1px solid #cbd5e1; 
-      padding: 14px; 
-      text-align: left; 
-    }
-    th { 
-      background: #f1f5f9; 
-      font-weight: 600;
-      color: #0f172a;
-    }
-    tr:nth-child(even) {
-      background: #f8fafc;
-    }
-    a { 
-      color: #0ea5e9; 
-      text-decoration: none; 
-      font-weight: 500;
-    }
-    a:hover { 
-      text-decoration: underline; 
-    }
-    .innovation-highlight {
-      background: #f0f9ff;
-      border-left: 4px solid #0ea5e9;
-      padding: 16px 20px;
-      margin: 20px 0;
-      border-radius: 4px;
-    }
-    code {
-      background: #f1f5f9;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9em;
-    }
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 2rem; line-height: 1.7; color: #1e293b; }
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    .agent-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; margin: 0.75rem 0; }
+    .highlight { background: #f5f3ff; border-left: 4px solid #7c3aed; padding: 1rem 1.25rem; border-radius: 4px; margin: 1rem 0; }
+    .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; background: #dcfce7; color: #16a34a; }
+    table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+    th { background: #f8fafc; padding: 0.75rem 1rem; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+    td { padding: 0.65rem 1rem; border-bottom: 1px solid #e2e8f0; }
+    tr:last-child td { border-bottom: none; }
+    ul { padding-left: 1.5rem; }
+    li { margin-bottom: 0.4rem; }
+    a { color: #7c3aed; text-decoration: none; }
+    a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  
-  <p><strong>fleetcore is an agentic maintenance operating system for maritime fleets.</strong> It centralizes OEM intelligence from 100+ manufacturers — MAN B&W, Wärtsilä, Caterpillar, Kongsberg, ABB, Rolls-Royce — into a single cloud-native platform that automates SOLAS/MARPOL/ISM compliance, predicts maintenance needs before failures occur, and delivers 20–30% fleet operational cost reduction. PSC detention costs $25,000–$50,000 per day; fleetcore eliminates the maintenance gaps that cause them.</p>
+  <span class="status-badge">Production</span>
 
-  <!-- Platform Status Badge -->
-  <div class="status-badge">
-    🚢 <strong>Enterprise Platform:</strong> Production-Ready | 
-    <strong>Updated:</strong> ${LAST_UPDATED} | 
-    <strong>Version:</strong> ${PLATFORM_VERSION} |
-    <strong>100+</strong> OEM Manufacturers Unified
+  <h1>fleetcore: Maritime Technical Operating System — Five Agents. Every Workflow Covered.</h1>
+
+  <p><strong>fleetcore is a maritime technical operating system where AI is not an add-on — it is the foundation.</strong> Five autonomous agents are embedded across every core operational workflow: predictive maintenance runs a censoring-aware ML stack every 15 minutes against every equipment installation; a procurement agent closes the loop from inventory threshold to ranked supplier award automatically; an incident intelligence agent proposes predictive events 200–800 hours before a failure window; a compliance reporting agent pre-populates three report templates as AI-draft artifacts; and a conversational fleet intelligence agent answers any fleet question in plain language with 30+ maritime-domain handlers. Every agent action is gated by a three-tier human-approval governance model. The machine prepares and proposes — the crew and superintendents decide and approve.</p>
+
+  <p>On top of this agentic foundation, fleetcore centralizes OEM maintenance intelligence from 100+ maritime manufacturers — MAN B&W, Wärtsilä, Caterpillar, Kongsberg, ABB, Rolls-Royce, Alfa Laval — into a single cloud-native platform with SOLAS 2024 / MARPOL / ISM Code compliance built into the architecture.</p>
+
+  <h2>AI Intelligence — five autonomous agents at every layer</h2>
+
+  <div class="highlight">
+    <p><strong>Five Agents. Every Workflow Covered.</strong> Every maintenance cycle, procurement inquiry, incident alert, compliance report, and fleet conversation is governed by a purpose-built agent. Humans stay in command — the platform does the preparation.</p>
   </div>
-  
-  <h1>What is fleetcore? Maritime Maintenance OS for Enterprise Fleets</h1>
-  <p style="font-size: 1.2em; color: #475569; margin-bottom: 2em;">
-    <strong>Centralized OEM Knowledge from 100+ Manufacturers</strong> — Transform fleet operations with vendor-neutral intelligence that unifies MAN B&W, Wärtsilä, Caterpillar, Rolls-Royce, ABB, Kongsberg, and 100+ maritime manufacturers into a single source of truth. 
-    AI-powered maintenance OS delivers predictive automation, cross-fleet learning, and autonomous compliance. Eliminate reactive maintenance, reduce operational costs 20–30%, and ensure SOLAS/MARPOL regulatory adherence — certified by Lloyd's Register, DNV, Bureau Veritas, ABS, ClassNK, and RINA.
-  </p>
 
-  <h2>🌐 Strategic Advantage: Global Manufacturer Intelligence</h2>
-  
-  <div class="innovation-highlight">
-    <p><strong>The Industry Challenge:</strong></p>
-    <p>Maritime fleets operate with equipment from 100+ manufacturers—MAN B&W, Wärtsilä, Caterpillar, Rolls-Royce, ABB, Kongsberg, and dozens more. 
-    Each manufacturer uses different naming conventions, maintenance intervals, and documentation standards. 
-    <strong>Traditional systems force operators to manually normalize this chaos, creating inconsistency, errors, and operational risk.</strong></p>
+  <div class="agent-card">
+    <h3>Predictive Maintenance Agent — runs every 15 minutes</h3>
+    <p>Censoring-aware survival analysis runs continuously against every equipment installation using maintenance history, Equipment DNA operational embeddings, and cross-fleet federated priors. Outputs calibrated P05/P50/P95 Remaining Useful Life bands. Detects divergence from OEM baseline and proposes schedule interval adjustments bounded by criticality class (SOLAS-critical and important equipment have separate limits). Complements historical predictions with live streaming anomaly detection and third-party sensor feeds.</p>
+    <p><strong>Human gate:</strong> All schedule and task mutations require role-gated approval — the agent never modifies operational records directly.</p>
   </div>
-  
-  <h3>fleetcore's Strategic Solution: Centralized OEM Intelligence</h3>
-  <p>fleetcore eliminates manufacturer complexity through a <strong>global intelligence database</strong> that normalizes real-world maintenance knowledge 
-  from 100+ maritime OEMs into a single, vendor-neutral source of truth.</p>
-  
-  <table>
-    <tr>
-      <th>Capability</th>
-      <th>Traditional PMS Approach</th>
-      <th>fleetcore Global Intelligence</th>
-    </tr>
-    <tr>
-      <td><strong>OEM Integration</strong></td>
-      <td>Manual data entry per vessel<br><small>Weeks of setup time</small></td>
-      <td>One-click PMS import<br><small>Pre-loaded manufacturer recommendations</small></td>
-    </tr>
-    <tr>
-      <td><strong>Manufacturer Names</strong></td>
-      <td>Inconsistent: "CAT", "Caterpillar", "Cat"<br><small>Fragmented reporting</small></td>
-      <td>Automatically normalized<br><small>Unified equipment catalog</small></td>
-    </tr>
-    <tr>
-      <td><strong>Equipment Library</strong></td>
-      <td>Isolated per vessel<br><small>No cross-fleet learning</small></td>
-      <td>Centralized across entire fleet<br><small>Industry-wide intelligence</small></td>
-    </tr>
-    <tr>
-      <td><strong>Maintenance Schedules</strong></td>
-      <td>Manual creation from PDF manuals<br><small>Human error, inconsistency</small></td>
-      <td>Automated task generation<br><small>Verified OEM specifications</small></td>
-    </tr>
-    <tr>
-      <td><strong>Multi-OEM Optimization</strong></td>
-      <td>Impossible - siloed by manufacturer<br><small>Vendor lock-in</small></td>
-      <td>Vendor-neutral intelligence<br><small>Cross-manufacturer insights</small></td>
-    </tr>
-  </table>
-  
-  <h3>Business Impact</h3>
-  <ul>
-    <li><strong>Rapid Deployment:</strong> Reduce vessel onboarding from weeks to hours with pre-loaded OEM intelligence</li>
-    <li><strong>Operational Excellence:</strong> Eliminate manual data entry errors and inconsistent maintenance procedures</li>
-    <li><strong>Strategic Flexibility:</strong> Vendor-neutral platform supports multi-OEM fleet operations without bias</li>
-    <li><strong>Competitive Advantage:</strong> Leverage industry-wide real-world maintenance intelligence across your entire fleet</li>
-    <li><strong>Cost Optimization:</strong> Cross-fleet learning identifies maintenance efficiencies and procurement opportunities</li>
-  </ul>
 
-  <h2>🏗️ Enterprise Platform Architecture</h2>
-  
-  <h3>Enterprise Technology Foundation</h3>
-  <table>
-    <tr>
-      <th>Component</th>
-      <th>Technology</th>
-      <th>Purpose</th>
-    </tr>
-    <tr>
-      <td>Frontend Framework</td>
-      <td>React 18.3.1</td>
-      <td>Modern concurrent rendering with Suspense</td>
-    </tr>
-    <tr>
-      <td>Type Safety</td>
-      <td>TypeScript 5.5.3 (strict mode)</td>
-      <td>100% type coverage, zero <code>any</code> types</td>
-    </tr>
-    <tr>
-      <td>Build System</td>
-      <td>Vite 5.4.1</td>
-      <td>Lightning-fast HMR, optimized bundles</td>
-    </tr>
-    <tr>
-      <td>State Management</td>
-      <td>TanStack Query 5.56 (React Query)</td>
-      <td>Advanced server state, intelligent caching</td>
-    </tr>
-    <tr>
-      <td>UI Framework</td>
-      <td>shadcn/ui + Radix UI</td>
-      <td>Enterprise-grade accessible components</td>
-    </tr>
-    <tr>
-      <td>Styling</td>
-      <td>Tailwind CSS 3.4</td>
-      <td>Utility-first with maritime design tokens</td>
-    </tr>
-    <tr>
-      <td>Database</td>
-      <td>Supabase PostgreSQL</td>
-      <td>Enterprise database with Row-Level Security</td>
-    </tr>
-    <tr>
-      <td>Real-Time</td>
-      <td>WebSocket subscriptions</td>
-      <td>&lt;200ms latency for live data</td>
-    </tr>
-    <tr>
-      <td>Authentication</td>
-      <td>Supabase Auth</td>
-      <td>Secure multi-tenant user management</td>
-    </tr>
-    <tr>
-      <td>File Storage</td>
-      <td>Supabase Storage</td>
-      <td>Organization-based access control</td>
-    </tr>
-    <tr>
-      <td>AI Intelligence</td>
-      <td>OpenAI GPT-4o + Tavily API</td>
-      <td>ChatKit maritime expert with verification system</td>
-    </tr>
-  </table>
-  
-  <h3>Performance Specifications (Production Targets)</h3>
-  <table>
-    <tr>
-      <th>Metric</th>
-      <th>Target Specification</th>
-    </tr>
-    <tr>
-      <td>First Contentful Paint</td>
-      <td>&lt;1.2 seconds</td>
-    </tr>
-    <tr>
-      <td>Largest Contentful Paint</td>
-      <td>&lt;2.5 seconds</td>
-    </tr>
-    <tr>
-      <td>Cumulative Layout Shift</td>
-      <td>&lt;0.1</td>
-    </tr>
-    <tr>
-      <td>Lighthouse Performance Score</td>
-      <td>&gt;95</td>
-    </tr>
-    <tr>
-      <td>API Response Time</td>
-      <td>&lt;100ms (95th percentile)</td>
-    </tr>
-    <tr>
-      <td>Database Query Time</td>
-      <td>&lt;50ms (average)</td>
-    </tr>
-    <tr>
-      <td>Real-Time Update Latency</td>
-      <td>&lt;200ms</td>
-    </tr>
-    <tr>
-      <td>Uptime SLA</td>
-      <td>99.99% guaranteed</td>
-    </tr>
-  </table>
-  
-  <h3>Scalability Design</h3>
-  <ul>
-    <li><strong>Concurrent Users:</strong> Designed for 1000+ simultaneous users per organization</li>
-    <li><strong>Data Processing:</strong> 10,000+ maintenance tasks per month per vessel</li>
-    <li><strong>Multi-Tenant Architecture:</strong> Organization-based data isolation with linear scaling</li>
-    <li><strong>Real-Time Subscriptions:</strong> Selective filtering prevents broadcast storms</li>
-    <li><strong>Horizontal Scaling:</strong> Supabase infrastructure auto-scales with demand</li>
-    <li><strong>Connection Pooling:</strong> PgBouncer for efficient database connection management</li>
-  </ul>
-
-  <h2>⚓ Core Platform Capabilities</h2>
-  
-  <h3>1. Manufacturer-Agnostic OEM PMS Integration</h3>
-  <p><strong>The Problem:</strong> Maritime equipment comes from 100+ manufacturers with inconsistent 
-  naming conventions, making standardization impossible.</p>
-  
-  <p><strong>fleetcore's Solution:</strong> Global intelligence pool that normalizes manufacturer data 
-  into a single source of truth:</p>
-  <ul>
-    <li><strong>Unified Equipment Catalog:</strong> MAN B&W, Wärtsilä, Caterpillar, Rolls-Royce, ABB, and more</li>
-    <li><strong>Manufacturer Normalization:</strong> "CAT" → "Caterpillar", "MAN Energy" → "MAN B&W"</li>
-    <li><strong>OEM Recommendation Import:</strong> One-click import of manufacturer PMS schedules</li>
-    <li><strong>Automated Task Generation:</strong> System generates vessel-specific maintenance schedules</li>
-    <li><strong>Complete Equipment Library:</strong> Standardized across entire maritime industry</li>
-  </ul>
-  
-  <h3>2. Real-Time Equipment Health Monitoring</h3>
-  <ul>
-    <li><strong>Working Hours Tracking:</strong> Precise hour accumulation per equipment installation</li>
-    <li><strong>Dual-Interval Scheduling:</strong> Hours-based AND time-based maintenance (OR/AND/WHICHEVER_FIRST logic)</li>
-    <li><strong>Automated Alert Generation:</strong> Critical thresholds (e.g., 50 hours before due)</li>
-    <li><strong>Health Score Calculation:</strong> 0-100 score based on PMS compliance and overdue tasks</li>
-    <li><strong>Live Status Updates:</strong> Real-time synchronization across fleet (&lt;200ms latency)</li>
-  </ul>
-  
-  <h3>3. SOLAS 2024 & MARPOL Compliance Embedded</h3>
-  <p><strong>Regulatory compliance built into system architecture:</strong></p>
-  <ul>
-    <li><strong>SOLAS 2024 Integration:</strong> Safety of Life at Sea requirements tracked automatically</li>
-    <li><strong>MARPOL Environmental Compliance:</strong> Marine pollution prevention monitoring</li>
-    <li><strong>ISM Code Management:</strong> International Safety Management documentation</li>
-    <li><strong>Equipment Criticality Classification:</strong> Critical, High, Medium, Low levels</li>
-    <li><strong>Certificate Management:</strong> Automatic expiration tracking and renewal alerts</li>
-    <li><strong>Port State Control Readiness:</strong> Instant audit preparation and compliance reports</li>
-    <li><strong>Complete Audit Trail:</strong> Every action logged with user attribution and timestamps</li>
-  </ul>
-  
-  <h3>4. Event-Driven Workflow Automation</h3>
-  <ul>
-    <li><strong>Safety Event Tracking:</strong> Incident reporting with automatic investigation workflows</li>
-    <li><strong>Work Request Generation:</strong> Events automatically create PMS tasks</li>
-    <li><strong>Status-Driven Workflows:</strong> Reported → Investigated → Resolved → Verified</li>
-    <li><strong>File Attachment System:</strong> Photo/video/document evidence with 24-hour orphan protection</li>
-    <li><strong>Compliance Documentation:</strong> Automated audit trail for all operational events</li>
-  </ul>
-  
-  <h3>5. Multi-Tenant Enterprise Architecture</h3>
-  <p><strong>Organization-based data isolation with comprehensive Row-Level Security (RLS):</strong></p>
-  <ul>
-    <li><strong>Multi-Organization Support:</strong> Unlimited organizations with complete data isolation</li>
-    <li><strong>Dual Access Patterns:</strong> System admins (global access) + Organization users (isolated access)</li>
-    <li><strong>Role-Based Access Control (RBAC):</strong> Granular permissions per user</li>
-    <li><strong>Organization Hierarchy:</strong> Divisions, locations, vessel assignments</li>
-    <li><strong>STCW-Compliant Roles:</strong> Maritime-specific user roles and permissions</li>
-  </ul>
-  
-  <h3>6. Intelligent Parts Inventory Management</h3>
-  <ul>
-    <li><strong>Parts Catalog:</strong> Complete parts database linked to equipment definitions</li>
-    <li><strong>Consumption Tracking:</strong> Parts usage linked to maintenance tasks</li>
-    <li><strong>Critical Spare Flagging:</strong> Regulatory-required critical parts identification</li>
-    <li><strong>Cost Tracking:</strong> Unit cost and total cost per maintenance activity</li>
-    <li><strong>Inventory Optimization:</strong> Usage pattern analysis for procurement planning</li>
-  </ul>
-  
-  <h3>7. Advanced Analytics & Intelligence Dashboard</h3>
-  <ul>
-    <li><strong>Equipment Health Scoring:</strong> Real-time 0-100 health scores per equipment</li>
-    <li><strong>Overdue Task Detection:</strong> Automated identification of overdue maintenance</li>
-    <li><strong>Resource Planning:</strong> Maintenance workload forecasting</li>
-    <li><strong>Historical Analysis:</strong> Complete maintenance history with audit trails</li>
-    <li><strong>Fleet-Wide Visibility:</strong> Cross-vessel performance monitoring</li>
-    <li><strong>Compliance Tracking:</strong> Real-time regulatory compliance percentage</li>
-  </ul>
-
-  <h2>🗄️ Database Excellence: 5-Schema Architecture</h2>
-  
-  <h3>Schema 01: Multi-Tenant Organization Structure</h3>
-  <ul>
-    <li><strong>Organizations:</strong> Root level with subscription tiers and feature flags</li>
-    <li><strong>System Users:</strong> Global access for support/admin operations</li>
-    <li><strong>Organization Users:</strong> Isolated to single organization</li>
-    <li><strong>Divisions & Locations:</strong> Business units and geographic facilities</li>
-  </ul>
-  
-  <h3>Schema 02: Vessel & Fleet Management</h3>
-  <ul>
-    <li><strong>Vessels:</strong> IMO number, vessel type, operational status, flag</li>
-    <li><strong>Equipment Installations:</strong> Serial numbers, position, criticality</li>
-    <li><strong>Equipment Definitions:</strong> Manufacturer, model, specifications</li>
-    <li><strong>Equipment Parts:</strong> Part numbers, pricing, critical spare flags</li>
-    <li><strong>Operating Zones:</strong> Geographic bounds and regulatory requirements</li>
-  </ul>
-  
-  <h3>Schema 03: PMS (Planned Maintenance System) ⭐ Revolutionary</h3>
-  <ul>
-    <li><strong>schedule_working_hours:</strong> Schedule-specific hours tracking (industry first)</li>
-    <li><strong>pms_schedules:</strong> Maintenance schedule templates with dual-interval logic</li>
-    <li><strong>pms_tasks:</strong> Individual maintenance tasks with status tracking</li>
-    <li><strong>pms_task_history:</strong> Complete audit trail of all changes</li>
-    <li><strong>pms_task_time_entries:</strong> Labor time tracking per task</li>
-    <li><strong>maintenance_parts_consumption:</strong> Parts usage per maintenance activity</li>
-    <li><strong>pms_task_attachments:</strong> File attachments with orphan protection</li>
-    <li><strong>pms_alerts:</strong> Automated alert generation and distribution</li>
-  </ul>
-  
-  <h3>Schema 04: Events & Incidents Management</h3>
-  <ul>
-    <li><strong>events:</strong> Event tracking with severity and investigation status</li>
-    <li><strong>event_types:</strong> Categorized event types with SLA requirements</li>
-    <li><strong>event_work_requests:</strong> Event-to-task workflow automation</li>
-    <li><strong>event_files:</strong> Photo/video/document evidence with orphan protection</li>
-  </ul>
-  
-  <h3>Schema 05: Storage & File Management</h3>
-  <ul>
-    <li><strong>Supabase Storage Integration:</strong> Buckets for vessels, events, PMS files</li>
-    <li><strong>Organization-Based Access Control:</strong> RLS on all storage operations</li>
-    <li><strong>Orphan Protection:</strong> 24-hour grace period before automatic cleanup</li>
-    <li><strong>File Metadata:</strong> Complete tracking of uploads, file types, sizes</li>
-  </ul>
-
-  <h2>🤖 Your 24/7 AI Maritime Expert</h2>
-  
-  <div class="innovation-highlight">
-    <p><strong>Ask Anything Maritime:</strong> fleetcore includes an intelligent AI assistant that understands maritime operations, regulations, and technical details. It's like having a senior technical superintendent, chief engineer, and compliance officer available instantly.</p>
+  <div class="agent-card">
+    <h3>Procurement Intelligence Agent — auto-triggers on reorder</h3>
+    <p>When inventory drops below the reorder threshold (computed from consumption history), the agent assembles a structured inquiry, dispatches it to all approved suppliers, parses inbound responses via AI to extract line items and prices, benchmarks offers against historical pricing data, and ranks them by price delta, lead time vs. RUL urgency, and supplier reliability. The ML-Procurement Bridge also triggers a pre-check automatically when a RUL estimate falls below twice the average supplier lead time for critical parts.</p>
+    <p><strong>Human gate:</strong> Award decision is always manual. Initial inquiry drafts require procurement role review before dispatch.</p>
   </div>
-  
-  <h3>What You Can Ask</h3>
-  <table>
-    <tr>
-      <th>Question Type</th>
-      <th>Example Questions</th>
-      <th>How It Helps</th>
-    </tr>
-    <tr>
-      <td><strong>Vessel Specifications</strong></td>
-      <td>
-        "What are the specifications of MSC Irina?"<br/>
-        "Which is the largest vessel in Stanford Marine's fleet?"<br/>
-        "Tell me about Dynamic 17's equipment"
-      </td>
-      <td>Get detailed vessel specs, dimensions, equipment lists with sources - no need to search multiple databases</td>
-    </tr>
-    <tr>
-      <td><strong>Regulatory Compliance</strong></td>
-      <td>
-        "What does SOLAS 2024 Chapter II-2 require?"<br/>
-        "MARPOL Annex VI sulfur limits in ECAs?"<br/>
-        "ISM Code maintenance documentation requirements"
-      </td>
-      <td>Instant regulatory guidance with specific chapter references - prepare for PSC inspections confidently</td>
-    </tr>
-    <tr>
-      <td><strong>Equipment & Maintenance</strong></td>
-      <td>
-        "Caterpillar 3516B oil change intervals?"<br/>
-        "Wärtsilä 20DF maintenance schedule"<br/>
-        "What oil grade for MAN B&W 6S50MC-C?"
-      </td>
-      <td>Get OEM recommendations and part numbers instantly - no manual searching through thick manuals</td>
-    </tr>
-    <tr>
-      <td><strong>Platform Features</strong></td>
-      <td>
-        "How does schedule-specific hours tracking work?"<br/>
-        "Can I track parts inventory?"<br/>
-        "How do I set up automated alerts?"
-      </td>
-      <td>Learn platform features conversationally - faster than reading documentation</td>
-    </tr>
-    <tr>
-      <td><strong>Operational Decisions</strong></td>
-      <td>
-        "Best practices for cylinder oil consumption monitoring"<br/>
-        "How to optimize maintenance scheduling?"<br/>
-        "What's the difference between DP1 and DP2 vessels?"
-      </td>
-      <td>Get expert guidance for daily operational decisions - like having a mentor on call</td>
-    </tr>
-  </table>
-  
-  <h3>Intelligent Research Mode</h3>
-  <p><strong>Toggle "Online Research"</strong> for questions about specific vessels, companies, or current information:</p>
-  <ul>
-    <li><strong>Smart Search:</strong> Optimized search across 28 carefully selected authoritative maritime sources (classification societies, manufacturers, vessel registries) - not random web results</li>
-    <li><strong>Source Verification:</strong> Every fact is cited with [1][2][3] references to official sources - you can trust the accuracy</li>
-    <li><strong>Entity Recognition:</strong> Understands maritime-specific terms (IMO numbers, vessel types like AHTS/PSV, equipment models)</li>
-    <li><strong>Comparative Intelligence:</strong> Answers "what's the largest" or "which is better" by actually analyzing and comparing data across sources</li>
-    <li><strong>Disambiguation:</strong> If you ask about "Dynamic Marine", it asks which one (UAE? Singapore?) - avoids confusion</li>
-  </ul>
-  
-  <h3>Why This Changes Maritime Software</h3>
-  <table>
-    <tr>
-      <th>Traditional Approach</th>
-      <th>With fleetcore AI Expert</th>
-    </tr>
-    <tr>
-      <td>Search through multiple PDFs and manuals</td>
-      <td>Ask naturally: "What's the maintenance interval?" - instant answer with source</td>
-    </tr>
-    <tr>
-      <td>Call manufacturer hotline, wait for callback</td>
-      <td>Get OEM specs and part numbers in seconds, with citations to official manuals</td>
-    </tr>
-    <tr>
-      <td>Search IMO website for regulation text</td>
-      <td>Ask "SOLAS requirements for fire equipment" - get chapter, regulation, and practical guidance</td>
-    </tr>
-    <tr>
-      <td>Contact vessel owner for fleet information</td>
-      <td>Research mode finds official vessel registries, specifications, and ownership data</td>
-    </tr>
-    <tr>
-      <td>Generic chatbots give wrong maritime advice</td>
-      <td>Maritime-trained AI with verification system - only accurate, sourced answers</td>
-    </tr>
-  </table>
-  
-  <h3>Real-World Impact</h3>
-  <ul>
-    <li><strong>PSC Inspection Prep:</strong> "What does the surveyor check for SOLAS Chapter III?" - get complete checklist in 30 seconds</li>
-    <li><strong>Emergency Troubleshooting:</strong> "Fuel pressure drop on Wärtsilä 32 - what to check?" - get systematic diagnostic steps</li>
-    <li><strong>Procurement Decisions:</strong> "Compare Caterpillar vs MAN generator sets for PSV" - get factual comparison with sources</li>
-    <li><strong>Training New Crew:</strong> Chief engineer asks AI instead of explaining same thing repeatedly</li>
-    <li><strong>Fleet Analysis:</strong> "Which of our vessels needs port state control attention?" - intelligent fleet-wide insights</li>
-  </ul>
-  
-  <h3>Available Everywhere in Platform</h3>
-  <p><strong>Chat button in corner of every page</strong> - ask questions while you work. Maritime expertise at your fingertips.</p>
 
-  <h2>🔒 Security & Compliance Framework</h2>
-  
-  <h3>Row-Level Security (RLS) Architecture</h3>
-  <ul>
-    <li><strong>Dual-Access Pattern:</strong> System admins (global) + Organization users (isolated)</li>
-    <li><strong>Security Definer Functions:</strong> Prevent infinite recursion in RLS policies</li>
-    <li><strong>Comprehensive Policies:</strong> RLS on all organization-scoped tables</li>
-    <li><strong>Cascade Protection:</strong> Equipment access via vessel relationship chains</li>
-  </ul>
-  
-  <h3>Data Protection & Privacy</h3>
-  <ul>
-    <li><strong>GDPR Compliance:</strong> Data retention policies, right to access, right to erasure</li>
-    <li><strong>Data Portability:</strong> Standard export formats (CSV, JSON)</li>
-    <li><strong>Audit Logging:</strong> Complete activity tracking with timestamps</li>
-    <li><strong>Encryption:</strong> Data encryption at rest and in transit</li>
-  </ul>
-
-  <h2>💼 Executive Value Proposition</h2>
-  
-  <div class="innovation-highlight">
-    <h3>Transform Reactive Operations into Strategic Asset Management</h3>
-    <p>fleetcore delivers measurable ROI through vendor-neutral intelligence that eliminates operational inefficiencies, 
-    reduces maintenance costs 20-30%, and ensures regulatory compliance across your entire fleet.</p>
+  <div class="agent-card">
+    <h3>Incident Intelligence Agent — Confidence Score ≥ 80%</h3>
+    <p>At Tier 2 confidence, the agent proposes a predictive incident 200–800 hours before the failure window — bundled with a corrective maintenance task template as an atomic unit. Severity is mapped from RUL percentage (critical / high / medium / low). On root cause completion, cascades into a new preventive schedule proposal. Escalates to secondary approver if unresolved within the expiry window.</p>
+    <p><strong>Human gate:</strong> Incident creation and corrective task assignment require operations role approval — predictive events are proposals, not automatic record mutations.</p>
   </div>
-  
-  <h3>C-Level Benefits: Measurable Business Impact</h3>
+
+  <div class="agent-card">
+    <h3>Compliance Reporting Agent — three ML report templates</h3>
+    <p>Three report templates are pre-populated automatically: weekly RUL summary (Monday 08:00 UTC) aggregating predictions across the fleet; anomaly alert report triggered by confidence threshold breach; and interval adjustment recommendation with full audit chain and regulatory justification. All are created as AI-draft artifacts. Promotion to submitted status requires explicit human action — never automated.</p>
+    <p><strong>Human gate:</strong> Draft promotion is always manual — the machine prepares, the human submits.</p>
+  </div>
+
+  <div class="agent-card">
+    <h3>Conversational Fleet Intelligence Agent — 30+ maritime domain handlers</h3>
+    <p>Ask any fleet question in plain language: overdue tasks, inventory levels, RUL forecasts, procurement status, compliance certificates, crew records, fleet KPIs, and financial cost breakdowns. Multi-session memory maintains vessel context across conversations. Intent routing across 30+ domain-specific handlers. The conversational agent reads across all modules and surfaces the answer — no switching between screens.</p>
+    <p><strong>Human gate:</strong> Read-only by default. Any write actions (task creation, approvals, record mutations) follow the same Confidence Score HITL model as the four operational agents.</p>
+  </div>
+
+  <p>→ <a href="/ai">Full AI Intelligence documentation</a></p>
+
+  <h2>Three-layer ML Predictive Intelligence Stack</h2>
+
+  <p>The predictive maintenance agent draws from three data layers fused into a single confidence-weighted composite RUL:</p>
   <ul>
-    <li><strong>💰 Cost Reduction:</strong> Eliminate 20-30% of reactive maintenance costs through predictive intelligence</li>
-    <li><strong>⚡ Operational Excellence:</strong> Reduce vessel onboarding from weeks to hours with pre-loaded OEM intelligence</li>
-    <li><strong>🎯 Strategic Flexibility:</strong> Vendor-neutral platform prevents manufacturer lock-in and enables multi-OEM optimization</li>
-    <li><strong>📊 Data-Driven Decisions:</strong> Real-time fleet intelligence with <200ms synchronization for informed leadership</li>
-    <li><strong>✅ Risk Mitigation:</strong> Automated SOLAS 2024/MARPOL/ISM compliance reduces regulatory exposure</li>
-    <li><strong>🚀 Competitive Advantage:</strong> Industry-wide maintenance intelligence leveraged across your entire fleet</li>
-    <li><strong>📈 Scalability:</strong> Enterprise architecture supports unlimited vessel growth without performance degradation</li>
-    <li><strong>🔒 Enterprise Security:</strong> Multi-tenant architecture with organization-level data isolation and comprehensive audit trails</li>
+    <li><strong>Layer 1 — Historical Prediction Engine:</strong> Censoring-aware survival analysis trained on right-censored maintenance records. Equipment DNA operational context embedding per installation. Confidence-gated model progression adapts complexity to available data. Federated cross-fleet learning aggregates anonymized survival patterns across organizations.</li>
+    <li><strong>Layer 2 — Live Equipment Data Stream:</strong> Complementary streaming anomaly detectors running in parallel — catching point anomalies, sustained mean shifts, and gradual drift independently. All sensor channels fused into a 0–1 composite health index with AI-classified dominant failure mode. Confidence-weighted fusion with historical predictions progressively favors the live signal as it accumulates confidence.</li>
+    <li><strong>Layer 3 — Third-Party Sensor Integration:</strong> Shaft vibration monitors, IR thermal cameras, and combustion gas analyzers enter through a proprietary normalization layer that maps heterogeneous manufacturer protocols into a unified sensor event schema. Physics-based safety overrides enforce hard boundaries regardless of model confidence.</li>
   </ul>
-  
-  <h3>Why Industry Leaders Choose fleetcore</h3>
+
+  <h2>Closed-loop procurement automation</h2>
+
+  <p>The entire procurement cycle runs automatically across six phases with one human gate — the award decision:</p>
   <ol>
-    <li><strong>Global Manufacturer Intelligence:</strong> Centralized OEM knowledge from 100+ maritime manufacturers eliminates setup complexity</li>
-    <li><strong>Proven ROI:</strong> 20-30% operational cost reduction through predictive maintenance and automated scheduling</li>
-    <li><strong>Strategic Platform:</strong> Vendor-neutral architecture future-proofs fleet operations and prevents manufacturer lock-in</li>
-    <li><strong>Regulatory Confidence:</strong> Automated SOLAS 2024/MARPOL compliance built into core architecture</li>
-    <li><strong>Real-Time Intelligence:</strong> Live fleet monitoring enables proactive decision-making and operational agility</li>
-    <li><strong>AI-Powered Insights:</strong> Intelligent assistant provides instant access to maritime expertise and vessel-specific knowledge</li>
-    <li><strong>Enterprise Scale:</strong> Multi-tenant architecture designed for global fleet operators with unlimited vessel capacity</li>
-    <li><strong>Operational Transparency:</strong> Comprehensive audit trails and real-time dashboards enable informed strategic decisions</li>
+    <li><strong>Reorder Trigger (Automated)</strong> — inventory drops below threshold computed from consumption history</li>
+    <li><strong>Draft Inquiry (Automated)</strong> — parts list assembled with quantities, vessel spec, and RUL-derived urgency</li>
+    <li><strong>Outbound Dispatch (Automated)</strong> — structured inquiry dispatched to all approved suppliers</li>
+    <li><strong>Offer Parsing (Automated)</strong> — inbound responses parsed by AI to extract prices, quantities, and lead times</li>
+    <li><strong>Price Benchmark (Automated)</strong> — offers ranked by price delta, lead time vs. RUL urgency, supplier reliability</li>
+    <li><strong>Award Decision (Human Gate)</strong> — buyer receives context-complete ranked recommendation and makes the final call</li>
   </ol>
 
-  <h2>📊 Target Market & Use Cases</h2>
-  
-  <h3>Ship Management Companies</h3>
+  <h2>OEM PMS intelligence from 100+ manufacturers</h2>
+
+  <p>fleetcore centralizes maintenance intelligence from over 100 maritime equipment manufacturers into a single vendor-neutral source of truth. Equipment naming is automatically normalized across vessels — "CAT", "Caterpillar", and "Cat Engine" resolve to the same entity. One-click PMS import pre-loads manufacturer-verified maintenance schedules. Vessel onboarding from days or weeks to hours.</p>
+
+  <p><strong>Supported manufacturers include:</strong> MAN B&W (6S50MC-C, 6L70ME-C, 5G80ME-C), Wärtsilä (32, W20, W26, 20DF), Caterpillar (3516B, C32, 3406), Kongsberg (K-Chief, AutoChief C20), ABB (Azipod, turbochargers), Rolls-Royce, Alfa Laval, Wartsila (heat exchangers), and 90+ additional manufacturers across main engines, auxiliary systems, deck equipment, safety systems, and HVAC.</p>
+
+  <h2>Schedule-specific independent hours tracking (industry first)</h2>
+
+  <p>Traditional PMS systems use one hours counter per equipment installation. Resetting the counter for an oil change accidentally resets all other schedules for that equipment — including the major overhaul counter. fleetcore introduced schedule-specific independent counters: each maintenance schedule tracks its own hours. Reset the oil change counter; the overhaul counter continues unaffected. This eliminates the leading cause of missed maintenance events in multi-schedule equipment and is an industry-first design in the maritime PMS space.</p>
+
+  <h2>SOLAS 2024, MARPOL, and ISM Code compliance</h2>
+
+  <p>Regulatory compliance is built into the core architecture — not a separate module. Maintenance tasks are automatically linked to regulatory requirements. Compliance audit trail and documentation management are structured around ISM Code and class society survey requirements for DNV, Lloyd's Register, Bureau Veritas, ABS, ClassNK, and RINA.</p>
   <ul>
-    <li>Fleet-wide standardization across multiple vessels and owners</li>
-    <li>Multi-organization support for different vessel owners</li>
-    <li>Centralized compliance monitoring and reporting</li>
-    <li>Aggregated benchmarking across managed fleet</li>
-  </ul>
-  
-  <h3>Vessel Operators</h3>
-  <ul>
-    <li>Real-time operational visibility for technical superintendents</li>
-    <li>Proactive maintenance scheduling for chief engineers</li>
-    <li>Cost optimization and budget planning</li>
-    <li>Crew training and documentation management</li>
-  </ul>
-  
-  <h3>Ship Owners</h3>
-  <ul>
-    <li>Asset value protection through proper maintenance</li>
-    <li>Regulatory compliance assurance for audits</li>
-    <li>Operational cost transparency and control</li>
-    <li>Investment ROI tracking and analysis</li>
-  </ul>
-  
-  <h3>Classification Societies & Surveyors</h3>
-  <ul>
-    <li>Inspection readiness verification</li>
-    <li>Compliance documentation access</li>
-    <li>Historical maintenance records review</li>
-    <li>Survey preparation support tools</li>
-  </ul>
-  
-  <h3>Maritime Sectors Supported</h3>
-  <ul>
-    <li><strong>Commercial Fleet:</strong> Bulk carriers, container ships, tankers</li>
-    <li><strong>Offshore Energy:</strong> Support vessels, drilling rigs, FPSO</li>
-    <li><strong>Cruise & Passenger:</strong> Cruise ships, ferries, passenger vessels</li>
-    <li><strong>Naval & Defense:</strong> Military vessels, coast guard, patrol boats</li>
-    <li><strong>Port Operations:</strong> Tugboats, pilot boats, harbor craft</li>
-    <li><strong>Yacht & Superyacht:</strong> Private yachts, superyachts, luxury vessels</li>
+    <li><strong>SOLAS 2024:</strong> Fire protection, detection, extinction (Chapter II-2); life-saving appliances (Chapter III)</li>
+    <li><strong>MARPOL Annex VI:</strong> Air pollution, sulfur limits in ECAs, carbon intensity requirements</li>
+    <li><strong>ISM Code Regulation 10.3:</strong> Maintenance of ship and equipment, documented procedures</li>
+    <li><strong>Certificate management:</strong> Automatic expiry tracking and renewal alerts across all class, flag, and statutory certificates</li>
+    <li><strong>Port State Control readiness:</strong> Real-time compliance percentage dashboard and inspection preparation tools</li>
   </ul>
 
-  <h2>🎯 Competitive Differentiation</h2>
-  
-  <h3>fleetcore vs Traditional Maritime CMMS</h3>
+  <h2>Three-tier HITL governance model</h2>
+
   <table>
     <tr>
-      <th>Feature</th>
-      <th>Traditional CMMS</th>
-      <th>fleetcore Maritime Navigator</th>
+      <th>Tier</th>
+      <th>Confidence Score</th>
+      <th>Actions created</th>
+      <th>Expiry</th>
     </tr>
     <tr>
-      <td><strong>Hours Tracking</strong></td>
-      <td>One counter per equipment</td>
-      <td>Schedule-specific independent tracking (industry first)</td>
+      <td><strong>Tier 0 — Advisory</strong></td>
+      <td>&lt; 50%</td>
+      <td>In-app notification only. No write actions proposed.</td>
+      <td>No expiry</td>
     </tr>
     <tr>
-      <td><strong>AI Assistant</strong></td>
-      <td>None or basic chatbot</td>
-      <td>ChatKit-powered maritime expert with Universal Truth Verification, real-time research, entity disambiguation</td>
+      <td><strong>Tier 1 — Semi-Automated</strong></td>
+      <td>50–80%</td>
+      <td>Schedule adjustment proposal, draft maintenance task, alert, email notification</td>
+      <td>72 hours</td>
     </tr>
     <tr>
-      <td><strong>Technology Stack</strong></td>
-      <td>1990s legacy systems</td>
-      <td>React 18 + TypeScript + Supabase + GPT-4o (2025 tech)</td>
-    </tr>
-    <tr>
-      <td><strong>Real-Time Updates</strong></td>
-      <td>Manual refresh or slow polling</td>
-      <td>WebSocket subscriptions (&lt;200ms latency)</td>
-    </tr>
-    <tr>
-      <td><strong>Multi-Tenant</strong></td>
-      <td>Single tenant or basic org separation</td>
-      <td>Enterprise-grade RLS with organization isolation</td>
-    </tr>
-    <tr>
-      <td><strong>Compliance</strong></td>
-      <td>Separate add-on modules</td>
-      <td>SOLAS/MARPOL/ISM embedded in architecture</td>
-    </tr>
-    <tr>
-      <td><strong>OEM Integration</strong></td>
-      <td>Manual data entry or single OEM</td>
-      <td>Manufacturer-agnostic unified catalog</td>
-    </tr>
-    <tr>
-      <td><strong>Mobile Support</strong></td>
-      <td>Separate mobile app or none</td>
-      <td>Responsive web design (desktop/tablet/mobile)</td>
-    </tr>
-    <tr>
-      <td><strong>Deployment</strong></td>
-      <td>On-premise or legacy cloud</td>
-      <td>Cloud-native with 99.99% uptime SLA</td>
+      <td><strong>Tier 2 — Accelerated</strong></td>
+      <td>≥ 80%</td>
+      <td>All Tier 1 + predictive event, procurement pre-check, draft compliance report</td>
+      <td>24h (12h safety-critical)</td>
     </tr>
   </table>
 
-  <h2>📞 Transform Your Fleet Operations</h2>
-  
-  <h3>Enterprise Deployment Program</h3>
-  <p><strong>For C-Level Executives and Technical Leadership:</strong></p>
-  <ul>
-    <li>Schedule a 30-minute executive demonstration showcasing ROI and strategic value</li>
-    <li>Review enterprise architecture, security framework, and scalability roadmap</li>
-    <li>Discuss fleet-specific implementation strategy and integration requirements</li>
-    <li>Explore enterprise pricing models and deployment timelines</li>
-  </ul>
-  
-  <h3>Strategic Reasons to Evaluate fleetcore</h3>
-  <ul>
-    <li><strong>Immediate ROI:</strong> 20-30% maintenance cost reduction through predictive intelligence and vendor-neutral optimization</li>
-    <li><strong>Regulatory Compliance:</strong> Automated SOLAS 2024/MARPOL/ISM adherence reduces operational risk and audit complexity</li>
-    <li><strong>Competitive Advantage:</strong> Access industry-wide OEM intelligence from 100+ manufacturers for strategic decision-making</li>
-    <li><strong>Future-Proof Platform:</strong> Modern architecture designed for enterprise scale, unlimited growth, and long-term flexibility</li>
-  </ul>
-  
-  <p><strong>Website:</strong> <a href="https://fleetcore.ai">https://fleetcore.ai</a></p>
-  <p><strong>Schedule Demo:</strong> <a href="https://calendly.com/hello-fleetcore/30min">https://calendly.com/hello-fleetcore/30min</a></p>
-  <p><strong>Contact Form:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
+  <h2>The maritime maintenance crisis fleetcore addresses</h2>
 
-  <h2>How does fleetcore compare to AMOS, SERTICA, and DNV Nauticus?</h2>
-  <p>fleetcore is a cloud-native agentic OS; AMOS, SERTICA, and DNV Nauticus are legacy CMMS platforms built in the 1990s–2000s. The architectural differences are significant by stakeholder concern:</p>
+  <ul>
+    <li><strong>$17B+ annually</strong> — global maritime maintenance overrun costs from unplanned breakdowns, delayed schedules, and emergency repairs (Ship Universe 2025)</li>
+    <li><strong>$25,000–$50,000 per day</strong> — PSC detention costs from maintenance failures; regulatory violations, port delays, reputational damage</li>
+    <li><strong>$8,000–$15,000 more per incident</strong> — reactive vs. planned maintenance premium (Lloyd's List, 2024)</li>
+    <li><strong>Right-censoring bias:</strong> Competitor PMS platforms discard right-censored maintenance observations, producing biased RUL estimates off by 30–50%. fleetcore uses censoring-aware survival analysis.</li>
+    <li><strong>Governance vacuum:</strong> Maritime AI exists in two failure modes — chatbots with no operational impact, or autonomous systems that violate ISM §10. fleetcore implements the governed middle ground.</li>
+    <li><strong>Disconnected prediction and procurement:</strong> No competing platform connects the RUL forecast to the procurement cycle. fleetcore closes this loop automatically.</li>
+  </ul>
+
+  <h2>fleetcore vs. AMOS, SERTICA, DNV Nauticus</h2>
+
   <table>
     <tr>
-      <th>Concern</th>
+      <th>Dimension</th>
       <th>AMOS / SERTICA / DNV Nauticus</th>
       <th>fleetcore</th>
     </tr>
     <tr>
-      <td><strong>Technology stack</strong></td>
-      <td>Desktop-first, Windows-installed, requires VPN for remote access; batch data sync</td>
-      <td>Cloud-native React 18 + PostgreSQL; real-time WebSocket sync (&lt;200ms)</td>
+      <td><strong>Architecture</strong></td>
+      <td>Desktop-first, Windows-installed, VPN required; batch sync</td>
+      <td>Cloud-native; real-time synchronization under 200ms</td>
     </tr>
     <tr>
-      <td><strong>AI &amp; predictive capabilities</strong></td>
+      <td><strong>AI agents</strong></td>
       <td>None or basic rule-based alerts</td>
-      <td>Autonomous AI agents; predictive failure detection; cross-fleet learning graph</td>
+      <td>Four autonomous agents across all core workflows</td>
+    </tr>
+    <tr>
+      <td><strong>Predictive ML</strong></td>
+      <td>Threshold alerts; censored data discarded</td>
+      <td>Three-layer censoring-aware ML stack: P05/P50/P95 calibrated RUL</td>
+    </tr>
+    <tr>
+      <td><strong>Procurement</strong></td>
+      <td>Manual inquiries; no AI involvement</td>
+      <td>Closed-loop: trigger → draft → dispatch → parse → benchmark → award</td>
     </tr>
     <tr>
       <td><strong>OEM intelligence</strong></td>
-      <td>Manual data entry per vessel; no cross-manufacturer normalization</td>
-      <td>Pre-loaded PMS schedules from 100+ OEMs; automatic manufacturer normalization</td>
+      <td>Manual entry per vessel; no cross-manufacturer normalization</td>
+      <td>Pre-loaded PMS from 100+ OEMs; automatic manufacturer normalization</td>
     </tr>
     <tr>
       <td><strong>Hours tracking</strong></td>
-      <td>Single counter per equipment — resetting one schedule resets all</td>
-      <td>Schedule-specific independent counters (industry first); reset oil change without affecting overhaul counter</td>
+      <td>Single counter per equipment — resets all schedules</td>
+      <td>Schedule-specific independent counters (industry first)</td>
     </tr>
     <tr>
-      <td><strong>Compliance automation</strong></td>
-      <td>Separate compliance module; manual documentation</td>
-      <td>SOLAS Chapter II-2, MARPOL Annex VI, ISM Code Regulation 10.3 embedded in core architecture</td>
+      <td><strong>Governance</strong></td>
+      <td>Binary: manual or autonomous (ISM §10 risk)</td>
+      <td>Three-tier Confidence Score gated HITL — always a human gate</td>
     </tr>
     <tr>
-      <td><strong>Implementation timeline</strong></td>
-      <td>3–6 months typical enterprise deployment</td>
+      <td><strong>Compliance</strong></td>
+      <td>Separate module; manual documentation</td>
+      <td>SOLAS / MARPOL / ISM embedded in core architecture</td>
+    </tr>
+    <tr>
+      <td><strong>Implementation</strong></td>
+      <td>3–6 months enterprise deployment</td>
       <td>Vessel onboarding in hours with pre-loaded OEM intelligence</td>
-    </tr>
-    <tr>
-      <td><strong>Pricing model</strong></td>
-      <td>Legacy perpetual license + annual maintenance fees</td>
-      <td>Enterprise SaaS with per-vessel pricing; contact for fleet pricing</td>
     </tr>
   </table>
 
-  <h2>Frequently Asked Questions: fleetcore Maritime Maintenance OS</h2>
+  <h2>Target operators and vessel types</h2>
 
-  <h3>What is the difference between fleetcore and traditional maritime CMMS software?</h3>
-  <p>fleetcore is a cloud-native agentic maintenance operating system, not a legacy CMMS. Traditional systems like AMOS, SERTICA, and DNV Nauticus were built in the 1990s–2000s with desktop-first, single-vessel architectures requiring VPN access and manual data entry. fleetcore runs on modern React 18 and PostgreSQL with real-time WebSocket synchronization, multi-tenant enterprise isolation, and autonomous AI agents that generate, optimize, and execute maintenance workflows without manual intervention.</p>
+  <p><strong>Operator types:</strong> Ship management companies (fleet-wide standardization, multi-owner support), vessel operators (real-time technical superintendents, chief engineers), ship owners (asset value protection, regulatory assurance), offshore energy operators (FPSO, OSV, AHTS fleet management).</p>
 
-  <h3>Is fleetcore compatible with Wärtsilä, MAN B&W, and Caterpillar equipment?</h3>
-  <p>Yes. fleetcore's global OEM intelligence database pre-loads maintenance specifications and PMS schedules from 100+ maritime manufacturers including MAN B&W (6S50MC-C, 6L70ME-C), Wärtsilä (32, W20, W26), Caterpillar (3516B, C32), Kongsberg (K-Chief, AutoChief), Rolls-Royce, ABB, and Alfa Laval. Equipment is automatically normalized — "CAT", "Caterpillar", and "Cat Engine" are unified into a single entity, eliminating inconsistency across vessels.</p>
+  <p><strong>Vessel types supported:</strong> VLCC and Aframax tankers, bulk carriers (Handysize through Capesize), container ships, LNG carriers, AHTS and PSV offshore support vessels, FPSO units, cruise ships, RoPax ferries, naval patrol vessels, superyachts, and all IMO-classified vessel types.</p>
 
-  <h3>Which maritime classification societies does fleetcore support?</h3>
-  <p>fleetcore's compliance framework is designed to support Port State Control readiness and survey preparation for all major classification societies: DNV (Det Norske Veritas), Lloyd's Register (LR), Bureau Veritas (BV), American Bureau of Shipping (ABS), ClassNK (Nippon Kaiji Kyokai), and RINA (Registro Italiano Navale). The compliance audit trail and documentation management are structured around ISM Code and class society survey requirements.</p>
+  <h2>Ten comprehensive capabilities</h2>
 
-  <h3>What SOLAS regulations does fleetcore automate?</h3>
-  <p>fleetcore automates compliance tracking for SOLAS Chapter II-2 (fire protection, detection, extinction), MARPOL Annex VI (air pollution, sulfur limits in ECAs), ISM Code Regulation 10.3 (maintenance of ship and equipment), and MLC 2006 (Maritime Labour Convention, crew rest hours). Maintenance tasks are automatically linked to regulatory requirements, and Port State Control inspection readiness is always current with a real-time compliance percentage dashboard.</p>
+  <ol>
+    <li><strong>OEM PMS Integration &amp; Auto-Scheduling</strong> — Import manufacturer PMS recommendations and automatically generate vessel-specific maintenance schedules based on working hours and time intervals. Dual-threshold early warning. Always-recurring schedules. 94% automated task generation.</li>
+    <li><strong>Event-Based Unplanned Maintenance</strong> — Digital transformation of paper-based breakdown reporting. Real-time event capture, automatic workflow routing, root cause analysis, seamless PMS integration. 100% digital event tracking.</li>
+    <li><strong>Equipment Lifecycle Management</strong> — Complete tracking from installation to decommissioning. Hierarchical system organization, working hours monitoring, health assessments, manufacturer documentation integration. 500+ equipment items per vessel.</li>
+    <li><strong>Intelligent Spare Parts Management</strong> — Automated stock level monitoring, critical parts flagging, consumption tracking, predictive ordering based on maintenance schedules and usage patterns. 91% stock optimization.</li>
+    <li><strong>SOLAS 2024 Compliance Management</strong> — Automated regulatory compliance tracking for SOLAS 2024, MARPOL, and ISM Code built into maintenance workflows. Certificate management, Port State Control readiness. 100% regulatory compliance.</li>
+    <li><strong>Multi-Tenant Fleet Intelligence</strong> — Enterprise-grade multi-organization architecture with STCW-compliant role management, cross-vessel learning, centralized fleet performance analytics. 500+ vessels supported.</li>
+    <li><strong>Digital Documentation &amp; Reporting</strong> — Paperless operations: digital work done records, photo documentation, PDF generation, automated compliance reports, comprehensive audit trails. 100% paperless operations.</li>
+    <li><strong>Advanced Analytics &amp; Intelligence</strong> — Equipment health scoring, performance trend analysis, cost optimization insights, failure pattern recognition, fleet-wide KPI dashboards. 87% prediction accuracy.</li>
+    <li><strong>Predictive Maintenance Intelligence</strong> — Three-layer ML system: censoring-aware survival analysis, live operational data streams, third-party sensor feeds. P05/P50/P95 RUL confidence bands. Equipment DNA embeddings. Cross-fleet federated learning. Physics-based safety overrides. 95% RUL forecast accuracy.</li>
+    <li><strong>Closed-Loop Procurement Automation</strong> — Inventory threshold breach triggers the full cycle automatically: AI-drafted inquiry → supplier dispatch → offer parsing → price benchmarking → ranked recommendation. Human gate at award. Under 1 hour trigger-to-ranked-offer.</li>
+  </ol>
 
-  <h3>How does predictive maintenance work in fleetcore?</h3>
-  <p>fleetcore combines schedule-specific hours tracking with dual-interval logic (hours-based AND time-based) and a cross-fleet learning graph. The system monitors equipment health scores (0–100) in real time, generates early warning alerts at configurable thresholds (e.g., 50 hours before due), and analyzes failure patterns across the fleet to predict component degradation before breakdown occurs. Reactive maintenance costs $8,000–$15,000 more per incident than planned maintenance; predictive scheduling eliminates this premium.</p>
+  <h2>Frequently asked questions</h2>
 
-  <h3>How long does fleet onboarding take with fleetcore?</h3>
-  <p>A single vessel can be onboarded in hours rather than weeks. fleetcore's pre-loaded OEM intelligence database provides manufacturer-verified maintenance schedules for equipment from MAN B&W, Wärtsilä, Caterpillar, and 97+ other manufacturers. Operators import existing PMS via CSV or connect directly; the system auto-generates vessel-specific maintenance schedules. Enterprise fleet onboarding is coordinated by fleetcore's implementation team.</p>
+  <h3>What is fleetcore?</h3>
+  <p>fleetcore is a maritime technical operating system where AI is embedded across every operational workflow. Five autonomous agents handle predictive maintenance, procurement automation, incident intelligence, compliance reporting, and fleet conversation. Ten comprehensive capabilities span OEM PMS integration, equipment lifecycle, intelligent parts management, SOLAS compliance, and more — all governed by a three-tier HITL model.</p>
 
-  <h3>What vessel types does fleetcore support?</h3>
-  <p>fleetcore supports all major maritime vessel types: VLCC and Aframax tankers, bulk carriers (Handysize, Supramax, Capesize), container ships, LNG carriers, AHTS (Anchor Handling Tug Supply vessels), PSV (Platform Supply Vessels), OSV (Offshore Support Vessels), FPSO units, cruise ships, RoPax ferries, naval patrol vessels, and superyachts. The vessel hierarchy supports any IMO-classified vessel type with operator-specific equipment configurations.</p>
+  <h3>What are the five AI agents in fleetcore?</h3>
+  <p>1) Predictive Maintenance Agent — runs every 15 min, produces P05/P50/P95 RUL forecasts from a three-layer ML stack. 2) Procurement Intelligence Agent — closes the loop from inventory reorder trigger to ranked supplier recommendation automatically. 3) Incident Intelligence Agent — proposes predictive events 200–800 hours before failure, gated at 80% Confidence Score. 4) Compliance Reporting Agent — pre-populates three ML report templates as AI-draft artifacts. 5) Conversational Fleet Intelligence Agent — 30+ maritime-domain handlers covering tasks, inventory, RUL, compliance, financials, and fleet KPIs.</p>
 
-  <h3>How does fleetcore handle vessels without internet connectivity?</h3>
-  <p>fleetcore is designed for maritime connectivity realities. The progressive web architecture supports offline data entry with automatic sync when connectivity is restored. Critical maintenance tasks can be recorded offline by crew, and all data is synchronized when the vessel connects via VSAT, LTE, or Wi-Fi in port. The &lt;200ms synchronization target applies to connected operations; offline mode queues all changes for reliable sync.</p>
+  <h3>How does fleetcore's predictive maintenance differ from AMOS or ABS NS?</h3>
+  <p>Three fundamental differences: (1) Censoring correctness — AMOS and ABS NS discard right-censored maintenance observations, producing biased RUL estimates off by 30–50%. fleetcore uses censoring-aware survival analysis that treats partial observations as informative data. (2) Equipment DNA — fleetcore embeds operational context per installation (trade route, climate zone, load factor, operator behavior). The same engine on a Red Sea tanker and a North Atlantic bulk carrier gets different survival priors. (3) Three-layer fusion — historical predictions, live streaming anomaly signals, and third-party sensor feeds combined into a confidence-weighted composite RUL.</p>
 
-  <h3>What is schedule-specific hours tracking and why does it matter?</h3>
-  <p>Traditional PMS systems use one hours counter per equipment installation. This means resetting the counter for one maintenance schedule (e.g., oil change at 250 hours) accidentally resets all other schedules for that equipment (e.g., major overhaul at 8,000 hours). fleetcore introduced schedule-specific independent counters — each maintenance schedule tracks its own hours. Reset the oil change counter; the overhaul counter continues unaffected. This eliminates the leading cause of missed maintenance events in multi-schedule equipment. It is an industry-first design patented as part of fleetcore's core PMS architecture.</p>
+  <h3>What is schedule-specific hours tracking?</h3>
+  <p>Each maintenance schedule tracks its own independent hours counter. Resetting the oil change counter (250h) does not affect the overhaul counter (8,000h). Traditional systems use one counter per equipment — resetting one schedule resets all. This is an industry-first design that eliminates the leading cause of missed maintenance events in multi-schedule equipment.</p>
 
-  <h3>What is the cost of reactive vs predictive maritime maintenance?</h3>
-  <p>Industry data: unplanned breakdown maintenance costs $8,000–$15,000 more per incident than scheduled preventive maintenance (Lloyd's List intelligence, 2024). PSC detentions from maintenance failures cost $25,000–$50,000 per day in port delays, fines, and reputational damage. IMO's 2030 carbon intensity reduction target of 40% (CII regulation) requires optimized maintenance to achieve fuel efficiency goals. fleetcore's predictive maintenance delivers 20–30% total maintenance cost reduction through elimination of reactive incidents and optimized scheduling.</p>
+  <h3>How does the closed-loop procurement automation work?</h3>
+  <p>Inventory threshold breach → AI drafts inquiry → dispatched to approved suppliers → inbound responses parsed by AI → offers benchmarked and ranked → buyer receives recommendation → buyer makes the award. The only human gate is the award decision. The ML-Procurement Bridge also fires a pre-check automatically when RUL falls below twice the average supplier lead time for critical parts.</p>
+
+  <h3>What is the three-tier HITL governance model?</h3>
+  <p>Every AI-driven action is gated by a Confidence Score (0–100). Tier 0 (below 50%): advisory alerts only, no write actions. Tier 1 (50–80%): schedule adjustment proposals, draft tasks, require role-gated approval within 72 hours. Tier 2 (80%+): accelerated critical path — all Tier 1 plus predictive event, procurement pre-check, draft compliance report — 24-hour window (12h for safety-critical equipment). The platform never writes directly to operational records without explicit human approval.</p>
+
+  <h3>Which vessel types and classification societies does fleetcore support?</h3>
+  <p>All major IMO-classified vessel types. Compliance audit trail and documentation are structured for DNV, Lloyd's Register, Bureau Veritas, ABS, ClassNK, and RINA class society survey requirements.</p>
+
+  <h3>How long does vessel onboarding take?</h3>
+  <p>A single vessel can be onboarded in hours rather than weeks. Pre-loaded OEM intelligence from 100+ manufacturers provides manufacturer-verified maintenance schedules. Operators import existing PMS via CSV or connect directly; the system auto-generates vessel-specific schedules.</p>
 
   <h2>Navigate fleetcore</h2>
   <nav>
     <ul>
-      <li><a href="/platform">How fleetcore's agentic maintenance OS works — Platform architecture</a></li>
-      <li><a href="/solutions">Maritime maintenance use cases — schedule-specific hours, compliance, predictive maintenance</a></li>
+      <li><a href="/ai">AI Intelligence — five autonomous agents, ML predictive stack, closed-loop procurement, conversational fleet intelligence</a></li>
+      <li><a href="/platform">Platform architecture — how fleetcore's agentic maintenance OS works</a></li>
+      <li><a href="/solutions">Solutions — maritime maintenance use cases, schedule-specific hours, compliance, predictive maintenance</a></li>
       <li><a href="/about">About fleetcore — ADGM-registered maritime technology company, Abu Dhabi UAE</a></li>
-      <li><a href="/contact">Schedule a 30-minute demo — enterprise pricing and fleet implementation</a></li>
+      <li><a href="/contact">Schedule a demo — enterprise pricing and fleet implementation</a></li>
     </ul>
   </nav>
+
+  <p><strong>Schedule a demo:</strong> <a href="https://calendly.com/hello-fleetcore/30min">https://calendly.com/hello-fleetcore/30min</a></p>
+  <p><strong>Contact:</strong> <a href="https://fleetcore.ai/contact">https://fleetcore.ai/contact</a></p>
 
 </body>
 </html>

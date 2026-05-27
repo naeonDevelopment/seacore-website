@@ -26,6 +26,11 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
       href: '/solutions'
     },
     {
+      id: 'ai',
+      label: 'AI Intelligence',
+      href: '/ai'
+    },
+    {
       id: 'platform',
       label: 'Platform',
       href: '/platform'

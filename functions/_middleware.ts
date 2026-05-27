@@ -9,6 +9,7 @@
  */
 
 import { generateHomeContent } from './bot-content/home';
+import { generateAIContent } from './bot-content/ai';
 import { generatePlatformContent } from './bot-content/platform';
 import { generateSolutionsContent } from './bot-content/solutions';
 import { generateAboutContent } from './bot-content/about';
@@ -78,6 +79,8 @@ function generateBotHTML(pathname: string): string {
       return generatePlatformContent();
     case '/solutions':
       return generateSolutionsContent();
+    case '/ai':
+      return generateAIContent();
     case '/about':
       return generateAboutContent();
     case '/contact':
@@ -99,7 +102,7 @@ export async function onRequest(context: EventContext) {
     const pathname = url.pathname;
     
     // SPA routes that need bot optimization
-    const spaRoutes = ['/', '/solutions', '/platform', '/about', '/contact', '/privacy-policy', '/imprint'];
+    const spaRoutes = ['/', '/solutions', '/ai', '/platform', '/about', '/contact', '/privacy-policy', '/imprint'];
     
     // Static asset caching - aggressive performance
     const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm)$/i.test(pathname);

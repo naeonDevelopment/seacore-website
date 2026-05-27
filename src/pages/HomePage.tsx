@@ -36,7 +36,8 @@ import {
   Upload,
   Link2,
   Building2,
-  Sailboat
+  Sailboat,
+  Activity
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Collapsible } from '@/components/ui/Collapsible'
@@ -167,7 +168,7 @@ const HomePage: React.FC = () => {
     },
     {
       title: 'Advanced Analytics & Intelligence',
-      description: 'Data-driven decision making with predictive maintenance algorithms, equipment health scoring, performance trend analysis, cost optimization insights, and AI-powered failure pattern recognition.',
+      description: 'Data-driven decision making with equipment health scoring, performance trend analysis, cost optimization insights, AI-powered failure pattern recognition, and fleet-wide KPI dashboards.',
       metric: { value: '87%', label: 'Prediction Accuracy', percentage: 87 },
       icon: Brain,
       gradient: 'from-pink-500 to-rose-600',
@@ -176,6 +177,32 @@ const HomePage: React.FC = () => {
         text: 'AI Analytics',
         icon: Bot,
         color: 'bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-900/30 dark:to-rose-900/30 text-pink-700 dark:text-pink-300'
+      }
+    },
+    {
+      title: 'Predictive Maintenance Intelligence',
+      description: 'Three-layer ML system combines equipment maintenance history, live operational data streams, and third-party sensor feeds to produce calibrated Remaining Useful Life forecasts with P05/P50/P95 confidence bands. Schedule adjustments and corrective task proposals are generated automatically.',
+      metric: { value: '95%', label: 'RUL Forecast Accuracy', percentage: 95 },
+      icon: Activity,
+      gradient: 'from-violet-500 to-indigo-600',
+      features: ['Censoring-aware survival analysis', 'Equipment DNA embeddings', 'Live sensor stream fusion', 'P05/P50/P95 RUL bands', 'Cross-fleet federated learning', 'Physics-based safety overrides'],
+      badge: {
+        text: 'ML Predictive Stack',
+        icon: Brain,
+        color: 'bg-gradient-to-r from-violet-100 to-indigo-100 dark:from-violet-900/30 dark:to-indigo-900/30 text-violet-700 dark:text-violet-300'
+      }
+    },
+    {
+      title: 'Closed-Loop Procurement Automation',
+      description: 'When inventory drops below the reorder threshold, a procurement agent drafts an inquiry, dispatches it to approved suppliers, parses inbound offers via AI, benchmarks against historical prices, and surfaces a ranked recommendation — all before a buyer opens their inbox.',
+      metric: { value: '< 1h', label: 'Trigger to Ranked Offer', percentage: 100 },
+      icon: Workflow,
+      gradient: 'from-fuchsia-500 to-pink-600',
+      features: ['Automated reorder triggers', 'AI-drafted inquiries', 'Supplier auto-dispatch', 'LLM offer parsing', 'Price benchmarking', 'ML-Procurement bridge'],
+      badge: {
+        text: 'Procurement Agent',
+        icon: Bot,
+        color: 'bg-gradient-to-r from-fuchsia-100 to-pink-100 dark:from-fuchsia-900/30 dark:to-pink-900/30 text-fuchsia-700 dark:text-fuchsia-300'
       }
     }
   ]
@@ -310,11 +337,11 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>fleetcore — Maritime Maintenance OS | 100+ OEM Manufacturers</title>
-        <meta name="description" content="Agentic maintenance OS for maritime fleets. Centralizes OEM intelligence from 100+ manufacturers, automates SOLAS/MARPOL compliance, reduces fleet maintenance costs by 20–30%." />
+        <title>fleetcore — Maritime Technical OS | 5 AI Agents · 10 Capabilities · 100+ OEM Manufacturers</title>
+        <meta name="description" content="fleetcore is a maritime technical operating system with five autonomous AI agents across every workflow — predictive ML maintenance, closed-loop procurement automation, incident intelligence, compliance reporting, and conversational fleet intelligence. OEM PMS from 100+ manufacturers. SOLAS/MARPOL/ISM compliance built in. Ten comprehensive capabilities." />
         <link rel="canonical" href="https://fleetcore.ai/" />
-        <meta property="og:title" content="fleetcore: Agentic Maintenance Operating System" />
-        <meta property="og:description" content="Centralized OEM intelligence from 100+ maritime manufacturers. Vendor-neutral maintenance OS delivers predictive automation, cross-fleet optimization, regulatory compliance. Transform reactive operations into strategic asset management." />
+        <meta property="og:title" content="fleetcore: Maritime OS — 5 AI Agents Across Every Workflow" />
+        <meta property="og:description" content="Five autonomous agents. Ten comprehensive capabilities. OEM intelligence from 100+ manufacturers. Censoring-aware ML predictive stack, closed-loop procurement automation, three-tier HITL governance. SOLAS/MARPOL/ISM compliance built in." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/" />
         <meta property="og:image" content="https://fleetcore.ai/og/home.png" />
@@ -322,15 +349,16 @@ const HomePage: React.FC = () => {
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="fleetcore: Agentic Maintenance Operating System" />
-        <meta name="twitter:description" content="Global maritime maintenance intelligence: 100+ OEM manufacturers and real-world maintenance data unified. Vendor-neutral optimization, predictive analytics, automated compliance. Transform fleet operations with proven 20-30% cost reduction." />
+        <meta name="twitter:title" content="fleetcore: Maritime OS — 5 AI Agents, 10 Capabilities" />
+        <meta name="twitter:description" content="Five autonomous AI agents embedded across every maritime workflow. Three-layer ML predictive maintenance, closed-loop procurement automation, HITL governance. 100+ OEM manufacturers unified." />
         <meta name="twitter:image" content="https://fleetcore.ai/og/home.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": ["WebPage", "FAQPage"],
-            "name": "fleetcore Home",
+            "name": "fleetcore — Maritime Technical Operating System",
             "url": "https://fleetcore.ai/",
+            "description": "Maritime technical operating system with five autonomous AI agents, ten comprehensive capabilities, and OEM PMS intelligence from 100+ manufacturers.",
             "breadcrumb": {
               "@type": "BreadcrumbList",
               "itemListElement": [
@@ -341,12 +369,32 @@ const HomePage: React.FC = () => {
               {
                 "@type": "Question",
                 "name": "What is fleetcore?",
-                "acceptedAnswer": { "@type": "Answer", "text": "An AI-powered maritime maintenance OS that automates scheduling, ensures SOLAS/MARPOL compliance, and delivers fleet-wide intelligence." }
+                "acceptedAnswer": { "@type": "Answer", "text": "fleetcore is a maritime technical operating system where AI is embedded across every operational workflow. Five autonomous agents handle predictive maintenance, procurement automation, incident intelligence, compliance reporting, and fleet conversation. Ten comprehensive capabilities span OEM PMS integration, equipment lifecycle, intelligent parts management, SOLAS compliance, and more — all governed by a three-tier HITL model." }
+              },
+              {
+                "@type": "Question",
+                "name": "What are the five AI agents in fleetcore?",
+                "acceptedAnswer": { "@type": "Answer", "text": "1) Predictive Maintenance Agent — runs every 15 min, produces P05/P50/P95 RUL forecasts from a three-layer ML stack. 2) Procurement Intelligence Agent — closes the loop from inventory reorder trigger to ranked supplier recommendation automatically. 3) Incident Intelligence Agent — proposes predictive events 200–800 hours before failure, gated at 80% Confidence Score. 4) Compliance Reporting Agent — pre-populates three ML report templates as AI-draft artifacts. 5) Conversational Fleet Intelligence Agent — 30+ maritime-domain handlers covering tasks, inventory, RUL, compliance, financials, and fleet KPIs." }
+              },
+              {
+                "@type": "Question",
+                "name": "How does fleetcore's predictive maintenance work?",
+                "acceptedAnswer": { "@type": "Answer", "text": "fleetcore uses a three-layer ML stack: historical censoring-aware survival analysis with Equipment DNA embeddings and cross-fleet federated learning; live equipment data streams with multi-model streaming anomaly detection; and third-party sensor integration (vibration, thermal, gas). All layers are fused into a confidence-weighted composite RUL with P05/P50/P95 bands. Physics-based safety overrides enforce hard boundaries regardless of model confidence." }
+              },
+              {
+                "@type": "Question",
+                "name": "What is closed-loop procurement automation?",
+                "acceptedAnswer": { "@type": "Answer", "text": "When inventory drops below the reorder threshold, fleetcore's procurement agent automatically drafts an inquiry, dispatches it to all approved suppliers, parses inbound offers via AI to extract prices and lead times, benchmarks against historical pricing, and surfaces a ranked recommendation — all before a buyer opens their inbox. The only human gate is the award decision." }
               },
               {
                 "@type": "Question",
                 "name": "Who is fleetcore for?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Enterprise maritime operators—technical superintendents, chief engineers, and fleet operations teams managing multi-vessel fleets." }
+                "acceptedAnswer": { "@type": "Answer", "text": "Enterprise maritime operators — technical superintendents managing multi-vessel fleets, chief engineers with vessel-level maintenance command, fleet operations teams requiring digital documentation and regulatory audit trails, and ship management companies seeking fleet-wide standardization." }
+              },
+              {
+                "@type": "Question",
+                "name": "How does fleetcore handle regulatory compliance?",
+                "acceptedAnswer": { "@type": "Answer", "text": "SOLAS 2024, MARPOL, and ISM Code compliance are built into the core architecture — not a separate module. Maintenance tasks are automatically linked to regulatory requirements. The compliance reporting agent pre-populates AI-draft reports. Certificate management tracks expiry and renewal across all class, flag, and statutory certificates. Port State Control readiness dashboard available in real time." }
               }
             ]
           })}
@@ -476,10 +524,11 @@ const HomePage: React.FC = () => {
                   <Calendar className="w-4 h-4 flex-shrink-0" />
                   <span>Automated Scheduling</span>
                 </div>
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium whitespace-nowrap">
+                <Link to="/ai" className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium whitespace-nowrap hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors">
                   <Brain className="w-4 h-4 flex-shrink-0" />
-                  <span>AI Intelligence Layer</span>
-                </div>
+                  <span>AI Intelligence</span>
+                  <ArrowRight className="w-3 h-3 flex-shrink-0" />
+                </Link>
               </div>
             </motion.div>
           </div>
@@ -1093,6 +1142,193 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
+      {/* ── AI INTELLIGENCE FEATURE SECTION ─────────────────────────────── */}
+      <section className="py-10 md:py-24 relative overflow-hidden">
+        {/* Violet radial glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,rgba(139,92,246,0.06),transparent_70%)] pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.025]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgb(139 92 246) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+
+        <div className="container mx-auto px-4 relative z-10">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-100 to-indigo-100 dark:from-violet-900/30 dark:to-indigo-900/30 mb-6">
+              <Brain className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+              <span className="text-sm font-medium text-violet-700 dark:text-violet-300">AI Intelligence</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
+              Five Agents.{' '}
+              <span className="maritime-gradient-text">Every Workflow Covered.</span>
+            </h2>
+            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
+              Five autonomous agents are embedded across every core workflow — maintenance, procurement,
+              incidents, compliance, and fleet conversation. The platform prepares and proposes; your
+              team decides and approves.
+            </p>
+          </motion.div>
+
+          {/* Stats bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-14"
+          >
+            {[
+              { value: '5', label: 'Autonomous Agents' },
+              { value: '30+', label: 'AI Domain Handlers' },
+              { value: '3-Layer', label: 'ML Predictive Stack' },
+              { value: 'HITL', label: 'Governance Model' }
+            ].map(stat => (
+              <div key={stat.label} className="text-center rounded-2xl border border-violet-200/60 dark:border-violet-800/40 bg-violet-50/50 dark:bg-violet-950/20 px-4 py-5">
+                <div className="text-2xl md:text-3xl font-bold maritime-gradient-text mb-1">{stat.value}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">{stat.label}</div>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* 2×2 + full-width Agent cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-12">
+            {[
+              {
+                icon: Activity,
+                gradient: 'from-violet-500 to-indigo-600',
+                badge: 'Runs every 15 min',
+                badgeCls: 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300',
+                agent: 'Predictive Maintenance Agent',
+                description: 'Survival-curve ML models run continuously against every equipment installation. Calibrated P05/P50/P95 RUL forecasts, divergence detection, and schedule adjustment proposals — all bounded by criticality class.',
+                gate: 'Schedule mutations require role-gated human approval'
+              },
+              {
+                icon: Package,
+                gradient: 'from-fuchsia-500 to-purple-600',
+                badge: 'Auto-triggers on reorder',
+                badgeCls: 'bg-fuchsia-50 dark:bg-fuchsia-900/20 text-fuchsia-700 dark:text-fuchsia-300',
+                agent: 'Procurement Intelligence Agent',
+                description: 'When inventory drops below threshold, the agent drafts an inquiry, dispatches it to approved suppliers, parses inbound offers via AI, and surfaces a ranked recommendation — before you open your inbox.',
+                gate: 'Award decision is always a human gate'
+              },
+              {
+                icon: AlertTriangle,
+                gradient: 'from-amber-500 to-orange-600',
+                badge: 'Confidence Score ≥ 80%',
+                badgeCls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300',
+                agent: 'Incident Intelligence Agent',
+                description: 'Proposes predictive incidents 200–800 hours before the failure window — bundled with corrective task templates and a procurement pre-check — before the breakdown occurs.',
+                gate: 'Event creation requires operations role approval'
+              },
+              {
+                icon: FileCheck,
+                gradient: 'from-emerald-500 to-teal-600',
+                badge: 'Three ML report templates',
+                badgeCls: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300',
+                agent: 'Compliance Reporting Agent',
+                description: 'Weekly RUL summaries, anomaly alert reports, and interval adjustment recommendations are pre-populated automatically as AI-draft artifacts. The machine prepares; the human submits.',
+                gate: 'Draft promotion to submitted is always manual'
+              }
+            ].map((item, i) => {
+              const Icon = item.icon
+              return (
+                <motion.div
+                  key={item.agent}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: i * 0.1 }}
+                  viewport={{ once: true }}
+                >
+                  <div className="rounded-3xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg p-7 h-full hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={cn('w-11 h-11 rounded-2xl bg-gradient-to-br flex items-center justify-center shrink-0', item.gradient)}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <span className={cn('text-xs font-semibold px-3 py-1 rounded-full', item.badgeCls)}>{item.badge}</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2 enterprise-heading">{item.agent}</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 enterprise-body leading-relaxed mb-4">{item.description}</p>
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{item.gate}</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+
+            {/* 5th agent — full-width row */}
+            <motion.div
+              className="md:col-span-2"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              viewport={{ once: true }}
+            >
+              <div className="rounded-3xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-lg p-7 hover:shadow-[8px_8px_0px_#2a3442] hover:-translate-y-0.5 hover:border-[#2a3442] transition-all duration-300">
+                <div className="flex flex-col md:flex-row md:items-start gap-6">
+                  <div className="flex items-start gap-4 md:w-1/2">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shrink-0">
+                      <Bot className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300 mb-3 inline-block">30+ maritime domain handlers</span>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 enterprise-heading">Conversational Fleet Intelligence Agent</h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 enterprise-body leading-relaxed mt-2">
+                        Ask any fleet question in plain language — overdue tasks, inventory levels, RUL forecasts, procurement status, compliance certificates, crew records, fleet KPIs, and financial cost breakdowns. Multi-session memory maintains vessel context across conversations.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="md:w-1/2 grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'PMS & Tasks', icon: Wrench },
+                      { label: 'Procurement', icon: Package },
+                      { label: 'RUL Forecasts', icon: Activity },
+                      { label: 'Compliance', icon: FileCheck }
+                    ].map(cap => {
+                      const CapIcon = cap.icon
+                      return (
+                        <div key={cap.label} className="flex flex-col items-center gap-2 rounded-2xl border border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/50 px-3 py-4 text-center">
+                          <CapIcon className="w-5 h-5 text-sky-500" />
+                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{cap.label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Read-only by default — write actions follow the same HITL approval model</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            viewport={{ once: true }}
+            className="text-center"
+          >
+            <Link to="/ai">
+              <Button variant="gradient" size="xl" className="group">
+                Explore AI Intelligence
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Enterprise Maritime Core Capabilities */}
       <section className="pt-20 md:pb-24">
         <div className="container mx-auto px-4">
@@ -1109,7 +1345,7 @@ const HomePage: React.FC = () => {
             </div>
             
             <h2 className="text-4xl md:text-5xl font-bold enterprise-heading mb-6">
-              Eight Comprehensive Capabilities
+              Ten Comprehensive Capabilities
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto enterprise-body">
               Complete maritime maintenance intelligence — from automated PMS scheduling to regulatory compliance, 
@@ -1144,7 +1380,7 @@ const HomePage: React.FC = () => {
                   features={capability.features}
                   badge={capability.badge}
                   delay={index * 0.1}
-                  comingSoon={capability.title === 'Advanced Analytics & Intelligence'}
+                  comingSoon={false}
                 />
               ))}
             </Carousel>

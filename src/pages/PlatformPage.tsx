@@ -26,6 +26,9 @@ import {
   Wrench,
   Ship,
   Award,
+  Brain,
+  Activity,
+  Bot,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
@@ -180,6 +183,31 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
           metric: '100% Compliance Tracking'
         }
       ]
+    },
+    {
+      category: 'AI Intelligence Layers',
+      icon: Brain,
+      color: 'from-violet-500 to-indigo-600',
+      features: [
+        {
+          name: 'Three-Layer ML Predictive Stack',
+          description: 'Censoring-aware survival analysis fused with live equipment data streams and third-party sensor feeds (vibration, thermal, combustion gas) produces P05/P50/P95 calibrated Remaining Useful Life forecasts per installation.',
+          icon: Activity,
+          metric: '95% RUL Forecast Accuracy'
+        },
+        {
+          name: 'Five Autonomous Agents',
+          description: 'Purpose-built agents for predictive maintenance, procurement automation, incident intelligence, compliance reporting, and conversational fleet intelligence — each running within defined operational bounds and linked to the same data layer.',
+          icon: Bot,
+          metric: '5 Agents · 30+ Handlers'
+        },
+        {
+          name: 'Three-Tier HITL Governance',
+          description: 'Every AI write action is gated by a Confidence Score (0–100). Tier 0 issues advisories only. Tier 1 proposes schedule adjustments and draft tasks for human approval. Tier 2 adds predictive incidents and compliance draft reports. No record is ever mutated without explicit human sign-off.',
+          icon: Shield,
+          metric: '0 Unsupervised Writes'
+        }
+      ]
     }
   ]
 
@@ -308,6 +336,27 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
       fleetcore: 'Row-level security with multi-tenant isolation and granular permissions',
       impact: 'Military-grade security, full data isolation',
       icon: Lock
+    },
+    {
+      advantage: 'Predictive ML Intelligence',
+      traditional: 'No predictive capability — rule-based threshold alerts only; censored data discarded (30–50% accuracy gap)',
+      fleetcore: 'Three-layer ML stack: censoring-aware survival analysis, live sensor streams, third-party sensors → P05/P50/P95 calibrated RUL per installation',
+      impact: 'Failures predicted 200–800h ahead; 95% RUL accuracy',
+      icon: Activity
+    },
+    {
+      advantage: 'Autonomous Agent Workflows',
+      traditional: 'No AI agents — every workflow action requires manual human initiation; procurement and reporting are entirely manual',
+      fleetcore: 'Five purpose-built agents: maintenance scheduling, procurement automation, incident intelligence, compliance reporting, and fleet conversation — running 24/7',
+      impact: '5 agents active across every workflow; zero idle time',
+      icon: Bot
+    },
+    {
+      advantage: 'HITL Governance Model',
+      traditional: 'Binary choice: fully manual (too slow) or fully autonomous (violates ISM §10); no governed middle ground',
+      fleetcore: 'Three-tier Confidence Score model (0–100): Tier 0 advisory, Tier 1 semi-automated, Tier 2 accelerated — every write action gated by explicit human approval',
+      impact: 'ISM §10-compliant AI — 0 unsupervised record mutations',
+      icon: Brain
     }
   ]
 
@@ -394,11 +443,11 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>fleetcore Platform: Agentic Fleet Maintenance Architecture</title>
-        <meta name="description" content="Technical architecture of fleetcore's agentic maintenance OS: autonomous AI agents, dual-interval scheduling, predictive maintenance engine, SOLAS/MARPOL compliance, and cross-fleet learning graph." />
+        <title>fleetcore Platform: Maritime OS — 4 Technical Excellence Pillars · 5 AI Agents · Three-Layer ML</title>
+        <meta name="description" content="Technical architecture of fleetcore's maritime operating system: four excellence pillars — Data Architecture, Automation & Intelligence, Security & Compliance, and AI Intelligence Layers. Five autonomous agents. Three-layer ML predictive stack with P05/P50/P95 RUL. Three-tier HITL governance. SOLAS/MARPOL built in." />
         <link rel="canonical" href="https://fleetcore.ai/platform" />
-        <meta property="og:title" content="fleetcore Platform: AI Maritime Maintenance OS" />
-        <meta property="og:description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics." />
+        <meta property="og:title" content="fleetcore Platform: 4 Technical Excellence Pillars + AI Intelligence Layers" />
+        <meta property="og:description" content="Data Architecture · Automation & Intelligence · Security & Compliance · AI Intelligence Layers. Five autonomous agents, three-layer ML predictive stack, HITL governance. Real-time sync under 200ms. 100+ OEM manufacturers." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/platform" />
         <meta property="og:image" content="https://fleetcore.ai/og/platform.png" />
@@ -408,8 +457,9 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": ["WebPage", "FAQPage"],
-            "name": "fleetcore Platform",
+            "name": "fleetcore Platform — Technical Excellence",
             "url": "https://fleetcore.ai/platform",
+            "description": "Maritime technical operating system with four excellence pillars: Data Architecture, Automation & Intelligence, Security & Compliance, and AI Intelligence Layers.",
             "breadcrumb": {
               "@type": "BreadcrumbList",
               "itemListElement": [
@@ -420,21 +470,31 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
             "mainEntity": [
               {
                 "@type": "Question",
-                "name": "What are fleetcore’s core pillars?",
-                "acceptedAnswer": { "@type": "Answer", "text": "Modern cloud architecture, intelligent automation, and maritime-specific design with built-in compliance." }
+                "name": "What are fleetcore’s four Technical Excellence pillars?",
+                "acceptedAnswer": { "@type": "Answer", "text": "1) Data Architecture — centralized equipment registry, cross-fleet intelligence, unlimited history. 2) Automation & Intelligence — dual-interval scheduling, automated PMS import, smart workload distribution. 3) Security & Compliance — row-level security, STCW role hierarchy, SOLAS/MARPOL built-in. 4) AI Intelligence Layers — three-layer ML predictive stack, five autonomous agents, three-tier HITL governance." }
               },
               {
                 "@type": "Question",
-                "name": "Which modules are included?",
-                "acceptedAnswer": { "@type": "Answer", "text": "PMS Core, Equipment Registry, Parts & Procurement, Compliance Manager, Analytics & Reporting, and User Management." }
+                "name": "What is the AI Intelligence Layers pillar?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Three-Layer ML Predictive Stack (censoring-aware survival analysis + live sensor streams + third-party sensors = P05/P50/P95 RUL), Five Autonomous Agents (maintenance, procurement, incidents, compliance, fleet conversation), Three-Tier HITL Governance (Confidence Score gated — 0 unsupervised record mutations)." }
+              },
+              {
+                "@type": "Question",
+                "name": "Which platform modules are included?",
+                "acceptedAnswer": { "@type": "Answer", "text": "PMS Core, Equipment Registry, Parts & Procurement, Compliance Manager, Analytics & Reporting, and User Management — plus the AI Intelligence layer spanning all modules." }
+              },
+              {
+                "@type": "Question",
+                "name": "How does the three-tier HITL governance work?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Tier 0 (<50%): advisory only, no writes. Tier 1 (50–80%): schedule proposals and draft tasks require human approval within 72h. Tier 2 (≥80%): adds predictive events and compliance drafts with 24h window (12h safety-critical). No record mutated without explicit human sign-off." }
               }
             ]
           })}
         </script>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
-        <meta name="twitter:title" content="fleetcore Platform: AI Maritime Maintenance OS" />
-        <meta name="twitter:description" content="Modern cloud architecture, dual-interval scheduling, SOLAS/MARPOL tracking, and fleet-wide analytics." />
+        <meta name="twitter:title" content="fleetcore Platform: 4 Excellence Pillars · AI Intelligence Layers" />
+        <meta name="twitter:description" content="Data Architecture · Automation · Security · AI Intelligence Layers. Three-layer ML stack, five autonomous agents, zero unsupervised writes, HITL governance. 100+ OEM manufacturers." />
         <meta name="twitter:image" content="https://fleetcore.ai/og/platform.png" />
       </Helmet>
       {/* Dynamic Scroll Gradient Background */}
