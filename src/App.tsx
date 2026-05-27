@@ -69,14 +69,14 @@ function AppLayout({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDark
               {/* Platform Route */}
               <Route path="/platform" element={<PlatformPage />} />
 
-              {/* Resources Routes */}
-              <Route path="/resources" element={<div className="pt-24 p-8">Resources Page Coming Soon</div>} />
-              <Route path="/resources/knowledge-base" element={<div className="pt-24 p-8">Knowledge Base Coming Soon</div>} />
-              <Route path="/resources/reports" element={<div className="pt-24 p-8">Industry Reports Coming Soon</div>} />
-              <Route path="/resources/webinars" element={<div className="pt-24 p-8">Webinars Coming Soon</div>} />
+              {/* Resources Routes — not ready, noindex until published */}
+              <Route path="/resources" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Resources Page Coming Soon</div></>} />
+              <Route path="/resources/knowledge-base" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Knowledge Base Coming Soon</div></>} />
+              <Route path="/resources/reports" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Industry Reports Coming Soon</div></>} />
+              <Route path="/resources/webinars" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Webinars Coming Soon</div></>} />
 
-              {/* Case Studies Route */}
-              <Route path="/case-studies" element={<div className="pt-24 p-8">Case Studies Coming Soon</div>} />
+              {/* Case Studies Route — not ready, noindex until published */}
+              <Route path="/case-studies" element={<><Helmet><meta name="robots" content="noindex, nofollow" /></Helmet><div className="pt-24 p-8">Case Studies Coming Soon</div></>} />
 
               {/* About Route */}
               <Route path="/about" element={<AboutPage />} />

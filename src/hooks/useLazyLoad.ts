@@ -86,6 +86,9 @@ export function useLazyLoad<T extends HTMLElement>({
             onError?.(error);
           };
           img.src = dataSrc;
+        } else if (element.src) {
+          setIsLoaded(true);
+          onLoad?.();
         }
       } else if (element instanceof HTMLVideoElement) {
         const dataSrc = element.dataset.src;
@@ -100,6 +103,9 @@ export function useLazyLoad<T extends HTMLElement>({
             const error = new Error(`Failed to load video: ${dataSrc}`);
             onError?.(error);
           };
+        } else if (element.src) {
+          setIsLoaded(true);
+          onLoad?.();
         }
       }
     }
@@ -113,7 +119,8 @@ export function useLazyLoad<T extends HTMLElement>({
  * Useful for sections with background videos/images
  */
 export function useLazyBackground(imageUrl: string, options: UseLazyLoadOptions = {}) {
-  const { ref, isInView } = useLazyLoad<HTMLDivElement>(options);
+  const { onLoad: onLoadCallback, onError: onErrorCallback, rootMargin, threshold } = options;
+  const { ref, isInView } = useLazyLoad<HTMLDivElement>({ rootMargin, threshold, onLoad: onLoadCallback, onError: onErrorCallback });
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
 
   useEffect(() => {
@@ -123,16 +130,16 @@ export function useLazyBackground(imageUrl: string, options: UseLazyLoadOptions 
         if (ref.current) {
           ref.current.style.backgroundImage = `url(${imageUrl})`;
           setBackgroundLoaded(true);
-          options.onLoad?.();
+          onLoadCallback?.();
         }
       };
       img.onerror = () => {
         const error = new Error(`Failed to load background: ${imageUrl}`);
-        options.onError?.(error);
+        onErrorCallback?.(error);
       };
       img.src = imageUrl;
     }
-  }, [isInView, backgroundLoaded, imageUrl, ref, options]);
+  }, [isInView, backgroundLoaded, imageUrl, ref, onLoadCallback, onErrorCallback]);
 
   return { ref, backgroundLoaded };
 }
@@ -164,6 +171,7 @@ export function preloadVideo(src: string, type: string = 'video/mp4'): Promise<v
     source.src = src;
     source.type = type;
     video.appendChild(source);
+    video.load();
   });
 }
 
@@ -212,7 +220,7 @@ export function useResponsiveImage(
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimer);
     };
-  }, [isInView, sources, currentSrc, ref]);
+  }, [isInView, sources.mobile, sources.tablet, sources.desktop, currentSrc, ref]);
 
   return { ref, currentSrc };
 }

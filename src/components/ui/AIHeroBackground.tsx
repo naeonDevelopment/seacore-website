@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { getAssetPath } from '@/utils/assetPath'
 
@@ -13,20 +13,14 @@ const AIHeroBackground: React.FC<AIHeroBackgroundProps> = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false)
 
-  const imageSrc = getAssetPath('assets/hero_ai/AI-hero.png')
-
-  useEffect(() => {
-    console.log('🔍 AIHeroBackground:', { imageSrc, isLoaded, isDarkMode })
-  }, [isLoaded, isDarkMode])
+  const imageSrc = getAssetPath('assets/hero_ai/AI-hero.webp')
 
   const handleImageLoad = () => {
-    console.log('✅ AI hero image loaded from:', imageSrc)
     setIsLoaded(true)
   }
 
-  const handleImageError = (error: any) => {
-    console.log('❌ AI hero image failed to load from:', imageSrc)
-    console.error('Error details:', error)
+  const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('AI hero image failed to load:', imageSrc, error)
     setIsLoaded(false)
   }
 
@@ -49,7 +43,8 @@ const AIHeroBackground: React.FC<AIHeroBackgroundProps> = ({
         <motion.img
           src={imageSrc}
           alt="AI Hero Background"
-          className="absolute inset-0 w-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="eager"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}

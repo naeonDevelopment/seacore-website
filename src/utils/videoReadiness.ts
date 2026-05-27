@@ -41,12 +41,10 @@ export function awaitFirstPaintedFrame(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let done = false
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
-
     const finish = () => {
       if (done) return
       done = true
-      if (timeoutId !== undefined) clearTimeout(timeoutId)
+      clearTimeout(timeoutId)
       resolve()
     }
 
@@ -63,7 +61,7 @@ export function awaitFirstPaintedFrame(
       video.addEventListener('playing', finish, { once: true })
     }
 
-    timeoutId = setTimeout(fail, timeoutMs)
+    const timeoutId = setTimeout(fail, timeoutMs)
   })
 }
 
@@ -76,10 +74,8 @@ export function awaitPlaybackStability(
   windowMs = STABILITY_WINDOW_MS
 ): Promise<{ stable: boolean }> {
   return new Promise((resolve) => {
-    let tid: ReturnType<typeof setTimeout> | undefined
-
     const onWaiting = () => {
-      if (tid !== undefined) clearTimeout(tid)
+      clearTimeout(tid)
       video.removeEventListener('waiting', onWaiting)
       resolve({ stable: false })
     }
@@ -90,7 +86,7 @@ export function awaitPlaybackStability(
     }
 
     video.addEventListener('waiting', onWaiting, { once: true })
-    tid = setTimeout(onDone, windowMs)
+    const tid = setTimeout(onDone, windowMs)
   })
 }
 

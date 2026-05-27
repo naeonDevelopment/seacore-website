@@ -21,7 +21,7 @@ export const Footer: React.FC<FooterProps> = () => {
 
   const footerLinks: { platform: FooterLink[]; resources: FooterLink[] } = {
     platform: [
-      { label: 'Solution', href: '/solutions' },
+      { label: 'Solutions', href: '/solutions' },
       { label: 'Platform', href: '/platform' },
       { label: 'About', href: '/about' }
     ],
@@ -56,11 +56,7 @@ export const Footer: React.FC<FooterProps> = () => {
             </p>
             <div className="space-y-3">
               <a 
-                href="#contact-email"
-                onClick={(e) => {
-                  e.preventDefault()
-                  window.location.href = `mailto:${'hello'}@${'fleetcore.ai'}`
-                }}
+                href="mailto:hello@fleetcore.ai"
                 className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm group justify-center md:justify-start"
               >
                 <Mail className="w-4 h-4 shrink-0" />

@@ -29,11 +29,9 @@ export default function CookieConsentModal({ onConsentGiven }: CookieConsentModa
   });
 
   useEffect(() => {
-    // Check if we should show the modal
-    if (shouldShowConsentModal()) {
-      // Small delay to avoid jarring on page load
-      setTimeout(() => setShowBanner(true), 500);
-    }
+    if (!shouldShowConsentModal()) return;
+    const timer = window.setTimeout(() => setShowBanner(true), 500);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleAcceptAll = () => {

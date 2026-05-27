@@ -66,6 +66,7 @@ export const IntegrationsSectionBackground: React.FC<IntegrationsSectionBackgrou
           src={imageSrc}
           alt="Integration Background"
           className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}

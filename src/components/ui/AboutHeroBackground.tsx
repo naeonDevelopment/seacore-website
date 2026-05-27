@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { getAssetPath } from '@/utils/assetPath'
 
@@ -16,25 +16,12 @@ const AboutHeroBackground: React.FC<AboutHeroBackgroundProps> = ({
   // Use About hero image
   const imageSrc = getAssetPath('assets/hero_about/hero_about.webp')
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 AboutHeroBackground:', {
-      imageSrc,
-      isLoaded,
-      isDarkMode
-    })
-  }, [isLoaded, isDarkMode])
-
-  // Handle image load
   const handleImageLoad = () => {
-    console.log('✅ About hero image loaded successfully from:', imageSrc)
     setIsLoaded(true)
   }
 
-  // Handle image error (fallback to gradient gracefully)
-  const handleImageError = (error: any) => {
-    console.log('❌ About hero image failed to load from:', imageSrc)
-    console.error('Error details:', error)
+  const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('About hero image failed to load:', imageSrc, error)
     setIsLoaded(false)
   }
 
@@ -57,7 +44,8 @@ const AboutHeroBackground: React.FC<AboutHeroBackgroundProps> = ({
         <motion.img
           src={imageSrc}
           alt="About Hero Background"
-          className="absolute inset-0 w-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}

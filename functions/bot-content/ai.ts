@@ -5,13 +5,19 @@ export function generateAIContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore AI Intelligence — Maritime Agentic Fleet Platform | Predictive ML · Procurement Automation · HITL Governance</title>
-  <meta name="description" content="fleetcore AI Intelligence is an AI-first maritime fleet platform with four autonomous agents embedded across every workflow, a three-layer ML predictive intelligence stack, closed-loop procurement automation, and conversational fleet intelligence — all governed by a three-tier human-approval model.">
+  <title>fleetcore AI Agent | Maritime Fleet Intelligence</title>
+  <meta name="description" content="fleetcore's AI agent answers any fleet question in natural language — tasks, events, procurement, compliance — with 30+ maritime handlers and session memory.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://fleetcore.ai/ai">
-  <meta property="og:title" content="fleetcore AI Intelligence — Maritime Agentic Fleet Platform">
-  <meta property="og:description" content="Not AI Added. AI Built. Four autonomous agents across maintenance, procurement, incidents, and compliance — governed by a Confidence Score gated three-tier HITL model.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="fleetcore AI Agent | Maritime Fleet Intelligence">
+  <meta property="og:description" content="30+ maritime-domain handlers. Human-approved automation. Ask anything about your fleet.">
   <meta property="og:url" content="https://fleetcore.ai/ai">
+  <meta property="og:image" content="https://fleetcore.ai/og/assistant.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="fleetcore AI Agent | Maritime Fleet Intelligence">
+  <meta name="twitter:description" content="30+ maritime-domain handlers. Human-approved automation. Ask anything about your fleet.">
+  <meta name="twitter:image" content="https://fleetcore.ai/og/assistant.png">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -22,7 +28,7 @@ export function generateAIContent(): string {
         "name": "What does 'AI Intelligence' mean in fleetcore?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "fleetcore AI Intelligence is not a chatbot bolted onto a PMS tool. It is an AI-first maritime fleet platform architected from the ground up with four autonomous agents embedded across every operational workflow: predictive maintenance, procurement intelligence, incident management, and compliance reporting — plus a conversational fleet intelligence layer that spans all five domains. Every agent runs autonomously within defined bounds, and every AI-driven action is gated by a Confidence Score and requires explicit human approval before any operational record is modified."
+          "text": "fleetcore AI Intelligence is not a chatbot bolted onto a PMS tool. It is an AI-first maritime fleet platform architected from the ground up with five autonomous agents embedded across every operational workflow: predictive maintenance, procurement intelligence, incident management, and compliance reporting — plus a conversational fleet intelligence layer that spans all five domains. Every agent runs autonomously within defined bounds, and every AI-driven action is gated by a Confidence Score and requires explicit human approval before any operational record is modified."
         }
       },
       {
@@ -101,7 +107,7 @@ export function generateAIContent(): string {
 
   <h1>fleetcore AI Intelligence — Not AI Added. AI Built.</h1>
 
-  <p><strong>fleetcore AI Intelligence is not a PMS tool with a chatbot bolted on.</strong> It is an AI-first maritime fleet platform where four autonomous agents are embedded across every core operational workflow — predictive maintenance, procurement, incident management, and compliance reporting — each running autonomously within defined bounds and governed by a three-tier human-approval model. On top of this agentic foundation sits a conversational fleet intelligence layer with 30+ maritime-domain handlers. The machine prepares and proposes. Humans decide and approve.</p>
+  <p><strong>fleetcore AI Intelligence is not a PMS tool with a chatbot bolted on.</strong> It is an AI-first maritime fleet platform where five autonomous agents are embedded across every core operational workflow — predictive maintenance, procurement, incident management, and compliance reporting — each running autonomously within defined bounds and governed by a three-tier human-approval model. On top of this agentic foundation sits a conversational fleet intelligence layer with 30+ maritime-domain handlers. The machine prepares and proposes. Humans decide and approve.</p>
 
   <h2>Six gaps no competitor has solved</h2>
 
@@ -141,7 +147,7 @@ export function generateAIContent(): string {
     <p><em>All competitors: reactive recording. fleetcore: predictive proposal.</em></p>
   </div>
 
-  <h2>Agents at every layer — four workflows, fully agentic</h2>
+  <h2>Agents at every layer — five workflows, fully agentic</h2>
 
   <div class="agent-card">
     <h3>Predictive Maintenance Agent</h3>
@@ -341,7 +347,7 @@ export function generateAIContent(): string {
     <tr>
       <td><strong>AI scope</strong></td>
       <td>Conversational interface only</td>
-      <td>Four autonomous agents embedded across all workflows</td>
+      <td>Five autonomous agents embedded across all workflows</td>
     </tr>
     <tr>
       <td><strong>Predictive ML</strong></td>
@@ -398,7 +404,7 @@ export function generateAIContent(): string {
   <h2>Technical architecture summary</h2>
 
   <ul>
-    <li><strong>Agentic foundation:</strong> Four autonomous agents embedded across maintenance, procurement, incident, and compliance workflows — all sharing the same three-tier governance layer</li>
+    <li><strong>Agentic foundation:</strong> Five autonomous agents embedded across maintenance, procurement, incident, and compliance workflows — all sharing the same three-tier governance layer</li>
     <li><strong>Predictive engine:</strong> Censoring-aware survival analysis with Equipment DNA operational embeddings and confidence-gated model progression</li>
     <li><strong>Live sensor pipeline:</strong> Multi-model streaming anomaly detection (point, shift, drift) with composite health index and confidence-weighted historical fusion</li>
     <li><strong>Sensor normalization:</strong> Proprietary mapping layer for heterogeneous protocols into a unified event schema; physics safety override boundaries on all channels</li>

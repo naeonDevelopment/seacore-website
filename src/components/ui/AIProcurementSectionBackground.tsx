@@ -31,20 +31,14 @@ const AIProcurementSectionBackground: React.FC<AIProcurementSectionBackgroundPro
   const y = useTransform(scrollYProgress, [0, 1], isMobile ? [0, -20] : [0, -50])
   const scale = useTransform(scrollYProgress, [0, 1], isMobile ? [1, 1.05] : [1, 1.15])
 
-  const imageSrc = getAssetPath('assets/section_ai/AI-Section.png')
-
-  useEffect(() => {
-    console.log('🔍 AIProcurementSectionBackground:', { imageSrc, isLoaded, isDarkMode })
-  }, [isLoaded, isDarkMode])
+  const imageSrc = getAssetPath('assets/section_ai/AI-Section.webp')
 
   const handleImageLoad = () => {
-    console.log('✅ AI procurement section image loaded from:', imageSrc)
     setIsLoaded(true)
   }
 
-  const handleImageError = (error: any) => {
-    console.log('❌ AI procurement section image failed to load from:', imageSrc)
-    console.error('Error details:', error)
+  const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('AI procurement section image failed to load:', imageSrc, error)
     setIsLoaded(false)
   }
 
@@ -66,6 +60,7 @@ const AIProcurementSectionBackground: React.FC<AIProcurementSectionBackgroundPro
           src={imageSrc}
           alt="AI Procurement Background"
           className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}

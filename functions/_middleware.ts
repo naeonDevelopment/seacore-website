@@ -29,12 +29,6 @@ interface EventContext<Env = any> {
   data: Record<string, unknown>;
 }
 
-interface Env {
-  ASSETS?: {
-    fetch: (request: Request) => Promise<Response>;
-  };
-}
-
 // Comprehensive bot detection for search engines and AI crawlers
 function isBot(userAgent: string): boolean {
   const botPatterns = [
@@ -94,23 +88,51 @@ function generateBotHTML(pathname: string): string {
   }
 }
 
+// All valid SPA routes — used for 404 detection and bot routing
+const ALL_SPA_ROUTES = new Set([
+  '/',
+  '/solutions',
+  '/solutions/commercial-shipping',
+  '/solutions/offshore-energy',
+  '/solutions/cruise-lines',
+  '/solutions/naval-defense',
+  '/solutions/port-operations',
+  '/solutions/yacht-superyacht',
+  '/ai',
+  '/platform',
+  '/resources',
+  '/resources/knowledge-base',
+  '/resources/reports',
+  '/resources/webinars',
+  '/case-studies',
+  '/about',
+  '/contact',
+  '/privacy-policy',
+  '/imprint',
+]);
+
+// Routes served with full bot-optimised HTML (indexed pages only)
+const BOT_ROUTES = new Set(['/', '/solutions', '/ai', '/platform', '/about', '/contact', '/privacy-policy', '/imprint']);
+
 // Main middleware handler
 export async function onRequest(context: EventContext) {
   try {
     const userAgent = context.request.headers.get('user-agent') || '';
     const url = new URL(context.request.url);
     const pathname = url.pathname;
-    
-    // SPA routes that need bot optimization
-    const spaRoutes = ['/', '/solutions', '/ai', '/platform', '/about', '/contact', '/privacy-policy', '/imprint'];
-    
-    // Static asset caching - aggressive performance
-    const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm)$/i.test(pathname);
-    
+
+    // 1. www → canonical redirect (must run before anything else)
+    if (url.hostname === 'www.fleetcore.ai') {
+      return Response.redirect(`https://fleetcore.ai${pathname}${url.search}`, 301);
+    }
+
+    // 2. Static asset caching - aggressive performance
+    const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm|txt|xml|json|webmanifest)$/i.test(pathname);
+
     if (isStaticAsset) {
       const response = await context.next();
       const newResponse = new Response(response.body, response);
-      
+
       // Immutable hashed assets - 1 year cache
       if (/\.[a-f0-9]{8,}\.(js|css)$/i.test(pathname)) {
         newResponse.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
@@ -118,16 +140,16 @@ export async function onRequest(context: EventContext) {
         // Regular assets - 1 week cache with revalidation
         newResponse.headers.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
       }
-      
+
       return newResponse;
     }
-    
-    // Bot detection and content delivery
-    if (isBot(userAgent) && spaRoutes.includes(pathname)) {
+
+    // 3. Bot detection and content delivery for indexed routes
+    if (isBot(userAgent) && BOT_ROUTES.has(pathname)) {
       console.log(`[BOT DETECTED] ${userAgent.substring(0, 50)} -> ${pathname}`);
-      
+
       const html = generateBotHTML(pathname);
-      
+
       return new Response(html, {
         status: 200,
         headers: {
@@ -143,22 +165,29 @@ export async function onRequest(context: EventContext) {
         }
       });
     }
-    
-    // Regular user - SPA with smart caching
-    if (spaRoutes.includes(pathname)) {
+
+    // 4. Known SPA routes — serve the React app with correct cache headers
+    if (ALL_SPA_ROUTES.has(pathname)) {
       const response = await context.next();
       const newResponse = new Response(response.body, response);
-      
+
       newResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       newResponse.headers.set('X-Content-Type-Options', 'nosniff');
       newResponse.headers.set('X-Served-To', 'User');
-      
+
       return newResponse;
     }
-    
-    // All other requests - pass through
-    return context.next();
-    
+
+    // 5. Unknown routes — serve React app (renders NotFoundPage) with HTTP 404
+    //    React Router handles client-side display; HTTP 404 satisfies crawlers.
+    const response = await context.next();
+    const headers = new Headers(response.headers);
+    headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return new Response(response.body, {
+      status: 404,
+      headers
+    });
+
   } catch (error) {
     // Graceful fallback - never break the site
     console.error('[MIDDLEWARE ERROR]', error);

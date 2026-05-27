@@ -37,7 +37,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
     if (!el) return
     try {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    } catch (_) {
+    } catch {
       // Fallback for browsers without smooth option support
       const top = el.getBoundingClientRect().top + window.pageYOffset - 80
       window.scrollTo({ top, behavior: 'smooth' })
@@ -97,7 +97,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
       icon: Linkedin,
       name: 'LinkedIn',
       description: 'Connect with us professionally',
-      url: 'https://linkedin.com/company/fleetcore-ai',
+      url: 'https://www.linkedin.com/company/fleetcore',
       gradient: 'from-blue-600 to-blue-700',
       handle: '@fleetcore-ai',
       active: true
@@ -203,7 +203,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
     <div className="min-h-screen">
       <Helmet>
         <title>Contact fleetcore</title>
-        <meta name="description" content="Book a demo or reach our team by email or phone. Fast response, global support." />
+        <meta name="description" content="Book a fleetcore demo or contact our maritime technology team by email or phone. We respond within one business day with global support for fleet operators and technical managers." />
         <link rel="canonical" href="https://fleetcore.ai/contact" />
         <meta property="og:title" content="Contact fleetcore" />
         <meta property="og:description" content="Book a demo or reach our team by email or phone." />

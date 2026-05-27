@@ -8,16 +8,13 @@ import {
   Calendar,
   Zap,
   Shield,
-  TrendingUp,
   AlertTriangle,
   Clock,
   Settings,
   Network,
   Layers,
   Cpu,
-  LineChart,
   Activity,
-  GitBranch,
   Globe,
   Package,
   FileCheck,
@@ -223,8 +220,8 @@ const SolutionsPage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>Maritime Maintenance Solutions · 5 AI Agents · Predictive ML Stack | fleetcore</title>
-        <meta name="description" content="fleetcore replaces reactive CMMS with an AI-first maintenance OS: 5 autonomous agents across maintenance, procurement, incidents, compliance, and fleet conversation. Three-layer ML predictive stack, HITL governance, SOLAS/MARPOL compliance." />
+        <title>fleetcore — Maritime Maintenance Solutions</title>
+        <meta name="description" content="AI-first maritime maintenance OS: five autonomous agents for maintenance, procurement, incidents, compliance, and fleet conversation. Three-layer ML stack, HITL governance, SOLAS/MARPOL compliance." />
         <link rel="canonical" href="https://fleetcore.ai/solutions" />
         <meta property="og:title" content="Maritime Maintenance Solutions · 5 AI Agents · Predictive ML Stack | fleetcore" />
         <meta property="og:description" content="Five autonomous agents replace reactive maintenance with predictive intelligence: ML RUL forecasts, closed-loop procurement, incident response, compliance automation, and conversational fleet intelligence." />

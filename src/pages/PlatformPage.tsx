@@ -443,8 +443,8 @@ export const PlatformPage: React.FC<PlatformPageProps> = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>fleetcore Platform: Maritime OS — 4 Technical Excellence Pillars · 5 AI Agents · Three-Layer ML</title>
-        <meta name="description" content="Technical architecture of fleetcore's maritime operating system: four excellence pillars — Data Architecture, Automation & Intelligence, Security & Compliance, and AI Intelligence Layers. Five autonomous agents. Three-layer ML predictive stack with P05/P50/P95 RUL. Three-tier HITL governance. SOLAS/MARPOL built in." />
+        <title>fleetcore Platform — Maritime OS Architecture</title>
+        <meta name="description" content="Technical architecture of fleetcore's maritime OS: data architecture, automation, security, and AI layers. Five autonomous agents, three-layer ML predictive stack, HITL governance, SOLAS/MARPOL compliance." />
         <link rel="canonical" href="https://fleetcore.ai/platform" />
         <meta property="og:title" content="fleetcore Platform: 4 Technical Excellence Pillars + AI Intelligence Layers" />
         <meta property="og:description" content="Data Architecture · Automation & Intelligence · Security & Compliance · AI Intelligence Layers. Five autonomous agents, three-layer ML predictive stack, HITL governance. Real-time sync under 200ms. 100+ OEM manufacturers." />

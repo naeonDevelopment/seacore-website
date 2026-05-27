@@ -85,7 +85,7 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
   // Generated via: bash scripts/video/encode_renditions.sh
   // If the file does not exist, the gradient serves as the freeze-frame.
   const posterSrc = useMemo(
-    () => getAssetPath('assets/section_experts/vid_section_experts1-firstframe.jpg'),
+    () => getAssetPath('assets/section_experts/vid_section_experts1-firstframe.webp'),
     []
   )
 
@@ -99,7 +99,6 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
     recordStallEnd,
     recordReveal,
     recordLoadStage,
-    dump,
   } = useVideoPlaybackMetrics('ExecutiveRoleVideo')
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -178,16 +177,6 @@ const ExecutiveRoleVideoBackground: React.FC<ExecutiveRoleVideoBackgroundProps> 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // ── Expose debug API ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    ;(window as any).__executiveVideoDebug = {
-      dump,
-      stage: () => loadStageRef.current,
-      revealed: () => isRevealedRef.current,
-    }
-  }, [dump])
 
   // ── Crossfade: time-update handler ────────────────────────────────────────
   const handleTimeUpdate = (player: 'A' | 'B') => {

@@ -60,19 +60,6 @@ const Navigation: React.FC<NavigationProps> = ({ darkMode, toggleDarkMode }) => 
   // Dock visibility logic: show when scrolling down, hide when scrolling up (opposite of header)
   const showDock = scrollDirection === 'down' || scrollDirection === 'initial'
   
-  // Debug logging
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      const qs = new URLSearchParams(window.location.search)
-      const debugEnabled = qs.has('debugNav') || (window as any).__DEBUG_NAV === true
-      if (!debugEnabled) return
-    } catch {
-      if ((window as any).__DEBUG_NAV !== true) return
-    }
-    console.log('Scroll Direction:', scrollDirection, '| Header:', showMobileHeader, '| Dock:', showDock)
-  }, [scrollDirection, showMobileHeader, showDock])
-
   // Hide navigation on assistant page for fullscreen experience
   if (location.pathname === '/assistant') {
     return null

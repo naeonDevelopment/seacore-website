@@ -37,25 +37,12 @@ const IndustryParallaxBackground: React.FC<IndustryParallaxBackgroundProps> = ({
   // Image path - simple filename for better URL compatibility (no leading slash for Vite public assets)
   const imageSrc = getAssetPath('assets/section_industries/industry-background.webp')
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 IndustryParallaxBackground:', {
-      imageSrc,
-      isLoaded,
-      isDarkMode
-    })
-  }, [isLoaded, isDarkMode])
-
-  // Handle image load
   const handleImageLoad = () => {
-    console.log('✅ Industry background image loaded successfully from:', imageSrc)
     setIsLoaded(true)
   }
 
-  // Handle image error (fallback to gradient gracefully)
-  const handleImageError = (error: any) => {
-    console.log('❌ Industry background image failed to load from:', imageSrc)
-    console.error('Error details:', error)
+  const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('Industry background image failed to load:', imageSrc, error)
     setIsLoaded(false)
   }
 
@@ -77,6 +64,7 @@ const IndustryParallaxBackground: React.FC<IndustryParallaxBackgroundProps> = ({
           src={imageSrc}
           alt="Maritime Industry Background"
           className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}

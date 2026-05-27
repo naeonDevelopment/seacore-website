@@ -292,6 +292,7 @@ const Carousel: React.FC<CarouselProps> = ({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Previous slide"
             className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-50 maritime-glass-card w-10 h-10 md:w-12 md:h-12 rounded-full shadow-lg hover:shadow-xl"
             onClick={prevSlide}
           >
@@ -301,6 +302,7 @@ const Carousel: React.FC<CarouselProps> = ({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Next slide"
             className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-50 maritime-glass-card w-10 h-10 md:w-12 md:h-12 rounded-full shadow-lg hover:shadow-xl"
             onClick={nextSlide}
           >
@@ -315,6 +317,8 @@ const Carousel: React.FC<CarouselProps> = ({
           {Array.from({ length: totalItems }).map((_, index) => (
             <button
               key={index}
+              type="button"
+              aria-label={`Go to slide ${index + 1}`}
               className={cn(
                 "w-2 h-2 rounded-full transition-all duration-200",
                 (currentIndex % totalItems) === index

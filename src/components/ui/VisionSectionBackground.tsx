@@ -38,24 +38,12 @@ export const VisionSectionBackground: React.FC<VisionSectionBackgroundProps> = (
   // Use Vision section image
   const imageSrc = getAssetPath('assets/section_vision/our_vision.webp')
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 VisionSectionBackground:', {
-      imageSrc,
-      isLoaded,
-      isDarkMode
-    })
-  }, [isLoaded, isDarkMode])
-
-  // Handle image load
   const handleImageLoad = () => {
-    console.log('✅ Vision section image loaded successfully from:', imageSrc)
     setIsLoaded(true)
   }
 
-  // Handle image error
-  const handleImageError = () => {
-    console.log('❌ Vision section image failed to load from:', imageSrc)
+  const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('Vision section image failed to load:', imageSrc, error)
     setIsLoaded(false)
   }
 
@@ -77,6 +65,7 @@ export const VisionSectionBackground: React.FC<VisionSectionBackgroundProps> = (
           src={imageSrc}
           alt="Vision Background"
           className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}

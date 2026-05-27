@@ -79,6 +79,7 @@ extract_poster() {
     -ss 00:00:00.001 \
     -i "$input" \
     -frames:v 1 \
+    -update 1 \
     -q:v 2 \
     "$output"
   echo "   ✓ $(du -h "$output" | cut -f1)"

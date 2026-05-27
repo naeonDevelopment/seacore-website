@@ -12,11 +12,19 @@ export function generateAboutContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About fleetcore: Transforming Maritime Operations Through Global Intelligence</title>
-  <meta name="description" content="Enterprise maritime platform unifying 100+ OEM manufacturers into vendor-neutral intelligence. Strategic asset management delivering 40% cost reduction through predictive automation, cross-fleet learning, and regulatory compliance excellence.">
+  <title>About fleetcore | Maritime Technology Company</title>
+  <meta name="description" content="Enterprise maritime platform unifying 100+ OEM manufacturers. Strategic asset management with predictive automation, cross-fleet learning, and regulatory compliance for global fleet operators.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/about">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fleetcore.ai/about">
+  <meta property="og:title" content="About fleetcore | Maritime Technology Company">
+  <meta property="og:description" content="Enterprise maritime platform unifying 100+ OEM manufacturers with predictive automation and regulatory compliance.">
+  <meta property="og:image" content="https://fleetcore.ai/og/about.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="About fleetcore | Maritime Technology Company">
+  <meta name="twitter:image" content="https://fleetcore.ai/og/about.png">
 
   <script type="application/ld+json">
   {
@@ -118,7 +126,7 @@ export function generateAboutContent(): string {
 
   <h2>🌐 Enterprise Architecture</h2>
   <h3>Built for Global Fleet Operators</h3>
-  <p>Enterprise-grade platform designed for multi-vessel operations with unlimited scalability. Modern cloud-native architecture delivers <200ms real-time synchronization, multi-tenant security, and comprehensive audit trails. Strategic technology investment that future-proofs fleet operations.</p>
+  <p>Enterprise-grade platform designed for multi-vessel operations with unlimited scalability. Modern cloud-native architecture delivers &lt;200ms real-time synchronization, multi-tenant security, and comprehensive audit trails. Strategic technology investment that future-proofs fleet operations.</p>
 
   <h2>🤖 Executive Intelligence Assistant</h2>
   <p><strong>Strategic Decision Support:</strong> Our AI-powered assistant provides instant answers to strategic questions about platform capabilities, ROI analysis, implementation strategy, and competitive positioning.</p>

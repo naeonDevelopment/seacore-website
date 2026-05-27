@@ -1,5 +1,5 @@
 import React from 'react'
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
+import { motion, useMotionTemplate, useScroll, useTransform, useSpring } from 'framer-motion'
 
 interface GradientSection {
   id: string
@@ -45,16 +45,15 @@ const ScrollGradientBackground: React.FC<ScrollGradientBackgroundProps> = ({ sec
     damping: 20
   })
 
+  const background = useMotionTemplate`linear-gradient(${smoothRotation}deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
+
   return (
     <div className="fixed inset-0 pointer-events-none z-0">
       {/* Single subtle animated gradient */}
       <motion.div
         className="absolute inset-0 transition-opacity duration-1000"
         style={{
-          background: useTransform(
-            [primaryColor, secondaryColor, smoothRotation],
-            ([p, s, r]) => `linear-gradient(${r}deg, ${p} 0%, ${s} 100%)`
-          ),
+          background,
           opacity: 0.06
         }}
       />

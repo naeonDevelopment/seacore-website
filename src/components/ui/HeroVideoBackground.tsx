@@ -31,29 +31,13 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
   ], [])
 
   // Phase 3 (Option A): poster is the *first frame* of h_h_1.mp4 for best perceived load.
-  const posterSrc = useMemo(() => getAssetPath('assets/hero/h_h_1-firstframe.jpg'), [])
+  const posterSrc = useMemo(() => getAssetPath('assets/hero/h_h_1-firstframe.webp'), [])
 
-  const getDebugEnabled = () => {
-    if (typeof window === 'undefined') return false
-    try {
-      const qs = new URLSearchParams(window.location.search)
-      return qs.has('debugHeroVideo') || (window as any).__DEBUG_HERO_VIDEO === true
-    } catch {
-      return (window as any).__DEBUG_HERO_VIDEO === true
-    }
-  }
+  const debugEnabledRef = useRef<boolean>(false)
 
-  const debugEnabledRef = useRef<boolean>(getDebugEnabled())
+  const log = (_message: string, ..._args: unknown[]) => {}
 
-  const log = (message: string, ...args: unknown[]) => {
-    if (!debugEnabledRef.current) return
-    console.log(`HeroVideoBackground: ${message}`, ...args)
-  }
-
-  const logWarn = (message: string, ...args: unknown[]) => {
-    if (!debugEnabledRef.current) return
-    console.warn(`HeroVideoBackground: ${message}`, ...args)
-  }
+  const logWarn = (_message: string, ..._args: unknown[]) => {}
 
   const logError = (message: string, ...args: unknown[]) => {
     // Errors are always logged in production (needed for Phase 0 triage).
@@ -178,37 +162,6 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
       })
     } catch {
       // ignore
-    }
-  }
-
-  const installDebugApi = () => {
-    if (typeof window === 'undefined') return
-    ;(window as any).__heroVideoDebug = {
-      get enabled() {
-        return debugEnabledRef.current
-      },
-      set enabled(v: boolean) {
-        debugEnabledRef.current = Boolean(v)
-      },
-      dump: () => {
-        const report = {
-          generatedAtIso: new Date().toISOString(),
-          ttffMs: ttffMsRef.current,
-          timeToPlayingMs: tPlayMsRef.current,
-          smoothStartMs: smoothStartMsRef.current,
-          currentVideoIndex,
-          activePlayer,
-          events: debugEventsRef.current
-        }
-        console.log('Hero video debug report:', report)
-        return report
-      },
-      clear: () => {
-        debugEventsRef.current = []
-        ttffMsRef.current = null
-        tPlayMsRef.current = null
-        console.log('Hero video debug report cleared.')
-      }
     }
   }
 
@@ -816,7 +769,6 @@ const HeroVideoBackground: React.FC<HeroVideoBackgroundProps> = ({
 
     log(`Initializing hero video player with ${videoSources.length} videos`)
     emitSystemInfo()
-    installDebugApi()
     videoAIndexRef.current = 0
     videoAEl.src = videoSources[0]
     if (posterSrc) {

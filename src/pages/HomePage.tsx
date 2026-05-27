@@ -337,7 +337,7 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>fleetcore — Maritime Technical OS | 5 AI Agents · 10 Capabilities · 100+ OEM Manufacturers</title>
+        <title>fleetcore — Maritime Technical Operating System</title>
         <meta name="description" content="fleetcore is a maritime technical operating system with five autonomous AI agents across every workflow — predictive ML maintenance, closed-loop procurement automation, incident intelligence, compliance reporting, and conversational fleet intelligence. OEM PMS from 100+ manufacturers. SOLAS/MARPOL/ISM compliance built in. Ten comprehensive capabilities." />
         <link rel="canonical" href="https://fleetcore.ai/" />
         <meta property="og:title" content="fleetcore: Maritime OS — 5 AI Agents Across Every Workflow" />

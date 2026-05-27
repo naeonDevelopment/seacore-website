@@ -57,12 +57,16 @@ Allow: /
 User-agent: *
 Allow: /
 
-# Temporarily noindex unfinished solution sub-pages
+# Temporarily block unfinished solution sub-pages
 Disallow: /solutions/commercial-shipping
 Disallow: /solutions/offshore-energy
 Disallow: /solutions/cruise-lines
 Disallow: /solutions/naval-defense
 Disallow: /solutions/port-operations
 Disallow: /solutions/yacht-superyacht
+
+# Block unfinished resource and case-study pages
+Disallow: /resources
+Disallow: /case-studies
 
 Sitemap: https://fleetcore.ai/sitemap.xml

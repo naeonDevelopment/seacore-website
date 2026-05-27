@@ -10,6 +10,9 @@
 - [Solutions](https://fleetcore.ai/solutions): Use cases by fleet type — schedule-specific hours tracking, predictive maintenance, regulatory compliance automation
 - [About](https://fleetcore.ai/about): Company background, maritime domain expertise, ADGM-registered, Abu Dhabi UAE
 - [Contact](https://fleetcore.ai/contact): Demo scheduling (30-min Calendly) and enterprise inquiries
+- [AI Agent](https://fleetcore.ai/ai): Conversational fleet intelligence with 30+ maritime-domain handlers and HITL governance
+- [Privacy Policy](https://fleetcore.ai/privacy-policy): Data collection, use, and protection practices
+- [Imprint](https://fleetcore.ai/imprint): Legal notice and ADGM company registration details
 
 ## Key Facts
 

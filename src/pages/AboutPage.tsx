@@ -227,8 +227,8 @@ export const AboutPage: React.FC<AboutPageProps> = () => {
   return (
     <div className="relative min-h-screen">
       <Helmet>
-        <title>About fleetcore: Transforming Maritime Operations Through Global Intelligence</title>
-        <meta name="description" content="Enterprise maritime platform unifying 100+ OEM manufacturers into vendor-neutral intelligence. Strategic asset management delivering 40% cost reduction through predictive automation, cross-fleet learning, and regulatory compliance excellence." />
+        <title>About fleetcore | Maritime Technology Company</title>
+        <meta name="description" content="Enterprise maritime platform unifying 100+ OEM manufacturers. Strategic asset management with predictive automation, cross-fleet learning, and regulatory compliance for global fleet operators." />
         <link rel="canonical" href="https://fleetcore.ai/about" />
         <meta property="og:title" content="About fleetcore" />
         <meta property="og:description" content="Decades of maritime and software engineering experience; building the first intelligent PMS." />

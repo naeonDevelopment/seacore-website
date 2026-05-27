@@ -12,11 +12,19 @@ export function generatePrivacyPolicyContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Privacy Policy: Enterprise Security & Data Protection | GDPR Compliant</title>
-  <meta name="description" content="Enterprise-grade security for global maritime intelligence platform. Multi-tenant isolation, encrypted data, comprehensive audit trails, GDPR compliance. Secure platform protecting fleet operations data with organization-level access control.">
+  <title>fleetcore Privacy Policy</title>
+  <meta name="description" content="How fleetcore collects, uses, and protects your data across our platform and website.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/privacy-policy">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fleetcore.ai/privacy-policy">
+  <meta property="og:title" content="fleetcore Privacy Policy">
+  <meta property="og:description" content="How fleetcore collects, uses, and protects your data across our platform and website.">
+  <meta property="og:image" content="https://fleetcore.ai/og/privacy_policy.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="fleetcore Privacy Policy">
+  <meta name="twitter:image" content="https://fleetcore.ai/og/privacy_policy.png">
 
   <script type="application/ld+json">
   {

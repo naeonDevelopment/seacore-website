@@ -12,11 +12,19 @@ export function generateContactContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact fleetcore: Experience Agentic Maintenance OS | Demo & Pricing</title>
-  <meta name="description" content="Experience AI-Powered Maintenance Operating System. Schedule demo of autonomous agents, intelligent task automation, predictive maintenance, automated scheduling. Transform reactive maintenance into predictive intelligence. Enterprise pricing available.">
+  <title>Contact fleetcore</title>
+  <meta name="description" content="Book a fleetcore demo or contact our maritime technology team by email or phone. We respond within one business day with global support for fleet operators and technical managers.">
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/contact">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fleetcore.ai/contact">
+  <meta property="og:title" content="Contact fleetcore">
+  <meta property="og:description" content="Book a demo or reach our team by email or phone.">
+  <meta property="og:image" content="https://fleetcore.ai/og/contact.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Contact fleetcore">
+  <meta name="twitter:image" content="https://fleetcore.ai/og/contact.png">
 
   <script type="application/ld+json">
   {

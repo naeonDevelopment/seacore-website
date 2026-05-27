@@ -12,8 +12,8 @@ export function generatePlatformContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fleetcore Platform: Maritime OS — 4 Technical Excellence Pillars · 5 AI Agents · Three-Layer ML</title>
-  <meta name="description" content="Technical architecture of fleetcore's maritime operating system: four excellence pillars — Data Architecture, Automation & Intelligence, Security & Compliance, and AI Intelligence Layers. Five autonomous agents. Three-layer ML predictive stack with P05/P50/P95 RUL confidence bands. Three-tier HITL governance. SOLAS/MARPOL compliance built in.">
+  <title>fleetcore Platform — Maritime OS Architecture</title>
+  <meta name="description" content="Technical architecture of fleetcore's maritime OS: data architecture, automation, security, and AI layers. Five autonomous agents, three-layer ML predictive stack, HITL governance, SOLAS/MARPOL compliance.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
 

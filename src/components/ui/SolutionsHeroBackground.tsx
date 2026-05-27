@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { getAssetPath } from '@/utils/assetPath'
 
@@ -16,25 +16,12 @@ const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({
   // Use light image for hero (dark image is used in Architecture section)
   const imageSrc = getAssetPath('assets/hero_solutions/Generated Image October 05, 2025 - 2_47PM.webp')
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 SolutionsHeroBackground:', {
-      imageSrc,
-      isLoaded,
-      isDarkMode
-    })
-  }, [isLoaded, isDarkMode])
-
-  // Handle image load
   const handleImageLoad = () => {
-    console.log('✅ Solutions hero image loaded successfully from:', imageSrc)
     setIsLoaded(true)
   }
 
-  // Handle image error (fallback to gradient gracefully)
-  const handleImageError = (error: any) => {
-    console.log('❌ Solutions hero image failed to load from:', imageSrc)
-    console.error('Error details:', error)
+  const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('Solutions hero image failed to load:', imageSrc, error)
     setIsLoaded(false)
   }
 
@@ -57,7 +44,8 @@ const SolutionsHeroBackground: React.FC<SolutionsHeroBackgroundProps> = ({
         <motion.img
           src={imageSrc}
           alt="Solutions Hero Background"
-          className="absolute inset-0 w-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="eager"
           onLoad={handleImageLoad}
           onError={handleImageError}
           initial={{ opacity: 0 }}

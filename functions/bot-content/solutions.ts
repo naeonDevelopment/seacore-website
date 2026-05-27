@@ -14,11 +14,20 @@ export function generateSolutionsContent(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maritime Maintenance Solutions · 5 AI Agents · Predictive ML Stack | fleetcore</title>
-  <meta name="description" content="fleetcore replaces reactive CMMS with an AI-first maintenance OS: 5 autonomous agents across maintenance, procurement, incidents, compliance, and fleet conversation. Three-layer ML predictive stack, HITL governance, SOLAS/MARPOL compliance.">
+  <title>fleetcore — Maritime Maintenance Solutions</title>
+  <meta name="description" content="AI-first maritime maintenance OS: five autonomous agents for maintenance, procurement, incidents, compliance, and fleet conversation. Three-layer ML stack, HITL governance, SOLAS/MARPOL compliance.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/solutions">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fleetcore.ai/solutions">
+  <meta property="og:title" content="fleetcore — Maritime Maintenance Solutions">
+  <meta property="og:description" content="AI-first maritime maintenance OS with five autonomous agents, three-layer ML predictive stack, and HITL governance.">
+  <meta property="og:image" content="https://fleetcore.ai/og/solution.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="fleetcore — Maritime Maintenance Solutions">
+  <meta name="twitter:description" content="Five autonomous agents, three-layer ML stack, HITL governance, SOLAS/MARPOL compliance.">
+  <meta name="twitter:image" content="https://fleetcore.ai/og/solution.png">
 
   <script type="application/ld+json">
   {
@@ -173,24 +182,28 @@ export function generateSolutionsContent(): string {
   <p>Every AI-driven write action is gated by a Confidence Score — a 0–100% metric combining prediction accuracy, divergence from baseline, and training data recency. No agent action bypasses human review.</p>
   <table>
     <tr>
+      <th>Tier</th>
       <th>Confidence Score</th>
-      <th>Action</th>
-      <th>Who Reviews</th>
+      <th>Actions created</th>
+      <th>Expiry</th>
     </tr>
     <tr>
-      <td><strong>Below 70%</strong></td>
-      <td>Auto-escalate to human</td>
-      <td>Technical Superintendent</td>
+      <td><strong>Tier 0 — Advisory</strong></td>
+      <td>&lt; 50%</td>
+      <td>In-app notification only. No write actions proposed.</td>
+      <td>No expiry</td>
     </tr>
     <tr>
-      <td><strong>70–94%</strong></td>
-      <td>Full review queue</td>
-      <td>Chief Engineer or Superintendent</td>
+      <td><strong>Tier 1 — Semi-Automated</strong></td>
+      <td>50–80%</td>
+      <td>Schedule adjustment proposal, draft maintenance task, alert</td>
+      <td>72 hours</td>
     </tr>
     <tr>
-      <td><strong>95%+</strong></td>
-      <td>Streamlined one-click approval</td>
-      <td>Any authorized approver</td>
+      <td><strong>Tier 2 — Accelerated</strong></td>
+      <td>≥ 80%</td>
+      <td>Predictive event, procurement pre-check, draft compliance report</td>
+      <td>24h (12h safety-critical)</td>
     </tr>
   </table>
 
@@ -355,7 +368,7 @@ export function generateSolutionsContent(): string {
   <p>The Procurement Intelligence Agent ingests ML-predicted remaining-useful-life signals from the Predictive Maintenance layer. When a component's predicted life falls below the configured reorder threshold, the agent automatically drafts ranked supplier inquiry emails, analyzes incoming offers on price, lead time, and quality, and presents a scored recommendation for one-click human approval. The full cycle — from ML trigger to approved purchase — requires zero manual sourcing effort.</p>
 
   <h3>How does fleetcore handle HITL governance?</h3>
-  <p>Every AI-driven write action passes through a three-tier governance model governed by a Confidence Score (0–100%). Below 70%: the action is automatically escalated to a human approver before execution. 70–94%: the action enters a full review queue. 95%+: streamlined one-click approval is available. No agent writes to any record without a human in the loop.</p>
+  <p>Every AI-driven write action passes through a three-tier governance model governed by a Confidence Score (0–100%). Tier 0 (below 50%): advisory alerts only, no write actions. Tier 1 (50–80%): schedule proposals and draft tasks require human approval within 72 hours. Tier 2 (≥80%): accelerated path with predictive events and compliance drafts — 24-hour window (12h for safety-critical equipment). No agent writes to any record without explicit human approval.</p>
 
   <h3>What sensor types does the ML stack process?</h3>
   <p>The third-party sensor stream layer processes vibrational sensors (bearing and shaft vibration analysis), thermal sensors (exhaust gas temperature, coolant temperature trending), and environmental sensors (humidity, pressure). These streams feed into the composite health index alongside historical maintenance records and live equipment telemetry to produce P05/P50/P95 RUL forecasts per installation.</p>

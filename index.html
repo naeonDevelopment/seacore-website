@@ -2,12 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon/favicon-48x48.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
     <link rel="manifest" href="/favicon/site.webmanifest">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- Google Consent Mode v2 - MUST LOAD FIRST (BEFORE GTM) -->
     <script>
@@ -42,12 +44,10 @@
     <!-- Primary Meta Tags -->
     <title>fleetcore - Agentic Maritime Intelligence Platform</title>
     <meta name="title" content="fleetcore - Agentic Maritime Intelligence Platform" />
-    <meta name="description" content="Revolutionary AI-powered maritime maintenance platform with predictive intelligence, automated SOLAS/MARPOL/ISM compliance, and cross-manufacturer optimization. Transform your fleet operations with agentic maritime intelligence." />
+    <meta name="description" content="AI-powered maritime maintenance OS: predictive intelligence, automated SOLAS/MARPOL/ISM compliance, cross-manufacturer optimization. Transform fleet operations with agentic maritime intelligence." />
     <meta name="keywords" content="maritime intelligence, agentic AI, predictive maintenance, SOLAS compliance, MARPOL automation, ISM code, fleet management, maritime software, vessel maintenance, marine technology" />
     <meta name="author" content="fleetcore" />
     <meta name="robots" content="index, follow" />
-    <!-- TODO: Add Google Search Console verification tag here after registering -->
-    <!-- <meta name="google-site-verification" content="YOUR_VERIFICATION_CODE" /> -->
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -247,8 +247,7 @@
     <!-- DEPLOYMENT_MODEL: Cloud-native SaaS with 99.9% uptime SLA -->
     <!-- INTEGRATION_CAPABILITIES: ERP, OEM manufacturers, procurement systems, document management -->
     
-    <!-- Performance and Security -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://assets.calendly.com https://www.google.com https://www.gstatic.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com; img-src 'self' data: https: https://www.googletagmanager.com https://www.google-analytics.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss: https://www.google-analytics.com https://www.googletagmanager.com; media-src 'self' data: blob:; frame-src https://calendly.com https://www.google.com https://www.recaptcha.net https://js.stripe.com https://m.stripe.network; object-src 'none'; child-src https://calendly.com https://www.google.com https://www.recaptcha.net https://js.stripe.com;" />
+    <!-- Performance and Security (CSP is set in public/_headers) -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
@@ -449,7 +448,7 @@
     
     <div id="root"></div>
     <!-- Calendly Override - Loaded first, but Calendly widget only loads after marketing consent -->
-    <script src="/calendly-override.js" type="text/javascript"></script>
+    <script src="/calendly-override.js" defer></script>
     <!-- Calendly widget will be loaded dynamically by cookie consent manager -->
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -346,10 +346,38 @@ const AIPage: React.FC = () => {
         <meta property="og:description" content="30+ maritime-domain handlers. Human-approved automation. Ask anything about your fleet." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fleetcore.ai/ai" />
+        <meta property="og:image" content="https://fleetcore.ai/og/assistant.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@fleetcore_ai" />
         <meta name="twitter:title" content="fleetcore AI Agent | Maritime Fleet Intelligence" />
         <meta name="twitter:description" content="30+ maritime-domain handlers. Human-approved automation. Ask anything about your fleet." />
+        <meta name="twitter:image" content="https://fleetcore.ai/og/assistant.png" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: [
+              {
+                '@type': 'Question',
+                name: 'What can the fleetcore AI agent do?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'The fleetcore AI agent answers fleet questions in natural language across tasks, events, procurement, compliance, and KPIs using 30+ maritime-domain handlers with session memory and human-in-the-loop governance.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'How many maritime handlers does fleetcore AI use?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'fleetcore AI uses 30+ maritime-domain handlers covering maintenance, inventory, RUL forecasts, compliance, financials, and fleet operations with human-approved automation.',
+                },
+              },
+            ],
+          })}
+        </script>
       </Helmet>
 
       <ScrollGradientBackground sections={gradientSections} />

@@ -17,6 +17,13 @@ export function generateImprintContent(): string {
   <meta name="robots" content="index, follow">
   <meta name="revised" content="${LAST_UPDATED}">
   <link rel="canonical" href="https://fleetcore.ai/imprint">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://fleetcore.ai/imprint">
+  <meta property="og:title" content="fleetcore Imprint — Legal Notice">
+  <meta property="og:description" content="Legal information and company registration details for fleetcore — ADGM-registered maritime technology company.">
+  <meta property="og:image" content="https://fleetcore.ai/og/home.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://fleetcore.ai/og/home.png">
 
   <script type="application/ld+json">
   {
