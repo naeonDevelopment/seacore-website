@@ -129,10 +129,18 @@ const NOINDEX_ROUTES = new Set([
   '/case-studies',
 ]);
 
+/** Vite/Rollup hashed filenames are case-sensitive — never lowercase paths with extensions */
+function hasStaticFileExtension(pathname: string): boolean {
+  return /\.[a-zA-Z0-9]{2,12}$/.test(pathname);
+}
+
 function canonicalizePathname(pathname: string): string {
   const collapsed = pathname.replace(/\/{2,}/g, '/');
   const withoutTrailing =
     collapsed.length > 1 && collapsed.endsWith('/') ? collapsed.replace(/\/+$/, '') || '/' : collapsed;
+  if (hasStaticFileExtension(withoutTrailing)) {
+    return withoutTrailing;
+  }
   return withoutTrailing.toLowerCase();
 }
 
@@ -148,18 +156,30 @@ export async function onRequest(context: EventContext) {
       return Response.redirect(`https://fleetcore.ai${rawPathname}${url.search}`, 301);
     }
 
-    // 2. Normalize path: collapse slashes, strip trailing slash, lowercase
+    // 2. Normalize path: collapse slashes, strip trailing slash, lowercase (routes only — not /assets/*.js)
     const canonicalPathname = canonicalizePathname(rawPathname);
     if (canonicalPathname !== rawPathname) {
+      // #region agent log
+      fetch('http://127.0.0.1:7612/ingest/8d204304-9cf4-47d6-964a-569190a5d50a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0369ab'},body:JSON.stringify({sessionId:'0369ab',location:'_middleware.ts:canonical-redirect',message:'pathname redirect',data:{rawPathname,canonicalPathname,hasExt:hasStaticFileExtension(rawPathname)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       return Response.redirect(`${url.origin}${canonicalPathname}${url.search}`, 301);
     }
     const pathname = canonicalPathname;
+
+    // #region agent log
+    if (pathname.startsWith('/assets/') && pathname.endsWith('.js')) {
+      fetch('http://127.0.0.1:7612/ingest/8d204304-9cf4-47d6-964a-569190a5d50a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0369ab'},body:JSON.stringify({sessionId:'0369ab',location:'_middleware.ts:asset-pass',message:'js asset path preserved',data:{pathname},timestamp:Date.now(),hypothesisId:'H1',runId:'post-fix'})}).catch(()=>{});
+    }
+    // #endregion
 
     // 3. Static asset caching - aggressive performance
     const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|webm|txt|xml|json|webmanifest)$/i.test(pathname);
 
     if (isStaticAsset) {
       const response = await context.next();
+      // #region agent log
+      fetch('http://127.0.0.1:7612/ingest/8d204304-9cf4-47d6-964a-569190a5d50a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0369ab'},body:JSON.stringify({sessionId:'0369ab',location:'_middleware.ts:static-asset',message:'static asset response',data:{pathname,status:response.status,contentType:response.headers.get('content-type')},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       const newResponse = new Response(response.body, response);
 
       // Immutable hashed assets - 1 year cache
